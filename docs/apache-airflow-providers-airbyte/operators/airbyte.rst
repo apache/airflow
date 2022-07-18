@@ -45,14 +45,14 @@ return the ``job_id`` that should be pass to the AirbyteSensor.
 
 An example using the synchronous way:
 
-.. exampleinclude:: /../../airflow/providers/airbyte/example_dags/example_airbyte_trigger_job.py
+.. exampleinclude:: /../../tests/system/providers/airbyte/example_airbyte_trigger_job.py
     :language: python
     :start-after: [START howto_operator_airbyte_synchronous]
     :end-before: [END howto_operator_airbyte_synchronous]
 
 An example using the async way:
 
-.. exampleinclude:: /../../airflow/providers/airbyte/example_dags/example_airbyte_trigger_job.py
+.. exampleinclude:: /../../tests/system/providers/airbyte/example_airbyte_trigger_job.py
     :language: python
     :start-after: [START howto_operator_airbyte_asynchronous]
     :end-before: [END howto_operator_airbyte_asynchronous]
