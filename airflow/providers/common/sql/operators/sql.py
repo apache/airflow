@@ -34,7 +34,13 @@ def parse_boolean(val: str) -> Union[str, bool]:
     raise ValueError(f"{val!r} is not a boolean-like string value")
 
 
-def _get_failed_tests(checks):
+def _get_failed_checks(checks, col=None):
+    if col:
+        return [
+            f"Column: {col}\nCheck: {check},\nCheck Values: {check_values}\n"
+            for check, check_values in checks.items()
+            if not check_values["success"]
+        ]
     return [
         f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
         for check, check_values in checks.items()
@@ -134,10 +140,10 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                     self.column_mapping[column][checks[idx]], result, tolerance
                 )
 
-            failed_tests.extend(_get_failed_tests(self.column_mapping[column]))
+            failed_tests.extend(_get_failed_checks(self.column_mapping[column], column))
         if failed_tests:
             raise AirflowException(
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+                f"Test failed.\nResults:\n{records!s}\n"
                 "The following tests have failed:"
                 f"\n{''.join(failed_tests)}"
             )
@@ -310,7 +316,7 @@ def execute(self, context=None):
         result = row[1].get("check_result")
         self.checks[check]["success"] = parse_boolean(str(result))
 
-    failed_tests = _get_failed_tests(self.checks)
+    failed_tests = _get_failed_checks(self.checks)
     if failed_tests:
         raise AirflowException(
             f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
