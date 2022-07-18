@@ -102,11 +102,31 @@ define a ``schedule_interval`` of 1 day for the DAG.
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
 
+Operators
+---------
+
+An operator defines a unit of work for Airflow to complete. Using operators is the classic approach
+to defining work in Airflow. For some use cases, it's better to use the TaskFlow API to define
+work in a Pythonic context as described in :doc:`/tutorial_taskflow_api`. For now, using operators helps to
+visualize task dependencies in our DAG code.
+
+All operators inherit from the BaseOperator, which includes all of the required arguments for
+running work in Airflow. From here, each operator includes unique arguments for
+the type of work it's completing. Some of the most popular operators are the PythonOperator, the BashOperator, and the
+KubernetesPodOperator.
+
+Airflow completes work based on the arguments you pass to your operators. In this tutorial, we
+use the BashOperator to run a few bash scripts.
+
 Tasks
 -----
-Tasks are generated when instantiating operator objects. An object
-instantiated from an operator is called a task. The first argument
-``task_id`` acts as a unique identifier for the task.
+
+To use an operator in a DAG, you have to instantiate it as a task. Tasks
+determine how to execute your operator's work within the context of a DAG.
+
+In the following example, we instantiate the BashOperator as two separate tasks in order to run two
+separate bash scripts. The first argument for each instantiation, ``task_id``,
+acts as a unique identifier for the task.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
