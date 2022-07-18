@@ -159,9 +159,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
-        :param return_last: Whether to return handler result for only last statement or for all
+        :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the LAST SQL expression if handler was provided.
         """
+        scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
             if split_statements:
                 sql = self.split_sql_string(sql)
@@ -191,7 +192,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         if handler is None:
             return None
-        elif return_last:
+        elif scalar_return_last:
             return results[-1]
         else:
             return results

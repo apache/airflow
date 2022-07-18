@@ -78,7 +78,7 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
         conn.cursor.return_value = cur
 
         query = "select * from test.test;"
-        schema, results = self.hook.run(sql=query, handler=fetch_all_handler)[0]
+        schema, results = self.hook.run(sql=query, handler=fetch_all_handler)
 
         assert schema == test_schema
         assert results == []
