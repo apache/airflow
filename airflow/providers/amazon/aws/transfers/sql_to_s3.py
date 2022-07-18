@@ -30,7 +30,6 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.s3 import fix_int_dtypes
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

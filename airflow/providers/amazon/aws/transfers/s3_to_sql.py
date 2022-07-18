@@ -87,27 +87,27 @@ class S3ToSqlOperator(BaseOperator):
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Download file from: \n %s", self.s3_key)
         file = source_hook.download_file(key=self.s3_key)
-        if self.file_format == 'csv':
-            df = pandas.read_csv(file, **self.file_options)
-        elif self.file_format == 'parquet':
-            df = pandas.read_parquet(file, **self.file_options)
-        elif self.file_format == 'json':
-            df = pandas.read_json(file, **self.file_options)
-        else:
-            raise AirflowException('File format was not found!!')
-        if self.preoperator:
-            run = getattr(destination_hook, 'run', None)
-            if not callable(run):
-                raise RuntimeError(
-                    f"Hook for connection {self.destination_conn_id!r} "
-                    f"({type(destination_hook).__name__}) has no `run` method"
-                )
-            self.log.info("Running pre-operator")
-            self.log.info(self.preoperator)
-            run(self.preoperator)
-        fix_int_dtypes(df)
-        self.log.info("Inserting rows into %s", self.destination_conn_id)
         try:
+            if self.file_format == 'csv':
+                df = pandas.read_csv(file, **self.file_options)
+            elif self.file_format == 'parquet':
+                df = pandas.read_parquet(file, **self.file_options)
+            elif self.file_format == 'json':
+                df = pandas.read_json(file, **self.file_options)
+            else:
+                raise AirflowException('File format was not found!!')
+            if self.preoperator:
+                run = getattr(destination_hook, 'run', None)
+                if not callable(run):
+                    raise RuntimeError(
+                        f"Hook for connection {self.destination_conn_id!r} "
+                        f"({type(destination_hook).__name__}) has no `run` method"
+                    )
+                self.log.info("Running pre-operator")
+                self.log.info(self.preoperator)
+                run(self.preoperator)
+            fix_int_dtypes(df)
+            self.log.info("Inserting rows into %s", self.destination_conn_id)
             df.to_sql(self.destination_table, destination_hook.get_conn(), **self.insert_args)
         finally:
             os.remove(file)
