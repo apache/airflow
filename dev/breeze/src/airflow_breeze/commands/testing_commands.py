@@ -197,9 +197,9 @@ def run_with_progress(
 ) -> RunCommandResult:
     title = f"Running tests: {test_type}, Python: {python}, Backend: {backend}:{version}"
     try:
-        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as tf:
             get_console().print(f"[info]Starting test = {title}[/]")
-            thread = MonitoringThread(title=title, file_name=f.name)
+            thread = MonitoringThread(title=title, file_name=tf.name)
             thread.start()
             try:
                 result = run_command(
@@ -208,14 +208,14 @@ def run_with_progress(
                     dry_run=dry_run,
                     env=env_variables,
                     check=False,
-                    stdout=f,
+                    stdout=tf,
                     stderr=subprocess.STDOUT,
                 )
             finally:
                 thread.stop()
                 thread.join()
         with ci_group(f"Result of {title}", message_type=message_type_from_return_code(result.returncode)):
-            with open(f.name) as f:
+            with open(tf.name) as f:
                 shutil.copyfileobj(f, sys.stdout)
     finally:
         os.unlink(f.name)

@@ -175,7 +175,7 @@ class SchedulerJob(BaseJob):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
-    def _exit_gracefully(self, signum: int, frame: "FrameType") -> None:
+    def _exit_gracefully(self, signum: int, frame: Optional["FrameType"]) -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -186,7 +186,7 @@ class SchedulerJob(BaseJob):
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
-    def _debug_dump(self, signum: int, frame: "FrameType") -> None:
+    def _debug_dump(self, signum: int, frame: Optional["FrameType"]) -> None:
         if not _is_parent_process():
             # Only the parent process should perform the debug dump.
             return

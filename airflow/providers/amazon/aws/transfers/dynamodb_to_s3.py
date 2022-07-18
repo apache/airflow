@@ -114,6 +114,7 @@ class DynamoDBToS3Operator(BaseOperator):
 
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
+        f: IO[Any]
         with NamedTemporaryFile() as f:
             try:
                 f = self._scan_dynamodb_and_upload_to_s3(f, scan_kwargs, table)
