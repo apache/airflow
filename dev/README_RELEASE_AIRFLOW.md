@@ -26,7 +26,7 @@
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
+  - [Prepare new release branches and cache - optional when first minor version is released](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
@@ -211,7 +211,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
-  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+  For major/minor version release, please follow  the instructions at
+  [Prepare new release branches and cache](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
+  to create the 'test' and 'stable' branches.
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
@@ -326,7 +328,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
 
-## [\Optional\] Prepare new release branches and cache
+## Prepare new release branches and cache - optional when first minor version is released
 
 When you just released the `X.Y.0` version (first release of new minor version) you need to create release
 branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and

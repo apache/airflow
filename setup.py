@@ -325,7 +325,7 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    'mypy==0.910',
+    'mypy==0.950',
     'types-boto',
     'types-certifi',
     'types-croniter',
