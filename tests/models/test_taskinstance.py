@@ -1535,7 +1535,7 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+        assert ti.state == TaskInstanceState.SUCCESS
 
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
@@ -1577,13 +1577,13 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        assert ti.state == State.SKIPPED
+        assert ti.state == TaskInstanceState.SKIPPED
 
         # check that no dagruns were queued
         assert session.query(DatasetDagRunQueue).count() == 0
 
         # check that no dataset events were generated
-        assert (session.query(DatasetEvent).count()) == 0
+        assert session.query(DatasetEvent).count() == 0
 
     @staticmethod
     def _test_previous_dates_setup(
