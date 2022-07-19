@@ -278,15 +278,13 @@ class PrestoHook(DbApiHook):
             )
             sql = hql
 
-        if isinstance(sql, str):
-            sql = self.strip_sql_string(sql)
-
         return super().run(
             sql=sql,
             autocommit=autocommit,
             parameters=parameters,
             handler=handler,
             split_statements=split_statements,
+            return_last=return_last,
         )
 
     def insert_rows(

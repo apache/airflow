@@ -318,7 +318,7 @@ class SnowflakeHook(DbApiHook):
                 split_statements_tuple = util_text.split_statements(StringIO(sql))
                 sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
             else:
-                sql = [sql]
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
             self.log.debug("Executing following statements against Snowflake DB: %s", list(sql))

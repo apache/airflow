@@ -167,7 +167,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             if split_statements:
                 sql = self.split_sql_string(sql)
             else:
-                sql = [sql]
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
             self.log.debug("Executing following statements against Databricks DB: %s", list(sql))

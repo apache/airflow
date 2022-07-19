@@ -258,7 +258,7 @@ class DbApiHook(BaseHook):
             if split_statements:
                 sql = self.split_sql_string(sql)
             else:
-                sql = [sql]
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
             self.log.debug("Executing following statements against DB: %s", list(sql))
