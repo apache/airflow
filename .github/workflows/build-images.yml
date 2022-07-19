@@ -319,12 +319,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         run: >
           breeze static-checks --type update-providers-dependencies --all-files
           --show-diff-on-failure --color always || true
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: >
           Pull CI image for PROD build:
           ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
@@ -341,6 +339,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --package-list-file ./scripts/ci/installed_providers.txt
           --package-format wheel
           --version-suffix-for-pypi dev0
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Prepare airflow package"
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
       - name: "Move dist packages to docker-context files"
@@ -354,8 +353,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --tag-as-latest
           --push-image
           --install-packages-from-context
-          --disable-airflow-repo-cache
-          --airflow-is-in-context
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
