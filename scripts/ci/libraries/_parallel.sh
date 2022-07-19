@@ -252,16 +252,10 @@ function parallel::get_maximum_parallel_k8s_jobs() {
         echo
         export MAX_PARALLEL_K8S_JOBS="1"
     else
-        if [[ ${MAX_PARALLEL_K8S_JOBS=} != "" ]]; then
-            echo
-            echo "${COLOR_YELLOW}Maximum parallel k8s jobs forced vi MAX_PARALLEL_K8S_JOBS = ${MAX_PARALLEL_K8S_JOBS}${COLOR_RESET}"
-            echo
-        else
-            MAX_PARALLEL_K8S_JOBS=$((CPUS_AVAILABLE_FOR_DOCKER / 4))
-            echo
-            echo "${COLOR_YELLOW}Maximum parallel k8s jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_K8S_JOBS}${COLOR_RESET}"
-            echo
-        fi
+        echo
+        echo "${COLOR_YELLOW}This is a Self-Hosted runner - forcing max parallel jobs to 5${COLOR_RESET}"
+        echo
+        export MAX_PARALLEL_K8S_JOBS="3"
     fi
     export MAX_PARALLEL_K8S_JOBS
 }

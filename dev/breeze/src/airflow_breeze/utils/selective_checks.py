@@ -252,12 +252,14 @@ class SelectiveChecks:
         self,
         files: tuple[str, ...] = (),
         default_branch="main",
+        default_constraints_branch="constraints-main",
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
     ):
         self._files = files
         self._default_branch = default_branch
+        self._default_constraints_branch = default_constraints_branch
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
@@ -294,12 +296,19 @@ class SelectiveChecks:
         return self._default_branch
 
     @cached_property
+    def default_constraints_branch(self) -> str:
+        return self._default_constraints_branch
+
+    @cached_property
     def _full_tests_needed(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
-            get_console().print(f"[warning]Full tests needed because labels are {self._pr_labels}[/]")
+            get_console().print(
+                "[warning]Full tests needed because "
+                f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
+            )
             return True
         return False
 
