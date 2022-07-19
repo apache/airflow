@@ -96,7 +96,7 @@ const InstanceTooltip = ({
       <Text>
         Started:
         {' '}
-        <Time dateTime={startDate || ''} />
+        <Time dateTime={startDate} />
       </Text>
       <Text>
         Duration:

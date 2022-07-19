@@ -54,7 +54,7 @@ if __name__ == '__main__':
             "never",
             airflow_image,
             "-c",
-            'cd airflow/www && yarn --frozen-lockfile --non-interactive && yarn run lint',
+            'cd airflow/www && yarn --frozen-lockfile --non-interactive && yarn run generate-api-types && yarn run lint',
         ],
         check=False,
         verbose=VERBOSE,
