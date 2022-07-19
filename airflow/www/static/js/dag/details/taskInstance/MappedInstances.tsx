@@ -84,7 +84,7 @@ const MappedInstances = ({
         dag_id: dagId.toString(),
         task_id: mi.taskId || '',
         execution_date: mi.executionDate || '',
-        map_index: mi.mapIndex.toString(),
+        map_index: (mi.mapIndex || -1).toString(),
       }).toString();
       const detailsLink = `${taskUrl}&${params}`;
       const renderedLink = `${renderedTemplatesUrl}&${params}`;

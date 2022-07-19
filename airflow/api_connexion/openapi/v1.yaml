@@ -2906,6 +2906,8 @@ components:
           nullable: true
         try_number:
           type: integer
+        map_index:
+          type: integer
         max_tries:
           type: integer
         hostname:

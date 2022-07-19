@@ -1145,6 +1145,7 @@ export interface components {
       duration?: number | null;
       state?: components["schemas"]["TaskState"] | null;
       try_number?: number;
+      map_index?: number;
       max_tries?: number;
       hostname?: string;
       unixname?: string;

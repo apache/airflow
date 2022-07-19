@@ -26,12 +26,8 @@ import type { API, DagRun } from 'src/types';
 
 const mappedInstancesUrl = getMetaValue('mapped_instances_api') || '';
 
-interface MappedInstance extends API.TaskInstance {
-  mapIndex: number;
-}
-
 interface MappedInstanceData {
-  taskInstances: MappedInstance[];
+  taskInstances: API.TaskInstance[];
   totalEntries: number;
 }
 
