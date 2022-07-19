@@ -459,11 +459,6 @@ function initialization::initialize_image_build_variables() {
     # Determines which providers are used to generate constraints - source, pypi or no providers
     export AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}
 
-    # By default we install latest airflow from PyPI or sources. You can set this parameter to false
-    # if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
-    # to skip installing Airflow/Providers from PyPI or sources.
-    export AIRFLOW_IS_IN_CONTEXT="${AIRFLOW_IS_IN_CONTEXT:="false"}"
-
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
     export INSTALL_PACKAGES_FROM_CONTEXT="${INSTALL_PACKAGES_FROM_CONTEXT:="false"}"
 
@@ -715,7 +710,6 @@ Common image build variables:
 
     INSTALL_AIRFLOW_VERSION: '${INSTALL_AIRFLOW_VERSION}'
     INSTALL_AIRFLOW_REFERENCE: '${INSTALL_AIRFLOW_REFERENCE}'
-    AIRFLOW_IS_IN_CONTEXT: '${AIRFLOW_IS_IN_CONTEXT}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
@@ -858,7 +852,6 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly AIRFLOW_IS_IN_CONTEXT
     readonly INSTALL_PACKAGES_FROM_CONTEXT
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION

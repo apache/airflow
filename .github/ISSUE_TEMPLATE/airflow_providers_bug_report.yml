@@ -43,7 +43,6 @@ body:
         - celery
         - cloudant
         - cncf-kubernetes
-        - common-sql
         - databricks
         - datadog
         - dbt-cloud
@@ -93,7 +92,6 @@ body:
         - sqlite
         - ssh
         - tableau
-        - tabular
         - telegram
         - trino
         - vertica
