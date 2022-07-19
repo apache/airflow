@@ -151,6 +151,22 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents": {
+    /**
+     * Get datasets for a dag run.
+     *
+     * *New in version 2.4.0*
+     */
+    get: operations["get_upstream_dataset_events"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+      };
+    };
+  };
   "/eventLogs": {
     /** List log entries from event log. */
     get: operations["get_event_logs"];
@@ -1473,13 +1489,13 @@ export interface components {
       /** @description The dataset extra */
       extra?: string | null;
       /** @description The DAG ID that updated the dataset. */
-      source_dag_id?: string;
+      source_dag_id?: string | null;
       /** @description The task ID that updated the dataset. */
-      source_task_id?: string;
+      source_task_id?: string | null;
       /** @description The DAG run ID that updated the dataset. */
-      source_run_id?: string;
+      source_run_id?: string | null;
       /** @description The task map index that updated the dataset. */
-      source_map_index?: number;
+      source_map_index?: number | null;
       /** @description The dataset event creation time */
       created_at?: string;
     };
@@ -2640,6 +2656,32 @@ export interface operations {
       content: {
         "application/json": components["schemas"]["ClearDagRun"];
       };
+    };
+  };
+  /**
+   * Get datasets for a dag run.
+   *
+   * *New in version 2.4.0*
+   */
+  get_upstream_dataset_events: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetEventCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /** List log entries from event log. */
@@ -4053,6 +4095,7 @@ export type GetDagRunVariables = operations['get_dag_run']['parameters']['path']
 export type DeleteDagRunVariables = operations['delete_dag_run']['parameters']['path'];
 export type UpdateDagRunStateVariables = operations['update_dag_run_state']['parameters']['path'] & operations['update_dag_run_state']['requestBody']['content']['application/json'];
 export type ClearDagRunVariables = operations['clear_dag_run']['parameters']['path'] & operations['clear_dag_run']['requestBody']['content']['application/json'];
+export type GetUpstreamDatasetEventsVariables = operations['get_upstream_dataset_events']['parameters']['path'];
 export type GetEventLogsVariables = operations['get_event_logs']['parameters']['query'];
 export type GetEventLogVariables = operations['get_event_log']['parameters']['path'];
 export type GetImportErrorsVariables = operations['get_import_errors']['parameters']['query'];

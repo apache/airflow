@@ -72,6 +72,7 @@ PRE_COMMIT_LIST = [
     'end-of-file-fixer',
     'fix-encoding-pragma',
     'flynt',
+    'generate-api-types',
     'identity',
     'insert-license',
     'isort',
