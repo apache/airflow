@@ -264,6 +264,13 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
     show_default=True,
 )
 @click.option(
+    '--default-constraints-branch',
+    help="Constraints Branch against which the PR should be run",
+    default="constraints-main",
+    envvar="DEFAULT_CONSTRAINTS_BRANCH",
+    show_default=True,
+)
+@click.option(
     '--github-event-name',
     type=BetterChoice(github_events()),
     default=github_events()[0],
