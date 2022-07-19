@@ -1454,7 +1454,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-kubernetes:
     timeout-minutes: 240
-    name: Helm Chart; ${{matrix.executor}}
+    name: Helm Chart; ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-prod-images]
     strategy:
@@ -1524,7 +1524,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-helm-executor-upgrade:
     timeout-minutes: 150
-    name: Helm Chart Executor Upgrade
+    name: Helm Chart Executor Upgrade - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-prod-images]
     env:
