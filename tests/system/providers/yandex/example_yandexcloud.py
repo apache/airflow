@@ -16,16 +16,17 @@
 # under the License.
 import os
 from datetime import datetime
+from typing import Optional
 
-from google.protobuf.json_format import MessageToDict
-import yandex.cloud.dataproc.v1.common_pb2 as common_pb
 import yandex.cloud.dataproc.v1.cluster_pb2 as cluster_pb
 import yandex.cloud.dataproc.v1.cluster_service_pb2 as cluster_service_pb
 import yandex.cloud.dataproc.v1.cluster_service_pb2_grpc as cluster_service_grpc_pb
+import yandex.cloud.dataproc.v1.common_pb2 as common_pb
 import yandex.cloud.dataproc.v1.job_pb2 as job_pb
 import yandex.cloud.dataproc.v1.job_service_pb2 as job_service_pb
 import yandex.cloud.dataproc.v1.job_service_pb2_grpc as job_service_grpc_pb
 import yandex.cloud.dataproc.v1.subcluster_pb2 as subcluster_pb
+from google.protobuf.json_format import MessageToDict
 
 from airflow import DAG
 from airflow.decorators import task
@@ -35,10 +36,10 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = 'example_yandexcloud_hook'
 
 # Fill it with your identifiers
-YC_S3_BUCKET_NAME = ''        # Fill to use S3 instead of HFDS
-YC_FOLDER_ID = None           # Fill to override default YC folder from connection data
+YC_S3_BUCKET_NAME = ''  # Fill to use S3 instead of HFDS
+YC_FOLDER_ID = None  # Fill to override default YC folder from connection data
 YC_ZONE_NAME = 'ru-central1-b'
-YC_SUBNET_ID = None           # Fill if you have more than one VPC subnet in given folder and zone
+YC_SUBNET_ID = None  # Fill if you have more than one VPC subnet in given folder and zone
 YC_SERVICE_ACCOUNT_ID = None  # Fill if you have more than one YC service account in given folder
 
 
@@ -86,33 +87,33 @@ def create_cluster_request(
 
 @task
 def create_cluster(
-    yandex_conn_id: str = None,
-    folder_id: str = None,
-    network_id: str = None,
-    subnet_id: str = None,
-    zone: str = None,
-    service_account_id: str = None,
-    ssh_public_key: str = None,
+    yandex_conn_id: Optional[str] = None,
+    folder_id: Optional[str] = None,
+    network_id: Optional[str] = None,
+    subnet_id: Optional[str] = None,
+    zone: str = YC_ZONE_NAME,
+    service_account_id: Optional[str] = None,
+    ssh_public_key: Optional[str] = None,
     *,
-    dag: DAG = None,
-    ts_nodash: str = None,
+    dag: Optional[DAG] = None,
+    ts_nodash: Optional[str] = None,
 ) -> str:
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
     folder_id = folder_id or hook.default_folder_id
     if subnet_id is None:
         network_id = network_id or hook.sdk.helpers.find_network_id(folder_id)
-        subnet_id = hook.sdk.helpers.find_subnet_id(
-            folder_id=folder_id, zone_id=zone, network_id=network_id
-        )
+        subnet_id = hook.sdk.helpers.find_subnet_id(folder_id=folder_id, zone_id=zone, network_id=network_id)
     service_account_id = service_account_id or hook.sdk.helpers.find_service_account_id()
     ssh_public_key = ssh_public_key or hook.default_public_ssh_key
+
+    dag_id = dag and dag.dag_id or 'dag'
 
     request = create_cluster_request(
         folder_id=folder_id,
         subnet_id=subnet_id,
         zone=zone,
-        cluster_name=f'airflow_{dag.dag_id}_{ts_nodash}'[:62],
-        cluster_desc=f'Created via Airflow custom hook task',
+        cluster_name=f'airflow_{dag_id}_{ts_nodash}'[:62],
+        cluster_desc='Created via Airflow custom hook task',
         service_account_id=service_account_id,
         ssh_public_key=ssh_public_key,
         resources=common_pb.Resources(
@@ -122,9 +123,7 @@ def create_cluster(
     )
     operation = hook.sdk.client(cluster_service_grpc_pb.ClusterServiceStub).Create(request)
     operation_result = hook.sdk.wait_operation_and_get_result(
-        operation,
-        response_type=cluster_pb.Cluster,
-        meta_type=cluster_service_pb.CreateClusterMetadata,
+        operation, response_type=cluster_pb.Cluster, meta_type=cluster_service_pb.CreateClusterMetadata
     )
     return operation_result.response.id
 
@@ -132,7 +131,7 @@ def create_cluster(
 @task
 def run_spark_job(
     cluster_id: str,
-    yandex_conn_id: str = None,
+    yandex_conn_id: Optional[str] = None,
 ):
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
 
@@ -143,13 +142,11 @@ def run_spark_job(
             main_jar_file_uri='file:///usr/lib/spark/examples/jars/spark-examples.jar',
             main_class='org.apache.spark.examples.SparkPi',
             args=['1000'],
-        )
+        ),
     )
     operation = hook.sdk.client(job_service_grpc_pb.JobServiceStub).Create(request)
     operation_result = hook.sdk.wait_operation_and_get_result(
-        operation,
-        response_type=job_pb.Job,
-        meta_type=job_service_pb.CreateJobMetadata
+        operation, response_type=job_pb.Job, meta_type=job_service_pb.CreateJobMetadata
     )
     return MessageToDict(operation_result.response)
 
@@ -157,12 +154,13 @@ def run_spark_job(
 @task(trigger_rule='all_done')
 def delete_cluster(
     cluster_id: str,
-    yandex_conn_id: str = None,
+    yandex_conn_id: Optional[str] = None,
 ):
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
 
     operation = hook.sdk.client(cluster_service_grpc_pb.ClusterServiceStub).Delete(
-        cluster_service_pb.DeleteClusterRequest(cluster_id=cluster_id))
+        cluster_service_pb.DeleteClusterRequest(cluster_id=cluster_id)
+    )
     hook.sdk.wait_operation_and_get_result(
         operation,
         meta_type=cluster_service_pb.DeleteClusterMetadata,

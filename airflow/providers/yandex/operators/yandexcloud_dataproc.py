@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class InitializationAction:
+    """Data for initialization action to be run at start of DataProc cluster."""
+
     uri: str  # Uri of the executable file
     args: Sequence[str]  # Arguments to the initialization action
     timeout: int  # Execution timeout
@@ -79,16 +81,18 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param computenode_decommission_timeout: Timeout to gracefully decommission nodes during downscaling.
                                              In seconds
     :param properties: Properties passed to main node software.
-                       In key you need to use prefix: 'hdfs:dfs.hosts'
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/settings-list
     :param enable_ui_proxy: Enable UI Proxy feature for forwarding Hadoop components web interfaces
-                        Docs: https://cloud.yandex.com/en-ru/docs/data-proc/concepts/ui-proxy
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/ui-proxy
     :param host_group_ids: Dedicated host groups to place VMs of cluster on.
-                        Docs: https://cloud.yandex.com/en-ru/docs/compute/concepts/dedicated-host
+                        Docs: https://cloud.yandex.com/docs/compute/concepts/dedicated-host
     :param security_group_ids: User security groups.
-                        Docs: https://cloud.yandex.com/en-ru/docs/data-proc/concepts/network#security-groups
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/network#security-groups
     :param log_group_id: Id of log group to write logs. By default logs will be sent to default log group.
                     To disable cloud log sending set cluster property dataproc:disable_cloud_logging = true
-    :param initialization_actions: Set of init-actions to run when cluster starts
+                    Docs: https://cloud.yandex.com/docs/data-proc/concepts/logs
+    :param initialization_actions: Set of init-actions to run when cluster starts.
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/init-action
     """
 
     def __init__(
@@ -231,6 +235,12 @@ class DataprocCreateClusterOperator(BaseOperator):
 
 
 class DataprocBaseOperator(BaseOperator):
+    """Base class for DataProc operators working with given cluster.
+
+    :param connection_id: ID of the Yandex.Cloud Airflow connection.
+    :param cluster_id: ID of the cluster to remove. (templated)
+    """
+
     template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
