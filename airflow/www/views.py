@@ -972,6 +972,18 @@ class Airflow(AirflowBaseView):
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
         )
 
+    @expose('/datasets')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        ]
+    )
+    def datasets(self):
+        """Datasets view."""
+        return self.render_template(
+            'airflow/datasets.html',
+        )
+
     @expose('/dag_stats', methods=['POST'])
     @auth.has_access(
         [
@@ -1372,7 +1384,7 @@ class Airflow(AirflowBaseView):
         # only matters if get_rendered_template_fields() raised an exception.
         # The following rendering won't show useful values in this case anyway,
         # but we'll display some quasi-meaingful field names.
-        task = ti.task.unmap()
+        task = ti.task.unmap(None)
 
         title = "Rendered Template"
         html_dict = {}

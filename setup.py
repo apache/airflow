@@ -247,6 +247,9 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
+    # Astroid 2.12.* breaks documentation building
+    # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
+    'astroid<2.12.0',
     'click>=8.0',
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
@@ -322,7 +325,7 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    'mypy==0.910',
+    'mypy==0.950',
     'types-boto',
     'types-certifi',
     'types-croniter',

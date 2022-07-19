@@ -65,7 +65,7 @@ Package apache-airflow-providers-mysql
 `MySQL <https://www.mysql.com/products/>`__
 
 
-Release: 3.0.0
+Release: 3.1.0
 
 Provider package
 ----------------
@@ -83,13 +83,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==========================  ===========================================
-PIP package                 Version required
-==========================  ===========================================
-``apache-airflow``          ``>=2.2.0``
-``mysql-connector-python``  ``>=8.0.11; platform_machine != "aarch64"``
-``mysqlclient``             ``>=1.3.6; platform_machine != "aarch64"``
-==========================  ===========================================
+=======================================  ===========================================
+PIP package                              Version required
+=======================================  ===========================================
+``apache-airflow``                       ``>=2.2.0``
+``apache-airflow-providers-common-sql``
+``mysql-connector-python``               ``>=8.0.11; platform_machine != "aarch64"``
+``mysqlclient``                          ``>=1.3.6; platform_machine != "aarch64"``
+=======================================  ===========================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -104,14 +105,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-mysql[amazon]
 
 
-======================================================================================================  ===========
-Dependent package                                                                                       Extra
-======================================================================================================  ===========
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_    ``amazon``
-`apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_    ``presto``
-`apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_      ``trino``
-`apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_  ``vertica``
-======================================================================================================  ===========
+============================================================================================================  ==============
+Dependent package                                                                                             Extra
+============================================================================================================  ==============
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_          ``amazon``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
+`apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_          ``presto``
+`apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_            ``trino``
+`apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_        ``vertica``
+============================================================================================================  ==============
 
 Downloading official packages
 -----------------------------
@@ -119,7 +121,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 3.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-3.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-3.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-3.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 3.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-3.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-3.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-3.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 3.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-3.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-3.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-3.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 3.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-3.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-3.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-3.1.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/mysql/CHANGELOG.rst
