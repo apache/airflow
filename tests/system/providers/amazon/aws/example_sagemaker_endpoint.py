@@ -97,7 +97,7 @@ def delete_logs(env_id, endpoint_name):
 
 
 @task
-def set_up(env_id, knn_image_uri, role_arn):
+def set_up(env_id, knn_image_uri, role_arn, ti=None):
     bucket_name = f'{env_id}-sagemaker'
     input_data_s3_key = f'{env_id}/input-data'
     training_output_s3_key = f'{env_id}/results'
@@ -170,7 +170,6 @@ def set_up(env_id, knn_image_uri, role_arn):
         'EndpointConfigName': endpoint_config_job_name,
     }
 
-    ti = get_current_context()['ti']
     ti.xcom_push(key='bucket_name', value=bucket_name)
     ti.xcom_push(key='input_data_s3_key', value=input_data_s3_key)
     ti.xcom_push(key='model_name', value=model_name)
