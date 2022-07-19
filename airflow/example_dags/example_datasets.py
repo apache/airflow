@@ -34,16 +34,24 @@ Next, trigger dag2.  After dag2 finishes, dag4 should run.
 
 Dags 5 and 6 should not run because they depend on datasets that never get updated.
 
+DAG dag7 should skip its only task and never trigger dag8
+
+DAG dag9 should fail its only task and never trigger dag10
+
 """
 from datetime import datetime
 
+from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.models import DAG, Dataset
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 
 # [START dataset_def]
 dag1_dataset = Dataset('s3://dag1/output_1.txt', extra={'hi': 'bye'})
 # [END dataset_def]
 dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
+dag7_dataset = Dataset('s3://dag7/output_1.txt', extra={'hi': 'bye'})
+dag9_dataset = Dataset('s3://dag9/output_1.txt', extra={'hi': 'bye'})
 
 dag1 = DAG(
     dag_id='dag1',
@@ -129,5 +137,67 @@ with DAG(
     BashOperator(
         task_id='unrelated_task',
         outlets=[Dataset('s3://unrelated_task/dataset_other_unknown.txt')],
+        bash_command="sleep 5",
+    )
+
+
+def raise_skip_exc():
+    raise AirflowSkipException
+
+
+dag7 = DAG(
+    dag_id='dag7',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_interval='@daily',
+    tags=['upstream-skipping'],
+)
+PythonOperator(
+    task_id='skip_task',
+    outlets=[dag7_dataset],
+    python_callable=raise_skip_exc,
+    dag=dag7,
+)
+
+with DAG(
+    dag_id='dag8',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_on=[dag7_dataset],
+    tags=['downstream-skipped'],
+) as dag8:
+    BashOperator(
+        task_id='dag8_task',
+        bash_command="sleep 5",
+    )
+
+
+def raise_assertionerror():
+    raise AirflowFailException
+
+
+dag9 = DAG(
+    dag_id='dag9',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_interval='@daily',
+    tags=['upstream-skipping'],
+)
+PythonOperator(
+    task_id='fail_task',
+    outlets=[dag9_dataset],
+    python_callable=raise_assertionerror,
+    dag=dag9,
+)
+
+with DAG(
+    dag_id='dag10',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_on=[dag9_dataset],
+    tags=['downstream-failed'],
+) as dag10:
+    BashOperator(
+        task_id='dag10_task',
         bash_command="sleep 5",
     )
