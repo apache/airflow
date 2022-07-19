@@ -252,11 +252,6 @@ You can see some examples of those in:
 |                                    |                                          | .whl and .tar.gz files placed in the     |
 |                                    |                                          | ``docker-context-files``.                |
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_IS_IN_CONTEXT``          | ``false``                                | If set to true, it means that Airflow    |
-|                                    |                                          | and providers are available in context   |
-|                                    |                                          | and the image will not attempt to        |
-|                                    |                                          | install Airflow from PyPI or sources.    |
-+------------------------------------+------------------------------------------+------------------------------------------+
 
 Pre-caching PIP dependencies
 ............................

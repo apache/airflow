@@ -1283,16 +1283,23 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 COPY --from=scripts common.sh install_pip_version.sh \
      install_airflow_dependencies_from_branch_tip.sh /scripts/docker/
 
+# We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
+# docker-context-files folder. This can be done for both additional packages you want to install
+# as well as Airflow and Provider packages (it will be automatically detected if airflow
+# is installed from docker-context files rather than from PyPI)
+ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
+
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
 # are uninstalled, only dependencies remain
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
-# account for removed dependencies (we do not install them in the first place)
-# Upgrade to specific PIP version
+# account for removed dependencies (we do not install them in the first place) and in case
+# INSTALL_PACKAGES_FROM_CONTEXT is not set (because then caching it from main makes no sense).
 RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
-          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
+        ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
@@ -1302,8 +1309,7 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # only prepare node modules and compile assets if the prod image is build from sources
-        # otherwise they are already compiled-in. We should do it in one step with removing artifacts \
-        # as we want to keep the final image small
+        # otherwise they are already compiled-in the package.
         bash /scripts/docker/prepare_node_modules.sh; \
         REMOVE_ARTIFACTS="true" BUILD_TYPE="prod" bash /scripts/docker/compile_www_assets.sh; \
         # Copy generated dist folder (otherwise it will be overridden by the COPY step below)
@@ -1319,14 +1325,7 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
-# We can set this value to true in case we want to install .whl .tar.gz packages placed in the
-# docker-context-files folder. This can be done for both - additional packages you want to install
-# and for airflow as well (you have to set AIRFLOW_IS_IN_CONTEXT to true in this case)
-ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
-# By default we install latest airflow from PyPI or sources. You can set this parameter to false
-# if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
-# to skip installing Airflow/Providers from PyPI or sources.
-ARG AIRFLOW_IS_IN_CONTEXT="false"
+
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
 # * dill<0.3.3 required by apache-beam
@@ -1334,7 +1333,6 @@ ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
-    AIRFLOW_IS_IN_CONTEXT=${AIRFLOW_IS_IN_CONTEXT} \
     EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 WORKDIR ${AIRFLOW_HOME}
@@ -1345,7 +1343,8 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
-    elif [[ ${AIRFLOW_IS_IN_CONTEXT} == "false" ]]; then \
+    fi; \
+    if ! airflow version 2>/dev/null >/dev/null; then \
         bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
