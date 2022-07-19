@@ -256,6 +256,13 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
     show_default=True,
 )
 @click.option(
+    '--default-constraints-branch',
+    help="Constraints Branch against which the PR should be run",
+    default="constraints-main",
+    envvar="DEFAULT_CONSTRAINTS_BRANCH",
+    show_default=True,
+)
+@click.option(
     '--github-event-name',
     type=BetterChoice(github_events()),
     default=github_events()[0],
@@ -269,6 +276,7 @@ def selective_check(
     commit_ref: Optional[str],
     pr_labels: str,
     default_branch: str,
+    default_constraints_branch: str,
     github_event_name: str,
     verbose: bool,
     dry_run: bool,
@@ -284,6 +292,7 @@ def selective_check(
         commit_ref=commit_ref,
         files=changed_files,
         default_branch=default_branch,
+        default_constraints_branch=default_constraints_branch,
         pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
         github_event=github_event,
     )

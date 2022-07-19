@@ -23,7 +23,7 @@ pull-prod-image:6e8467a2b8c833a392c8bdd65189363e
 regenerate-command-images:4fd2e7ecbfd6eebb18b854f3eb0f29c8
 release-prod-images:8858fe5a13989c7c65a79dc97a880928
 resource-check:0fb929ac3496dbbe97acfe99e35accd7
-selective-check:26b994bff3d703c47380a51789726deb
+selective-check:d4e3c250cd6f2b0040fbe6557fa423f6
 self-upgrade:b5437c0a1a91533a11ee9d0a9692369c
 setup-autocomplete:355b72dee171c2fcba46fc90ac7c97b0
 shell:4680295fdd8a276d51518d29360c365c
