@@ -41,13 +41,13 @@ class CommonBuildParams:
     additional_runtime_apt_command: str = ""
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
-    airflow_branch: str = AIRFLOW_BRANCH
+    airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
     airflow_constraints_location: str = ""
     answer: Optional[str] = None
     build_id: int = 0
     builder: str = "default"
     constraints_github_repository: str = "apache/airflow"
-    debian_version: str = "bullseye"
+    debian_version: str = os.environ.get('DEBIAN_VERSION', "bullseye")
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
