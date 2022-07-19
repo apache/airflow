@@ -17,6 +17,7 @@
 # under the License.
 
 import re
+import unittest
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -24,18 +25,9 @@ from bs4 import BeautifulSoup
 
 from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
-from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
 
-class TestUtils:
-    def setup_class(self) -> None:
-        clear_db_dags()
-        clear_db_datasets()
-
-    def teardown_method(self) -> None:
-        clear_db_dags()
-        clear_db_datasets()
-
+class TestUtils(unittest.TestCase):
     def check_generate_pages_html(self, current_page, total_pages, window=7, check_middle=False):
         extra_links = 4  # first, prev, next, last
         search = "'>\"/><img src=x onerror=alert(1)>"
@@ -163,8 +155,8 @@ class TestUtils:
         assert '<b2>' not in html
 
 
-class TestAttrRenderer:
-    def setup_method(self):
+class TestAttrRenderer(unittest.TestCase):
+    def setUp(self):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
@@ -189,7 +181,7 @@ class TestAttrRenderer:
         assert "" == rendered
 
 
-class TestWrappedMarkdown:
+class TestWrappedMarkdown(unittest.TestCase):
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
         assert (
