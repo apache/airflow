@@ -110,11 +110,29 @@ class SystemTestContextBuilder:
     runtime (task execution time). This task generates and stores the test ENV_ID as well
     as any external resources requested (e.g.g IAM Roles, VPC, etc)"""
 
+    class Variable:
+        def __init__(self, name: str, to_split: bool = False, delimiter: Optional[str] = None):
+            if delimiter and not to_split:
+                raise ValueError(f'Variable {name} has a delimiter but split_string is set to False.')
+
+            self.name = name
+            self.to_split = to_split
+            if to_split:
+                self.delimiter = delimiter or ', '
+            self.value = self._format_value(fetch_variable(self.name))
+
+        def set_default(self, default):
+            self.value = self._format_value(default)
+
+        def _format_value(self, value):
+            if self.to_split:
+                if type(value) is not str:
+                    raise TypeError(f'{self.name} is type {type(value)} and can not be split as requested.')
+                return value.split(self.delimiter)
+            return value
+
     def __init__(self):
         self.variables = set()
-        self.variables_to_split = {}
-        self.variable_defaults = {}
-        self.test_name = _get_test_name()
         self.env_id = set_env_id()
 
     def add_variable(
@@ -125,21 +143,19 @@ class SystemTestContextBuilder:
         **kwargs,
     ):
         """Register a variable to fetch from environment or cloud parameter store"""
-        if variable_name in self.variables:
+        if variable_name in [variable.name for variable in self.variables]:
             raise ValueError(f'Variable name {variable_name} already exists in the fetched variables list.')
-        if delimiter and not split_string:
-            raise ValueError(f'Variable {variable_name} has a delimiter but split_string is set to False.')
 
-        self.variables.add(variable_name)
-        if split_string:
-            self.variables_to_split[variable_name] = delimiter
+        new_variable = self.Variable(variable_name, split_string, delimiter)
 
         # default_value is accepted via kwargs so that it is completely optional and no
         # default value needs to be provided in the method stub (otherwise we wouldn't
         # be able to tell the difference between our default value and one provided by
         # the caller)
         if 'default_value' in kwargs:
-            self.variable_defaults[variable_name] = kwargs['default_value']
+            new_variable.set_default(kwargs['default_value'])
+
+        self.variables.add(new_variable)
 
         return self  # Builder recipe; returning self allows chaining
 
@@ -149,14 +165,9 @@ class SystemTestContextBuilder:
         tasks to use."""
 
         @task
-        def variable_fetcher(**kwargs):
-            ti = kwargs['ti']
+        def variable_fetcher(ti=None):
             for variable in self.variables:
-                default_value = self.variable_defaults.get(variable, None)
-                value = fetch_variable(variable, default_value, test_name=self.test_name)
-                if variable in self.variables_to_split:
-                    value = value.split(self.variables_to_split[variable])
-                ti.xcom_push(variable, value)
+                ti.xcom_push(variable.name, variable.value)
 
             # Fetch/generate ENV_ID and store it in XCOM
             ti.xcom_push(ENV_ID_KEY, self.env_id)
@@ -164,7 +175,7 @@ class SystemTestContextBuilder:
         return variable_fetcher
 
 
-def fetch_variable(key: str, default_value: Optional[str] = None, test_name: Optional[str] = None) -> str:
+def fetch_variable(key: str, default_value: Optional[str] = None) -> str:
     """
     Given a Parameter name: first check for an existing Environment Variable,
     then check SSM for a value. If neither are available, fall back on the
@@ -175,7 +186,7 @@ def fetch_variable(key: str, default_value: Optional[str] = None, test_name: Opt
     :return: The value of the parameter.
     """
 
-    value: Optional[str] = os.getenv(key, _fetch_from_ssm(key, test_name=test_name)) or default_value
+    value: Optional[str] = os.getenv(key, _fetch_from_ssm(key)) or default_value
     if not value:
         raise ValueError(NO_VALUE_MSG.format(key=key))
     return value
