@@ -9,7 +9,7 @@
     "build": "NODE_ENV=production webpack --progress --mode production",
     "lint": "eslint --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc",
     "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc",
-    "generate-api-types": "npx openapi-typescript \"../api_connexion/openapi/v1.yaml\" --output static/js/types/api-generated.ts --camelcase && node alias-rest-types.js static/js/types/api-generated.ts"
+    "generate-api-types": "npx openapi-typescript \"../api_connexion/openapi/v1.yaml\" --output static/js/types/api-generated.ts && node alias-rest-types.js static/js/types/api-generated.ts"
   },
   "author": "Apache",
   "license": "Apache-2.0",
