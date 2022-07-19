@@ -176,6 +176,14 @@ DEPRECATION WARNING:
 
 {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
 
+{{- if .Values.securityContext }}
+
+ DEPRECATION WARNING:
+    `securityContext` has been renamed to `securityContexts`, to be enabled on container and pod level.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 ###########################################################
 #  WARNING: You should set a static webserver secret key  #
 ###########################################################

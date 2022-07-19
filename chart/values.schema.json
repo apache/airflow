@@ -91,6 +91,34 @@
                 }
             ]
         },
+        "securityContexts": {
+            "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+            "type": "object",
+            "x-docsSection": "Kubernetes",
+            "properties": {
+                "pod": {
+                    "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "container": {
+                    "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "x-docsSection": "Kubernetes"
+                }
+            }
+        },
         "nodeSelector": {
             "description": "Select certain nodes for all pods.",
             "type": "object",
@@ -1864,6 +1892,34 @@
                         }
                     ]
                 },
+                "securityContexts": {
+                    "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes"
+                        }
+                    }
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -2980,6 +3036,34 @@
                         }
                     ]
                 },
+                "securityContexts": {
+                    "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes"
+                        }
+                    }
+                },
                 "resources": {
                     "description": "Resources for webserver pods.",
                     "type": "object",
@@ -3696,6 +3780,34 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes"
+                        }
+                    }
                 }
             }
         },

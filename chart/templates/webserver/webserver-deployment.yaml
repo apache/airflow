@@ -154,7 +154,7 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
-          securityContext: {{ or .Values.securityContexts.container.webserver .Values.securityContexts.container.default }}
+          securityContext: {{ or .Values.webserver.securityContexts.container .Values.securityContexts.container }}
           volumeMounts:
 {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config

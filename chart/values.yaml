@@ -32,7 +32,7 @@ kubeVersionOverride: ""
 uid: 50000
 gid: 0
 
-# Default security context for airflow (deprecated)
+# Default security context for airflow (deprecated, use below in the future)
 securityContext: {}
 #  runAsUser: 50000
 #  fsGroup: 0
@@ -40,20 +40,12 @@ securityContext: {}
 
 # Detailed default security context for airflow deployments
 securityContexts:
-  pod:
-    default: {}
-    # webserver: {}
-    # scheduler: {}
-    # statsd: {}
+  pod: {}
   containers:
-    default:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
-    # webserver: {}
-    # scheduler: {}
-    # statsd: {}
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 # Airflow home directory
 # Used for mount paths
@@ -635,11 +627,16 @@ scheduler:
   # (when not using LocalExecutor and workers.persistence)
   strategy: ~
 
-  # When not set, the values defined in the global securityContext will be used
+  # When not set, the values defined in the global securityContext will be used (deprecated)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for scheduler deployments  for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -898,11 +895,16 @@ webserver:
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 
-  # When not set, the values defined in the global securityContext will be used
+  # When not set, the values defined in the global securityContext will be used (depracated)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security contexts for webserver deployments  for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
@@ -1288,10 +1290,17 @@ statsd:
 
   uid: 65534
   # When not set, `statsd.uid` will be used
+
+  # When not set, the values defined in the global securityContext will be used (deprecated)
   securityContext: {}
   #  runAsUser: 65534
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for statsd deployments for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   # Additional network policies as needed
   extraNetworkPolicies: []
