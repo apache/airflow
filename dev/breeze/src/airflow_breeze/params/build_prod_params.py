@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -41,7 +42,9 @@ class BuildProdParams(CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints"
-    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    default_constraints_branch: str = os.environ.get(
+        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    )
     airflow_constraints_reference: str = ""
     cleanup_context: bool = False
     disable_airflow_repo_cache: bool = False
