@@ -19,13 +19,9 @@
 import re
 from datetime import datetime
 from urllib.parse import parse_qs
-from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
-from airflow import settings
-from airflow.models import DAG
-from airflow.models.dataset import Dataset, DatasetDagRunQueue
 from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
@@ -165,36 +161,6 @@ class TestUtils:
         assert '%3Cb2%3E' in html
         assert '<a&1>' not in html
         assert '<b2>' not in html
-
-    def test_get_dataset_triggered_next_run_info(session):
-        unique_id = str(uuid4())
-        session = settings.Session()
-        dataset1 = Dataset(uri=f"s3://{unique_id}-1")
-        dataset2 = Dataset(uri=f"s3://{unique_id}-2")
-        dataset3 = Dataset(uri=f"s3://{unique_id}-3")
-        dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
-        dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
-        dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
-        DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
-        session.commit()
-
-        # *[SerializedDagModel(dag) for dag in [dag1, dag2, dag3]],
-        session.bulk_save_objects(
-            [
-                DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
-                DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
-            ]
-        )
-        session.commit()
-        session.expunge_all()
-
-        info = utils.get_dataset_triggered_next_run_info([dag1.dag_id], session)
-        assert (0, 1) == info[dag1.dag_id]
-
-        # This time, check both dag2 and dag3 at the same time (tests filtering)
-        info = utils.get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session)
-        assert (1, 2) == info[dag2.dag_id]
-        assert (1, 3) == info[dag3.dag_id]
 
 
 class TestAttrRenderer:

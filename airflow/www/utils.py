@@ -18,7 +18,7 @@
 import json
 import textwrap
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
 import sqlalchemy as sqla
@@ -36,12 +36,10 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
 from airflow.models.dagwarning import DagWarning
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -747,25 +745,3 @@ class UIAlert:
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True
-
-
-def get_dataset_triggered_next_run_info(dag_ids: List[str], session: Session) -> Dict[str, Tuple[int, int]]:
-    return {
-        x.dag_id: (x.ready, x.total)
-        for x in session.query(
-            DatasetDagRef.dag_id,
-            sqla.func.count().label("total"),
-            sqla.func.sum(sqla.case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
-        )
-        .join(
-            DDRQ,
-            sqla.and_(
-                DDRQ.dataset_id == DatasetDagRef.dataset_id,
-                DDRQ.target_dag_id == DatasetDagRef.dag_id,
-            ),
-            isouter=True,
-        )
-        .group_by(DatasetDagRef.dag_id)
-        .filter(DatasetDagRef.dag_id.in_(dag_ids))
-        .all()
-    }

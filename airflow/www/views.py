@@ -109,6 +109,7 @@ from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, Task
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -623,6 +624,28 @@ def get_task_stats_from_query(qry):
     return data
 
 
+def get_dataset_triggered_next_run_info(dag_ids: List[str], session: Session) -> Dict[str, Tuple[int, int]]:
+    return {
+        x.dag_id: (x.ready, x.total)
+        for x in session.query(
+            DatasetDagRef.dag_id,
+            sqla.func.count().label("total"),
+            sqla.func.sum(sqla.case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
+        )
+        .join(
+            DDRQ,
+            sqla.and_(
+                DDRQ.dataset_id == DatasetDagRef.dataset_id,
+                DDRQ.target_dag_id == DatasetDagRef.dag_id,
+            ),
+            isouter=True,
+        )
+        .group_by(DatasetDagRef.dag_id)
+        .filter(DatasetDagRef.dag_id.in_(dag_ids))
+        .all()
+    }
+
+
 def redirect_or_json(origin, msg, status="", status_code=200):
     """
     Some endpoints are called by javascript,
@@ -853,7 +876,7 @@ class Airflow(AirflowBaseView):
             ) in user_permissions
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
-            dataset_triggered_next_run_info = wwwutils.get_dataset_triggered_next_run_info(
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
                 dataset_triggered_dag_ids, session
             )
 
@@ -870,7 +893,7 @@ class Airflow(AirflowBaseView):
                     dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
                 if dag.schedule_interval == "Dataset" and dag.dag_id in dataset_triggered_next_run_info:
                     ready, total = dataset_triggered_next_run_info[dag.dag_id]
-                    dag.dataset_triggered_next_run_info = f"{ready} of {total} Datasets updated"
+                    dag.dataset_triggered_next_run_info = f"{ready} of {total} datasets updated"
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -2742,8 +2765,8 @@ class Airflow(AirflowBaseView):
             insort_left(num_runs_options, default_dag_run_display_number)
 
         if dag_model.schedule_interval == "Dataset":
-            ready, total = wwwutils.get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
-            dataset_triggered_next_run_info = f"{ready} of {total} Datasets updated"
+            ready, total = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+            dataset_triggered_next_run_info = f"{ready} of {total} datasets updated"
         else:
             dataset_triggered_next_run_info = None
 
