@@ -25,6 +25,6 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 if __name__ == '__main__':
-    dir = Path("airflow") / "ui"
-    subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=str(dir))
-    subprocess.check_call(['yarn', 'run', 'lint'], cwd=str(dir))
+    dir = Path("airflow") / "www"
+    subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(dir))
+    subprocess.check_call(['yarn', 'run', 'build'], cwd=str(dir))
