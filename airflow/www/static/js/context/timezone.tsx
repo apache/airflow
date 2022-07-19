@@ -20,23 +20,25 @@
 /* global moment, document */
 
 import React, {
-  useContext, useEffect, useState, useMemo,
+  useContext, useEffect, useState, useMemo, PropsWithChildren,
 } from 'react';
+
 import { TimezoneEvent } from '../datetime_utils';
 
 const TimezoneContext = React.createContext({ timezone: 'UTC' });
 
-export const TimezoneProvider = ({ children }) => {
+export const TimezoneProvider = ({ children }: PropsWithChildren) => {
+  // @ts-ignores: defaultZone not recognize in moment.
   const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');
 
-  const handleChange = (e) => {
+  const handleChange = (e: CustomEvent<string>) => {
     if (e.detail && e.detail !== timezone) setTimezone(e.detail);
   };
 
   useEffect(() => {
-    document.addEventListener(TimezoneEvent, handleChange);
+    document.addEventListener(TimezoneEvent, handleChange as EventListener);
     return () => {
-      document.removeEventListener(TimezoneEvent, handleChange);
+      document.removeEventListener(TimezoneEvent, handleChange as EventListener);
     };
   });
 
