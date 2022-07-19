@@ -62,7 +62,7 @@ console or through Amazon CLI as shown below:
 
     aws secretsmanager put-secret-value \
         --secret-id airflow/connections/smtp_default \
-        --secret-string [{"user": "nice_user"}, {"pass": "this_is_the_password"}, {"host": "ec2.8399.com"}, {"port": "999"}]
+        --secret-string '{"user": "nice_user","pass": "this_is_the_password","host": "ec2.8399.com","port": "999"}'
 
 Verify that you can get the secret:
 
