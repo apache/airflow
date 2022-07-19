@@ -1,0 +1,20 @@
+/*!
+ * TODO: This license is not consistent with license used in the project.
+ *       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */.switch-label{cursor:pointer;display:inline-block;font-weight:400;margin:0}.switch-label.disabled{cursor:not-allowed}.switch-input{clip:rect(1px,1px,1px,1px);border:0;clip-path:inset(50%);height:1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px}.switch{align-items:center;background-color:#c4c2c1;border-radius:999px;box-sizing:content-box;cursor:pointer;display:inline-flex;padding:2px;vertical-align:middle;width:2.5rem}.switch:before{background-color:#edecec;border-radius:50%;content:"";height:1.5rem;transition-duration:.25s;transition-property:transform,background-color;transition-timing-function:ease-in-out;width:1.5rem}.switch-input:disabled+.switch{cursor:not-allowed;opacity:.4}.switch-input:checked+.switch{background-color:#017cee}.switch-input:checked+.switch:before{background-color:#fffefd;transform:translateX(1rem)}.switch-input:focus+.switch{box-shadow:0 0 0 3px rgba(1,124,238,.4)}.switch-input:not(:checked)+.switch:hover{background-color:#9e9e9c}.switch-input:checked.switch-input--error+.switch{background-color:#e43921}.switch-input:not(:checked).switch-input--error+.switch{background-color:#824840}.switch-input:focus+.switch:before{background-color:#fff}.switch-input:not(:checked)+.switch:hover:before{background-color:#f5f5f5}

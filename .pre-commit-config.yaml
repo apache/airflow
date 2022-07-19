@@ -65,7 +65,7 @@ repos:
       - id: insert-license
         name: Add license for all CSS/JS/PUML/TS/TSX files
         files: \.(css|js|puml|ts|tsx|jsx)$
-        exclude: ^\.github/.*$|^airflow/_vendor/
+        exclude: ^\.github/.*$|^airflow/_vendor/|^airflow/www/static/dist/.*$
         args:
           - --comment-style
           - "/*!| *| */"
@@ -192,7 +192,7 @@ repos:
         exclude: ^airflow/_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^airflow/_vendor/|^images/breeze/output.*$
+        exclude: ^airflow/_vendor/|^images/breeze/output.*$|^airflow/www/static/dist/.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from python files
         exclude: ^airflow/_vendor/
@@ -296,7 +296,7 @@ repos:
         exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/static/dist/*,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
@@ -305,7 +305,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$|^airflow/www/static/dist/.*$
         additional_dependencies: ['rich>=12.4.4']
       - id: static-check-autoflake
         name: Remove all unused code
@@ -594,8 +594,16 @@ repos:
         entry: "stylelint"
         language: node
         files: ^airflow/www/.*\.(css|scss|sass)$
+        exclude: ^airflow/www/static/dist/.*$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: compile-www-assets
+        name: Compile www assets
+        entry: "yarn install --frozen-lockfile && yarn run build"
+        language: node
+        files: ^airflow/www/.*$
+        exclude: ^airflow/www/static/dist/.*$
+        additional_dependencies: ['yarn']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
         pass_filenames: false

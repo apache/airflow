@@ -1,0 +1,21 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/*! For license information please see dagDependencies.b4be4366640d78278655.js.LICENSE.txt */
+!function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.Airflow=t():(e.Airflow=e.Airflow||{},e.Airflow.dagDependencies=t())}(self,(()=>(()=>{const e="3px",t="5px",s=500;let l=dagNodes;const n=l,o=l.filter((e=>edges.some((t=>t.u===e.id||t.v===e.id))));let r=(new dagreD3.graphlib.Graph).setGraph({nodesep:15,ranksep:15,rankdir:arrange}).setDefaultEdgeLabel((()=>({lineInterpolate:"basis"})));const d=dagreD3.render(),a=d3.select("#graph-svg"),c=d3.select("#graph-svg g");function i(e,t,s){e.forEach((e=>{const l=r.node(e).elem;d3.select(l).selectAll("rect,circle").style("stroke",t).style("stroke-width",s)}))}let g=null;d3.select("#searchbox").on("keyup",(()=>{!function(l){let n=null;if(d3.selectAll("g.nodes g.node").filter((function(o){var r;return""===l?(d3.select("g.edgePaths").transition().duration(s).style("opacity",1),d3.select(this).transition().duration(s).style("opacity",1).selectAll("rect").style("stroke-width",e)):(d3.select("g.edgePaths").transition().duration(s).style("opacity",.2),r=l,o.indexOf(r)>-1?(n||(n=this),d3.select(this).transition().duration(s).style("opacity",1).selectAll("rect").style("stroke-width",t)):d3.select(this).transition().style("opacity",.2).duration(s).selectAll("rect").style("stroke-width",e)),null})),n){const e=d3.transform(d3.select(n).attr("transform")),t=a.node().getBoundingClientRect();e.translate=[t.width/2-e.translate[0],t.height/2-e.translate[1]],e.scale=[1,1],null!==g&&(g.translate(e.translate),g.scale(1),g.event(c))}}(document.getElementById("searchbox").value)}));const u=()=>{r=(new dagreD3.graphlib.Graph).setGraph({nodesep:15,ranksep:15,rankdir:arrange}).setDefaultEdgeLabel((()=>({lineInterpolate:"basis"}))),l.forEach((e=>{r.setNode(e.id,e.value)}));edges.filter((e=>2===l.filter((t=>t.id===e.u||t.id===e.v)).length)).forEach((e=>{r.setEdge(e.u,e.v,{curve:d3.curveBasis,arrowheadClass:"arrowhead"})})),c.call(d,r),function(s=null){d3.selectAll("g.node").on("mouseover",(function(e){d3.select(this).selectAll("rect").style("stroke","#000000"),i(r.predecessors(e),"#2020A0",t),i(r.successors(e),"#0000FF",t);const s=[e,...r.predecessors(e),...r.successors(e)];d3.selectAll("g.nodes g.node").filter((e=>!s.includes(e))).style("opacity",.2);const l=r.nodeEdges(e);d3.selectAll("g.edgePath")[0].filter((e=>!l.includes(e.__data__))).forEach((e=>{d3.select(e).style("opacity",.2)}))})),d3.selectAll("g.node").on("mouseout",(function(t){d3.select(this).selectAll("rect,circle").style("stroke",null),i(r.predecessors(t),null,e),i(r.successors(t),null,e),d3.selectAll("g.node").style("opacity",1),d3.selectAll("g.node rect").style("stroke-width",e),d3.selectAll("g.edgePath").style("opacity",1),s&&localStorage.removeItem(s)}))}(),function(){g=d3.behavior.zoom().on("zoom",(()=>{c.attr("transform",`translate(${d3.event.translate})scale(${d3.event.scale})`)})),a.call(g);const e=r.graph().width,t=r.graph().height,s=a.node().getBoundingClientRect(),l=s.width-40,n=s.height-20,o=Math.min(Math.min(l/e,n/t),1.5);g.translate([l/2-e*o/2+20,20]),g.scale(o),g.event(c)}()};return document.getElementById("deps-filter").addEventListener("change",(function(){document.getElementById("searchbox").value="",l=this.checked?o:n,u()})),document.getElementById("deps-filter").checked&&(l=o),u(),{}})()));

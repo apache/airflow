@@ -1,0 +1,913 @@
+[
+  {
+    "name": "@babel/runtime",
+    "version": "7.18.3",
+    "author": "The Babel Team (https://babel.dev/team)",
+    "repository": "https://github.com/babel/babel.git",
+    "source": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.18.3.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2014-present Sebastian McKenzie and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "@babel/runtime",
+    "version": "7.15.3",
+    "author": "The Babel Team (https://babel.dev/team)",
+    "repository": "https://github.com/babel/babel.git",
+    "source": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.15.3.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2014-present Sebastian McKenzie and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "@babel/runtime",
+    "version": "7.17.9",
+    "author": "The Babel Team (https://babel.dev/team)",
+    "repository": "https://github.com/babel/babel.git",
+    "source": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.17.9.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2014-present Sebastian McKenzie and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "@babel/runtime",
+    "version": "7.17.2",
+    "author": "The Babel Team (https://babel.dev/team)",
+    "repository": "https://github.com/babel/babel.git",
+    "source": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.17.2.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2014-present Sebastian McKenzie and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "@chakra-ui/alert",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/alert/-/alert-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/anatomy",
+    "version": "2.0.1",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/anatomy/-/anatomy-2.0.1.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/breadcrumb",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/breadcrumb/-/breadcrumb-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/button",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/button/-/button-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/checkbox",
+    "version": "2.1.0",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/checkbox/-/checkbox-2.1.0.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/clickable",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/clickable/-/clickable-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/close-button",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/close-button/-/close-button-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/color-mode",
+    "version": "2.0.4",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/color-mode/-/color-mode-2.0.4.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/css-reset",
+    "version": "2.0.1",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/css-reset/-/css-reset-2.0.1.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/descendant",
+    "version": "3.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/descendant/-/descendant-3.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/focus-lock",
+    "version": "2.0.3",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/focus-lock/-/focus-lock-2.0.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/form-control",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/form-control/-/form-control-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/hooks",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/hooks/-/hooks-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/icon",
+    "version": "3.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/icon/-/icon-3.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/input",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/input/-/input-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/layout",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/layout/-/layout-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/menu",
+    "version": "2.0.3",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/menu/-/menu-2.0.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/modal",
+    "version": "2.0.3",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/modal/-/modal-2.0.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/popper",
+    "version": "3.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/popper/-/popper-3.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/portal",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/portal/-/portal-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/provider",
+    "version": "2.0.6",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "https://github.com/chakra-ui/chakra-ui",
+    "source": "https://registry.npmjs.org/@chakra-ui/provider/-/provider-2.0.6.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/react",
+    "version": "2.2.1",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "https://github.com/chakra-ui/chakra-ui",
+    "source": "https://registry.npmjs.org/@chakra-ui/react/-/react-2.2.1.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/react-env",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/react-env/-/react-env-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/react-utils",
+    "version": "2.0.1",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/react-utils/-/react-utils-2.0.1.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/select",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/select/-/select-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/spinner",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/spinner/-/spinner-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/styled-system",
+    "version": "2.2.0",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/styled-system/-/styled-system-2.2.0.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/switch",
+    "version": "2.0.3",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/switch/-/switch-2.0.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/system",
+    "version": "2.1.3",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/system/-/system-2.1.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/table",
+    "version": "2.0.2",
+    "author": "Tim Kolberger <tim@kolberger.eu>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/table/-/table-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/tabs",
+    "version": "2.0.3",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/tabs/-/tabs-2.0.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/theme",
+    "version": "2.1.0",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/theme/-/theme-2.1.0.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/theme-tools",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/theme-tools/-/theme-tools-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/toast",
+    "version": "2.1.0",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/toast/-/toast-2.1.0.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/tooltip",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/tooltip/-/tooltip-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/transition",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/transition/-/transition-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/utils",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/utils/-/utils-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@chakra-ui/visually-hidden",
+    "version": "2.0.2",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "source": "https://registry.npmjs.org/@chakra-ui/visually-hidden/-/visually-hidden-2.0.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "@ctrl/tinycolor",
+    "version": "3.4.0",
+    "author": "Scott Cooper <scttcper@gmail.com>",
+    "repository": "scttcper/tinycolor",
+    "source": "https://registry.npmjs.org/@ctrl/tinycolor/-/tinycolor-3.4.0.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright (c) Scott Cooper <scttcper@gmail.com>\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/cache",
+    "version": "11.9.3",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/cache",
+    "source": "https://registry.npmjs.org/@emotion/cache/-/cache-11.9.3.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/hash",
+    "version": "0.8.0",
+    "repository": "https://github.com/emotion-js/emotion/tree/master/packages/hash",
+    "source": "https://registry.npmjs.org/@emotion/hash/-/hash-0.8.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/is-prop-valid",
+    "version": "1.1.0",
+    "repository": "https://github.com/emotion-js/emotion/tree/master/packages/is-prop-valid",
+    "source": "https://registry.npmjs.org/@emotion/is-prop-valid/-/is-prop-valid-1.1.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/memoize",
+    "version": "0.7.5",
+    "repository": "https://github.com/emotion-js/emotion/tree/master/packages/memoize",
+    "source": "https://registry.npmjs.org/@emotion/memoize/-/memoize-0.7.5.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/react",
+    "version": "11.9.3",
+    "author": "Emotion Contributors",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/react",
+    "source": "https://registry.npmjs.org/@emotion/react/-/react-11.9.3.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/serialize",
+    "version": "1.0.4",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/serialize",
+    "source": "https://registry.npmjs.org/@emotion/serialize/-/serialize-1.0.4.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/serialize",
+    "version": "1.0.2",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/serialize",
+    "source": "https://registry.npmjs.org/@emotion/serialize/-/serialize-1.0.2.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/sheet",
+    "version": "1.1.1",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/sheet",
+    "source": "https://registry.npmjs.org/@emotion/sheet/-/sheet-1.1.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/styled",
+    "version": "11.3.0",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/styled",
+    "source": "https://registry.npmjs.org/@emotion/styled/-/styled-11.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/unitless",
+    "version": "0.7.5",
+    "repository": "https://github.com/emotion-js/emotion/tree/master/packages/unitless",
+    "source": "https://registry.npmjs.org/@emotion/unitless/-/unitless-0.7.5.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/utils",
+    "version": "1.1.0",
+    "repository": "https://github.com/emotion-js/emotion/tree/main/packages/utils",
+    "source": "https://registry.npmjs.org/@emotion/utils/-/utils-1.1.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@emotion/weak-memoize",
+    "version": "0.2.5",
+    "repository": "https://github.com/emotion-js/emotion/tree/master/packages/weak-memoize",
+    "source": "https://registry.npmjs.org/@emotion/weak-memoize/-/weak-memoize-0.2.5.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "@popperjs/core",
+    "version": "2.11.2",
+    "author": "Federico Zivolo <federico.zivolo@gmail.com>",
+    "repository": "github:popperjs/popper-core",
+    "source": "https://registry.npmjs.org/@popperjs/core/-/core-2.11.2.tgz",
+    "license": "MIT",
+    "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2019 Federico Zivolo\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of\nthis software and associated documentation files (the \"Software\"), to deal in\nthe Software without restriction, including without limitation the rights to\nuse, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of\nthe Software, and to permit persons to whom the Software is furnished to do so,\nsubject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS\nFOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\nCOPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER\nIN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN\nCONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "@zag-js/focus-visible",
+    "version": "0.1.0",
+    "author": "Segun Adebayo <sage@adebayosegun.com>",
+    "repository": "https://github.com/chakra-ui/zag/tree/main/packages/utilities/focus-visible",
+    "source": "https://registry.npmjs.org/@zag-js/focus-visible/-/focus-visible-0.1.0.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "aria-hidden",
+    "version": "1.1.3",
+    "author": "Anton Korzunov <thekashey@gmail.com>",
+    "repository": "git+https://github.com/theKashey/aria-hidden.git",
+    "source": "https://registry.npmjs.org/aria-hidden/-/aria-hidden-1.1.3.tgz",
+    "license": "ISC",
+    "licenseText": null
+  },
+  {
+    "name": "axios",
+    "version": "0.26.0",
+    "author": "Matt Zabriskie",
+    "repository": "https://github.com/axios/axios.git",
+    "source": "https://registry.npmjs.org/axios/-/axios-0.26.0.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright (c) 2014-present Matt Zabriskie\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.\n"
+  },
+  {
+    "name": "camelcase",
+    "version": "6.2.0",
+    "author": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)",
+    "repository": "sindresorhus/camelcase",
+    "source": "https://registry.npmjs.org/camelcase/-/camelcase-6.2.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "camelcase-keys",
+    "version": "7.0.0",
+    "author": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)",
+    "repository": "sindresorhus/camelcase-keys",
+    "source": "https://registry.npmjs.org/camelcase-keys/-/camelcase-keys-7.0.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "chakra-react-select",
+    "version": "4.0.3",
+    "author": "Chris Sandvik <chris.sandvik@gmail.com>",
+    "repository": "git+https://github.com/csandman/chakra-react-select.git",
+    "source": "https://registry.npmjs.org/chakra-react-select/-/chakra-react-select-4.0.3.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2021 Chris Sandvik\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "copy-to-clipboard",
+    "version": "3.3.1",
+    "author": "sudodoki <smd.deluzion@gmail.com>",
+    "repository": "git+https://github.com/sudodoki/copy-to-clipboard",
+    "source": "https://registry.npmjs.org/copy-to-clipboard/-/copy-to-clipboard-3.3.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2017 sudodoki <smd.deluzion@gmail.com>\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "css-loader",
+    "version": "5.2.7",
+    "author": "Tobias Koppers @sokra",
+    "repository": "webpack-contrib/css-loader",
+    "source": "https://registry.npmjs.org/css-loader/-/css-loader-5.2.7.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright JS Foundation and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n'Software'), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.\nIN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY\nCLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\nTORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\nSOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "focus-lock",
+    "version": "0.11.2",
+    "author": "theKashey <thekashey@gmail.com>",
+    "repository": "git+https://github.com/theKashey/focus-lock.git",
+    "source": "https://registry.npmjs.org/focus-lock/-/focus-lock-0.11.2.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2017 Anton\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "framer-motion",
+    "version": "6.3.11",
+    "author": "Framer",
+    "repository": "https://github.com/framer/motion/",
+    "source": "https://registry.npmjs.org/framer-motion/-/framer-motion-6.3.11.tgz",
+    "license": "MIT",
+    "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2018 Framer B.V.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "framesync",
+    "version": "5.3.0",
+    "author": "Matt Perry",
+    "repository": "git+https://github.com/Popmotion/popmotion.git",
+    "source": "https://registry.npmjs.org/framesync/-/framesync-5.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright © 2019 Framer BV\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "framesync",
+    "version": "6.0.1",
+    "author": "Matt Perry",
+    "repository": "git+https://github.com/Popmotion/popmotion.git",
+    "source": "https://registry.npmjs.org/framesync/-/framesync-6.0.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright © 2019 Framer BV\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "get-nonce",
+    "version": "1.0.1",
+    "author": "Anton Korzunov <thekashey@gmail.com>",
+    "repository": "git@github.com:theKashey/get-nonce.git",
+    "source": "https://registry.npmjs.org/get-nonce/-/get-nonce-1.0.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2020 Anton Korzunov\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "hey-listen",
+    "version": "1.0.8",
+    "author": "Matt Perry",
+    "repository": "git+https://github.com/Popmotion/hey-listen.git",
+    "source": "https://registry.npmjs.org/hey-listen/-/hey-listen-1.0.8.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2018 Popmotion\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "history",
+    "version": "5.3.0",
+    "author": "Remix Software <hello@remix.run>",
+    "repository": "remix-run/history",
+    "source": "https://registry.npmjs.org/history/-/history-5.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) React Training 2016-2020\nCopyright (c) Remix Software 2020-2021\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "hoist-non-react-statics",
+    "version": "3.3.2",
+    "author": "Michael Ridgway <mcridgway@gmail.com>",
+    "repository": "git://github.com/mridgway/hoist-non-react-statics.git",
+    "source": "https://registry.npmjs.org/hoist-non-react-statics/-/hoist-non-react-statics-3.3.2.tgz",
+    "license": "BSD-3-Clause",
+    "licenseText": "Software License Agreement (BSD License)\n========================================\n\nCopyright (c) 2015, Yahoo! Inc. All rights reserved.\n----------------------------------------------------\n\nRedistribution and use of this software in source and binary forms, with or\nwithout modification, are permitted provided that the following conditions are\nmet:\n\n  * Redistributions of source code must retain the above copyright notice, this\n    list of conditions and the following disclaimer.\n  * Redistributions in binary form must reproduce the above copyright notice,\n    this list of conditions and the following disclaimer in the documentation\n    and/or other materials provided with the distribution.\n  * Neither the name of Yahoo! Inc. nor the names of YUI's contributors may be\n    used to endorse or promote products derived from this software without\n    specific prior written permission of Yahoo! Inc.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\nANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR\nANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\nLOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON\nANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\nSOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n"
+  },
+  {
+    "name": "lodash",
+    "version": "4.17.21",
+    "author": "John-David Dalton <john.david.dalton@gmail.com>",
+    "repository": "lodash/lodash",
+    "source": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright OpenJS Foundation and other contributors <https://openjsf.org/>\n\nBased on Underscore.js, copyright Jeremy Ashkenas,\nDocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>\n\nThis software consists of voluntary contributions made by many\nindividuals. For exact contribution history, see the revision history\navailable at https://github.com/lodash/lodash\n\nThe following license applies to all parts of this software except as\ndocumented below:\n\n====\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n\n====\n\nCopyright and related rights for sample code are waived via CC0. Sample\ncode is defined as all source code displayed within the prose of the\ndocumentation.\n\nCC0: http://creativecommons.org/publicdomain/zero/1.0/\n\n====\n\nFiles located in the node_modules and vendor directories are externally\nmaintained libraries used by this software which have their own\nlicenses; we recommend you read them, as their terms may differ from the\nterms above.\n"
+  },
+  {
+    "name": "lodash.mergewith",
+    "version": "4.6.2",
+    "author": "John-David Dalton <john.david.dalton@gmail.com>",
+    "repository": "lodash/lodash",
+    "source": "https://registry.npmjs.org/lodash.mergewith/-/lodash.mergewith-4.6.2.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright OpenJS Foundation and other contributors <https://openjsf.org/>\n\nBased on Underscore.js, copyright Jeremy Ashkenas,\nDocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>\n\nThis software consists of voluntary contributions made by many\nindividuals. For exact contribution history, see the revision history\navailable at https://github.com/lodash/lodash\n\nThe following license applies to all parts of this software except as\ndocumented below:\n\n====\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n\n====\n\nCopyright and related rights for sample code are waived via CC0. Sample\ncode is defined as all source code displayed within the prose of the\ndocumentation.\n\nCC0: http://creativecommons.org/publicdomain/zero/1.0/\n\n====\n\nFiles located in the node_modules and vendor directories are externally\nmaintained libraries used by this software which have their own\nlicenses; we recommend you read them, as their terms may differ from the\nterms above.\n"
+  },
+  {
+    "name": "map-obj",
+    "version": "4.3.0",
+    "author": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)",
+    "repository": "sindresorhus/map-obj",
+    "source": "https://registry.npmjs.org/map-obj/-/map-obj-4.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "memoize-one",
+    "version": "5.2.1",
+    "author": "Alex Reardon <alexreardon@gmail.com>",
+    "repository": "https://github.com/alexreardon/memoize-one.git",
+    "source": "https://registry.npmjs.org/memoize-one/-/memoize-one-5.2.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2019 Alexander Reardon\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+  },
+  {
+    "name": "moment",
+    "version": "2.29.4",
+    "author": "Iskren Ivov Chernev <iskren.chernev@gmail.com> (https://github.com/ichernev)",
+    "repository": "https://github.com/moment/moment.git",
+    "source": "https://registry.npmjs.org/moment/-/moment-2.29.4.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright (c) JS Foundation and other contributors\n\nPermission is hereby granted, free of charge, to any person\nobtaining a copy of this software and associated documentation\nfiles (the \"Software\"), to deal in the Software without\nrestriction, including without limitation the rights to use,\ncopy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the\nSoftware is furnished to do so, subject to the following\nconditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES\nOF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT\nHOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nWHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR\nOTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "moment-timezone",
+    "version": "0.5.34",
+    "author": "Tim Wood <washwithcare@gmail.com> (http://timwoodcreates.com/)",
+    "repository": "https://github.com/moment/moment-timezone.git",
+    "source": "https://registry.npmjs.org/moment-timezone/-/moment-timezone-0.5.34.tgz",
+    "license": "MIT",
+    "licenseText": "The MIT License (MIT)\n\nCopyright (c) JS Foundation and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of\nthis software and associated documentation files (the \"Software\"), to deal in\nthe Software without restriction, including without limitation the rights to\nuse, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of\nthe Software, and to permit persons to whom the Software is furnished to do so,\nsubject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS\nFOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\nCOPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER\nIN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN\nCONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+  },
+  {
+    "name": "popmotion",
+    "version": "11.0.3",
+    "author": "Matt Perry",
+    "repository": "https://github.com/Popmotion/popmotion/tree/master/packages/popmotion",
+    "source": "https://registry.npmjs.org/popmotion/-/popmotion-11.0.3.tgz",
+    "license": "MIT",
+    "licenseText": "The MIT License (MIT)\n\nCopyright © 2019 Framer BV\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+  },
+  {
+    "name": "quick-lru",
+    "version": "5.1.1",
+    "author": "Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)",
+    "repository": "sindresorhus/quick-lru",
+    "source": "https://registry.npmjs.org/quick-lru/-/quick-lru-5.1.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+  },
+  {
+    "name": "react",
+    "version": "18.1.0",
+    "repository": "https://github.com/facebook/react.git",
+    "source": "https://registry.npmjs.org/react/-/react-18.1.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Facebook, Inc. and its affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-clientside-effect",
+    "version": "1.2.6",
+    "author": "Dan Abramov <dan.abramov@me.com> (http://github.com/gaearon)",
+    "repository": "https://github.com/thekashey/react-clientside-effect.git",
+    "source": "https://registry.npmjs.org/react-clientside-effect/-/react-clientside-effect-1.2.6.tgz",
+    "license": "MIT",
+    "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2015 Dan Abramov\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n\n"
+  },
+  {
+    "name": "react-dom",
+    "version": "18.1.0",
+    "repository": "https://github.com/facebook/react.git",
+    "source": "https://registry.npmjs.org/react-dom/-/react-dom-18.1.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Facebook, Inc. and its affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-fast-compare",
+    "version": "3.2.0",
+    "author": "Chris Bolin",
+    "repository": "git+https://github.com/FormidableLabs/react-fast-compare.git",
+    "source": "https://registry.npmjs.org/react-fast-compare/-/react-fast-compare-3.2.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2018 Formidable Labs\nCopyright (c) 2017 Evgeny Poberezkin\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-focus-lock",
+    "version": "2.9.1",
+    "author": "theKashey <thekashey@gmail.com>",
+    "repository": "git+https://github.com/theKashey/react-focus-lock.git",
+    "source": "https://registry.npmjs.org/react-focus-lock/-/react-focus-lock-2.9.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2017 Anton\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-icons",
+    "version": "4.3.1",
+    "author": "Goran Gajic",
+    "repository": "git+ssh://git@github.com:react-icons/react-icons.git",
+    "source": "https://registry.npmjs.org/react-icons/-/react-icons-4.3.1.tgz",
+    "license": "MIT",
+    "licenseText": "Copyright 2018 kamijin_fanta <kamijin@live.jp>\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n\n---\nIcons are taken from the other projects\nso please check each project licences accordingly.\n\nFont Awesome - https://fontawesome.com/\nLicense: CC BY 4.0 License https://creativecommons.org/licenses/by/4.0/\n\nIonicons 4 - https://ionicons.com/\nLicense: MIT https://github.com/ionic-team/ionicons/blob/master/LICENSE\n\nIonicons 5 - https://ionicons.com/\nLicense: MIT https://github.com/ionic-team/ionicons/blob/master/LICENSE\n\nMaterial Design icons - http://google.github.io/material-design-icons/\nLicense: Apache License Version 2.0 https://github.com/google/material-design-icons/blob/master/LICENSE\n\nTypicons - http://s-ings.com/typicons/\nLicense: CC BY-SA 3.0 https://creativecommons.org/licenses/by-sa/3.0/\n\nGithub Octicons icons - https://octicons.github.com/\nLicense: MIT https://github.com/primer/octicons/blob/master/LICENSE\n\nFeather - https://feathericons.com/\nLicense: MIT https://github.com/feathericons/feather/blob/master/LICENSE\n\nGame Icons - https://game-icons.net/\nLicense: CC BY 3.0 https://creativecommons.org/licenses/by/3.0/\n\nWeather Icons - https://erikflowers.github.io/weather-icons/\nLicense: SIL OFL 1.1 http://scripts.sil.org/OFL\n\nDevicons - https://vorillaz.github.io/devicons/\nLicense: MIT https://opensource.org/licenses/MIT\n\nAnt Design Icons - https://github.com/ant-design/ant-design-icons\nLicense: MIT https://opensource.org/licenses/MIT\n\nBootstrap Icons - https://github.com/twbs/icons\nLicense: MIT https://opensource.org/licenses/MIT\n\nRemix Icon - https://github.com/Remix-Design/RemixIcon\nLicense: Apache License Version 2.0 http://www.apache.org/licenses/\n\nFlat Color Icons - https://github.com/icons8/flat-color-icons\nLicense: MIT https://opensource.org/licenses/MIT\n\nGrommet-Icons - https://github.com/grommet/grommet-icons\nLicense: Apache License Version 2.0 http://www.apache.org/licenses/\n\nHeroicons - https://github.com/tailwindlabs/heroicons\nLicense: MIT https://opensource.org/licenses/MIT\n\nSimple Icons - https://simpleicons.org/\nLicense: CC0 1.0 Universal https://creativecommons.org/publicdomain/zero/1.0/\n\nIcoMoon Free - https://github.com/Keyamoon/IcoMoon-Free\nLicense: CC BY 4.0 License undefined\n\nBoxIcons - https://github.com/atisawd/boxicons\nLicense: CC BY 4.0 License undefined\n\ncss.gg - https://github.com/astrit/css.gg\nLicense: MIT https://opensource.org/licenses/MIT\n\nVS Code Icons - https://github.com/microsoft/vscode-codicons\nLicense: CC BY 4.0 https://creativecommons.org/licenses/by/4.0/\n"
+  },
+  {
+    "name": "react-is",
+    "version": "16.13.1",
+    "repository": "https://github.com/facebook/react.git",
+    "source": "https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Facebook, Inc. and its affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-query",
+    "version": "3.39.1",
+    "author": "tannerlinsley",
+    "repository": "tannerlinsley/react-query",
+    "source": "https://registry.npmjs.org/react-query/-/react-query-3.39.1.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2019 Tanner Linsley\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-remove-scroll",
+    "version": "2.5.4",
+    "author": "Anton Korzunov <thekashey@gmail.com>",
+    "repository": "https://github.com/theKashey/react-remove-scroll",
+    "source": "https://registry.npmjs.org/react-remove-scroll/-/react-remove-scroll-2.5.4.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2017 Anton Korzunov\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-remove-scroll-bar",
+    "version": "2.3.3",
+    "author": "Anton Korzunov <thekashey@gmail.com>",
+    "repository": "https://github.com/theKashey/react-remove-scroll-bar",
+    "source": "https://registry.npmjs.org/react-remove-scroll-bar/-/react-remove-scroll-bar-2.3.3.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "react-router",
+    "version": "6.3.0",
+    "author": "Remix Software <hello@remix.run>",
+    "repository": "https://github.com/remix-run/react-router.git",
+    "source": "https://registry.npmjs.org/react-router/-/react-router-6.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) React Training 2015-2019\nCopyright (c) Remix Software 2020-2021\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-router-dom",
+    "version": "6.3.0",
+    "author": "Remix Software <hello@remix.run>",
+    "repository": "https://github.com/remix-run/react-router.git",
+    "source": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-6.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) React Training 2015-2019\nCopyright (c) Remix Software 2020-2021\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "react-select",
+    "version": "5.3.2",
+    "author": "Jed Watson",
+    "repository": "https://github.com/JedWatson/react-select/tree/master/packages/react-select",
+    "source": "https://registry.npmjs.org/react-select/-/react-select-5.3.2.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "react-style-singleton",
+    "version": "2.2.1",
+    "author": "Anton Korzunov (thekashey@gmail.com)",
+    "repository": "",
+    "source": "https://registry.npmjs.org/react-style-singleton/-/react-style-singleton-2.2.1.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "react-table",
+    "version": "7.8.0",
+    "repository": "https://github.com/tannerlinsley/react-table",
+    "source": "https://registry.npmjs.org/react-table/-/react-table-7.8.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2016 Tanner Linsley\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "scheduler",
+    "version": "0.22.0",
+    "repository": "https://github.com/facebook/react.git",
+    "source": "https://registry.npmjs.org/scheduler/-/scheduler-0.22.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) Facebook, Inc. and its affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "style-value-types",
+    "version": "5.0.0",
+    "author": "Matt Perry",
+    "repository": "https://github.com/Popmotion/popmotion/tree/master/packages/style-value-types",
+    "source": "https://registry.npmjs.org/style-value-types/-/style-value-types-5.0.0.tgz",
+    "license": "MIT",
+    "licenseText": "The MIT License (MIT)\nCopyright (c) 2018 Popmotion\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+  },
+  {
+    "name": "stylis",
+    "version": "4.0.13",
+    "author": "Sultan Tarimo <sultantarimo@me.com>",
+    "repository": "https://github.com/thysultan/stylis.js",
+    "source": "https://registry.npmjs.org/stylis/-/stylis-4.0.13.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2016-present Sultan Tarimo\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "toggle-selection",
+    "version": "1.0.6",
+    "author": "sudodoki <smd.deluzion@gmail.com> (sudodoki.name)",
+    "repository": "git+https://github.com/sudodoki/toggle-selection",
+    "source": "https://registry.npmjs.org/toggle-selection/-/toggle-selection-1.0.6.tgz",
+    "license": "MIT",
+    "licenseText": null
+  },
+  {
+    "name": "tslib",
+    "version": "2.3.1",
+    "author": "Microsoft Corp.",
+    "repository": "https://github.com/Microsoft/tslib.git",
+    "source": "https://registry.npmjs.org/tslib/-/tslib-2.3.1.tgz",
+    "license": "0BSD",
+    "licenseText": "Copyright (c) Microsoft Corporation.\n\nPermission to use, copy, modify, and/or distribute this software for any\npurpose with or without fee is hereby granted.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH\nREGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY\nAND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,\nINDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM\nLOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR\nOTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR\nPERFORMANCE OF THIS SOFTWARE."
+  },
+  {
+    "name": "tslib",
+    "version": "2.4.0",
+    "author": "Microsoft Corp.",
+    "repository": "https://github.com/Microsoft/tslib.git",
+    "source": "https://registry.npmjs.org/tslib/-/tslib-2.4.0.tgz",
+    "license": "0BSD",
+    "licenseText": "Copyright (c) Microsoft Corporation.\n\nPermission to use, copy, modify, and/or distribute this software for any\npurpose with or without fee is hereby granted.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH\nREGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY\nAND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,\nINDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM\nLOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR\nOTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR\nPERFORMANCE OF THIS SOFTWARE."
+  },
+  {
+    "name": "use-callback-ref",
+    "version": "1.3.0",
+    "author": "theKashey <thekashey@gmail.com>",
+    "repository": "https://github.com/theKashey/use-callback-ref/",
+    "source": "https://registry.npmjs.org/use-callback-ref/-/use-callback-ref-1.3.0.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2017 Anton Korzunov\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  },
+  {
+    "name": "use-sidecar",
+    "version": "1.1.2",
+    "author": "theKashey <thekashey@gmail.com>",
+    "repository": "https://github.com/theKashey/use-sidecar",
+    "source": "https://registry.npmjs.org/use-sidecar/-/use-sidecar-1.1.2.tgz",
+    "license": "MIT",
+    "licenseText": "MIT License\n\nCopyright (c) 2017 Anton Korzunov\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+  }
+]
