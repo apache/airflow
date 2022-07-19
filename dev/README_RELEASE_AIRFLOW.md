@@ -353,7 +353,7 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 
 ### Update default branches
 
-#### In the legacy, bash breeze (to be removed when the breeze is entirely gone)
+#### In the legacy, bash breeze (to be removed when the bash breeze is entirely gone)
 
 In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
 
