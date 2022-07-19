@@ -80,6 +80,7 @@ class WebHDFSHook(BaseHook):
                         namenode,
                         connection.port,
                         connection.login,
+                        connection.get_password(),
                         connection.schema,
                         connection.extra_dejson,
                     )
@@ -93,9 +94,13 @@ class WebHDFSHook(BaseHook):
                 self.log.info('Read operation on namenode %s failed with error: %s', namenode, hdfs_error)
         return None
 
-    def _get_client(self, namenode: str, port: int, login: str, schema: str, extra_dejson: dict) -> Any:
+    def _get_client(
+        self, namenode: str, port: int, login: str, password: Optional[str], schema: str, extra_dejson: dict
+    ) -> Any:
         connection_str = f'http://{namenode}'
         session = requests.Session()
+        if password is not None:
+            session.auth = (login, password)
 
         if extra_dejson.get('use_ssl', 'False') == 'True' or extra_dejson.get('use_ssl', False):
             connection_str = f'https://{namenode}'
