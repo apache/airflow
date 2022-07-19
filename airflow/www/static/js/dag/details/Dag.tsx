@@ -48,11 +48,11 @@ const Dag = () => {
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators: Record<string, any> = {};
   tasks.forEach((t) => {
-    if (t?.class_ref?.class_name) {
-      if (!operators[t.class_ref.class_name]) {
-        operators[t.class_ref.class_name] = 1;
+    if (t?.classRef?.className) {
+      if (!operators[t.classRef.className]) {
+        operators[t.classRef.className] = 1;
       } else {
-        operators[t.class_ref.class_name] += 1;
+        operators[t.classRef.className] += 1;
       }
     }
   });

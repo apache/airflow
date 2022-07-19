@@ -112,8 +112,8 @@ const TaskInstance = ({ taskId, runId }: Props) => {
   if (!group || !run) return null;
 
   const { executionDate } = run;
-  const task = tasks.find((t) => t.task_id === taskId);
-  const operator = (task?.class_ref && task?.class_ref?.class_name) ?? '';
+  const task = tasks.find((t) => t.taskId === taskId);
+  const operator = (task?.classRef && task?.classRef?.className) ?? '';
 
   const instance = group.instances.find((ti) => ti.runId === runId);
   if (!instance) return null;

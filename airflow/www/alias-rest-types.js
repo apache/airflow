@@ -72,7 +72,6 @@ const generateVariableAliases = (node, operationPath, operationName) => {
 };
 
 // Generate Type Aliases
-// This is recurrsivenly called to generate types for Linege's external dependencies.
 const generateAliases = (rootNode, writeText, prefix = '') => {
   // Loop through the root AST nodes of the file
   ts.forEachChild(rootNode, (node) => {
@@ -82,19 +81,13 @@ const generateAliases = (rootNode, writeText, prefix = '') => {
 
       const types = schemaMemberNames.map((n) => [
         `${n}`,
-        `export type ${n} = ${prefixPath(prefix, 'components')}['schemas']['${n}'];`,
+        `export type ${n} = SnakeToCamelCaseNested<${prefixPath(prefix, 'components')}['schemas']['${n}']>;`,
       ]);
       if (types.length) {
         writeText.push(['comment', `Types for returned data ${prefix}`]);
         writeText.push(...types);
       }
     }
-
-    /* Fetch Query Variable Types
-     * These are the variables that are passed to the fetch function, comprising variables that
-     * may go into the path (`/namespaces/{namespace}/datasets/{dataset}/metrics`)
-     * and those that are passed in as query parameters.
-     */
 
     // Paths referencing an operation are skipped
     if (node.name?.text === 'paths') {
@@ -138,6 +131,7 @@ const generateAliases = (rootNode, writeText, prefix = '') => {
       if (types.length) {
         writeText.push(['comment', `Types for operation variables ${prefix}`]);
         writeText.push(...types);
+        writeText.push('\n');
       }
     }
 
@@ -150,13 +144,35 @@ const generateAliases = (rootNode, writeText, prefix = '') => {
   });
 };
 
+const license = `/*!
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*   http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied.  See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/`;
+
 function generate(file) {
   // Create a Program to represent the project, then pull out the
   // source file to parse its AST.
   const program = ts.createProgram([file], { allowJs: true });
   const sourceFile = program.getSourceFile(file);
   const writeText = [];
+  writeText.push(['block', license]);
   writeText.push(['comment', 'eslint-disable']);
+  // eslint-disable-next-line quotes
+  writeText.push(['block', `import type { SnakeToCamelCaseNested } from '.';`]);
   writeText.push(['block', sourceFile.text]);
   generateAliases(sourceFile, writeText);
 
