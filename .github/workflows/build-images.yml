@@ -155,7 +155,7 @@ jobs:
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: "$${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}"
+          PR_LABELS: "${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}"
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
         run: breeze selective-check
       - name: env
