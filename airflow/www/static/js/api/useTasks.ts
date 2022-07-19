@@ -29,7 +29,7 @@ interface TaskData {
 }
 
 export default function useTasks() {
-  const query = useQuery<TaskData>(
+  const query = useQuery(
     'tasks',
     () => {
       const tasksUrl = getMetaValue('tasks_api');

@@ -93,8 +93,8 @@ const Dag = () => {
   const max = Math.max.apply(null, durations);
   const min = Math.min.apply(null, durations);
   const avg = mean(durations);
-  const firstStart = dagRuns[0].startDate;
-  const lastStart = dagRuns[dagRuns.length - 1].startDate;
+  const firstStart = dagRuns[0]?.startDate;
+  const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
 
   return (
     <>

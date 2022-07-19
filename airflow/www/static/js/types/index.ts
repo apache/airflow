@@ -77,14 +77,6 @@ interface Task {
   isMapped?: boolean;
 }
 
-interface Dataset {
-  id: string;
-  uri: string;
-  extra: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 type SnakeToCamelCase<S extends string> =
   S extends `${infer T}_${infer U}`
     ? `${T}${Capitalize<SnakeToCamelCase<U>>}`
@@ -101,7 +93,6 @@ export type {
   TaskState,
   TaskInstance,
   Task,
-  Dataset,
   API,
   SnakeToCamelCase,
   SnakeToCamelCaseNested,
