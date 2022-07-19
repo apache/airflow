@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import ast
 import os
 import platform
 import subprocess
@@ -244,7 +245,7 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
 )
 @click.option(
     '--pr-labels',
-    help="Space-separate list of labels which are valid for the PR",
+    help="Python array formatted PR labels assigned to the PR",
     default="",
     envvar="PR_LABELS",
 )
@@ -296,7 +297,7 @@ def selective_check(
         default_branch=default_branch,
         default_constraints_branch=default_constraints_branch,
         debian_version=debian_version,
-        pr_labels=tuple(" ".split(pr_labels)) if pr_labels else (),
+        pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
         github_event=github_event,
     )
     print(str(sc))

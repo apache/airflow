@@ -230,7 +230,7 @@ jobs:
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: "${{ steps.source-run-info.outputs.pull-request-labels }}"
+          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
           COMMIT_REF: "${{ github.sha }}"
         run: breeze selective-check
       # Avoid having to specify the runs-on logic every time. We use the custom
@@ -239,7 +239,7 @@ jobs:
       - name: Set runs-on
         id: set-runs-on
         env:
-          PR_LABELS: "${{ steps.source-run-info.outputs.pull-request-labels }}"
+          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
           if [[ ${PR_LABELS=} == *"use public runners"* ]]; then
             echo "Forcing running on Public Runners via `use public runners` label"
@@ -290,7 +290,7 @@ jobs:
       - name: env
         run: printenv
         env:
-          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}
+          PR_LABELS: ${{ steps.source-run-info.outputs.pullRequestLabels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
   build-ci-images:
