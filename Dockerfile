@@ -1283,10 +1283,10 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 COPY --from=scripts common.sh install_pip_version.sh \
      install_airflow_dependencies_from_branch_tip.sh /scripts/docker/
 
-# We can set this value to true in case we want to install .whl .tar.gz packages placed in the
-# docker-context-files folder. This can be done for both - additional packages you want to install
+# We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
+# docker-context-files folder. This can be done for both additional packages you want to install
 # as well as Airflow and Provider packages (it will be automatically detected if airflow
-# is installed from docker-context files rather than from PyPI
+# is installed from docker-context files rather than from PyPI)
 ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
 
 # In case of Production build image segment we want to pre-install main version of airflow
