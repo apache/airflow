@@ -341,6 +341,8 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 
 ### Update default branches
 
+#### In the legacy, bash breeze (to be removed when the bash breeze is entirely gone)
+
 In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
 
 ```bash
@@ -361,6 +363,22 @@ values for comparison and regexp):
 ```bash
     elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
+```
+
+#### In the new breeze
+
+In ``./dev/breeze/src/airflow_breeze/branch_defaults.py`` update branches to reflect the new branch:
+
+```python
+AIRFLOW_BRANCH = "main"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
+```
+
+should become this, where ``X-Y`` is your new branch version:
+
+```python
+AIRFLOW_BRANCH = "vX-Y-test"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-X-Y"
 ```
 
 ### Commit the changes to the test branch
