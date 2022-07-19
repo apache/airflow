@@ -5,7 +5,7 @@
 main:fa4319079b275ce966502346f083f2e3
 build-docs:74c301f05bbd185a19fd185f1873e38a
 build-image:b62509a59badf3aa230e4562df751002
-build-prod-image:1902ec077a6d70336de6038d13472ef3
+build-prod-image:b9aa5dcefcd7067a6698f68c05adc2b8
 cleanup:9a94bd1063296ea86e895f671db0b330
 command-hash-export:83bc6a4a8c60b62da3d0f00e81d2c3ea
 config:92653afc11889e1b78e3a2e38f41107f

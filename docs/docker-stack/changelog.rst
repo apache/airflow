@@ -73,8 +73,7 @@ Airflow 2.3
   * Add Multi-Platform support (AMD64/ARM64) in order to accommodate MacOS M1 users
   * Build parameters which control if packages and Airflow should be installed from context file were
     unified
-  * The ``INSTALL_FROM_PYPI`` arg was replaced to ``AIRFLOW_IS_IN_CONTEXT`` (with reverse meaning and
-    default changed to false)
+  * The ``INSTALL_FROM_PYPI`` arg was removed - it is automatically detected now.
   * The ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` arg changed to ``INSTALL_PACKAGES_FROM_CONTEXT``
 
 Airflow 2.2

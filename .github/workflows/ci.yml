@@ -434,7 +434,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze prepare-provider-packages
           --package-list-file ./scripts/ci/installed_providers.txt
           --package-format wheel --version-suffix-for-pypi dev0
-        if: needs.build-info.outputs.in-workflow-build == 'true'
+        if: >
+          needs.build-info.outputs.in-workflow-build == 'true' &&
+          needs.build-info.outputs.default-branch == 'main'
       - name: "Prepare airflow package"
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
         if: needs.build-info.outputs.in-workflow-build == 'true'
@@ -450,8 +452,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --run-in-parallel
           --push-image
           --install-packages-from-context
-          --disable-airflow-repo-cache
-          --airflow-is-in-context
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -1720,6 +1720,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
+      - name: "Prepare airflow package for PROD build"
+        run: breeze prepare-airflow-package --package-format wheel
+        env:
+          VERSION_SUFFIX_FOR_PYPI: "dev0"
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze prepare-provider-packages
@@ -1727,10 +1731,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
-      - name: "Prepare airflow package for PROD build"
-        run: breeze prepare-airflow-package --package-format wheel
-        env:
-          VERSION_SUFFIX_FOR_PYPI: "dev0"
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: matrix.platform == 'linux/arm64'
@@ -1746,17 +1747,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-prod-image
           --builder airflow_cache
-          --airflow-is-in-context
           --install-packages-from-context
           --prepare-buildx-cache
-          --disable-airflow-repo-cache
           --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && matrix.platform == 'linux/arm64'
