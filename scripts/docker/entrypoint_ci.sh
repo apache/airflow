@@ -71,11 +71,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
-        if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
-            pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
-            ./ask_for_recompile_assets_if_needed.sh
-            popd >/dev/null
-        fi
         # Cleanup the logs, tmp when entering the environment
         sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
         sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*

@@ -65,7 +65,7 @@ repos:
       - id: insert-license
         name: Add license for all CSS/JS/PUML/TS/TSX files
         files: \.(css|js|puml|ts|tsx|jsx)$
-        exclude: ^\.github/.*$|^airflow/_vendor/|^airflow/www/static/dist/.*$
+        exclude: ^\.github/.*$|^airflow/_vendor/|^airflow/www/static/dist/
         args:
           - --comment-style
           - "/*!| *| */"
@@ -180,10 +180,10 @@ repos:
         name: Detect if private key is added to the repository
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^airflow/www/static/dist/
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^airflow/www/static/dist/
       - id: check-executables-have-shebangs
         name: Check that executables have shebang
         exclude: ^airflow/_vendor/
@@ -192,7 +192,7 @@ repos:
         exclude: ^airflow/_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^airflow/_vendor/|^images/breeze/output.*$|^airflow/www/static/dist/.*$
+        exclude: ^airflow/_vendor/|^images/breeze/output.*$|^airflow/www/static/dist/
       - id: fix-encoding-pragma
         name: Remove encoding header from python files
         exclude: ^airflow/_vendor/
@@ -305,7 +305,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$|^airflow/www/static/dist/.*$
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$|^airflow/www/static/dist/
         additional_dependencies: ['rich>=12.4.4']
       - id: static-check-autoflake
         name: Remove all unused code
@@ -594,15 +594,17 @@ repos:
         entry: "stylelint"
         language: node
         files: ^airflow/www/.*\.(css|scss|sass)$
-        exclude: ^airflow/www/static/dist/.*$
+        exclude: ^airflow/www/static/dist/
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
       - id: compile-www-assets
         name: Compile www assets
-        entry: "yarn install --frozen-lockfile && yarn run build"
         language: node
-        files: ^airflow/www/.*$
-        exclude: ^airflow/www/static/dist/.*$
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/www/
+        exclude: ^airflow/www/static/dist/
+        entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets.py
+        pass_filenames: false
         additional_dependencies: ['yarn']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
@@ -821,6 +823,22 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
+      - id: lint-javascript
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
+        pass_filenames: false
+        additional_dependencies: ['yarn']
+      - id: lint-javascript
+        name: ESLint against current UI JavaScript files
+        language: node
+        'types_or': [javascript]
+        files: ^airflow/www/static/js/
+        entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
+        additional_dependencies: ['yarn']
+        pass_filenames: false
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: run-mypy
@@ -860,22 +878,6 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: lint-javascript
-        name: ESLint against airflow/ui
-        language: python
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: lint-javascript
-        name: ESLint against current UI JavaScript files
-        language: python
-        'types_or': [javascript]
-        files: ^airflow/www/static/js/
-        entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
-        pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: update-migration-references
         name: Update migration ref doc

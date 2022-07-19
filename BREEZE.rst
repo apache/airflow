@@ -1590,9 +1590,8 @@ If you set these variables, next time when you enter the environment the new por
 Managing Dependencies
 ---------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add JavaScript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
+for airflow and in provider.yaml for packages.
 
 Installing Dependencies for a Single Breeze Session
 ...................................................
@@ -1606,8 +1605,7 @@ Therefore, if you want to retain a new dependency, follow the second option desc
 Adding Dependencies Permanently
 ...............................
 
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
-This should happen automatically if you modify any of these files.
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py``.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the

@@ -295,7 +295,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - If you aren't using Breeze for packaging, build the distribution and wheel files directly
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel
+    python setup.py sdist bdist_wheel
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import subprocess
+from pathlib import Path
 
-set -e
+if __name__ not in ("__main__", "__mp_main__"):
+    raise SystemExit(
+        "This file is intended to be executed as an executable program. You cannot use it as a module."
+        f"To run this script, run the ./{__file__} command"
+    )
 
-cd "$( dirname "${BASH_SOURCE[0]}" )"
-
-MD5SUM_FILE="static/dist/sum.md5"
-readonly MD5SUM_FILE
-
-# first bump up package.json manually, commit and tag
-if [[ -d ./static/dist ]]; then
-  rm -f ./static/dist/*
-fi
-
-yarn install --frozen-lockfile
-yarn run build
-
-find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${MD5SUM_FILE}"
+if __name__ == '__main__':
+    dir = Path("airflow") / "www"
+    subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(dir))
+    subprocess.check_call(['yarn', 'run', 'build'], cwd=str(dir))

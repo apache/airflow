@@ -1165,27 +1165,6 @@ To install yarn on macOS:
     export PATH="$HOME/.yarn/bin:$PATH"
 
 4.  Install third-party libraries defined in ``package.json`` by running the
-    following commands within the ``airflow/www/`` directory:
-
-
-.. code-block:: bash
-
-    # from the root of the repository, move to where our JS package.json lives
-    cd airflow/www/
-    # run yarn install to fetch all the dependencies
-    yarn install
-
-
-These commands install the libraries in a new ``node_modules/`` folder within
-``www/``.
-
-Should you add or upgrade a node package, run
-``yarn add --dev <package>`` for packages needed in development or
-``yarn add <package>`` for packages used by the code.
-Then push the newly generated ``package.json`` and ``yarn.lock`` file so that we
-could get a reproducible build. See the `Yarn docs
-<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more details.
-
 
 Generate Bundled Files with yarn
 --------------------------------
