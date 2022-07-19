@@ -377,7 +377,7 @@ values for comparison and regexp):
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
 ```
 
-#### In the new breeze (to be removed when bash breeze is entirely gone)
+#### In the new breeze
 
 In ``./dev/breeze/src/airflow_breeze/branch_defaults.py`` update branches to reflect the new branch:
 
