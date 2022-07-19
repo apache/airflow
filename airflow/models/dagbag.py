@@ -646,7 +646,7 @@ class DagBag(LoggingMixin):
         def needs_perms(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)
             for permission_name in DAG_ACTIONS:
-                if not (
+                if (
                     session.query(Permission)
                     .join(Action)
                     .join(Resource)

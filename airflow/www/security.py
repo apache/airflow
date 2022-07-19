@@ -621,8 +621,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for dag_action_name in self.DAG_ACTIONS:
             self.create_permission(dag_action_name, dag_resource_name)
 
-        if access_control:
-            self._sync_dag_view_permissions(dag_resource_name, access_control)
+        self._sync_dag_view_permissions(dag_resource_name, access_control)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """
