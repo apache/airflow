@@ -20,13 +20,16 @@ from os import getenv
 
 from airflow import DAG
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_redshift_to_s3'
 S3_BUCKET_NAME = getenv("S3_BUCKET_NAME", "s3_bucket_name")
 S3_KEY = getenv("S3_KEY", "s3_key")
 REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "redshift_table")
 
 with DAG(
-    dag_id="example_redshift_to_s3",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
@@ -41,3 +44,9 @@ with DAG(
         table=REDSHIFT_TABLE,
     )
     # [END howto_transfer_redshift_to_s3]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

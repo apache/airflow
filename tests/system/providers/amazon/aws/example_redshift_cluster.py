@@ -28,11 +28,15 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftResumeClusterOperator,
 )
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_redshift_cluster'
 REDSHIFT_CLUSTER_IDENTIFIER = getenv("REDSHIFT_CLUSTER_IDENTIFIER", "redshift-cluster-1")
 
 with DAG(
-    dag_id="example_redshift_cluster",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
@@ -85,6 +89,7 @@ with DAG(
     task_delete_cluster = RedshiftDeleteClusterOperator(
         task_id="delete_cluster",
         cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_redshift_delete_cluster]
 
@@ -96,3 +101,15 @@ with DAG(
         task_resume_cluster,
         task_delete_cluster,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

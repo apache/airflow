@@ -16,16 +16,18 @@
 # under the License.
 
 from datetime import datetime
-from os import getenv
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
+from tests.system.providers.amazon.aws.utils import fetch_variable, set_env_id
 
-REDSHIFT_CLUSTER_IDENTIFIER = getenv("REDSHIFT_CLUSTER_IDENTIFIER", "redshift_cluster_identifier")
-REDSHIFT_DATABASE = getenv("REDSHIFT_DATABASE", "redshift_database")
-REDSHIFT_DATABASE_USER = getenv("REDSHIFT_DATABASE_USER", "awsuser")
+ENV_ID = set_env_id()
+DAG_ID = 'example_redshift_data_execute_sql'
+REDSHIFT_CLUSTER_IDENTIFIER = fetch_variable("REDSHIFT_CLUSTER_IDENTIFIER", "redshift_cluster_identifier")
+REDSHIFT_DATABASE = fetch_variable("REDSHIFT_DATABASE", "redshift_database")
+REDSHIFT_DATABASE_USER = fetch_variable("REDSHIFT_DATABASE_USER", "awsuser")
 
 REDSHIFT_QUERY = """
 SELECT table_schema,
@@ -51,7 +53,7 @@ def output_query_results(statement_id):
 
 
 with DAG(
-    dag_id="example_redshift_data_execute_sql",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
@@ -70,3 +72,14 @@ with DAG(
     # [END howto_operator_redshift_data]
 
     task_output = output_query_results(task_query.output)
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

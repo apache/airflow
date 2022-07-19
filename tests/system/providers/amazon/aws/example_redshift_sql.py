@@ -21,9 +21,14 @@ from datetime import datetime
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import set_env_id
+
+ENV_ID = set_env_id()
+DAG_ID = 'example_redshift_sql'
 
 with DAG(
-    dag_id="example_redshift_sql",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
@@ -69,6 +74,7 @@ with DAG(
     teardown__task_drop_table = RedshiftSQLOperator(
         task_id='teardown__drop_table',
         sql='DROP TABLE IF EXISTS fruit',
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
@@ -77,3 +83,15 @@ with DAG(
         [task_select_data, task_select_filtered_data],
         teardown__task_drop_table,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

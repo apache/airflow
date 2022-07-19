@@ -42,7 +42,7 @@ Execute a SQL query
 To execute a SQL query against an Amazon Redshift cluster without using a Postgres connection,
 please check ``RedshiftDataOperator``.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_sql.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_sql]
@@ -51,7 +51,7 @@ please check ``RedshiftDataOperator``.
 ``RedshiftSQLOperator`` supports the ``parameters`` attribute which allows us to dynamically pass
 parameters into SQL statements.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_sql.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_sql_with_params]
