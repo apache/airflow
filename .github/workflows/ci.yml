@@ -134,8 +134,13 @@ jobs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
+      min-max-python-versions-as-string: >-
+        ${{ steps.selective-checks.outputs.min-max-python-versions-as-string }}
       kubernetes-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
+      default-kubernetes-version: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
+      min-max-kubernetes-versions-as-string: >-
+        ${{ steps.selective-checks.outputs.min-max-kubernetes-versions-as-string }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       default-postgres-version: ${{ steps.selective-checks.outputs.default-postgres-version }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
@@ -1524,7 +1529,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-helm-executor-upgrade:
     timeout-minutes: 150
-    name: Helm Chart Executor Upgrade - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+    name: Helm Chart Executor Upgrade - ${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-prod-images]
     env:
@@ -1536,10 +1541,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       EXECUTOR: "KubernetesExecutor"
       KIND_VERSION: "${{ needs.build-info.outputs.default-kind-version }}"
       HELM_VERSION: "${{ needs.build-info.outputs.default-helm-version }}"
-      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
-        ${{needs.build-info.outputs.python-versions-list-as-string}}
-      CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
-        ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >-
+        ${{needs.build-info.outputs.min-max-python-versions-as-string}}
+      CURRENT_KUBERNETES_VERSIONS_AS_STRING: >-
+        ${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
     if: >
       needs.build-info.outputs.run-kubernetes-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main'
@@ -1569,12 +1574,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: ".build/.kubernetes_venv"
           key: "kubernetes-${{ needs.build-info.outputs.default-python-version }}\
-  -${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-  -${{needs.build-info.outputs.python-versions-list-as-string}}
+  -${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
+  -${{needs.build-info.outputs.min-max-python-versions-as-string}}
   -${{ hashFiles('setup.py','setup.cfg') }}"
           restore-keys: "kubernetes-${{ needs.build-info.outputs.default-python-version }}-\
-  -${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-  -${{needs.build-info.outputs.python-versions-list-as-string}}"
+  -${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}} \
+  -${{needs.build-info.outputs.min-max-python-versions-as-string}}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v3
         with:

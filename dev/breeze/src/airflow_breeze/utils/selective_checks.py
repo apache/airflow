@@ -325,6 +325,14 @@ class SelectiveChecks:
         return " ".join(self.python_versions)
 
     @cached_property
+    def min_max_python_versions_as_string(self) -> str:
+        return " ".join(
+            [CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0], CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]]
+            if self._full_tests_needed
+            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
+        )
+
+    @cached_property
     def all_python_versions(self) -> list[str]:
         return (
             ALL_PYTHON_MAJOR_MINOR_VERSIONS
@@ -379,6 +387,14 @@ class SelectiveChecks:
     @cached_property
     def kubernetes_versions(self) -> list[str]:
         return CURRENT_KUBERNETES_VERSIONS if self._full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
+
+    @cached_property
+    def min_max_kubernetes_versions_as_string(self) -> str:
+        return " ".join(
+            [CURRENT_KUBERNETES_VERSIONS[0], CURRENT_KUBERNETES_VERSIONS[-1]]
+            if self._full_tests_needed
+            else [DEFAULT_KUBERNETES_VERSION]
+        )
 
     @cached_property
     def kubernetes_versions_list_as_string(self) -> str:
