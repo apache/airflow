@@ -1100,8 +1100,7 @@ A simple example of a system test is available in:
 
 ``tests/providers/google/cloud/operators/test_compute_system.py``.
 
-It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py`` and
-``airflow.providers.google.cloud.example_dags.example_compute_igm.py``.
+It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py``.
 
 Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------

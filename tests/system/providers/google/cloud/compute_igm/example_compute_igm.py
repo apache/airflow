@@ -42,14 +42,16 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
+
+DAG_ID = 'example_gcp_compute_igm'
 
 # [START howto_operator_compute_template_copy_args]
 GCE_TEMPLATE_NAME = os.environ.get('GCE_TEMPLATE_NAME', 'instance-template-test')
@@ -91,11 +93,11 @@ UPDATE_POLICY = {
 
 
 with models.DAG(
-    'example_gcp_compute_igm',
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=['example', 'igm'],
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]
     gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
@@ -135,9 +137,22 @@ with models.DAG(
     )
     # [END howto_operator_gce_igm_update_template_no_project_id]
 
-    chain(
-        gce_instance_template_copy,
-        gce_instance_template_copy2,
-        gce_instance_group_manager_update_template,
-        gce_instance_group_manager_update_template2,
+    (
+        # TEST BODY
+        gce_instance_template_copy
+        >> gce_instance_template_copy2
+        >> gce_instance_group_manager_update_template
+        >> gce_instance_group_manager_update_template2
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
