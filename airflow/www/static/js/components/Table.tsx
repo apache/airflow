@@ -87,6 +87,7 @@ interface TableProps {
   setSortBy?: (sortBy: SortingRule<number>[]) => void;
   isLoading?: boolean;
   selectRows?: (selectedRows: number[]) => void;
+  onRowClicked?: (row: any, e: any) => void;
 }
 const Table = ({
   data,
@@ -96,6 +97,7 @@ const Table = ({
   setSortBy,
   isLoading = false,
   selectRows,
+  onRowClicked,
 }: TableProps) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
@@ -212,7 +214,9 @@ const Table = ({
               <Tr
                 {...row.getRowProps()}
                 _odd={{ backgroundColor: oddColor }}
-                _hover={{ backgroundColor: hoverColor }}
+                _hover={onRowClicked && { backgroundColor: hoverColor, cursor: 'pointer' }}
+                onClick={onRowClicked ? (e: any) => onRowClicked(row, e) : undefined}
+                data-group
               >
                 {row.cells.map((cell) => (
                   <Td

@@ -34,6 +34,7 @@ import useConfirmMarkTask from './useConfirmMarkTask';
 import useGridData from './useGridData';
 import useMappedInstances from './useMappedInstances';
 import useDatasets from './useDatasets';
+import useDatasetEvents from './useDatasetEvents';
 
 axios.interceptors.response.use(
   (res: AxiosResponse) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -56,4 +57,5 @@ export {
   useGridData,
   useMappedInstances,
   useDatasets,
+  useDatasetEvents,
 };
