@@ -876,9 +876,12 @@ class Airflow(AirflowBaseView):
             ) in user_permissions
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
-            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
-                dataset_triggered_dag_ids, session
-            )
+            if dataset_triggered_dag_ids:
+                dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+                    dataset_triggered_dag_ids, session
+                )
+            else:
+                dataset_triggered_next_run_info = {}
 
             for dag in dags:
                 dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
