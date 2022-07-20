@@ -19,6 +19,8 @@ import os
 from dataclasses import dataclass
 from typing import List, Tuple
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+
 
 @dataclass
 class DocBuildParams:
@@ -38,6 +40,8 @@ class DocBuildParams:
             doc_args.append("--spellcheck-only")
         if self.for_production:
             doc_args.append("--for-production")
+        if AIRFLOW_BRANCH != "main":
+            doc_args.append("--disable-provider-checks")
         if self.package_filter and len(self.package_filter) > 0:
             for single_filter in self.package_filter:
                 doc_args.extend(["--package-filter", single_filter])

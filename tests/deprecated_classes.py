@@ -20,10 +20,6 @@ HOOKS = [
         "airflow.hooks.base_hook.BaseHook",
     ),
     (
-        "airflow.hooks.dbapi.DbApiHook",
-        "airflow.hooks.dbapi_hook.DbApiHook",
-    ),
-    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),
@@ -1134,6 +1130,10 @@ OPERATORS = [
     (
         'airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator',
         'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
+        "airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator",
     ),
     (
         'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',

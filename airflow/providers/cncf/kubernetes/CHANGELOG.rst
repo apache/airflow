@@ -24,6 +24,31 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'airflow_kpo_in_cluster' label to KPO pods (#24658)``
+* ``Use found pod for deletion in KubernetesPodOperator (#22092)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert "Fix await_container_completion condition (#23883)" (#24474)``
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Only assert stuff for mypy when type checking (#24937)``
+   * ``Remove 'xcom_push' flag from providers (#24823)``
+   * ``More typing and minor refactor for kubernetes (#24719)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Use our yaml util in all providers (#24720)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Rename 'resources' arg in Kub op to k8s_resources (#24673)``
+
 4.1.0
 .....
 

@@ -48,7 +48,7 @@ from airflow_breeze.utils.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.console import get_console, message_type_from_return_code
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     get_env_variables_for_docker_commands,
     perform_environment_checks,
@@ -197,9 +197,9 @@ def run_with_progress(
 ) -> RunCommandResult:
     title = f"Running tests: {test_type}, Python: {python}, Backend: {backend}:{version}"
     try:
-        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as tf:
             get_console().print(f"[info]Starting test = {title}[/]")
-            thread = MonitoringThread(title=title, file_name=f.name)
+            thread = MonitoringThread(title=title, file_name=tf.name)
             thread.start()
             try:
                 result = run_command(
@@ -208,14 +208,14 @@ def run_with_progress(
                     dry_run=dry_run,
                     env=env_variables,
                     check=False,
-                    stdout=f,
+                    stdout=tf,
                     stderr=subprocess.STDOUT,
                 )
             finally:
                 thread.stop()
                 thread.join()
         with ci_group(f"Result of {title}", message_type=message_type_from_return_code(result.returncode)):
-            with open(f.name) as f:
+            with open(tf.name) as f:
                 shutil.copyfileobj(f, sys.stdout)
     finally:
         os.unlink(f.name)
@@ -247,9 +247,10 @@ def run_with_progress(
 @option_mount_sources
 @click.option(
     "--test-type",
-    help="Type of test to run.",
+    help="Type of test to run. Note that with Providers, you can also specify which provider "
+    "tests should be run - for example --test-type \"Providers[airbyte,http]\"",
     default="All",
-    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES),
+    type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
 @option_db_reset
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
@@ -272,6 +273,9 @@ def tests(
     os.environ["RUN_TESTS"] = "true"
     if test_type:
         os.environ["TEST_TYPE"] = test_type
+        if "[" in test_type and not test_type.startswith("Providers"):
+            get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
+            sys.exit(1)
     if integration:
         if "trino" in integration:
             integration = integration + ("kerberos",)

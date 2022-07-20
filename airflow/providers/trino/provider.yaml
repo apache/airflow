@@ -22,6 +22,7 @@ description: |
     `Trino <https://trino.io/>`__
 
 versions:
+  - 3.1.0
   - 3.0.0
   - 2.3.0
   - 2.2.0
@@ -33,8 +34,11 @@ versions:
   - 2.0.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
+  - pandas>=0.17.1
+  - trino>=0.301.0
 
 integrations:
   - integration-name: Trino

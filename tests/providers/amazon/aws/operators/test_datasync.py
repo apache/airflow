@@ -619,7 +619,9 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
 @mock_datasync
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperator(DataSyncTestCaseBase):
-    def set_up_operator(self, task_id="test_datasync_task_operator", task_arn="self"):
+    def set_up_operator(
+        self, task_id="test_datasync_task_operator", task_arn="self", wait_for_completion=True
+    ):
         if task_arn == "self":
             task_arn = self.task_arn
         # Create operator
@@ -627,6 +629,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
             task_id=task_id,
             dag=self.dag,
             wait_interval_seconds=0,
+            wait_for_completion=wait_for_completion,
             task_arn=task_arn,
         )
 
@@ -692,6 +695,18 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         assert "/".join(task_execution_arn.split("/")[:2]) == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()
+
+    @mock.patch.object(DataSyncHook, "wait_for_task_execution")
+    def test_execute_task_without_wait_for_completion(self, mock_wait, mock_get_conn):
+        self.set_up_operator(wait_for_completion=False)
+
+        # Execute the task
+        result = self.datasync.execute(None)
+        assert result is not None
+        task_execution_arn = result["TaskExecutionArn"]
+        assert task_execution_arn is not None
+
+        mock_wait.assert_not_called()
 
     @mock.patch.object(DataSyncHook, "wait_for_task_execution")
     def test_failed_task(self, mock_wait, mock_get_conn):

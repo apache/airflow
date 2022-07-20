@@ -51,7 +51,7 @@ Package apache-airflow-providers-jira
 `Atlassian Jira <https://www.atlassian.com/>`__
 
 
-Release: 3.0.0
+Release: 3.0.1
 
 Provider package
 ----------------

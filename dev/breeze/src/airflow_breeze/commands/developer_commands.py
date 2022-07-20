@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+import shutil
 import sys
 from typing import Iterable, Optional, Tuple
 
@@ -74,6 +75,7 @@ from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     filter_out_none,
     run_command,
+    run_compile_www_assets,
 )
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
@@ -82,6 +84,7 @@ DEVELOPER_COMMANDS = {
     "commands": [
         "shell",
         "start-airflow",
+        "compile-www-assets",
         "exec",
         "stop",
         "build-docs",
@@ -195,6 +198,7 @@ DEVELOPER_PARAMETERS = {
             "options": [
                 "--docs-only",
                 "--spellcheck-only",
+                "--clean-build",
                 "--for-production",
                 "--package-filter",
             ],
@@ -355,6 +359,8 @@ def start_airflow(
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
+    if use_airflow_version is None:
+        run_compile_www_assets(verbose=verbose, dry_run=dry_run)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -391,17 +397,22 @@ def start_airflow(
 @click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
 @click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
-    '-p',
-    '--for-production',
-    help="Builds documentation for official release i.e. all links point to stable version.",
-    is_flag=True,
-)
-@click.option(
-    '-p',
     '--package-filter',
     help="List of packages to consider.",
     type=NotVerifiedBetterChoice(get_available_packages()),
     multiple=True,
+)
+@click.option(
+    '--clean-build',
+    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
+    "before the build - useful for a clean build.",
+    is_flag=True,
+)
+@click.option(
+    '--for-production',
+    help="Builds documentation for official release i.e. all links point to stable version. "
+    "Implies --clean-build",
+    is_flag=True,
 )
 def build_docs(
     verbose: bool,
@@ -410,12 +421,22 @@ def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
     for_production: bool,
+    clean_build: bool,
     package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
+    if for_production and not clean_build:
+        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        clean_build = True
     perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
+    if clean_build:
+        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+        for dir_name in ['_build', "_doctrees", '_inventory_cache', '_api']:
+            for dir in docs_dir.rglob(dir_name):
+                get_console().print(f"[info]Removing {dir}")
+                shutil.rmtree(dir, ignore_errors=True)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
@@ -527,6 +548,26 @@ def static_checks(
     if static_checks_result.returncode != 0:
         get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
     sys.exit(static_checks_result.returncode)
+
+
+@main.command(
+    name="compile-www-assets",
+    help="Compiles www assets.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_verbose
+@option_dry_run
+def compile_www_assets(
+    verbose: bool,
+    dry_run: bool,
+):
+    compile_www_assets_result = run_compile_www_assets(verbose=verbose, dry_run=dry_run)
+    if compile_www_assets_result.returncode != 0:
+        get_console().print("[warn]New assets were generated[/]")
+    sys.exit(0)
 
 
 @main.command(name="stop", help="Stop running breeze environment.")

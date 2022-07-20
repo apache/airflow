@@ -73,9 +73,11 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
     prepare_docker_build_from_input,
+    warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.parallel import check_async_run_results
@@ -141,7 +143,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
             "name": "Customization options (for specific customization needs)",
             "options": [
                 "--install-packages-from-context",
-                "--airflow-is-in-context",
                 "--cleanup-context",
                 "--disable-mysql-client-installation",
                 "--disable-mssql-client-installation",
@@ -199,7 +200,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 }
 
 
-def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+def start_building(parallel: bool, prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+    make_sure_builder_configured(
+        parallel=parallel, params=prod_image_params, dry_run=dry_run, verbose=verbose
+    )
     if prod_image_params.cleanup_context:
         clean_docker_context_files(verbose=verbose, dry_run=dry_run)
     check_docker_context_files(prod_image_params.install_packages_from_context)
@@ -214,6 +218,7 @@ def run_build_in_parallel(
     dry_run: bool,
     verbose: bool,
 ) -> None:
+    warm_up_docker_builder(image_params_list[0], verbose=verbose, dry_run=dry_run)
     get_console().print(
         f"\n[info]Building with parallelism = {parallelism} for the images: {python_version_list}:"
     )
@@ -261,13 +266,9 @@ def run_build_in_parallel(
 )
 @option_install_providers_from_sources
 @click.option(
-    '--airflow-is-in-context',
-    help="If set Airflow is installed from docker-context-files only rather than from PyPI or sources.",
-    is_flag=True,
-)
-@click.option(
     '--install-packages-from-context',
-    help='Install wheels from local docker-context-files when building image.',
+    help='Install wheels from local docker-context-files when building image. '
+    'Implies --disable-airflow-repo-cache.',
     is_flag=True,
 )
 @click.option(
@@ -344,7 +345,7 @@ def build_prod_image(
             params.python = python
             params.answer = answer
             params_list.append(params)
-        start_building(prod_image_params=params_list[0], dry_run=dry_run, verbose=verbose)
+        start_building(parallel=True, prod_image_params=params_list[0], dry_run=dry_run, verbose=verbose)
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -354,7 +355,7 @@ def build_prod_image(
         )
     else:
         params = BuildProdParams(**parameters_passed)
-        start_building(prod_image_params=params, dry_run=dry_run, verbose=verbose)
+        start_building(parallel=False, prod_image_params=params, dry_run=dry_run, verbose=verbose)
         run_build(prod_image_params=params)
 
 

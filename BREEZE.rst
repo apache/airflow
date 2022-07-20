@@ -174,6 +174,12 @@ environments. This can be done automatically by the following command (follow in
 
     pipx ensurepath
 
+In Mac
+
+.. code-block:: bash
+
+    python -m pipx ensurepath
+
 
 Resources required
 ==================
@@ -440,12 +446,22 @@ Regenerating images for documentation
 
 This documentation contains exported images with "help" of their commands and parameters. You can
 regenerate all those images (which might be needed in case new version of rich is used) via
-``regenerate-breeze-images`` command.
+``regenerate-command-images`` command.
 
 .. image:: ./images/breeze/output-regenerate-command-images.svg
   :width: 100%
   :alt: Breeze regenerate-command-images
 
+
+Compiling www assets
+====================
+
+Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-www-assets``
+command takes care about it. This is needed when you want to run webserver inside of the breeze.
+
+.. image:: ./images/breeze/output-compile-www-assets.svg
+  :width: 100%
+  :alt: Breeze compile-www-assets
 
 Starting complete Airflow installation
 ======================================
@@ -453,6 +469,13 @@ Starting complete Airflow installation
 For testing Airflow oyou often want to start multiple components (in multiple terminals). Breeze has
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
+
+When you are starting airflow from local sources, www asset compilation is automatically executed before.
+
+.. code-block:: bash
+
+    breeze --python 3.7 --backend mysql start-airflow
+
 
 You can also use it to start any released version of Airflow from ``PyPI`` with the
 ``--use-airflow-version`` flag.
@@ -500,18 +523,17 @@ Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testi
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-Development tasks
------------------
-
 Those are commands mostly used by contributors:
 
 * Execute arbitrary command in the test environment with ``breeze shell`` command
 * Enter interactive shell in CI container when ``shell`` (or no command) is specified
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
+* Compile www assets for webserver ``breeze compile-www-assets`` command
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``breeze tests`` command
+* Run docker-compose tests with ``breeze docker-compose-tests`` command.
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 
@@ -524,8 +546,53 @@ Additional management tasks:
 Tests
 -----
 
-* Run docker-compose tests with ``breeze docker-compose-tests`` command.
-* Run test specified with ``breeze tests`` command.
+You can regular unit tests with ``breeze`` in two different ways, either interactively run tests with
+the default ``shell`` command or via the ``tests`` command.
+
+Iterate on tests interactively
+-------------------------------
+
+You can simply enter the ``breeze`` container and run ``pytest`` command there. You can enter the
+container via just ``breeze`` command or ``breeze shell`` command (the latter has more options
+useful when you run integration or system tests). This is the best way if you want to interactively
+run selected tests and iterate with the tests. Once you enter ``breeze`` environment it is ready
+out-of-the-box to run your tests by running the right ``pytest`` command (autocomplete should help
+you with autocompleting test name if you start typing ``pytest tests<TAB>``).
+
+Here are few examples:
+
+Running single test:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore::test_check_operators
+
+To run the whole test class:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore
+
+You can re-run the tests interactively, add extra parameters to pytest and modify the files before
+re-running the test to iterate over the tests. You can also add more flags when starting the
+``breeze shell`` command when you run integration tests or system tests. Read more details about it
+in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
+on how to run them.
+
+Running group of tests
+-----------------------
+
+You can also run tests via built-in ``breeze tests`` command - similarly as iterative ``pytest`` command
+allows to run test individually, or by class or in any other way pytest allows to test them, but it
+also allows to run the tests in the same test "types" that are used to run the tests in CI: Core, Always
+API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
+replicate this behaviour.
+
+Another interesting use of the ``breeze tests`` command is that you can easily specify sub-set of the
+tests for Providers. ``breeze tests --test-type "Providers[airbyte,http]`` for example will only run
+tests for airbyte and http providers.
+
+Here is the detailed set of options for the ``breeze tests`` command.
 
 .. image:: ./images/breeze/output-tests.svg
   :width: 100%
@@ -1541,24 +1608,14 @@ If you set these variables, next time when you enter the environment the new por
 Managing Dependencies
 ---------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add JavaScript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
-
-Installing Dependencies for a Single Breeze Session
-...................................................
-
-You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
-quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for the node.js dependencies if your sources are mounted to the container).
-Therefore, if you want to retain a new dependency, follow the second option described below.
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
+for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
+or ``airflow/ui``, you need to compile them in the host with ``breeze compile-www-assets`` command.
 
 Adding Dependencies Permanently
 ...............................
 
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
-This should happen automatically if you modify any of these files.
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py``.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the

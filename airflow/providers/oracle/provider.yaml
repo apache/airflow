@@ -22,6 +22,7 @@ description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
 versions:
+  - 3.2.0
   - 3.1.0
   - 3.0.0
   - 2.2.3
@@ -35,8 +36,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
+  - oracledb>=1.0.0
 
 integrations:
   - integration-name: Oracle
@@ -45,7 +48,9 @@ integrations:
     tags: [software]
 
 additional-extras:
-  numpy: numpy
+  - name: numpy
+    dependencies:
+      - numpy
 
 operators:
   - integration-name: Oracle

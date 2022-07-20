@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 4.1.0
   - 4.0.0
   - 3.4.0
   - 3.3.0
@@ -41,8 +42,22 @@ versions:
   - 1.1.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
+  - boto3>=1.15.0
+  # watchtower 3 has been released end Jan and introduced breaking change across the board that might
+  # change logging behaviour:
+  # https://github.com/kislyuk/watchtower/blob/develop/Changes.rst#changes-for-v300-2022-01-26
+  # TODO: update to watchtower >3
+  - watchtower~=2.0.1
+  - jsonpath_ng>=1.5.3
+  - redshift_connector>=2.0.888
+  - sqlalchemy_redshift>=0.8.6
+  - pandas>=0.17.1
+  - mypy-boto3-rds>=1.21.0
+  - mypy-boto3-redshift-data>=1.21.0
+  - mypy-boto3-appflow>=1.21.0
 
 integrations:
   - integration-name: Amazon Athena
@@ -273,6 +288,7 @@ operators:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.operators.aws_lambda
+      - airflow.providers.amazon.aws.operators.lambda_function
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket
