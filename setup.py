@@ -135,7 +135,9 @@ class CompileAssets(Command):
 
     def run(self) -> None:
         """Run a command to compile and build assets."""
-        subprocess.check_call('./airflow/www/compile_assets.sh')
+        www_dir = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
+        subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(www_dir))
+        subprocess.check_call(['yarn', 'run', 'build'], cwd=str(www_dir))
 
 
 class ListExtras(Command):
