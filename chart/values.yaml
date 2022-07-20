@@ -904,7 +904,7 @@ webserver:
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 
-  # When not set, the values defined in the global securityContext will be used (depracated)
+  # When not set, the values defined in the global securityContext will be used (deprecated)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
