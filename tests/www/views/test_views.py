@@ -18,13 +18,10 @@
 import os
 from typing import Callable
 from unittest import mock
-from uuid import uuid4
 
 import pytest
 
 from airflow.configuration import initialize_config
-from airflow.models import DAG, DagBag, TaskInstance
-from airflow.models.dataset import Dataset, DatasetDagRunQueue
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
 from airflow.www.views import (
@@ -35,7 +32,6 @@ from airflow.www.views import (
     truncate_task_duration,
 )
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_datasets
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
@@ -219,6 +215,7 @@ def test_mark_task_instance_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
+    from airflow.models import DAG, DagBag, TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
@@ -436,39 +433,3 @@ def test_invalid_dates(app, admin_client, url, content):
 
     assert resp.status_code == 400
     assert content in resp.get_data().decode()
-
-
-@pytest.fixture()
-def reset_dataset():
-    clear_db_datasets()
-    yield
-    clear_db_datasets()
-
-
-def test_get_dataset_triggered_next_run_info(session, reset_dataset):
-    unique_id = str(uuid4())
-    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
-    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
-    dataset3 = Dataset(uri=f"s3://{unique_id}-3")
-    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
-    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
-
-    session.commit()
-    session.bulk_save_objects(
-        [
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
-        ]
-    )
-    session.commit()
-    session.expunge_all()
-
-    info = views.get_dataset_triggered_next_run_info([dag1.dag_id], session)
-    assert "0 of 1 datasets updated" == info[dag1.dag_id]
-
-    # This time, check both dag2 and dag3 at the same time (tests filtering)
-    info = views.get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session)
-    assert "1 of 2 datasets updated" == info[dag2.dag_id]
-    assert "1 of 3 datasets updated" == info[dag3.dag_id]
