@@ -354,3 +354,34 @@ def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
         instruction=f"breeze build-image --python {python_version}",
     )
     return airflow_image
+
+
+def run_compile_www_assets(
+    verbose: bool,
+    dry_run: bool,
+):
+    from airflow_breeze.utils.docker_command_utils import perform_environment_checks
+
+    assert_pre_commit_installed(verbose=verbose)
+    perform_environment_checks(verbose=verbose)
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        'run',
+        "--hook-stage",
+        "manual",
+        'compile-www-assets',
+        '--all-files',
+    ]
+    env = os.environ.copy()
+    compile_www_assets_result = run_command(
+        command_to_execute,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        no_output_dump_on_exception=True,
+        text=True,
+        env=env,
+    )
+    return compile_www_assets_result
