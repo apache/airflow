@@ -555,7 +555,11 @@ class BaseSerialization:
 
 
 class DependencyDetector:
-    """Detects dependencies between DAGs."""
+    """
+    Detects dependencies between DAGs.
+
+    :meta private:
+    """
 
     @staticmethod
     def detect_task_dependencies(task: Operator) -> List['DagDependency']:
