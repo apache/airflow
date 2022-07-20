@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-19T22:18:06Z
+# This constraints file was automatically generated on 2022-07-20T11:38:19Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -312,7 +312,7 @@ httplib2==0.20.4
 httpx==0.23.0
 humanize==4.2.3
 hvac==0.11.2
-identify==2.5.1
+identify==2.5.2
 idna==3.3
 ijson==3.1.4
 imagesize==1.4.1
@@ -395,7 +395,7 @@ opsgenie-sdk==2.1.5
 oracledb==1.0.2
 orjson==3.7.8
 oscrypto==1.3.0
-oss2==2.15.0
+oss2==2.16.0
 packaging==21.3
 pandas-gbq==0.17.7
 pandas==1.4.3
@@ -497,7 +497,7 @@ responses==0.21.0
 rfc3986==1.5.0
 rich-click==1.5.1
 rich==12.5.1
-rsa==4.8
+rsa==4.9
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
