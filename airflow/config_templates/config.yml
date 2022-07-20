@@ -33,15 +33,15 @@
         Hostname by providing a path to a callable, which will resolve the hostname.
         The format is "package.function".
 
-        For example, default value "socket.getfqdn" means that result from getfqdn() of "socket"
-        package will be used as hostname.
+        For example, default value "airflow.utils.net.getfqdn" means that result from patched
+        version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254.
 
         No argument should be required in the function specified.
         If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
       version_added: ~
       type: string
       example: ~
-      default: "socket.getfqdn"
+      default: "airflow.utils.net.getfqdn"
     - name: default_timezone
       description: |
         Default timezone in case supplied date times are naive
@@ -459,7 +459,7 @@
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
         More information here:
-        https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
       version_added: 2.3.0
       type: string
       example: ~
@@ -477,7 +477,7 @@
         Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
-        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
+        See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
       example: ~
@@ -635,7 +635,7 @@
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
     - name: log_formatter_class
       description: ~
-      version_added: 2.3.3
+      version_added: 2.3.4
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"

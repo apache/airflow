@@ -112,6 +112,7 @@ Datasync
 DateFrame
 Datetimepicker
 Datetimes
+Debounce
 Decrypt
 Decrypts
 DeidentifyContentResponse
@@ -383,6 +384,7 @@ StatefulSets
 StatsD
 StorageClass
 StoredInfoType
+StrictUndefined
 Stringified
 Subclasses
 Subdirectory
@@ -397,6 +399,7 @@ TCP
 TLS
 TTY
 TZ
+Tabular
 TaskDecorator
 TaskFlow
 TaskGroup
@@ -592,6 +595,7 @@ cfg
 cgi
 cgroups
 cgroupspy
+chakra
 changelog
 charset
 checklicence
@@ -861,8 +865,10 @@ gdbm
 generateUploadUrl
 geq
 getattr
+getboolean
 getfqdn
 getframe
+getint
 getsource
 gevent
 gid
@@ -1002,6 +1008,7 @@ keytab
 killMode
 kinit
 kms
+knn
 knownHosts
 krb
 kube
@@ -1135,6 +1142,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm
@@ -1153,6 +1161,7 @@ param
 parametable
 parameterType
 parameterValue
+parameterization
 parameterizing
 paramiko
 params
@@ -1318,6 +1327,7 @@ schedulable
 schedulername
 schemas
 sdk
+searchpath
 secretRef
 secretRefs
 securable
@@ -1328,6 +1338,7 @@ seealso
 seedlist
 segmentGranularity
 sendgrid
+serde
 serialise
 serializable
 serverless
@@ -1506,8 +1517,10 @@ unicode
 unittest
 unittests
 unix
+unmanaged
 unmappable
 unmapped
+unmapping
 unpause
 unpaused
 unpausing
@@ -1539,6 +1552,7 @@ util
 utilise
 utils
 uuid
+vCPU
 validator
 vals
 ve

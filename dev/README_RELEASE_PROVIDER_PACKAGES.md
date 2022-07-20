@@ -304,7 +304,7 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -316,7 +316,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --for-production \
+breeze build-docs --clean-build --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -499,7 +499,8 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py -v {VERSION} -t providers -p {PATH_TO_SVN}
+# Copy the list of packages (pypi urls) into `packages.txt` then run:
+python check_files.py providers -p {PATH_TO_SVN}
 ```
 
 ### Licences check
@@ -697,7 +698,7 @@ Hello,
 
 Apache Airflow Providers (based on RC1) have been accepted.
 
-3 “+1” binding votes received:
+3 "+1" binding votes received:
 - Jarek Potiuk  (binding)
 - Kaxil Naik (binding)
 - Tomasz Urbaszek (binding)

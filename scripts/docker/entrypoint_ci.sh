@@ -71,11 +71,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
-        if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
-            pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
-            ./ask_for_recompile_assets_if_needed.sh
-            popd >/dev/null
-        fi
         # Cleanup the logs, tmp when entering the environment
         sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
         sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
@@ -134,6 +129,10 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
             echo
             install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
+        if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
+            # make sure old variable is used for older airflow versions
+            export AIRFLOW__CORE__SQL_ALCHEMY_CONN="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}"
         fi
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
@@ -198,6 +197,8 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
+
+    in_container_fix_ownership
 
     if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
         # Set up ssh keys
@@ -363,13 +364,18 @@ else
             ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
+        SELECTED_TESTS=()
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            SELECTED_TESTS+=("tests/providers/${provider//./\/}")
+        done
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
-
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS

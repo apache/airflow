@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""compare types between ORM and DB
+"""compare types between ORM and DB.
 
 Revision ID: 44b7034f6bdc
 Revises: 424117c37d18
@@ -38,7 +38,7 @@ airflow_version = '2.4.0'
 
 
 def upgrade():
-    """Apply compare types between ORM and DB"""
+    """Apply compare types between ORM and DB."""
     conn = op.get_bind()
     with op.batch_alter_table('connection', schema=None) as batch_op:
         batch_op.alter_column(
@@ -151,7 +151,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply compare types between ORM and DB"""
+    """Unapply compare types between ORM and DB."""
     with op.batch_alter_table('connection', schema=None) as batch_op:
         batch_op.alter_column(
             'extra',

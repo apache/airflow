@@ -715,28 +715,6 @@ class AirflowBaseView(BaseView):
         )
 
 
-def add_user_permissions_to_dag(sender, template, context, **extra):
-    """
-    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties
-    to DAG based on current user's permissions.
-    Located in `views.py` rather than the DAG model to keep
-    permissions logic out of the Airflow core.
-    """
-    if 'dag' in context:
-        dag = context['dag']
-        can_create_dag_run = get_airflow_app().appbuilder.sm.has_access(
-            permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN
-        )
-
-        dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id)
-        dag.can_trigger = dag.can_edit and can_create_dag_run
-        dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id)
-        context['dag'] = dag
-
-
-before_render_template.connect(add_user_permissions_to_dag)
-
-
 class Airflow(AirflowBaseView):
     """Main Airflow application."""
 
@@ -993,6 +971,18 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+        )
+
+    @expose('/datasets')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        ]
+    )
+    def datasets(self):
+        """Datasets view."""
+        return self.render_template(
+            'airflow/datasets.html',
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -1395,7 +1385,7 @@ class Airflow(AirflowBaseView):
         # only matters if get_rendered_template_fields() raised an exception.
         # The following rendering won't show useful values in this case anyway,
         # but we'll display some quasi-meaingful field names.
-        task = ti.task.unmap()
+        task = ti.task.unmap(None)
 
         title = "Rendered Template"
         html_dict = {}
@@ -5647,3 +5637,29 @@ class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelV
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
+
+
+def add_user_permissions_to_dag(sender, template, context, **extra):
+    """
+    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties
+    to DAG based on current user's permissions.
+    Located in `views.py` rather than the DAG model to keep
+    permissions logic out of the Airflow core.
+    """
+    if 'dag' in context:
+        dag = context['dag']
+        can_create_dag_run = get_airflow_app().appbuilder.sm.has_access(
+            permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN
+        )
+
+        dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id)
+        dag.can_trigger = dag.can_edit and can_create_dag_run
+        dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id)
+        context['dag'] = dag
+
+
+# NOTE: Put this at the end of the file. Pylance is too clever and detects that
+# before_render_template.connect() is declared as NoReturn, and marks everything
+# after this line as unreachable code. It's technically correct based on the
+# lint-time information, but that's not what actually happens at runtime.
+before_render_template.connect(add_user_permissions_to_dag)

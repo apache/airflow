@@ -24,8 +24,9 @@
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
+  - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
+  - [Prepare new release branches and cache - optional when first minor version is released](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
@@ -82,6 +83,13 @@ if you do this, update the milestone in the issue to the "next" minor release.
 Many issues will be marked with the target release as their Milestone; this is a good shortlist
 to start with for what to cherry-pick.
 
+For a patch release, find out other bug fixes that are not marked with the target release as their Milestone
+and mark those as well. You can accomplish this by running the following command:
+
+```
+ ./dev/airflow-github needs-categorization 2.3.2 HEAD
+ ```
+
 Often you also want to cherry-pick changes related to CI and development tools, to include the latest
 stability fixes in CI and improvements in development tools. Usually you can see the list of such
 changes via (this will exclude already merged changes:
@@ -134,7 +142,7 @@ You cn review the list of PRs cherry-picked and produce a nice summary with `--p
 assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
-,/dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
+./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
   --current-release apache/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
   --output-folder /tmp
 ```
@@ -174,6 +182,10 @@ git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp
 
 # Prepare the Apache Airflow Package RC
 
+## Update the milestone
+
+Before cutting an RC, we should look at the milestone and merge anything ready, or if we aren't going to include it in the release we should update the milestone for those issues. We should do that before cutting the RC so the milestone gives us an accurate view of what is going to be in the release as soon as we know what it will be.
+
 ## Build RC artifacts
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
@@ -199,7 +211,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
-  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+  For major/minor version release, please follow  the instructions at
+  [Prepare new release branches and cache](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
+  to create the 'test' and 'stable' branches.
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
@@ -255,7 +269,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Make sure you have the latest CI image
 
     ```shell script
-    breeze pull-image --python 3.7
+    breeze build-image --python 3.7
     ```
 
 - Tarball the repo
@@ -314,7 +328,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
 
-## [\Optional\] Prepare new release branches and cache
+## Prepare new release branches and cache - optional when first minor version is released
 
 When you just released the `X.Y.0` version (first release of new minor version) you need to create release
 branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
@@ -339,6 +353,8 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 
 ### Update default branches
 
+#### In the legacy, bash breeze (to be removed when the bash breeze is entirely gone)
+
 In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
 
 ```bash
@@ -359,6 +375,22 @@ values for comparison and regexp):
 ```bash
     elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
+```
+
+#### In the new breeze
+
+In ``./dev/breeze/src/airflow_breeze/branch_defaults.py`` update branches to reflect the new branch:
+
+```python
+AIRFLOW_BRANCH = "main"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
+```
+
+should become this, where ``X-Y`` is your new branch version:
+
+```python
+AIRFLOW_BRANCH = "vX-Y-test"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-X-Y"
 ```
 
 ### Commit the changes to the test branch
@@ -663,7 +695,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py -v {VERSION} -t airflow -p {PATH_TO_SVN}
+python check_files.py airflow -v {VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -828,7 +860,7 @@ Hello,
 
 Apache Airflow 2.0.2 (based on RC3) has been accepted.
 
-4 “+1” binding votes received:
+4 "+1" binding votes received:
 - Kaxil Naik
 - Bolke de Bruin
 - Ash Berlin-Taylor
@@ -1008,7 +1040,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build --for-production
     ```
 
 - Now you can preview the documentation.
@@ -1103,12 +1135,12 @@ Post this in the #announce channel:
 
 ```shell
 cat <<EOF
-We’ve just released Apache Airflow $VERSION 🎉
+We've just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
 🛠 Release Notes: https://airflow.apache.org/docs/apache-airflow/$VERSION/release_notes.html
-🐳 Docker Image: “docker pull apache/airflow:$VERSION"
+🐳 Docker Image: "docker pull apache/airflow:$VERSION"
 🚏 Constraints: https://github.com/apache/airflow/tree/constraints-$VERSION
 
 Thanks to all the contributors who made this possible.
@@ -1121,7 +1153,7 @@ Tweet about the release:
 
 ```shell
 cat <<EOF
-We’ve just released Apache Airflow $VERSION 🎉
+We've just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/

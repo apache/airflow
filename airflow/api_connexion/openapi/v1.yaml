@@ -818,6 +818,34 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+    get:
+      summary: Get dataset events for a DAG run
+      description: |
+        Get datasets for a dag run.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_upstream_dataset_events
+      tags: [DAGRun, Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
   /eventLogs:
     get:
       summary: List log entries
@@ -1608,6 +1636,81 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+
+  /datasets:
+    get:
+      summary: List datasets
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_datasets
+      tags: [Dataset]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/OrderBy'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /datasets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DatasetID'
+    get:
+      summary: Get a dataset
+      description: Get a dataset by id.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset
+      tags: [Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /datasets/events:
+    parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageOffset'
+      - $ref: '#/components/parameters/OrderBy'
+      - $ref: '#/components/parameters/FilterDatasetID'
+      - $ref: '#/components/parameters/FilterSourceDAGID'
+      - $ref: '#/components/parameters/FilterSourceTaskID'
+      - $ref: '#/components/parameters/FilterSourceRunID'
+      - $ref: '#/components/parameters/FilterSourceMapIndex'
+    get:
+      summary: Get dataset events
+      description: Get dataset events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset_events
+      tags: [Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /config:
     get:
@@ -2487,6 +2590,7 @@ components:
             - backfill
             - manual
             - scheduled
+            - dataset_triggered
         state:
           $ref: '#/components/schemas/DagState'
           readOnly: true
@@ -2829,6 +2933,8 @@ components:
           $ref: '#/components/schemas/TaskState'
           nullable: true
         try_number:
+          type: integer
+        map_index:
           type: integer
         max_tries:
           type: integer
@@ -3372,6 +3478,100 @@ components:
           type: object
           $ref: '#/components/schemas/Resource'
           description: The permission resource
+
+    Dataset:
+      description: |
+        A dataset item.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The dataset id
+        uri:
+          type: string
+          description: The dataset uri
+          nullable: false
+        extra:
+          type: string
+          description: The dataset extra
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset creation time
+          nullable: false
+        updated_at:
+          type: string
+          description: The dataset update time
+          nullable: false
+
+    DatasetCollection:
+      description: |
+        A collection of datasets.
+
+        *New in version 2.4.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dataset'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    DatasetEvent:
+      description: |
+        A dataset event.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dataset_id:
+          type: integer
+          description: The dataset id
+        extra:
+          type: string
+          description: The dataset extra
+          nullable: true
+        source_dag_id:
+          type: string
+          description: The DAG ID that updated the dataset.
+          nullable: true
+        source_task_id:
+          type: string
+          description: The task ID that updated the dataset.
+          nullable: true
+        source_run_id:
+          type: string
+          description: The DAG run ID that updated the dataset.
+          nullable: true
+        source_map_index:
+          type: integer
+          description: The task map index that updated the dataset.
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset event creation time
+          nullable: false
+
+
+    DatasetEventCollection:
+      description: |
+        A collection of dataset events.
+
+        *New in version 2.4.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            dataset_events:
+              type: array
+              items:
+                $ref: '#/components/schemas/DatasetEvent'
+        - $ref: '#/components/schemas/CollectionInfo'
+
 
     # Configuration
     ConfigOption:
@@ -4017,6 +4217,14 @@ components:
       required: true
       description: The import error ID.
 
+    DatasetID:
+      in: path
+      name: id
+      schema:
+        type: integer
+      required: true
+      description: The Dataset ID
+
     PoolName:
       in: path
       name: pool_name
@@ -4190,6 +4398,41 @@ components:
 
           *New in version 2.2.0*
 
+    FilterDatasetID:
+      in: query
+      name: dataset_id
+      schema:
+        type: integer
+      description: The Dataset ID that updated the dataset.
+
+    FilterSourceDAGID:
+      in: query
+      name: source_dag_id
+      schema:
+        type: string
+      description: The DAG ID that updated the dataset.
+
+    FilterSourceTaskID:
+      in: query
+      name: source_task_id
+      schema:
+        type: string
+      description: The task ID that updated the dataset.
+
+    FilterSourceRunID:
+      in: query
+      name: source_run_id
+      schema:
+        type: string
+      description: The DAG run ID that updated the dataset.
+
+    FilterSourceMapIndex:
+      in: query
+      name: source_map_index
+      schema:
+        type: integer
+      description: The map index that updated the dataset.
+
     OrderBy:
       in: query
       name: order_by
@@ -4346,6 +4589,8 @@ tags:
   - name: Role
   - name: Permission
   - name: User
+  - name: DagWarning
+  - name: Dataset
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/
