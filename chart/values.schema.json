@@ -29,6 +29,15 @@
             "default": "",
             "x-docsSection": null
         },
+        "revisionHistoryLimit": {
+            "description": "Global number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit",
+            "type": [
+                "integer",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": null
+        },
         "nameOverride": {
             "description": "Override the name of the chart",
             "type": "string",
@@ -1167,6 +1176,15 @@
                     "type": "integer",
                     "default": 1
                 },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
                 "command": {
                     "description": "Command to use when running Airflow workers (templated).",
                     "type": [
@@ -1621,6 +1639,15 @@
                     "type": "integer",
                     "default": 1
                 },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
                 "command": {
                     "description": "Command to use when running the Airflow scheduler (templated).",
                     "type": [
@@ -1990,6 +2017,15 @@
                     "type": "integer",
                     "default": 1
                 },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
                 "command": {
                     "description": "Command to use when running the Airflow triggerer (templated).",
                     "type": [
@@ -2247,6 +2283,15 @@
                     "description": "Number of dag processors to run.",
                     "type": "integer",
                     "default": 1
+                },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use when running the Airflow dag processor (templated).",
@@ -2887,6 +2932,15 @@
                     "type": "integer",
                     "default": 1
                 },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
                 "command": {
                     "description": "Command to use when running the Airflow webserver (templated).",
                     "type": [
@@ -3328,6 +3382,15 @@
                     "type": "boolean",
                     "default": false
                 },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
                 "command": {
                     "description": "Command to use when running flower (templated).",
                     "type": [
@@ -3649,6 +3712,15 @@
                     "type": "boolean",
                     "default": true
                 },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
                     "type": "array",
@@ -3822,6 +3894,15 @@
                     "type": "boolean",
                     "x-docsSection": "Common",
                     "default": false
+                },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
                 },
                 "command": {
                     "description": "Command to use for PgBouncer (templated).",

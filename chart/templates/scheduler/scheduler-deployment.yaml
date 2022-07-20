@@ -34,6 +34,7 @@
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
@@ -54,6 +55,9 @@ spec:
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy:
     {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}

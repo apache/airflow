@@ -23,6 +23,7 @@
 {{- $affinity := or .Values.statsd.affinity .Values.affinity }}
 {{- $tolerations := or .Values.statsd.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "localSecurityContext" .Values.statsd }}
 kind: Deployment
 apiVersion: apps/v1
@@ -39,6 +40,9 @@ metadata:
 {{- end }}
 spec:
   replicas: 1
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow

@@ -24,6 +24,7 @@
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.dagProcessor.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.dagProcessor.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.dagProcessor) }}
 kind: Deployment
 apiVersion: apps/v1
@@ -40,6 +41,9 @@ metadata:
     {{- end }}
 spec:
   replicas: {{ .Values.dagProcessor.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
