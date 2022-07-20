@@ -41,7 +41,7 @@ import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagModel, DbCallbackRequest, errors
+from airflow.models import DagModel, DagWarning, DbCallbackRequest, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -217,7 +217,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
-        os.setpgid(0, 0)
+        set_new_process_group()
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.
@@ -595,6 +595,7 @@ class DagFileProcessorManager(LoggingMixin):
             if standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
+            DagWarning.purge_inactive_dag_warnings()
             self._refresh_dag_dir()
 
             self._kill_timed_out_processors()

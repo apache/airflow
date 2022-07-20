@@ -40,10 +40,8 @@ import { SimpleStatus } from '../../components/StatusBox';
 const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
-  const { data: taskData } = useTasks();
+  const { data: { tasks, totalEntries } } = useTasks();
   const { data: { dagRuns } } = useGridData();
-  if (!taskData) return null;
-  const { tasks = [], totalEntries = '' } = taskData;
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators = {};
@@ -101,7 +99,7 @@ const Dag = () => {
         <Tbody>
           {durations.length > 0 && (
           <>
-            <Tr borderBottomWidth={2} borderBottomColor="gray.300" borderBottomStyle="solid">
+            <Tr borderBottomWidth={2} borderBottomColor="gray.300">
               <Td><Heading size="sm">DAG Runs Summary</Heading></Td>
               <Td />
             </Tr>
@@ -144,7 +142,7 @@ const Dag = () => {
             </Tr>
           </>
           )}
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300" borderBottomStyle="solid">
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
             <Td>
               <Heading size="sm">DAG Summary</Heading>
             </Td>

@@ -16,12 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import math
 import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-import cx_Oracle
-import numpy
+import oracledb
+
+try:
+    import numpy
+except ImportError:
+    numpy = None  # type: ignore
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -52,7 +57,7 @@ class OracleHook(DbApiHook):
 
     supports_autocommit = True
 
-    def get_conn(self) -> 'OracleHook':
+    def get_conn(self) -> oracledb.Connection:
         """
         Returns a oracle connection object
         Optional parameters for using a custom DSN connection
@@ -79,8 +84,8 @@ class OracleHook(DbApiHook):
                )
            }
 
-        see more param detail in
-        `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
+        see more param detail in `oracledb.connect
+        <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_
 
 
         """
@@ -93,9 +98,9 @@ class OracleHook(DbApiHook):
         service_name = conn.extra_dejson.get('service_name')
         port = conn.port if conn.port else 1521
         if conn.host and sid and not service_name:
-            conn_config['dsn'] = cx_Oracle.makedsn(conn.host, port, sid)
+            conn_config['dsn'] = oracledb.makedsn(conn.host, port, sid)
         elif conn.host and service_name and not sid:
-            conn_config['dsn'] = cx_Oracle.makedsn(conn.host, port, service_name=service_name)
+            conn_config['dsn'] = oracledb.makedsn(conn.host, port, service_name=service_name)
         else:
             dsn = conn.extra_dejson.get('dsn')
             if dsn is None:
@@ -114,51 +119,40 @@ class OracleHook(DbApiHook):
                     dsn += "/" + conn.schema
             conn_config['dsn'] = dsn
 
-        if 'encoding' in conn.extra_dejson:
-            conn_config['encoding'] = conn.extra_dejson.get('encoding')
-            # if `encoding` is specific but `nencoding` is not
-            # `nencoding` should use same values as `encoding` to set encoding, inspired by
-            # https://github.com/oracle/python-cx_Oracle/issues/157#issuecomment-371877993
-            if 'nencoding' not in conn.extra_dejson:
-                conn_config['nencoding'] = conn.extra_dejson.get('encoding')
-        if 'nencoding' in conn.extra_dejson:
-            conn_config['nencoding'] = conn.extra_dejson.get('nencoding')
-        if 'threaded' in conn.extra_dejson:
-            conn_config['threaded'] = conn.extra_dejson.get('threaded')
         if 'events' in conn.extra_dejson:
             conn_config['events'] = conn.extra_dejson.get('events')
 
         mode = conn.extra_dejson.get('mode', '').lower()
         if mode == 'sysdba':
-            conn_config['mode'] = cx_Oracle.SYSDBA
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSDBA
         elif mode == 'sysasm':
-            conn_config['mode'] = cx_Oracle.SYSASM
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSASM
         elif mode == 'sysoper':
-            conn_config['mode'] = cx_Oracle.SYSOPER
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSOPER
         elif mode == 'sysbkp':
-            conn_config['mode'] = cx_Oracle.SYSBKP
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSBKP
         elif mode == 'sysdgd':
-            conn_config['mode'] = cx_Oracle.SYSDGD
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSDGD
         elif mode == 'syskmt':
-            conn_config['mode'] = cx_Oracle.SYSKMT
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSKMT
         elif mode == 'sysrac':
-            conn_config['mode'] = cx_Oracle.SYSRAC
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSRAC
 
         purity = conn.extra_dejson.get('purity', '').lower()
         if purity == 'new':
-            conn_config['purity'] = cx_Oracle.ATTR_PURITY_NEW
+            conn_config['purity'] = oracledb.PURITY_NEW
         elif purity == 'self':
-            conn_config['purity'] = cx_Oracle.ATTR_PURITY_SELF
+            conn_config['purity'] = oracledb.PURITY_SELF
         elif purity == 'default':
-            conn_config['purity'] = cx_Oracle.ATTR_PURITY_DEFAULT
+            conn_config['purity'] = oracledb.PURITY_DEFAULT
 
-        conn = cx_Oracle.connect(**conn_config)
+        conn = oracledb.connect(**conn_config)
         if mod is not None:
             conn.module = mod
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
-        # https://cx-oracle.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
+        # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
         if schema and service_name:
             conn.current_schema = schema
@@ -179,7 +173,7 @@ class OracleHook(DbApiHook):
         the whole set of inserts is treated as one transaction
         Changes from standard DbApiHook implementation:
 
-        - Oracle SQL queries in cx_Oracle can not be terminated with a semicolon (`;`)
+        - Oracle SQL queries in oracledb can not be terminated with a semicolon (`;`)
         - Replace NaN values with NULL using `numpy.nan_to_num` (not using
           `is_nan()` because of input types error for strings)
         - Coerce datetime cells to Oracle DATETIME format during insert
@@ -211,9 +205,9 @@ class OracleHook(DbApiHook):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     lst.append('NULL')
-                elif isinstance(cell, float) and numpy.isnan(cell):  # coerce numpy NaN to NULL
+                elif isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append('NULL')
-                elif isinstance(cell, numpy.datetime64):
+                elif numpy and isinstance(cell, numpy.datetime64):
                     lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
                     lst.append(
@@ -240,7 +234,7 @@ class OracleHook(DbApiHook):
         commit_every: int = 5000,
     ):
         """
-        A performant bulk insert for cx_Oracle
+        A performant bulk insert for oracledb
         that uses prepared statements via `executemany()`.
         For best performance, pass in `rows` as an iterator.
 
@@ -302,7 +296,7 @@ class OracleHook(DbApiHook):
         provided `parameters` argument.
 
         See
-        https://cx-oracle.readthedocs.io/en/latest/api_manual/cursor.html#Cursor.var
+        https://python-oracledb.readthedocs.io/en/latest/api_manual/cursor.html#Cursor.var
         for further reference.
         """
         if parameters is None:

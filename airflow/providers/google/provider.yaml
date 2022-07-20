@@ -29,6 +29,8 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.1.0
+  - 8.0.0
   - 7.0.0
   - 6.8.0
   - 6.7.0
@@ -49,7 +51,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Google Analytics360
@@ -851,14 +853,6 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mssql_to_gcs.rst
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
-  - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
-  - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
-  - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
-  - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
-  - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
-  - airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
 
 connection-types:
   - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook
@@ -929,8 +923,9 @@ extra-links:
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
-  facebook: apache-airlfow-providers-facebook>=2.2.0
-  amazon: apache-airlfow-providers-facebook>=2.6.0
+  oracle: apache-airflow-providers-oracle>=3.1.0
+  facebook: apache-airflow-providers-facebook>=2.2.0
+  amazon: apache-airflow-providers-amazon>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

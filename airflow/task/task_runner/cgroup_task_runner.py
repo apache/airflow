@@ -21,6 +21,7 @@
 import datetime
 import os
 import uuid
+from typing import Optional
 
 import psutil
 from cgroupspy import trees
@@ -163,7 +164,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         self.log.debug("Starting task process with cgroups cpu,memory: %s", cgroup_name)
         self.process = self.run_command(['cgexec', '-g', f'cpu,memory:{cgroup_name}'])
 
-    def return_code(self):
+    def return_code(self, timeout: int = 0) -> Optional[int]:
         return_code = self.process.poll()
         # TODO(plypaul) Monitoring the control file in the cgroup fs is better than
         # checking the return code here. The PR to use this is here:

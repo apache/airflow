@@ -17,7 +17,7 @@
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence, TypeVar
+from typing import Callable, Optional, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import BranchPythonOperator
@@ -61,9 +61,6 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
         res = dedent(raw_source)
         res = remove_task_decorator(res, "@task.branch")
         return res
-
-
-T = TypeVar("T", bound=Callable)
 
 
 def branch_task(

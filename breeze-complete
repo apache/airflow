@@ -173,9 +173,6 @@ function breeze_complete::get_known_values_breeze() {
     -g | --github-repository)
         _breeze_known_values="${_breeze_default_github_repository}"
         ;;
-    -s | --github-image-id)
-        _breeze_known_values="${_breeze_default_github_image_id}"
-        ;;
     kind-cluster)
         _breeze_known_values="${_breeze_allowed_kind_operations}"
         ;;

@@ -398,15 +398,17 @@ might decide to add additional limits (and justify them with comment)
 
 ## Support for providers
 
-Providers released by the community have limitation of a minimum supported version of Airflow. The minimum
-version of Airflow is the `MINOR` version (2.1, 2.2 etc.) indicating that the providers might use features
-that appeared in this release. The default support timespan for the minimum version of Airflow
-(there could be justified exceptions) is that we increase the minimum Airflow version, when 12 months passed
-since the first release for the MINOR version of Airflow.
+Providers released by the community (with roughly monthly cadence) have
+limitation of a minimum supported version of Airflow. The minimum version of
+Airflow is the `MINOR` version (2.2, 2.3 etc.) indicating that the providers
+might use features that appeared in this release. The default support timespan
+for the minimum version of Airflow (there could be justified exceptions) is
+that we increase the minimum Airflow version, when 12 months passed since the
+first release for the MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.2.0 in the first Provider's release after 21st of May 2022 (21st of May 2021 is the date when the
-first `PATCHLEVEL` of 2.1 (2.1.0) has been released.
+to 2.3.0 in the first Provider's release after 11th of October 2022 (11th of October 2021 is the date when the
+first `PATCHLEVEL` of 2.2 (2.2.0) has been released.
 
 ## Contributing
 

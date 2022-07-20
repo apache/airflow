@@ -2243,6 +2243,32 @@ class TestDagDecorator:
         assert dag.params['value'] == value
 
 
+@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
+def test_dag_timetable_match_schedule_interval(timetable):
+    dag = DAG("my-dag", timetable=timetable)
+    assert dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
+def test_dag_schedule_interval_match_timetable(schedule_interval):
+    dag = DAG("my-dag", schedule_interval=schedule_interval)
+    assert dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("schedule_interval", [None, "@daily", timedelta(days=1)])
+def test_dag_schedule_interval_change_after_init(schedule_interval):
+    dag = DAG("my-dag", timetable=OnceTimetable())
+    dag.schedule_interval = schedule_interval
+    assert not dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
+def test_dag_timetable_change_after_init(timetable):
+    dag = DAG("my-dag")  # Default is timedelta(days=1).
+    dag.timetable = timetable
+    assert not dag._check_schedule_interval_matches_timetable()
+
+
 @pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
 def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""

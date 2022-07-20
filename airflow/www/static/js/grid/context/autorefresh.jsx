@@ -19,7 +19,9 @@
 
 /* global localStorage, document */
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, {
+  useMemo, useContext, useState, useEffect, useCallback,
+} from 'react';
 import { getMetaValue } from '../../utils';
 
 const autoRefreshKey = 'disabledAutoRefresh';
@@ -27,7 +29,13 @@ const autoRefreshKey = 'disabledAutoRefresh';
 const initialIsPaused = getMetaValue('is_paused') === 'True';
 const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
 
-const AutoRefreshContext = React.createContext(null);
+const AutoRefreshContext = React.createContext({
+  isRefreshOn: false,
+  isPaused: true,
+  toggleRefresh: () => {},
+  stopRefresh: () => {},
+  startRefresh: () => {},
+});
 
 export const AutoRefreshProvider = ({ children }) => {
   const [isPaused, setIsPaused] = useState(initialIsPaused);
@@ -36,27 +44,37 @@ export const AutoRefreshProvider = ({ children }) => {
 
   const [isRefreshOn, setRefresh] = useState(initialState);
 
-  const onToggle = () => setRefresh(!isRefreshOn);
+  const onToggle = useCallback(
+    () => setRefresh(!isRefreshOn),
+    [isRefreshOn],
+  );
   const stopRefresh = () => setRefresh(false);
-  const startRefresh = () => isRefreshAllowed && setRefresh(true);
 
-  const toggleRefresh = (updateStorage = false) => {
-    if (updateStorage) {
-      if (isRefreshOn) {
-        localStorage.setItem(autoRefreshKey, 'true');
-      } else {
-        localStorage.removeItem(autoRefreshKey);
+  const startRefresh = useCallback(
+    () => isRefreshAllowed && setRefresh(true),
+    [isRefreshAllowed, setRefresh],
+  );
+
+  const toggleRefresh = useCallback(
+    (updateStorage = false) => {
+      if (updateStorage) {
+        if (isRefreshOn) {
+          localStorage.setItem(autoRefreshKey, 'true');
+        } else {
+          localStorage.removeItem(autoRefreshKey);
+        }
+        onToggle();
+      } else if (isRefreshAllowed) {
+        onToggle();
       }
-      onToggle();
-    } else if (isRefreshAllowed) {
-      onToggle();
-    }
-  };
+    },
+    [isRefreshAllowed, isRefreshOn, onToggle],
+  );
 
   useEffect(() => {
     const handleChange = (e) => {
-      setIsPaused(!e.value);
-      if (!e.value) {
+      setIsPaused(!e.detail);
+      if (!e.detail) {
         stopRefresh();
       }
     };
@@ -67,12 +85,12 @@ export const AutoRefreshProvider = ({ children }) => {
     };
   });
 
+  const value = useMemo(() => ({
+    isRefreshOn, toggleRefresh, stopRefresh, startRefresh, isPaused,
+  }), [isPaused, isRefreshOn, startRefresh, toggleRefresh]);
+
   return (
-    <AutoRefreshContext.Provider
-      value={{
-        isRefreshOn, toggleRefresh, stopRefresh, startRefresh, isPaused,
-      }}
-    >
+    <AutoRefreshContext.Provider value={value}>
       {children}
     </AutoRefreshContext.Provider>
   );

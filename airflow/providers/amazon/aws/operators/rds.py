@@ -18,7 +18,7 @@
 
 import json
 import time
-from typing import TYPE_CHECKING, List, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 from mypy_boto3_rds.type_defs import TagTypeDef
 
@@ -551,6 +551,108 @@ class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
         return json.dumps(delete_subscription, default=str)
 
 
+class RdsCreateDbInstanceOperator(RdsBaseOperator):
+    """
+    Creates an RDS DB instance
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RdsCreateDbInstanceOperator`
+
+    :param db_instance_identifier: The DB instance identifier, must start with a letter and
+        contain from 1 to 63 letters, numbers, or hyphens
+    :param db_instance_class: The compute and memory capacity of the DB instance, for example db.m5.large
+    :param engine: The name of the database engine to be used for this instance
+    :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_instance
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param wait_for_completion:  Whether or not wait for creation of the DB instance to
+        complete. (default: True)
+    """
+
+    def __init__(
+        self,
+        *,
+        db_instance_identifier: str,
+        db_instance_class: str,
+        engine: str,
+        rds_kwargs: Optional[Dict] = None,
+        aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = True,
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+
+        self.db_instance_identifier = db_instance_identifier
+        self.db_instance_class = db_instance_class
+        self.engine = engine
+        self.rds_kwargs = rds_kwargs or {}
+        self.wait_for_completion = wait_for_completion
+
+    def execute(self, context: 'Context') -> str:
+        self.log.info("Creating new DB instance %s", self.db_instance_identifier)
+
+        create_db_instance = self.hook.conn.create_db_instance(
+            DBInstanceIdentifier=self.db_instance_identifier,
+            DBInstanceClass=self.db_instance_class,
+            Engine=self.engine,
+            **self.rds_kwargs,
+        )
+
+        if self.wait_for_completion:
+            self.hook.conn.get_waiter("db_instance_available").wait(
+                DBInstanceIdentifier=self.db_instance_identifier
+            )
+
+        return json.dumps(create_db_instance, default=str)
+
+
+class RdsDeleteDbInstanceOperator(RdsBaseOperator):
+    """
+    Deletes an RDS DB Instance
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RdsDeleteDbInstanceOperator`
+
+    :param db_instance_identifier: The DB instance identifier for the DB instance to be deleted
+    :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.delete_db_instance
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param wait_for_completion:  Whether or not wait for deletion of the DB instance to
+        complete. (default: True)
+    """
+
+    def __init__(
+        self,
+        *,
+        db_instance_identifier: str,
+        rds_kwargs: Optional[Dict] = None,
+        aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = True,
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.db_instance_identifier = db_instance_identifier
+        self.rds_kwargs = rds_kwargs or {}
+        self.wait_for_completion = wait_for_completion
+
+    def execute(self, context: 'Context') -> str:
+        self.log.info("Deleting DB instance %s", self.db_instance_identifier)
+
+        delete_db_instance = self.hook.conn.delete_db_instance(
+            DBInstanceIdentifier=self.db_instance_identifier,
+            **self.rds_kwargs,
+        )
+
+        if self.wait_for_completion:
+            self.hook.conn.get_waiter("db_instance_deleted").wait(
+                DBInstanceIdentifier=self.db_instance_identifier
+            )
+
+        return json.dumps(delete_db_instance, default=str)
+
+
 __all__ = [
     "RdsCreateDbSnapshotOperator",
     "RdsCopyDbSnapshotOperator",
@@ -559,4 +661,6 @@ __all__ = [
     "RdsDeleteEventSubscriptionOperator",
     "RdsStartExportTaskOperator",
     "RdsCancelExportTaskOperator",
+    "RdsCreateDbInstanceOperator",
+    "RdsDeleteDbInstanceOperator",
 ]

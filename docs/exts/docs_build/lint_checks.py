@@ -283,17 +283,18 @@ def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
 
         if len(example_dags_dirs) == 1:
             package_rel_path = os.path.relpath(example_dags_dirs[0], start=ROOT_PROJECT_DIR)
-            github_url = f"https://github.com/apache/airflow/tree/main/{package_rel_path}"
-            expected_text = f"Example DAGs <{github_url}>"
+            expected_text = f"Example DAGs <https://github.com/apache/airflow/tree/.*/{package_rel_path}>"
+            suggested_text = f"Example DAGs <https://github.com/apache/airflow/tree/main/{package_rel_path}>"
         else:
             expected_text = "Example DAGs <example-dags>"
+            suggested_text = "Example DAGs <example-dags>"
 
         build_error = assert_file_contains(
             file_path=doc_file_path,
-            pattern=re.escape(expected_text),
+            pattern=expected_text,
             message=(
-                f"A link to the example DAGs in table of contents is missing. Can you add it?\n\n"
-                f"    {expected_text}"
+                f"A link to the example DAGs in table of contents is missing. Can you please add it?\n\n"
+                f"   {suggested_text}"
             ),
         )
         if build_error:
@@ -312,7 +313,7 @@ def check_pypi_repository_in_provider_tocs() -> List[DocBuildError]:
             file_path=doc_file_path,
             pattern=re.escape(expected_text),
             message=(
-                f"A link to the PyPI in table of contents is missing. Can you add it?\n\n"
+                f"A link to the PyPI in table of contents is missing. Can you please add it?\n\n"
                 f"    {expected_text}"
             ),
         )

@@ -76,7 +76,7 @@ Task groups are indicated by a caret and can be opened or closed:
 
 .. image:: img/grid_task_group.png
 
-Mapped Tasks are indicated by a square brackets and will show a table of each mapped task instance in the details panel:
+Mapped Tasks are indicated by square brackets and will show a table of each mapped task instance in the details panel:
 
 .. image:: img/grid_mapped_task.png
 
@@ -159,7 +159,7 @@ provide yet more context.
 
 Task Instance Context Menu
 ..........................
-From the pages seen above (tree view, graph view, gantt, ...), it is always
+From the pages seen above (grid view, graph view, gantt, ...), it is always
 possible to click on a task instance, and get to this rich context menu
 that can take you to more detailed metadata, and perform some actions.
 
