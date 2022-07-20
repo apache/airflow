@@ -295,7 +295,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| ts-compile-and-lint-javascript                         | ESLint against current UI JavaScript files                       |         |
+| ts-compile-and-lint-javascript                         | TS types generation and ESLint against current UI files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
