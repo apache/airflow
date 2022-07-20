@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -41,9 +42,10 @@ class BuildProdParams(CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints"
-    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    default_constraints_branch: str = os.environ.get(
+        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    )
     airflow_constraints_reference: str = ""
-    airflow_is_in_context: bool = False
     cleanup_context: bool = False
     disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
@@ -186,31 +188,19 @@ class BuildProdParams(CommonBuildParams):
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
-        airflow_pre_cached_pip = 'true'
-        if not self.airflow_is_in_context or self.disable_airflow_repo_cache:
-            airflow_pre_cached_pip = 'false'
-        return airflow_pre_cached_pip
+        return 'false' if self.disable_airflow_repo_cache else 'true'
 
     @property
     def install_mssql_client(self) -> str:
-        install_mssql = 'true'
-        if self.disable_mssql_client_installation:
-            install_mssql = 'false'
-        return install_mssql
+        return 'false' if self.disable_mssql_client_installation else 'true'
 
     @property
     def install_mysql_client(self) -> str:
-        install_mysql = 'true'
-        if self.disable_mysql_client_installation:
-            install_mysql = 'false'
-        return install_mysql
+        return 'false' if self.disable_mysql_client_installation else 'true'
 
     @property
     def install_postgres_client(self) -> str:
-        install_postgres = 'true'
-        if self.disable_postgres_client_installation:
-            install_postgres = 'false'
-        return install_postgres
+        return 'false' if self.disable_postgres_client_installation else 'true'
 
     @property
     def docker_context_files(self) -> str:
@@ -233,7 +223,6 @@ class BuildProdParams(CommonBuildParams):
             "airflow_image_date_created",
             "airflow_image_readme_url",
             "airflow_image_repository",
-            "airflow_is_in_context",
             "airflow_pre_cached_pip_packages",
             "airflow_version",
             "build_id",
