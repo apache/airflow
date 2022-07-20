@@ -24,7 +24,7 @@ import { useTimezone } from 'src/context/timezone';
 import { defaultFormatWithTZ } from 'src/datetime_utils';
 
 interface Props {
-  dateTime: string;
+  dateTime?: string | null;
   format?: string;
 }
 

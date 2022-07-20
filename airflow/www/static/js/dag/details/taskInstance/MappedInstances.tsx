@@ -24,18 +24,20 @@ import {
   Box,
   Link,
   IconButton,
+  IconButtonProps,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import {
   MdDetails, MdCode, MdSyncAlt, MdReorder,
 } from 'react-icons/md';
+import type { SortingRule } from 'react-table';
 
-import { getMetaValue } from '../../../utils';
-import { formatDuration, getDuration } from '../../../datetime_utils';
-import { useMappedInstances } from '../../../api';
-import { SimpleStatus } from '../../StatusBox';
-import Table from '../../../components/Table';
-import Time from '../../../components/Time';
+import { getMetaValue } from 'src/utils';
+import { formatDuration, getDuration } from 'src/datetime_utils';
+import { useMappedInstances } from 'src/api';
+import { SimpleStatus } from 'src/dag/StatusBox';
+import Table from 'src/components/Table';
+import Time from 'src/components/Time';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
@@ -43,16 +45,27 @@ const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
 const xcomUrl = getMetaValue('xcom_url');
 
-const IconLink = (props) => (
+interface IconLinkProps extends IconButtonProps {
+  href: string;
+}
+
+const IconLink = (props: IconLinkProps) => (
   <IconButton as={Link} variant="ghost" colorScheme="blue" fontSize="3xl" {...props} />
 );
 
+interface Props {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  selectRows: (selectedRows: number[]) => void;
+}
+
 const MappedInstances = ({
   dagId, runId, taskId, selectRows,
-}) => {
+}: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState([]);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([]);
 
   const sort = sortBy[0];
 
@@ -68,10 +81,10 @@ const MappedInstances = ({
   const data = useMemo(
     () => taskInstances.map((mi) => {
       const params = new URLSearchParams({
-        dag_id: dagId,
-        task_id: mi.taskId,
-        execution_date: mi.executionDate,
-        map_index: mi.mapIndex,
+        dag_id: dagId.toString(),
+        task_id: mi.taskId || '',
+        execution_date: mi.executionDate || '',
+        map_index: (mi.mapIndex || -1).toString(),
       }).toString();
       const detailsLink = `${taskUrl}&${params}`;
       const renderedLink = `${renderedTemplatesUrl}&${params}`;
@@ -81,7 +94,7 @@ const MappedInstances = ({
         ...mi,
         state: (
           <Flex alignItems="center">
-            <SimpleStatus state={mi.state} mx={2} />
+            <SimpleStatus state={mi.state === undefined || mi.state === 'none' ? null : mi.state} mx={2} />
             {mi.state || 'no status'}
           </Flex>
         ),
@@ -149,7 +162,7 @@ const MappedInstances = ({
         pageSize={limit}
         setSortBy={setSortBy}
         isLoading={isLoading}
-        selectRows={canEdit && selectRows}
+        selectRows={canEdit ? selectRows : undefined}
       />
     </Box>
   );
