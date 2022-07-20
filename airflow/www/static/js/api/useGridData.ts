@@ -49,7 +49,7 @@ const emptyGridData: GridData = {
   },
 };
 
-export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
+export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['manual', 'manual'].includes(run.runType)).filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
 const useGridData = () => {
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
