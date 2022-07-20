@@ -623,7 +623,7 @@ class DependencyDetector:
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
-    """A JSON serializable  representation of operator.
+    """A JSON serializable representation of operator.
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
