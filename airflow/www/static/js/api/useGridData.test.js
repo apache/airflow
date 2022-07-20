@@ -59,7 +59,7 @@ describe('Test areActiveRuns()', () => {
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
   });
-  
+
   test('Returns false when there are no runs', () => {
     const result = areActiveRuns();
     expect(result).toBe(false);
