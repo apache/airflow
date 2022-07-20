@@ -17,9 +17,8 @@
 ---
 default_stages: [commit, push]
 default_language_version:
-  # force all unspecified python hooks to run python3
   python: python3
-  node: 16.15.1
+  node: 18.6.0
 minimum_pre_commit_version: "2.0.0"
 repos:
   - repo: meta
@@ -593,14 +592,12 @@ repos:
         name: stylelint
         entry: "stylelint"
         language: node
-        language_version: 18.6.0
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
       - id: compile-www-assets
         name: Compile www assets
         language: node
-        language_version: 18.6.0
         stages: ['manual']
         'types_or': [javascript, tsx, ts]
         files: ^airflow/www/
@@ -671,7 +668,6 @@ repos:
         description: Checks the style of Markdown files.
         entry: markdownlint
         language: node
-        language_version: 18.6.0
         types: [markdown]
         files: \.(md|mdown|markdown)$
         additional_dependencies: ['markdownlint-cli']
@@ -828,18 +824,16 @@ repos:
       - id: lint-javascript
         name: ESLint against airflow/ui
         language: node
-        language_version: 18.6.0
         'types_or': [javascript, tsx, ts]
         files: ^airflow/ui/
         entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
-      - id: lint-javascript
-        name: ESLint against current UI JavaScript files
+      - id: ts-compile-and-lint-javascript
+        name: TS types generation and ESLint against current UI files
         language: node
-        language_version: 18.6.0
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/www/static/js/
+        'types_or': [javascript, tsx, ts, yaml]
+        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1.yaml
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false

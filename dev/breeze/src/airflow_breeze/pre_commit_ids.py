@@ -95,6 +95,7 @@ PRE_COMMIT_LIST = [
     'run-shellcheck',
     'static-check-autoflake',
     'trailing-whitespace',
+    'ts-compile-and-lint-javascript',
     'update-breeze-cmd-output',
     'update-breeze-readme-config-hash',
     'update-extras',
