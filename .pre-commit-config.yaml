@@ -834,24 +834,15 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
-      - id: lint-javascript
+      - id: ts-compile-and-lint-javascript
         name: ESLint against current UI JavaScript files
         language: node
         language_version: 18.6.0
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/www/static/js/
+        'types_or': [javascript, tsx, ts, yaml]
+        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1.yaml
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false
-      - id: generate-api-types
-        name: Generate typescript API types
-        language: node
-        language_version: 18.6.0
-        'types_or': [yaml]
-        files: ^airflow/api_connexion/openapi/v1.yaml
-        entry: ./scripts/ci/pre_commit/pre_commit_www_generate_api_types.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: run-mypy

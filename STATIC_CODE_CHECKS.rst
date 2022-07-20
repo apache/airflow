@@ -231,8 +231,6 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                  | Run flynt string format converter for Python                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| generate-api-types                                     | Generate typescript API types                                    |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | identity                                               | Print input to the static check hooks for troubleshooting        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | insert-license                                         | * Add license for all SQL files                                  |         |
@@ -256,8 +254,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                        | Lint Helm Chart                                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-javascript                                        | * ESLint against airflow/ui                                      |         |
-|                                                        | * ESLint against current UI JavaScript files                     |         |
+| lint-javascript                                        | ESLint against airflow/ui                                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |
 |                                                        | * Lint NodePort Service with JSON Schema                         |         |
@@ -297,6 +294,8 @@ require Breeze Docker image to be build locally.
 | static-check-autoflake                                 | Remove all unused code                                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| ts-compile-and-lint-javascript                         | ESLint against current UI JavaScript files                       |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
