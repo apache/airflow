@@ -862,10 +862,10 @@ repos:
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: lint-javascript
-        name: Generate API types and ESLint against current UI JavaScript files
+        name: ESLint against current UI JavaScript files
         language: python
         'types_or': [javascript, tsx, ts]
-        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/
+        files: ^airflow/www/static/js/
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
