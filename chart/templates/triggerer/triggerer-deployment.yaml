@@ -24,6 +24,7 @@
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.triggerer) }}
 kind: Deployment
 apiVersion: apps/v1
@@ -40,6 +41,9 @@ metadata:
     {{- end }}
 spec:
   replicas: {{ .Values.triggerer.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
