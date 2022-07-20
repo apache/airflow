@@ -23,7 +23,7 @@ import time
 import warnings
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, cast
+from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, cast
 
 from botocore.exceptions import ClientError
 
@@ -844,24 +844,38 @@ class SageMakerHook(AwsBaseHook):
         :param kwargs: (optional) kwargs to boto3's list_training_jobs method
         :return: results of the list_training_jobs request
         """
-        config = {}
-
-        if name_contains:
-            if "NameContains" in kwargs:
-                raise AirflowException("Either name_contains or NameContains can be provided, not both.")
-            config["NameContains"] = name_contains
-
-        if "MaxResults" in kwargs and kwargs["MaxResults"] is not None:
-            if max_results:
-                raise AirflowException("Either max_results or MaxResults can be provided, not both.")
-            # Unset MaxResults, we'll use the SageMakerHook's internal method for iteratively fetching results
-            max_results = kwargs["MaxResults"]
-            del kwargs["MaxResults"]
-
-        config.update(kwargs)
+        config, max_results = self._preprocess_list_request_args(name_contains, max_results, **kwargs)
         list_training_jobs_request = partial(self.get_conn().list_training_jobs, **config)
         results = self._list_request(
             list_training_jobs_request, "TrainingJobSummaries", max_results=max_results
+        )
+        return results
+
+    def list_transform_jobs(
+        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
+    ) -> List[Dict]:
+        """
+        This method wraps boto3's `list_transform_jobs`.
+        The transform job name and max results are configurable via arguments.
+        Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
+        CamelCase format, for example:
+
+        .. code-block:: python
+
+            list_transform_jobs(name_contains="myjob", StatusEquals="Failed")
+
+        .. seealso::
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.list_transform_jobs
+
+        :param name_contains: (optional) partial name to match
+        :param max_results: (optional) maximum number of results to return. None returns infinite results
+        :param kwargs: (optional) kwargs to boto3's list_transform_jobs method
+        :return: results of the list_transform_jobs request
+        """
+        config, max_results = self._preprocess_list_request_args(name_contains, max_results, **kwargs)
+        list_transform_jobs_request = partial(self.get_conn().list_transform_jobs, **config)
+        results = self._list_request(
+            list_transform_jobs_request, "TransformJobSummaries", max_results=max_results
         )
         return results
 
@@ -885,6 +899,37 @@ class SageMakerHook(AwsBaseHook):
             list_processing_jobs_request, "ProcessingJobSummaries", max_results=kwargs.get("MaxResults")
         )
         return results
+
+    def _preprocess_list_request_args(
+        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
+    ) -> Tuple[Dict[str, Any], Optional[int]]:
+        """
+        This method preprocesses the arguments to the boto3's list_* methods.
+        It will turn arguments name_contains and max_results as boto3 compliant CamelCase format.
+        This method also makes sure that these two arguments are only set once.
+
+        :param name_contains: boto3 function with arguments
+        :param max_results: the result key to iterate over
+        :param kwargs: (optional) kwargs to boto3's list_* method
+        :return: Tuple with config dict to be passed to boto3's list_* method and max_results parameter
+        """
+        config = {}
+
+        if name_contains:
+            if "NameContains" in kwargs:
+                raise AirflowException("Either name_contains or NameContains can be provided, not both.")
+            config["NameContains"] = name_contains
+
+        if "MaxResults" in kwargs and kwargs["MaxResults"] is not None:
+            if max_results:
+                raise AirflowException("Either max_results or MaxResults can be provided, not both.")
+            # Unset MaxResults, we'll use the SageMakerHook's internal method for iteratively fetching results
+            max_results = kwargs["MaxResults"]
+            del kwargs["MaxResults"]
+
+        config.update(kwargs)
+
+        return config, max_results
 
     def _list_request(
         self, partial_func: Callable, result_key: str, max_results: Optional[int] = None
