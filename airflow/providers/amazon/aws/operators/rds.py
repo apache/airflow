@@ -155,13 +155,8 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_instance_snap, default=str)
-            if self.wait_for_completion:
-                self._await_status(
-                    'instance_snapshot',
-                    self.db_snapshot_identifier,
-                    wait_statuses=['creating'],
-                    ok_statuses=['available'],
-                )
+            item_type = 'instance_snapshot'
+
         else:
             create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
                 DBClusterIdentifier=self.db_identifier,
@@ -169,14 +164,15 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_cluster_snap, default=str)
-            if self.wait_for_completion:
-                self._await_status(
-                    'cluster_snapshot',
-                    self.db_snapshot_identifier,
-                    wait_statuses=['creating'],
-                    ok_statuses=['available'],
-                )
+            item_type = 'cluster_snapshot'
 
+        if self.wait_for_completion:
+            self._await_status(
+                item_type,
+                self.db_snapshot_identifier,
+                wait_statuses=['creating'],
+                ok_statuses=['available'],
+            )
         return create_response
 
 
@@ -263,13 +259,8 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_instance_snap, default=str)
-            if self.wait_for_completion:
-                self._await_status(
-                    'instance_snapshot',
-                    self.target_db_snapshot_identifier,
-                    wait_statuses=['creating'],
-                    ok_statuses=['available'],
-                )
+            item_type = 'instance_snapshot'
+
         else:
             copy_cluster_snap = self.hook.conn.copy_db_cluster_snapshot(
                 SourceDBClusterSnapshotIdentifier=self.source_db_snapshot_identifier,
@@ -281,14 +272,15 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_cluster_snap, default=str)
-            if self.wait_for_completion:
-                self._await_status(
-                    'cluster_snapshot',
-                    self.target_db_snapshot_identifier,
-                    wait_statuses=['copying'],
-                    ok_statuses=['available'],
-                )
+            item_type = 'cluster_snapshot'
 
+        if self.wait_for_completion:
+            self._await_status(
+                item_type,
+                self.target_db_snapshot_identifier,
+                wait_statuses=['copying'],
+                ok_statuses=['available'],
+            )
         return copy_response
 
 
