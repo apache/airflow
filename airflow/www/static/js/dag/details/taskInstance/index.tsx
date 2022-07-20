@@ -74,7 +74,7 @@ const getTask = ({ taskId, runId, task }: GetTaskProps) => {
 };
 
 const TaskInstance = ({ taskId, runId }: Props) => {
-  const [selectedRows, setSelectedRows] = useState([]);
+  const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const { data: { dagRuns, groups } } = useGridData();
   const { data: { tasks } } = useTasks();
 
@@ -112,7 +112,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
   if (!group || !run) return null;
 
   const { executionDate } = run;
-  const task: any = tasks.find((t: any) => t.taskId === taskId);
+  const task = tasks.find((t) => t.taskId === taskId);
   const operator = (task?.classRef && task?.classRef?.className) ?? '';
 
   const instance = group.instances.find((ti) => ti.runId === runId);
@@ -190,7 +190,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
                 executionDate={executionDate}
                 extraLinks={group?.extraLinks || []}
               />
-              {isMapped && (
+              {isMapped && taskId && (
                 <MappedInstances
                   dagId={dagId}
                   runId={runId}

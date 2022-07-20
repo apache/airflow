@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 import {
   Table,
   Tbody,
@@ -31,10 +31,12 @@ import {
 } from '@chakra-ui/react';
 import { mean } from 'lodash';
 
-import { getDuration, formatDuration } from '../../datetime_utils';
-import { finalStatesMap, getMetaValue } from '../../utils';
-import { useTasks, useGridData } from '../../api';
-import Time from '../../components/Time';
+import { getDuration, formatDuration } from 'src/datetime_utils';
+import { finalStatesMap, getMetaValue } from 'src/utils';
+import { useTasks, useGridData } from 'src/api';
+import Time from 'src/components/Time';
+import type { TaskState } from 'src/types';
+
 import { SimpleStatus } from '../StatusBox';
 
 const dagDetailsUrl = getMetaValue('dag_details_url');
@@ -44,24 +46,26 @@ const Dag = () => {
   const { data: { dagRuns } } = useGridData();
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
-  const operators = {};
+  const operators: Record<string, any> = {};
   tasks.forEach((t) => {
-    if (!operators[t.classRef.className]) {
-      operators[t.classRef.className] = 1;
-    } else {
-      operators[t.classRef.className] += 1;
+    if (t?.classRef?.className) {
+      if (!operators[t.classRef.className]) {
+        operators[t.classRef.className] = 1;
+      } else {
+        operators[t.classRef.className] += 1;
+      }
     }
   });
 
   const numMap = finalStatesMap();
-  const durations = [];
+  const durations: number[] = [];
   dagRuns.forEach((dagRun) => {
     durations.push(getDuration(dagRun.startDate, dagRun.endDate));
     const stateKey = dagRun.state == null ? 'no_status' : dagRun.state;
-    if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+    if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
   });
 
-  const stateSummary = [];
+  const stateSummary: ReactNode[] = [];
   numMap.forEach((key, val) => {
     if (key > 0) {
       stateSummary.push(
@@ -69,7 +73,7 @@ const Dag = () => {
         <Tr key={val}>
           <Td>
             <Flex alignItems="center">
-              <SimpleStatus state={val} mr={2} />
+              <SimpleStatus state={val as TaskState} mr={2} />
               <Text>
                 Total
                 {' '}
@@ -89,6 +93,8 @@ const Dag = () => {
   const max = Math.max.apply(null, durations);
   const min = Math.min.apply(null, durations);
   const avg = mean(durations);
+  const firstStart = dagRuns[0]?.startDate;
+  const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
 
   return (
     <>
@@ -110,18 +116,22 @@ const Dag = () => {
               </Td>
             </Tr>
             {stateSummary}
-            <Tr>
-              <Td>First Run Start</Td>
-              <Td>
-                <Time dateTime={dagRuns[0].startDate} />
-              </Td>
-            </Tr>
-            <Tr>
-              <Td>Last Run Start</Td>
-              <Td>
-                <Time dateTime={dagRuns[dagRuns.length - 1].startDate} />
-              </Td>
-            </Tr>
+            {firstStart && (
+              <Tr>
+                <Td>First Run Start</Td>
+                <Td>
+                  <Time dateTime={firstStart} />
+                </Td>
+              </Tr>
+            )}
+            {lastStart && (
+              <Tr>
+                <Td>Last Run Start</Td>
+                <Td>
+                  <Time dateTime={lastStart} />
+                </Td>
+              </Tr>
+            )}
             <Tr>
               <Td>Max Run Duration</Td>
               <Td>

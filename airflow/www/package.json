@@ -7,8 +7,9 @@
     "dev": "NODE_ENV=development webpack --watch --progress --devtool eval-cheap-source-map --mode development",
     "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js --mode production --progress",
     "build": "NODE_ENV=production webpack --progress --mode production",
-    "lint": "eslint --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc --noEmit",
-    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc --noEmit"
+    "lint": "eslint --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc",
+    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc",
+    "generate-api-types": "npx openapi-typescript \"../api_connexion/openapi/v1.yaml\" --output static/js/types/api-generated.ts && node alias-rest-types.js static/js/types/api-generated.ts"
   },
   "author": "Apache",
   "license": "Apache-2.0",
@@ -65,6 +66,7 @@
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
     "nock": "^13.2.4",
+    "openapi-typescript": "^5.4.1",
     "style-loader": "^1.2.1",
     "stylelint": "^13.6.1",
     "stylelint-config-standard": "^20.0.0",

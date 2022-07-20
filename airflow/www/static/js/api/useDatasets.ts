@@ -21,10 +21,10 @@ import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 
 import { getMetaValue } from 'src/utils';
-import type { Dataset } from 'src/types';
+import type { API } from 'src/types';
 
 interface DatasetsData {
-  datasets: Dataset[];
+  datasets: API.Dataset[];
   totalEntries: number;
 }
 
