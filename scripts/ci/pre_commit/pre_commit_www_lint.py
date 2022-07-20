@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import sys
+import subprocess
 from pathlib import Path
 
 if __name__ not in ("__main__", "__mp_main__"):
@@ -25,39 +24,7 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
-# allow "False", "false", "True", "true", "f", "F", "t", "T" and the like
-VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
-DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
-
 if __name__ == '__main__':
-    sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import MOUNT_SELECTED
-    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-    from airflow_breeze.utils.path_utils import create_static_check_volumes
-    from airflow_breeze.utils.run_utils import get_runnable_ci_image, run_command
-
-    airflow_image = get_runnable_ci_image(verbose=VERBOSE, dry_run=DRY_RUN)
-    create_static_check_volumes()
-    cmd_result = run_command(
-        [
-            "docker",
-            "run",
-            "-t",
-            *get_extra_docker_flags(MOUNT_SELECTED),
-            "-e",
-            "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            "PRINT_INFO_FROM_SCRIPTS=false",
-            "--pull",
-            "never",
-            airflow_image,
-            "-c",
-            'cd airflow/www && yarn --frozen-lockfile --non-interactive && yarn run lint',
-        ],
-        check=False,
-        verbose=VERBOSE,
-        dry_run=DRY_RUN,
-    )
-    sys.exit(cmd_result.returncode)
+    dir = Path("airflow") / "www"
+    subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=dir)
+    subprocess.check_call(['yarn', 'run', 'lint'], cwd=dir)
