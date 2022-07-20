@@ -75,10 +75,12 @@ class LivyHook(HttpHook, LoggingMixin):
         livy_conn_id: str = default_conn_name,
         extra_options: Optional[Dict[str, Any]] = None,
         extra_headers: Optional[Dict[str, Any]] = None,
+        auth_type: Optional[Any] = None
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
+        self.auth_type = auth_type or self.auth_type
 
     def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
         """
