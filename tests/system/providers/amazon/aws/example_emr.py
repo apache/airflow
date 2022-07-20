@@ -27,14 +27,17 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrTerminateJobFlowOperator,
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_emr'
 JOB_FLOW_ROLE = os.getenv('EMR_JOB_FLOW_ROLE', 'EMR_EC2_DefaultRole')
 SERVICE_ROLE = os.getenv('EMR_SERVICE_ROLE', 'EMR_DefaultRole')
 
 # [START howto_operator_emr_steps_config]
 SPARK_STEPS = [
     {
-        'Name': 'calculate_pi',
+        'Name': f'{ENV_ID}-calculate_pi',
         'ActionOnFailure': 'CONTINUE',
         'HadoopJarStep': {
             'Jar': 'command-runner.jar',
@@ -44,7 +47,7 @@ SPARK_STEPS = [
 ]
 
 JOB_FLOW_OVERRIDES = {
-    'Name': 'PiCalc',
+    'Name': f'{ENV_ID}-PiCalc',
     'ReleaseLabel': 'emr-5.29.0',
     'Applications': [{'Name': 'Spark'}],
     'Instances': {
@@ -67,7 +70,7 @@ JOB_FLOW_OVERRIDES = {
 # [END howto_operator_emr_steps_config]
 
 with DAG(
-    dag_id='example_emr',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -124,3 +127,15 @@ with DAG(
         step_checker,
         cluster_remover,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

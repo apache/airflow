@@ -22,8 +22,11 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
+from tests.system.providers.amazon.aws.utils import set_env_id
 
-VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
+ENV_ID = set_env_id()
+DAG_ID = 'example_emr_eks'
+VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", f"{ENV_ID}-test-cluster")
 JOB_ROLE_ARN = os.getenv("JOB_ROLE_ARN", "arn:aws:iam::012345678912:role/emr_eks_default_role")
 
 # [START howto_operator_emr_eks_config]
@@ -53,7 +56,7 @@ CONFIGURATION_OVERRIDES_ARG = {
 # [END howto_operator_emr_eks_config]
 
 with DAG(
-    dag_id='example_emr_eks',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -79,3 +82,15 @@ with DAG(
     # [END howto_sensor_emr_container]
 
     chain(job_starter, job_waiter)
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
