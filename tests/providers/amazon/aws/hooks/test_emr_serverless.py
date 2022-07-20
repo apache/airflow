@@ -16,6 +16,8 @@
 # under the License.
 
 
+from unittest import mock
+
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -38,33 +40,52 @@ class TestEmrServerlessHook:
         conn2 = hook.conn
         assert conn is conn2
 
-    def call_function(self, response):
-        return {'response': response}
+    def call_function(self):
+        pass
 
-    def nested_call_function(self, response):
-        return {'layer1': {'key1': 'value1', 'layer2': {'response': response}}}
-
-    def test_waiter_success_state(self):
+    @mock.patch("tests.providers.amazon.aws.hooks.test_emr_serverless.TestEmrServerlessHook.call_function")
+    def test_waiter_failure_then_success(self, mock_call_function):
+        mock_call_function.side_effect = [{'response': 'test_failure'}, {'response': 'test_success'}]
         success_state = {'test_success'}
         hook = EmrServerlessHook()
         waiter_response = hook.waiter(
             get_state_callable=self.call_function,
-            get_state_args={'response': 'test_success'},
+            get_state_args={},
             parse_response=['response'],
             desired_state=success_state,
             failure_states={},
             object_type='test_object',
             action='testing',
         )
+        assert mock_call_function.call_count == 2
         assert waiter_response is None
 
-    def test_waiter_failure_state(self):
+    @mock.patch("tests.providers.amazon.aws.hooks.test_emr_serverless.TestEmrServerlessHook.call_function")
+    def test_waiter_success_state(self, mock_call_function):
+        mock_call_function.return_value = {'response': 'test_success'}
+        success_state = {'test_success'}
+        hook = EmrServerlessHook()
+        waiter_response = hook.waiter(
+            get_state_callable=self.call_function,
+            get_state_args={},
+            parse_response=['response'],
+            desired_state=success_state,
+            failure_states={},
+            object_type='test_object',
+            action='testing',
+        )
+        mock_call_function.assert_called_once()
+        assert waiter_response is None
+
+    @mock.patch("tests.providers.amazon.aws.hooks.test_emr_serverless.TestEmrServerlessHook.call_function")
+    def test_waiter_failure_state(self, mock_call_function):
         failure_state = {'test_failure'}
+        mock_call_function.return_value = {'response': 'test_failure'}
         hook = EmrServerlessHook()
         with pytest.raises(AirflowException) as ex_message:
             hook.waiter(
                 get_state_callable=self.call_function,
-                get_state_args={'response': 'test_failure'},
+                get_state_args={},
                 parse_response=['response'],
                 desired_state={},
                 failure_states=failure_state,
@@ -74,16 +95,21 @@ class TestEmrServerlessHook:
 
         assert str(ex_message.value) == f"Test_Object reached failure state {','.join(failure_state)}."
 
-    def test_nested_waiter_success_state(self):
+    @mock.patch("tests.providers.amazon.aws.hooks.test_emr_serverless.TestEmrServerlessHook.call_function")
+    def test_nested_waiter_success_state(self, mock_call_function):
+        mock_call_function.return_value = {
+            'layer1': {'key1': 'value1', 'layer2': {'response': 'test_success'}}
+        }
         success_state = {'test_success'}
         hook = EmrServerlessHook()
         waiter_response = hook.waiter(
-            get_state_callable=self.nested_call_function,
-            get_state_args={'response': 'test_success'},
+            get_state_callable=self.call_function,
+            get_state_args={},
             parse_response=['layer1', 'layer2', 'response'],
             desired_state=success_state,
             failure_states={},
             object_type='test_object',
             action='testing',
         )
+        mock_call_function.assert_called_once()
         assert waiter_response is None
