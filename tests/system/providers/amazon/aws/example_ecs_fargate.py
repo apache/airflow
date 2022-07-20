@@ -19,9 +19,13 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import EcsOperator
+from tests.system.providers.amazon.aws.utils import set_env_id
+
+ENV_ID = set_env_id()
+DAG_ID = 'example_ecs_fargate'
 
 with DAG(
-    dag_id='example_ecs_fargate',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -60,3 +64,9 @@ with DAG(
         awslogs_stream_prefix="prefix_b/hello-world-container",
     )
     # [END howto_operator_ecs]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

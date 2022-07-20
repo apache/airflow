@@ -63,7 +63,7 @@ The parameters you need to configure for this Operator will depend upon which ``
     :end-before: [END howto_operator_ecs]
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs_fargate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ecs]
