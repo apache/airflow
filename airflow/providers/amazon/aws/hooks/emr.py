@@ -121,6 +121,8 @@ class EmrServerlessHook(AwsBaseHook):
         failure_states: Set,
         object_type: str,
         action: str,
+        countdown: int = 25 * 60,
+        check_interval_seconds: int = 60,
     ) -> None:
         """
         Will run the sensor until it turns True.
@@ -133,10 +135,12 @@ class EmrServerlessHook(AwsBaseHook):
         exception if any are reached before the desired_state
         :param object_type: Used for the reporting string. What are you waiting for? (application, job, etc)
         :param action: Used for the reporting string. What action are you waiting for? (created, deleted, etc)
+        :param countdown: Total amount of time the waiter should wait for the desired state
+        before timing out (in seconds). Defaults to 25 * 60 seconds.
+        :param check_interval_seconds: Number of seconds waiter should wait before attempting
+        to retry get_state_callable. Defaults to 60 seconds.
         """
-        check_interval_seconds: int = 60
         response = get_state_callable(**get_state_args)
-        countdown: int = 25 * 60
         state: str = self.get_state(response, parse_response)
         while state not in desired_state:
             if state in failure_states:
