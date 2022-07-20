@@ -623,11 +623,12 @@ class DagBag(LoggingMixin):
                 )
                 self.log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
+                    DAG.bulk_write_to_db(self.dags.values(), session=session)
+
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in self.dags.values():
-                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
-
-                    DAG.bulk_write_to_db(self.dags.values(), session=session)
+                        error_info = _serialize_dag_capturing_errors(dag, session)
+                        serialize_errors.extend(error_info)
                 except OperationalError:
                     session.rollback()
                     raise

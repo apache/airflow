@@ -20,6 +20,7 @@
 import datetime
 import enum
 import logging
+import warnings
 import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
@@ -557,28 +558,64 @@ class DependencyDetector:
     """Detects dependencies between DAGs."""
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> Optional['DagDependency']:
+    def detect_task_dependencies(task: Operator) -> List['DagDependency']:
         """Detects dependencies caused by tasks"""
+        from airflow.settings import Session
+
+        session = Session()
+        deps = []
         if isinstance(task, TriggerDagRunOperator):
-            return DagDependency(
-                source=task.dag_id,
-                target=getattr(task, "trigger_dag_id"),
-                dependency_type="trigger",
-                dependency_id=task.task_id,
+            deps.append(
+                DagDependency(
+                    source=task.dag_id,
+                    target=getattr(task, "trigger_dag_id"),
+                    dependency_type="trigger",
+                    dependency_id=task.task_id,
+                )
             )
         elif isinstance(task, ExternalTaskSensor):
-            return DagDependency(
-                source=getattr(task, "external_dag_id"),
-                target=task.dag_id,
-                dependency_type="sensor",
-                dependency_id=task.task_id,
+            deps.append(
+                DagDependency(
+                    source=getattr(task, "external_dag_id"),
+                    target=task.dag_id,
+                    dependency_type="sensor",
+                    dependency_id=task.task_id,
+                )
             )
+        for obj in getattr(task, '_outlets', []):
+            if isinstance(obj, Dataset):
+                deps.append(
+                    DagDependency(
+                        source=task.dag_id,
+                        target='dataset',
+                        dependency_type='dataset',
+                        dependency_id=session.query(Dataset.id).filter(Dataset.uri == obj.uri).first()[0],
+                    )
+                )
+        return deps
 
-        return None
+    @staticmethod
+    def detect_dag_dependencies(dag: DAG) -> List["DagDependency"]:
+        """Detects dependencies set directly on the DAG object."""
+        if dag.schedule_on:
+            from airflow.settings import Session
+
+            session = Session()
+            return [
+                DagDependency(
+                    source="dataset",
+                    target=dag.dag_id,
+                    dependency_type="dataset",
+                    dependency_id=str(session.query(Dataset.id).filter(Dataset.uri == x.uri).first()[0]),
+                )
+                for x in dag.schedule_on
+            ]
+        else:
+            return []
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
-    """A JSON serializable representation of operator.
+    """A JSON serializable  representation of operator.
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
@@ -591,8 +628,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
-
-    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -839,7 +874,21 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> Optional['DagDependency']:
         """Detects between DAG dependencies for the operator."""
-        return cls.dependency_detector.detect_task_dependencies(op)
+        dependency_detector = DependencyDetector()
+        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector')
+        deps = set()
+        if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
+            warnings.warn(
+                "Use of a custom dependency detector is deprecated. "
+                "Support will be removed in a future release.",
+                DeprecationWarning,
+            )
+            dep = custom_dependency_detector.detect_task_dependencies(op)
+            if dep:
+                deps.add(dep)
+        deps.update(dependency_detector.detect_task_dependencies(op))
+        deps.update(dependency_detector.detect_dag_dependencies(op.dag))
+        return deps
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: "DAGNode"):
@@ -976,6 +1025,7 @@ class SerializedDAG(DAG, BaseSerialization):
     """
 
     _decorated_fields = {'schedule_interval', 'default_args', '_access_control'}
+    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     @staticmethod
     def __get_constructor_defaults():
@@ -1010,11 +1060,14 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            serialized_dag["dag_dependencies"] = [
-                vars(t)
-                for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
+            dag_deps = [
+                t.__dict__
+                for task in dag.task_dict.values()
+                for t in SerializedBaseOperator.detect_dependencies(task)
                 if t is not None
             ]
+
+            serialized_dag["dag_dependencies"] = dag_deps
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1208,12 +1261,20 @@ class DagDependency:
     source: str
     target: str
     dependency_type: str
-    dependency_id: str
+    dependency_id: Optional[str] = None
 
     @property
     def node_id(self):
         """Node ID for graph rendering"""
-        return f"{self.dependency_type}:{self.source}:{self.target}:{self.dependency_id}"
+        val = f"{self.dependency_type}"
+        if not self.dependency_type == 'dataset':
+            val += f":{self.source}:{self.target}"
+        if self.dependency_id:
+            val += f":{self.dependency_id}"
+        return val
+
+    def __hash__(self):
+        return hash((self.source, self.target, self.dependency_type, self.dependency_id))
 
 
 def _has_kubernetes() -> bool:

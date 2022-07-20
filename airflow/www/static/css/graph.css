@@ -161,6 +161,11 @@ g.node text {
   background-color: #e6f1f2;
 }
 
+.legend-item.dataset {
+  float: left;
+  background-color: #fcecd4;
+}
+
 g.node.dag rect {
   fill: #e8f7e4;
 }
@@ -171,4 +176,8 @@ g.node.trigger rect {
 
 g.node.sensor rect {
   fill: #e6f1f2;
+}
+
+g.node.dataset rect {
+  fill: #fcecd4;
 }
