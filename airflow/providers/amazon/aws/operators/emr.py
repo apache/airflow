@@ -20,7 +20,6 @@ import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -434,6 +433,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
     :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
+    :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
     :param aws_conn_id: AWS connection to use
     """
 
@@ -474,7 +474,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Application Creation failed: {response}')
 
-        self.log.info(f'EMR serverless application created: {application_id}')
+        self.log.info('EMR serverless application created: %s', application_id)
 
         # This should be replaced with a boto waiter when available.
         self.hook.waiter(
@@ -487,7 +487,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             action='created',
         )
 
-        self.log.info(f'Starting application {application_id}.')
+        self.log.info('Starting application %s', application_id)
         self.hook.conn.start_application(applicationId=application_id)
 
         if self.wait_for_completion:
@@ -519,6 +519,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param configuration_overrides: Configuration specifications to override existing configurations.
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
+    :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
     :param aws_conn_id: AWS connection to use
     """
@@ -532,6 +533,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         job_driver: dict,
         configuration_overrides: Optional[dict],
         client_request_token: str = '',
+        config: Optional[dict] = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = 'aws_default',
         **kwargs,
@@ -542,6 +544,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.job_driver = job_driver
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
+        self.config = config or {}
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -552,7 +555,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: 'Context') -> Dict:
-        self.log.info(f'Starting job on Application: {self.application_id}')
+        self.log.info('Starting job on Application: %s', self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
         if app_state not in {'CREATED', 'STARTED'}:
@@ -574,12 +577,13 @@ class EmrServerlessStartJobOperator(BaseOperator):
             executionRoleArn=self.execution_role_arn,
             jobDriver=self.job_driver,
             configurationOverrides=self.configuration_overrides,
+            **self.config,
         )
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'EMR serverless job failed to start: {response}')
 
-        self.log.info(f'EMR serverless job started: {response["jobRunId"]}')
+        self.log.info('EMR serverless job started: %s', response['jobRunId'])
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
             self.hook.waiter(
@@ -630,7 +634,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: 'Context') -> None:
-        self.log.info(f'Stopping application: {self.application_id}')
+        self.log.info('Stopping application: %s', self.application_id)
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         # This should be replaced with a boto waiter when available.
@@ -646,7 +650,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
             action='stopped',
         )
 
-        self.log.info(f'Deleting application: {self.application_id}')
+        self.log.info('Deleting application: %s', self.application_id)
         response = self.hook.conn.delete_application(applicationId=self.application_id)
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
