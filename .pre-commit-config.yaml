@@ -296,7 +296,7 @@ repos:
         exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
@@ -593,9 +593,20 @@ repos:
         name: stylelint
         entry: "stylelint"
         language: node
+        language_version: 18.6.0
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: compile-www-assets
+        name: Compile www assets
+        language: node
+        language_version: 18.6.0
+        stages: ['manual']
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/www/
+        entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets.py
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.19']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
         pass_filenames: false
@@ -660,6 +671,7 @@ repos:
         description: Checks the style of Markdown files.
         entry: markdownlint
         language: node
+        language_version: 18.6.0
         types: [markdown]
         files: \.(md|mdown|markdown)$
         additional_dependencies: ['markdownlint-cli']
@@ -813,6 +825,24 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
+      - id: lint-javascript
+        name: ESLint against airflow/ui
+        language: node
+        language_version: 18.6.0
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.19']
+      - id: lint-javascript
+        name: ESLint against current UI JavaScript files
+        language: node
+        language_version: 18.6.0
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/www/static/js/
+        entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
+        additional_dependencies: ['yarn@1.22.19']
+        pass_filenames: false
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: run-mypy
@@ -852,22 +882,6 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: lint-javascript
-        name: ESLint against airflow/ui
-        language: python
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
-      - id: lint-javascript
-        name: ESLint against current UI JavaScript files
-        language: python
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/www/static/js/
-        entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
-        pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: update-migration-references
         name: Update migration ref doc

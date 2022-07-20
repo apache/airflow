@@ -136,14 +136,6 @@ function breeze::setup_default_breeze_constants() {
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
     export AIRFLOW_SOURCES_TO
 
-    # Sources by default are installed from local sources when using breeze
-    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="./airflow/www"}
-    export AIRFLOW_SOURCES_WWW_FROM
-
-    # They are copied to /opt/airflow by default in breeze
-    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/opt/airflow/airflow/www"}
-    export AIRFLOW_SOURCES_WWW_TO
-
     # Unlike in CI scripts, in breeze by default production image is installed from sources
     export AIRFLOW_INSTALLATION_METHOD="."
 

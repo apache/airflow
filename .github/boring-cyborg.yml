@@ -119,7 +119,6 @@ labelPRBasedOnFilePath:
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
-    - airflow/www/compile_assets.sh
     - airflow/www/package.json
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock

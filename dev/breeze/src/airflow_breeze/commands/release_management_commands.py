@@ -65,7 +65,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.run_utils import RunCommandResult, run_command
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command, run_compile_www_assets
 
 RELEASE_MANAGEMENT_PARAMETERS = {
     "breeze prepare-airflow-package": [
@@ -234,6 +234,7 @@ def prepare_airflow_packages(
     debug: bool,
 ):
     perform_environment_checks(verbose=verbose)
+    run_compile_www_assets(verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
         github_repository=github_repository,

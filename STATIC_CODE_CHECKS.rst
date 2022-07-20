@@ -215,6 +215,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                              | Run codespell to check for common misspellings in files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| compile-www-assets                                     | Compile www assets                                               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | create-missing-init-py-files-tests                     | Create missing init.py files in tests                            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | debug-statements                                       | Detect accidentally committed debug statements                   |         |
@@ -252,7 +254,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                        | Lint Helm Chart                                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-javascript                                        | * ESLint against airflow/ui                                      | *       |
+| lint-javascript                                        | * ESLint against airflow/ui                                      |         |
 |                                                        | * ESLint against current UI JavaScript files                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |

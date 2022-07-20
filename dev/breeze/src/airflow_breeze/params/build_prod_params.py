@@ -26,8 +26,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
-    AIRFLOW_SOURCES_WWW_FROM,
-    AIRFLOW_SOURCES_WWW_TO,
     get_airflow_extras,
     get_airflow_version,
 )
@@ -73,10 +71,6 @@ class BuildProdParams(CommonBuildParams):
         build_args = []
         build_args.extend(
             [
-                "--build-arg",
-                "AIRFLOW_SOURCES_WWW_FROM=empty",
-                "--build-arg",
-                "AIRFLOW_SOURCES_WWW_TO=/empty",
                 "--build-arg",
                 "AIRFLOW_SOURCES_FROM=empty",
                 "--build-arg",
@@ -158,10 +152,6 @@ class BuildProdParams(CommonBuildParams):
                     f"AIRFLOW_SOURCES_FROM={AIRFLOW_SOURCES_FROM}",
                     "--build-arg",
                     f"AIRFLOW_SOURCES_TO={AIRFLOW_SOURCES_TO}",
-                    "--build-arg",
-                    f"AIRFLOW_SOURCES_WWW_FROM={AIRFLOW_SOURCES_WWW_FROM}",
-                    "--build-arg",
-                    f"AIRFLOW_SOURCES_WWW_TO={AIRFLOW_SOURCES_WWW_TO}",
                     "--build-arg",
                     f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
                     "--build-arg",
