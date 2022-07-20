@@ -2582,3 +2582,22 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
         EmptyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
 
     assert dag._time_restriction == restrict
+
+
+@pytest.mark.parametrize(
+    'tags, should_fail',
+    [
+        pytest.param([], False, id='empty tags'),
+        pytest.param(['a normal tag'], False, id='one tag'),
+        pytest.param(['a normal tag', 'another normal tag'], False, id='two tags'),
+        pytest.param(
+            ['a normal tag', 'a super long tag' * 20], True, id='two tags and one of them is of length > 100'
+        ),
+    ],
+)
+def test__tags_length(tags: List[str], should_fail: bool):
+    if should_fail:
+        with pytest.raises(AirflowException):
+            models.DAG('test-dag', tags=tags)
+    else:
+        models.DAG('test-dag', tags=tags)
