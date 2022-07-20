@@ -58,7 +58,7 @@ class SqsHook(AwsBaseHook):
         message_body: str,
         delay_seconds: int = 0,
         message_attributes: Optional[Dict] = None,
-        message_group_id: str = None,
+        message_group_id: Optional[str] = None,
     ) -> Dict:
         """
         Send message to the queue
@@ -68,7 +68,7 @@ class SqsHook(AwsBaseHook):
         :param delay_seconds: seconds to delay the message
         :param message_attributes: additional attributes for the message (default: None)
             For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
-        :param message_group_id: This parameter applies only to FIFO (first-in-first-out) queues. (default: None)
+        :param message_group_id: This applies only to FIFO (first-in-first-out) queues. (default: None)
             For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
 
         :return: dict with the information about the message sent

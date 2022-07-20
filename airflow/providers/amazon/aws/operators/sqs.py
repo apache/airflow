@@ -61,7 +61,7 @@ class SqsPublishOperator(BaseOperator):
         message_content: str,
         message_attributes: Optional[dict] = None,
         delay_seconds: int = 0,
-        message_group_id: str = None,
+        message_group_id: Optional[str] = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
