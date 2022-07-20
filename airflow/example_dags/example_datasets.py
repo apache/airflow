@@ -23,21 +23,22 @@ Turn on all the dags.
 
 DAG example_dataset_dag1 should run because it's on a schedule.
 
-After example_dataset_dag1 runs, example_dataset_dag3 should be triggered immediately because its only
-dataset dependency is managed by example_dataset_dag1.
+After example_dataset_dag1 runs, example_dataset_dag3_req_dag1 should be triggered immediately
+because its only dataset dependency is managed by example_dataset_dag1.
 
-No other dags should be triggered.  Note that even though dag4 depends on
-the dataset in dag1, it will not be triggered until dag2 runs (and dag2 is
-left with no schedule so that we can trigger it manually).
+No other dags should be triggered.  Note that even though example_dataset_dag4_req_dag1_dag2 depends on
+the dataset in example_dataset_dag1, it will not be triggered until example_dataset_dag2 runs
+(and example_dataset_dag2 is left with no schedule so that we can trigger it manually).
 
-Next, trigger example_dataset_dag2.  After example_dataset_dag2 finishes, dag4 should run.
+Next, trigger example_dataset_dag2.  After example_dataset_dag2 finishes,
+example_dataset_dag4_req_dag1_dag2 should run.
 
-Dags example_dataset_dag5 and example_dataset_dag6 should not run because they depend on
+Dags example_dataset_dag5_req_dag1_D and example_dataset_dag6_req_DD should not run because they depend on
 datasets that never get updated.
 
-DAG example_dataset_dag7 should skip its only task and never trigger example_dataset_dag8
+DAG example_dataset_dag7 should skip its only task and never trigger example_dataset_dag8_req_dag7
 
-DAG example_dataset_dag9 should fail its only task and never trigger example_dataset_dag10
+DAG example_dataset_dag9 should fail its only task and never trigger example_dataset_dag10_req_dag9
 
 """
 from datetime import datetime
@@ -81,7 +82,7 @@ with DAG(
 
 # [START dag_dep]
 dag3 = DAG(
-    dag_id='example_dataset_dag3',
+    dag_id='example_dataset_dag3_req_dag1',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag1_dataset],
@@ -97,7 +98,7 @@ BashOperator(
 )
 
 with DAG(
-    dag_id='example_dataset_dag4',
+    dag_id='example_dataset_dag4_req_dag1_dag2',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag1_dataset, dag2_dataset],
@@ -110,7 +111,7 @@ with DAG(
     )
 
 with DAG(
-    dag_id='example_dataset_dag5',
+    dag_id='example_dataset_dag5_req_dag1_D',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[
@@ -126,7 +127,7 @@ with DAG(
     )
 
 with DAG(
-    dag_id='example_dataset_dag6',
+    dag_id='example_dataset_dag6_req_DD',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[
@@ -161,7 +162,7 @@ PythonOperator(
 )
 
 with DAG(
-    dag_id='example_dataset_dag8',
+    dag_id='example_dataset_dag8_req_dag7',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag7_dataset],
@@ -192,7 +193,7 @@ PythonOperator(
 )
 
 with DAG(
-    dag_id='example_dataset_dag10',
+    dag_id='example_dataset_dag10_req_dag9',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag9_dataset],
