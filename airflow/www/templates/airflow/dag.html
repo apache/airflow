@@ -133,7 +133,7 @@
           Next Run: <time datetime="{{ dag_model.next_dagrun }}">{{ dag_model.next_dagrun }}</time>
         </p>
       {% endif %}
-      {% if dag_model is defined and dag_model.schedule_interval == 'Dataset' %}
+      {% if dag_model is defined and dataset_triggered_next_run_info %}
         <p class="label label-default" style="margin-left: 5px">
           Next Run: {{ dataset_triggered_next_run_info }}
         </p>

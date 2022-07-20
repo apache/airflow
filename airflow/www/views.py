@@ -624,9 +624,9 @@ def get_task_stats_from_query(qry):
     return data
 
 
-def get_dataset_triggered_next_run_info(dag_ids: List[str], session: Session) -> Dict[str, Tuple[int, int]]:
+def get_dataset_triggered_next_run_info(dag_ids: List[str], session: Session) -> Dict[str, str]:
     return {
-        x.dag_id: (x.ready, x.total)
+        x.dag_id: f"{x.ready} of {x.total} datasets updated"
         for x in session.query(
             DatasetDagRef.dag_id,
             sqla.func.count().label("total"),
@@ -891,9 +891,6 @@ class Airflow(AirflowBaseView):
                     dag.can_delete = True
                 else:
                     dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
-                if dag.schedule_interval == "Dataset" and dag.dag_id in dataset_triggered_next_run_info:
-                    ready, total = dataset_triggered_next_run_info[dag.dag_id]
-                    dag.dataset_triggered_next_run_info = f"{ready} of {total} datasets updated"
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -1001,6 +998,7 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
         )
 
     @expose('/datasets')
@@ -1275,11 +1273,17 @@ class Airflow(AirflowBaseView):
         wwwutils.check_import_errors(dag_orm.fileloc, session)
         wwwutils.check_dag_warnings(dag_orm.dag_id, session)
 
+        if dag_orm.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/dag_code.html',
             html_code=html_code,
             dag=dag_orm,
             dag_model=dag_orm,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             title=dag_id,
             root=request.args.get('root'),
             wrapped=conf.getboolean('webserver', 'default_wrap'),
@@ -2765,8 +2769,7 @@ class Airflow(AirflowBaseView):
             insort_left(num_runs_options, default_dag_run_display_number)
 
         if dag_model.schedule_interval == "Dataset":
-            ready, total = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
-            dataset_triggered_next_run_info = f"{ready} of {total} datasets updated"
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
         else:
             dataset_triggered_next_run_info = None
 
@@ -2776,6 +2779,7 @@ class Airflow(AirflowBaseView):
             root=root,
             form=form,
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             doc_md=doc_md,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
@@ -2791,7 +2795,6 @@ class Airflow(AirflowBaseView):
                     "numRuns": num_runs_options,
                 }
             ),
-            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
         )
 
     @expose('/calendar')
@@ -2916,9 +2919,15 @@ class Airflow(AirflowBaseView):
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
+        if dag_model.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/calendar.html',
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             doc_md=doc_md,
             data=data,
             root=root,
@@ -3015,9 +3024,15 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
+        if dag_model.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             form=form,
             width=request.args.get('width', "100%"),
             height=request.args.get('height', "800"),
@@ -3184,9 +3199,15 @@ class Airflow(AirflowBaseView):
             + cum_chart.htmlcontent[s_index:]
         )
 
+        if dag_model.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/duration_chart.html',
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3275,9 +3296,15 @@ class Airflow(AirflowBaseView):
 
         chart.buildcontent()
 
+        if dag_model.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3379,9 +3406,16 @@ class Airflow(AirflowBaseView):
             }
         )
         chart.buildcontent()
+
+        if dag_model.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             chart=Markup(chart.htmlcontent),
             height=str(chart_height + 100) + "px",
             root=root,
@@ -3508,11 +3542,17 @@ class Airflow(AirflowBaseView):
             'height': len(task_names) * 25 + 25,
         }
 
+        if dag_model.schedule_interval == "Dataset":
+            dataset_triggered_next_run_info = get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+        else:
+            dataset_triggered_next_run_info = None
+
         session.commit()
 
         return self.render_template(
             'airflow/gantt.html',
             dag=dag,
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
             dag_run_id=dag_run_id,
             execution_date=dttm.isoformat(),
             form=form,

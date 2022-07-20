@@ -466,9 +466,9 @@ def test_get_dataset_triggered_next_run_info(session, reset_dataset):
     session.expunge_all()
 
     info = views.get_dataset_triggered_next_run_info([dag1.dag_id], session)
-    assert (0, 1) == info[dag1.dag_id]
+    assert "0 of 1 datasets updated" == info[dag1.dag_id]
 
     # This time, check both dag2 and dag3 at the same time (tests filtering)
     info = views.get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session)
-    assert (1, 2) == info[dag2.dag_id]
-    assert (1, 3) == info[dag3.dag_id]
+    assert "1 of 2 datasets updated" == info[dag2.dag_id]
+    assert "1 of 3 datasets updated" == info[dag3.dag_id]
