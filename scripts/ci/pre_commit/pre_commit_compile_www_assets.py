@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -26,5 +26,5 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 if __name__ == '__main__':
     dir = Path("airflow") / "www"
-    subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=dir)
-    subprocess.check_call(['yarn', 'run', 'lint'], cwd=dir)
+    subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(dir))
+    subprocess.check_call(['yarn', 'run', 'build'], cwd=str(dir))

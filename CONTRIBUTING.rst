@@ -1162,12 +1162,12 @@ itself comes bundled with jQuery and bootstrap. While they may be phased out
 over time, these packages are currently not managed with yarn.
 
 Make sure you are using recent versions of node and yarn. No problems have been
-found with node\>=8.11.3 and yarn\>=1.19.1.
+found with node\>=8.11.3 and yarn\>=1.19.1. The pre-commit framework of ours install
+node and yarn automatically when installed - if you use ``breeze`` you do not need to install
+neither node nor yarn.
 
-Installing yarn and its packages
---------------------------------
-
-Make sure yarn is available in your environment.
+Installing yarn and its packages manually
+-----------------------------------------
 
 To install yarn on macOS:
 
@@ -1191,27 +1191,6 @@ To install yarn on macOS:
     export PATH="$HOME/.yarn/bin:$PATH"
 
 4.  Install third-party libraries defined in ``package.json`` by running the
-    following commands within the ``airflow/www/`` directory:
-
-
-.. code-block:: bash
-
-    # from the root of the repository, move to where our JS package.json lives
-    cd airflow/www/
-    # run yarn install to fetch all the dependencies
-    yarn install
-
-
-These commands install the libraries in a new ``node_modules/`` folder within
-``www/``.
-
-Should you add or upgrade a node package, run
-``yarn add --dev <package>`` for packages needed in development or
-``yarn add <package>`` for packages used by the code.
-Then push the newly generated ``package.json`` and ``yarn.lock`` file so that we
-could get a reproducible build. See the `Yarn docs
-<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more details.
-
 
 Generate Bundled Files with yarn
 --------------------------------
@@ -1225,6 +1204,7 @@ commands:
     yarn run prod
 
     # Starts a web server that manages and updates your assets as you modify them
+    # You'll need to run the webserver in debug mode too: ``airflow webserver -d``
     yarn run dev
 
 

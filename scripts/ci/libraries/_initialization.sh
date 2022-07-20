@@ -217,26 +217,12 @@ function initialization::initialize_available_integrations() {
 FILES_FOR_REBUILD_CHECK=()
 
 # Determine which files trigger rebuild check
-#
-# !!!!!!!!!! IMPORTANT NOTE !!!!!!!!!!
-#  When you add files here, please make sure to not add files
-#  with the same name. And if you do - make sure that files with the
-#  same name are stored in directories with different name. For
-#  example we have two package.json files here, but they are in
-#  directories with different names (`www` and `ui`).
-#  The problem is that md5 hashes of those files are stored in
-#  `./build/directory` in the same directory as <PARENT_DIR>-<FILE>.md5sum.
-#  For example md5sum of the `airflow/www/package.json` file is stored
-#  as `www-package.json` and `airflow/ui/package.json` as `ui-package.json`,
-#  The file list here changes extremely rarely.
-# !!!!!!!!!! IMPORTANT NOTE !!!!!!!!!!
 function initialization::initialize_files_for_rebuild_check() {
     FILES_FOR_REBUILD_CHECK+=(
         "setup.py"
         "setup.cfg"
         "Dockerfile.ci"
         ".dockerignore"
-        "scripts/docker/compile_www_assets.sh"
         "scripts/docker/common.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
@@ -244,11 +230,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
         "scripts/docker/install_postgres.sh"
-        "airflow/www/package.json"
-        "airflow/www/yarn.lock"
-        "airflow/www/webpack.config.js"
-        "airflow/ui/package.json"
-        "airflow/ui/yarn.lock"
     )
 }
 
@@ -439,13 +420,6 @@ function initialization::initialize_image_build_variables() {
 
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/Dockerfile"}
     export AIRFLOW_SOURCES_TO
-
-    # By default no sources are copied to image
-    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="Dockerfile"}
-    export AIRFLOW_SOURCES_WWW_FROM
-
-    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/Dockerfile"}
-    export AIRFLOW_SOURCES_WWW_TO
 
     # By default in scripts production docker image is installed from PyPI package
     export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
@@ -735,8 +709,6 @@ Production image build variables:
     AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
-    AIRFLOW_SOURCES_WWW_FROM: '${AIRFLOW_SOURCES_WWW_FROM}'
-    AIRFLOW_SOURCES_WWW_TO: '${AIRFLOW_SOURCES_WWW_TO}'
 
 Detected GitHub environment:
 
