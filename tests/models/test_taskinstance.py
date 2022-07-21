@@ -1411,6 +1411,40 @@ class TestTaskInstance:
         assert 'template: test_email_alert_with_config' == title
         assert 'template: test_email_alert_with_config' == body
 
+    @patch('airflow.models.taskinstance.send_email')
+    def test_email_alert_with_filenotfound_config(self, mock_send_email, dag_maker):
+        with dag_maker(dag_id='test_failure_email'):
+            task = BashOperator(
+                task_id='test_email_alert_with_config',
+                bash_command='exit 1',
+                email='to',
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+
+        # Run test when the template file is not found
+        opener = mock_open(read_data='template: {{ti.task_id}}')
+        opener.side_effect = FileNotFoundError
+        with patch('airflow.models.taskinstance.open', opener, create=True):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
+
+        (email_error, title_error, body_error), _ = mock_send_email.call_args
+
+        # Rerun task without any error and no template file
+        try:
+            ti.run()
+        except AirflowException:
+            pass
+
+        (email_default, title_default, body_default), _ = mock_send_email.call_args
+
+        assert email_error == email_default == 'to'
+        assert title_default == title_error
+        assert body_default == body_error
+
     @pytest.mark.parametrize("task_id", ["test_email_alert", "test_email_alert__1"])
     @patch('airflow.models.taskinstance.send_email')
     def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
@@ -1501,12 +1535,16 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+        assert ti.state == TaskInstanceState.SUCCESS
 
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
             DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
-        ).all() == [('dag3',), ('dag4',), ('dag5',)]
+        ).all() == [
+            ('example_dataset_dag3_req_dag1',),
+            ('example_dataset_dag4_req_dag1_dag2',),
+            ('example_dataset_dag5_req_dag1_D',),
+        ]
 
         # check that one event record created for dataset1 and this TI
         assert session.query(Dataset.uri).join(DatasetEvent.dataset).filter(
@@ -1520,6 +1558,70 @@ class TestTaskInstance:
             .filter(DatasetEvent.source_task_instance == ti)
             .count()
         ) == 1
+
+        # Clean up after ourselves
+        db.clear_db_datasets()
+
+    def test_outlet_datasets_failed(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        not generated
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag9
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag9.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag9.get_task('fail_task')
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        with pytest.raises(AirflowFailException):
+            ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.FAILED
+
+        # check that no dagruns were queued
+        assert session.query(DatasetDagRunQueue).count() == 0
+
+        # check that no dataset events were generated
+        assert session.query(DatasetEvent).count() == 0
+
+    def test_outlet_datasets_skipped(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        not generated
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag7
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag7.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag7.get_task('skip_task')
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.SKIPPED
+
+        # check that no dagruns were queued
+        assert session.query(DatasetDagRunQueue).count() == 0
+
+        # check that no dataset events were generated
+        assert session.query(DatasetEvent).count() == 0
 
     @staticmethod
     def _test_previous_dates_setup(
@@ -2949,22 +3051,40 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
     assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]
 
 
-def test_ti_mapped_depends_on_mapped_xcom_arg_XXX(dag_maker, session):
-    with dag_maker(session=session) as dag:
+def test_mapped_upstream_return_none_should_skip(dag_maker, session):
+    results = set()
 
-        @dag.task
-        def add_one(x):
-            x + 1
+    with dag_maker(dag_id="test_mapped_upstream_return_none_should_skip", session=session) as dag:
 
-        two_three_four = add_one.expand(x=[1, 2, 3])
-        add_one.expand(x=two_three_four)
+        @dag.task()
+        def transform(value):
+            if value == "b":  # Now downstream doesn't map against this!
+                return None
+            return value
 
-    dagrun = dag_maker.create_dagrun()
-    for map_index in range(3):
-        ti = dagrun.get_task_instance("add_one", map_index=map_index)
-        ti.refresh_from_task(dag.get_task("add_one"))
-        with pytest.raises(XComForMappingNotPushed):
-            ti.run()
+        @dag.task()
+        def pull(value):
+            results.add(value)
+
+        original = ["a", "b", "c"]
+        transformed = transform.expand(value=original)  # ["a", None, "c"]
+        pull.expand(value=transformed)  # ["a", "c"]
+
+    dr = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert sorted(tis) == [("transform", 0), ("transform", 1), ("transform", 2)]
+    for ti in tis.values():
+        ti.run()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert sorted(tis) == [("pull", 0), ("pull", 1)]
+    for ti in tis.values():
+        ti.run()
+
+    assert results == {"a", "c"}
 
 
 def test_expand_non_templated_field(dag_maker, session):

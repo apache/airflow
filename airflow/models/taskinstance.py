@@ -1518,7 +1518,8 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-            self._create_dataset_dag_run_queue_records(session=session)
+            if self.state == TaskInstanceState.SUCCESS:
+                self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
@@ -1536,10 +1537,10 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
-                        task_id=self.task_id,
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        map_index=self.map_index,
+                        source_task_id=self.task_id,
+                        source_dag_id=self.dag_id,
+                        source_run_id=self.run_id,
+                        source_map_index=self.map_index,
                     )
                 )
                 for dag_id in downstream_dag_ids:
@@ -2296,8 +2297,13 @@ class TaskInstance(Base, LoggingMixin):
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
                     path = conf.get_mandatory_value('email', key)
-                    with open(path) as f:
-                        content = f.read()
+                    try:
+                        with open(path) as f:
+                            content = f.read()
+                    except FileNotFoundError:
+                        self.log.warning(f"Could not find email template file '{path!r}'. Using defaults...")
+                    except OSError:
+                        self.log.exception(f"Error while using email template '{path!r}'. Using defaults...")
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)
 
             subject = render('subject_template', default_subject)
@@ -2327,14 +2333,14 @@ class TaskInstance(Base, LoggingMixin):
         validators = {m.validate_upstream_return_value for m in task.iter_mapped_dependants()}
         if not validators:  # No mapped dependants, no need to validate.
             return
-        if value is None:
-            raise XComForMappingNotPushed()
         # TODO: We don't push TaskMap for mapped task instances because it's not
         # currently possible for a downstream to depend on one individual mapped
         # task instance. This will change when we implement task group mapping,
         # and we'll need to further analyze the mapped task case.
         if task.is_mapped:
             return
+        if value is None:
+            raise XComForMappingNotPushed()
         for validator in validators:
             validator(value)
         assert isinstance(value, collections.abc.Collection)  # The validators type-guard this.

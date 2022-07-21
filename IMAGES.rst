@@ -165,8 +165,7 @@ You can also skip installing airflow and install it from locally provided files 
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=trino \
-     --airflow-is-in-context-pypi --install-packages-from-context
+  breeze build-prod-image --python 3.7 --additional-extras=trino --install-packages-from-context
 
 In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
 

@@ -402,8 +402,12 @@ class KubernetesPodOperator(BaseOperator):
     def extract_xcom(self, pod: k8s.V1Pod):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
-        self.log.info("xcom result: \n%s", result)
-        return json.loads(result)
+        if isinstance(result, str) and result.rstrip() == '__airflow_xcom_result_empty__':
+            self.log.info("Result file is empty.")
+            return None
+        else:
+            self.log.info("xcom result: \n%s", result)
+            return json.loads(result)
 
     def execute(self, context: 'Context'):
         remote_pod = None

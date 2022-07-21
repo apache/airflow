@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
 
-CLOUD_SQL_CREATE_VALIDATION = [
+CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
     dict(name="name", allow_empty=False),
     dict(
         name="settings",

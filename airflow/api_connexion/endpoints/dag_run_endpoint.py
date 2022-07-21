@@ -41,12 +41,17 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
     set_dagrun_state_form_schema,
 )
+from airflow.api_connexion.schemas.dataset_schema import (
+    DatasetEventCollection,
+    dataset_event_collection_schema,
+)
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
+from airflow.models.dataset import DatasetDagRef, DatasetEvent
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -84,6 +89,69 @@ def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION)
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
     return dagrun_schema.dump(dag_run)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+    ],
+)
+@provide_session
+def get_upstream_dataset_events(
+    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
+    """Get a DAG Run."""
+    dag_run: Optional[DagRun] = (
+        session.query(DagRun)
+        .filter(
+            DagRun.dag_id == dag_id,
+            DagRun.run_id == dag_run_id,
+        )
+        .one_or_none()
+    )
+    if dag_run is None:
+        raise NotFound(
+            "DAGRun not found",
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
+        )
+    events = _get_upstream_dataset_events(dag_run=dag_run, session=session)
+    return dataset_event_collection_schema.dump(
+        DatasetEventCollection(dataset_events=events, total_entries=len(events))
+    )
+
+
+def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session) -> List["DagRun"]:
+    """If dag run is dataset-triggered, return the dataset events that triggered it."""
+    if not dag_run.run_type == DagRunType.DATASET_TRIGGERED:
+        return []
+
+    previous_dag_run = (
+        session.query(DagRun)
+        .filter(
+            DagRun.dag_id == dag_run.dag_id,
+            DagRun.execution_date < dag_run.execution_date,
+            DagRun.run_type == DagRunType.DATASET_TRIGGERED,
+        )
+        .order_by(DagRun.execution_date.desc())
+        .first()
+    )
+
+    dataset_event_filters = [
+        DatasetDagRef.dag_id == dag_run.dag_id,
+        DatasetEvent.created_at <= dag_run.execution_date,
+    ]
+    if previous_dag_run:
+        dataset_event_filters.append(DatasetEvent.created_at > previous_dag_run.execution_date)
+    dataset_events = (
+        session.query(DatasetEvent)
+        .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
+        .filter(*dataset_event_filters)
+        .order_by(DatasetEvent.created_at)
+        .all()
+    )
+    return dataset_events
 
 
 def _fetch_dag_runs(
