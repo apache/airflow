@@ -50,6 +50,7 @@ class LivyHook(HttpHook, LoggingMixin):
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param extra_options: A dictionary of options passed to Livy.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+    :param auth_type: The auth type for the service.
 
     .. seealso::
         For more details refer to the Apache Livy API reference:
