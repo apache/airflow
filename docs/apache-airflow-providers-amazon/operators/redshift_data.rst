@@ -43,7 +43,7 @@ statements against an Amazon Redshift cluster.
 This differs from ``RedshiftSQLOperator`` in that it allows users to query and retrieve data via the AWS API and avoid
 the necessity of a Postgres connection.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_data_execute_sql.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_data_execute_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_data]

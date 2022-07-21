@@ -26,6 +26,10 @@ from airflow import models
 from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperator
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+
+DAG_ID = "example_gcs_to_sftp"
+
 SFTP_CONN_ID = "ssh_default"
 BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-gcs-sftp")
 OBJECT_SRC_1 = "parent-1.bin"
@@ -35,13 +39,12 @@ DESTINATION_PATH_1 = "/tmp/single-file/"
 DESTINATION_PATH_2 = "/tmp/dest-dir-1/"
 DESTINATION_PATH_3 = "/tmp/dest-dir-2/"
 
-
 with models.DAG(
-    "example_gcs_to_sftp",
+    DAG_ID,
     schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=['example', 'gcs'],
 ) as dag:
     # [START howto_operator_gcs_to_sftp_copy_single_file]
     copy_file_from_gcs_to_sftp = GCSToSFTPOperator(
@@ -113,9 +116,26 @@ with models.DAG(
         path=os.path.join(DESTINATION_PATH_3, OBJECT_SRC_1),
     )
 
-    move_file_from_gcs_to_sftp >> check_move_file_from_gcs_to_sftp
-    copy_dir_from_gcs_to_sftp >> check_copy_file_from_gcs_to_sftp
+    (
+        # TEST BODY
+        copy_file_from_gcs_to_sftp
+        >> check_copy_file_from_gcs_to_sftp
+        >> move_file_from_gcs_to_sftp
+        >> check_move_file_from_gcs_to_sftp
+        >> copy_dir_from_gcs_to_sftp
+        >> check_copy_dir_from_gcs_to_sftp
+        >> move_dir_from_gcs_to_sftp
+        >> check_move_dir_from_gcs_to_sftp
+    )
 
-    copy_dir_from_gcs_to_sftp >> move_dir_from_gcs_to_sftp
-    copy_dir_from_gcs_to_sftp >> check_copy_dir_from_gcs_to_sftp
-    move_dir_from_gcs_to_sftp >> check_move_dir_from_gcs_to_sftp
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
