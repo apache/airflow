@@ -46,6 +46,7 @@ import {
   Column,
   Hooks,
   SortingRule,
+  Row,
 } from 'react-table';
 import {
   MdKeyboardArrowLeft, MdKeyboardArrowRight,
@@ -83,19 +84,26 @@ interface TableProps {
     offset: number;
     setOffset: (offset: number) => void;
   },
+  manualSort?: {
+    sortBy: SortingRule<object>[];
+    setSortBy: (sortBy: SortingRule<object>[]) => void;
+    initialSortBy?: SortingRule<object>[];
+  },
   pageSize?: number;
-  setSortBy?: (sortBy: SortingRule<number>[]) => void;
   isLoading?: boolean;
   selectRows?: (selectedRows: number[]) => void;
+  onRowClicked?: (row: Row<object>, e: any) => void;
 }
+
 const Table = ({
   data,
   columns,
   manualPagination,
+  manualSort,
   pageSize = 25,
-  setSortBy,
   isLoading = false,
   selectRows,
+  onRowClicked,
 }: TableProps) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
@@ -143,10 +151,12 @@ const Table = ({
       data,
       pageCount,
       manualPagination: !!manualPagination,
-      manualSortBy: !!setSortBy,
+      manualSortBy: !!manualSort,
+      disableMultiSort: !!manualSort, // API only supporting ordering by a single column
       initialState: {
         pageIndex: offset ? offset / pageSize : 0,
         pageSize,
+        sortBy: manualSort?.initialSortBy || [],
       },
     },
     useSortBy,
@@ -164,9 +174,12 @@ const Table = ({
     if (setOffset) setOffset((pageIndex - 1 || 0) * pageSize);
   };
 
+  // When the sortBy state changes we need to manually call setSortBy
   useEffect(() => {
-    if (setSortBy) setSortBy(sortBy);
-  }, [sortBy, setSortBy]);
+    if (manualSort) {
+      manualSort.setSortBy(sortBy);
+    }
+  }, [sortBy, manualSort]);
 
   useEffect(() => {
     if (selectRows) {
@@ -212,7 +225,8 @@ const Table = ({
               <Tr
                 {...row.getRowProps()}
                 _odd={{ backgroundColor: oddColor }}
-                _hover={{ backgroundColor: hoverColor }}
+                _hover={onRowClicked && { backgroundColor: hoverColor, cursor: 'pointer' }}
+                onClick={onRowClicked ? (e: any) => onRowClicked(row, e) : undefined}
               >
                 {row.cells.map((cell) => (
                   <Td
