@@ -190,10 +190,6 @@
     ],
     "cross-providers-deps": []
   },
-  "common.sql": {
-    "deps": [],
-    "cross-providers-deps": []
-  },
   "databricks": {
     "deps": [
       "aiohttp>=3.6.3, <4",
