@@ -188,7 +188,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-def get_dataset_triggered_next_run_info(dag_ids: List[str], session: Session) -> Dict[str, str]:
+def get_dataset_triggered_next_run_info(dag_ids: List[str], *, session: Session) -> Dict[str, str]:
     """
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated"
@@ -3085,7 +3085,7 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_dataset_triggered_next_run_info(self, session=NEW_SESSION) -> Optional[str]:
+    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> Optional[str]:
         if self.schedule_interval != "Dataset":
             return None
         return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
