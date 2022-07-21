@@ -105,8 +105,9 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.operator import Operator
@@ -852,6 +853,14 @@ class Airflow(AirflowBaseView):
                 permissions.RESOURCE_DAG,
             ) in user_permissions
 
+            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
+            if dataset_triggered_dag_ids:
+                dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+                    dataset_triggered_dag_ids, session=session
+                )
+            else:
+                dataset_triggered_next_run_info = {}
+
             for dag in dags:
                 dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
                 if all_dags_editable:
@@ -970,6 +979,7 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
         )
 
     @expose('/datasets')
@@ -3341,6 +3351,7 @@ class Airflow(AirflowBaseView):
             }
         )
         chart.buildcontent()
+
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
