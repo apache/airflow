@@ -698,9 +698,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
         # already in the queue
         else:
-            self.log.debug(
-                "Queuing %s CallbackRequest: %s", type(request).__name__.rsplit('.', 1)[-1], request
-            )
+            self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
             self._callback_to_execute[request.full_filepath].append(request)
             if request.full_filepath in self._file_path_queue:
                 # Remove file paths matching request.full_filepath from self._file_path_queue
