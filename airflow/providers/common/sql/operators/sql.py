@@ -79,8 +79,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             }
         }
 
-    :param batch: a partial SQL statement that is added to a WHERE clause in the query built by the operator
-        that creates batches for the checks to run on, e.g.
+    :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
+        the operator that creates partition_clausees for the checks to run on, e.g.
 
     .. code-block:: python
 
@@ -94,7 +94,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields = "batch"
+    template_fields = ("partition_clause",)
 
     column_checks = {
         "null_check": "SUM(CASE WHEN column IS NULL THEN 1 ELSE 0 END) AS column_null_check",
@@ -109,7 +109,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         *,
         table: str,
         column_mapping: Dict[str, Dict[str, Any]],
-        batch: Optional[str] = None,
+        partition_clause: Optional[str] = None,
         conn_id: Optional[str] = None,
         database: Optional[str] = None,
         **kwargs,
@@ -121,7 +121,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.column_mapping = column_mapping
-        self.batch = batch
+        self.partition_clause = partition_clause
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
@@ -131,8 +131,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         for column in self.column_mapping:
             checks = [*self.column_mapping[column]]
             checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
-            batch_statement = f"WHERE {self.batch}" if self.batch else ""
-            self.sql = f"SELECT {checks_sql} FROM {self.table} {batch_statement};"
+            partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
+            self.sql = f"SELECT {checks_sql} FROM {self.table} {partition_clause_statement};"
             records = hook.get_first(self.sql)
 
             if not records:
@@ -266,7 +266,14 @@ class SQLTableCheckOperator(BaseSQLOperator):
             "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
         }
 
-    :param batch: a SQL statement that is added to a WHERE clause to create batches
+    
+    :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
+        the operator that creates partition_clausees for the checks to run on, e.g.
+
+    .. code-block:: python
+
+        "date = '1970-01-01'"
+
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
 
@@ -274,6 +281,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SQLTableCheckOperator`
     """
+
+    template_fields = ("partition_clause",)
 
     sql_check_template = """
         SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
@@ -285,7 +294,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         *,
         table: str,
         checks: Dict[str, Dict[str, Any]],
-        batch: Optional[str] = None,
+        partition_clause: Optional[str] = None,
         conn_id: Optional[str] = None,
         database: Optional[str] = None,
         **kwargs,
@@ -294,7 +303,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.checks = checks
-        self.batch = batch
+        self.partition_clause = partition_clause
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
@@ -308,8 +317,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 for check_name, value in self.checks.items()
             ]
         )
-        batch_statement = f"WHERE {self.batch}" if self.batch else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) AS check_table {batch_statement};"
+        partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
+        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) " 
+        f"AS check_table {partition_clause_statement};"
+        
         records = hook.get_pandas_df(self.sql)
 
         if records.empty:
