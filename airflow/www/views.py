@@ -5330,6 +5330,14 @@ class DagDependenciesView(AirflowBaseView):
 
     @staticmethod
     def _node_dict(node_id, label, node_class):
+        def trunc_uri(val):
+            if len(val) > 25:
+                return val[0:23] + '...'
+            else:
+                return val
+
+        if node_class == 'dataset':
+            label = trunc_uri(label)
         return {
             "id": node_id,
             "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},

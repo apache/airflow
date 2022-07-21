@@ -564,9 +564,6 @@ class DependencyDetector:
     @staticmethod
     def detect_task_dependencies(task: Operator) -> List['DagDependency']:
         """Detects dependencies caused by tasks"""
-        from airflow.settings import Session
-
-        session = Session()
         deps = []
         if isinstance(task, TriggerDagRunOperator):
             deps.append(
@@ -588,13 +585,12 @@ class DependencyDetector:
             )
         for obj in getattr(task, '_outlets', []):
             if isinstance(obj, Dataset):
-                dataset_id = session.query(Dataset.id).filter(Dataset.uri == obj.uri).scalar()
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target='dataset',
                         dependency_type='dataset',
-                        dependency_id=f"Dataset {dataset_id}",
+                        dependency_id=obj.uri,
                     )
                 )
         return deps
@@ -603,20 +599,14 @@ class DependencyDetector:
     def detect_dag_dependencies(dag: DAG) -> List["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
         if dag.schedule_on:
-            from airflow.settings import Session
-
-            session = Session()
-            dataset_ids = [
-                session.query(Dataset.id).filter(Dataset.uri == x.uri).scalar() for x in dag.schedule_on
-            ]
             return [
                 DagDependency(
                     source="dataset",
                     target=dag.dag_id,
                     dependency_type="dataset",
-                    dependency_id=f"Dataset {x}",
+                    dependency_id=x.uri,
                 )
-                for x in dataset_ids
+                for x in dag.schedule_on
             ]
         else:
             return []
