@@ -79,7 +79,13 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             }
         }
 
-    :param batch: a SQL statement that is added to a WHERE clause to create batches
+    :param batch: a partial SQL statement that is added to a WHERE clause in the query built by the operator
+        that creates batches for the checks to run on, e.g.
+
+    .. code-block:: python
+
+        "date = '1970-01-01'"
+
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
 
@@ -87,6 +93,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
+
+    template_fields = "batch"
 
     column_checks = {
         "null_check": "SUM(CASE WHEN column IS NULL THEN 1 ELSE 0 END) AS column_null_check",
@@ -269,7 +277,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
+<<<<<<< HEAD
         FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table)
+=======
+        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS check_table
+>>>>>>> 987f6c28a95fddfc629735692c9cafe6d3df3b16
     """
 
     def __init__(

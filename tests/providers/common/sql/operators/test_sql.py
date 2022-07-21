@@ -111,8 +111,8 @@ class TestTableCheckOperator:
     def test_pass_all_checks_check(self, monkeypatch):
         df = pd.DataFrame(
             data={
-                "test_name": ["row_count_check", "column_sum_check"],
-                "test_result": [
+                "check_name": ["row_count_check", "column_sum_check"],
+                "check_result": [
                     "1",
                     "y",
                 ],
@@ -123,7 +123,7 @@ class TestTableCheckOperator:
 
     def test_fail_all_checks_check(self, monkeypatch):
         df = pd.DataFrame(
-            data={"test_name": ["row_count_check", "column_sum_check"], "test_result": ["0", "n"]}
+            data={"check_name": ["row_count_check", "column_sum_check"], "check_result": ["0", "n"]}
         )
         operator = self._construct_operator(monkeypatch, self.checks, df)
         with pytest.raises(AirflowException):
