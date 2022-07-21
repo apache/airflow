@@ -1023,7 +1023,6 @@ class SerializedDAG(DAG, BaseSerialization):
     """
 
     _decorated_fields = {'schedule_interval', 'default_args', '_access_control'}
-    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     @staticmethod
     def __get_constructor_defaults():
