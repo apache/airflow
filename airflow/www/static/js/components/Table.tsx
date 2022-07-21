@@ -152,7 +152,7 @@ const Table = ({
       pageCount,
       manualPagination: !!manualPagination,
       manualSortBy: !!manualSort,
-      disableMultiSort: !!manualSort, // API currently supports ordering by a single column
+      disableMultiSort: !!manualSort, // API only supporting ordering by a single column
       initialState: {
         pageIndex: offset ? offset / pageSize : 0,
         pageSize,
@@ -227,7 +227,6 @@ const Table = ({
                 _odd={{ backgroundColor: oddColor }}
                 _hover={onRowClicked && { backgroundColor: hoverColor, cursor: 'pointer' }}
                 onClick={onRowClicked ? (e: any) => onRowClicked(row, e) : undefined}
-                data-group
               >
                 {row.cells.map((cell) => (
                   <Td
