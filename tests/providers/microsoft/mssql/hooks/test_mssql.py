@@ -19,17 +19,13 @@
 import unittest
 from unittest import mock
 
-from airflow import PY38
 from airflow.models import Connection
-
-if not PY38:
-    from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 PYMSSQL_CONN = Connection(host='ip', schema='share', login='username', password='password', port=8081)
 
 
 class TestMsSqlHook(unittest.TestCase):
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
     @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection')
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn):
@@ -42,7 +38,6 @@ class TestMsSqlHook(unittest.TestCase):
         assert mssql_get_conn.return_value == conn
         mssql_get_conn.assert_called_once()
 
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
     @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection')
     def test_set_autocommit_should_invoke_autocommit(self, get_connection, mssql_get_conn):
@@ -57,7 +52,6 @@ class TestMsSqlHook(unittest.TestCase):
         mssql_get_conn.assert_called_once()
         mssql_get_conn.return_value.autocommit.assert_called_once_with(autocommit_value)
 
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
     @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection')
     def test_get_autocommit_should_return_autocommit_state(self, get_connection, mssql_get_conn):
