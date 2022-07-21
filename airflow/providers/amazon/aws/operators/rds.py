@@ -70,7 +70,7 @@ class RdsBaseOperator(BaseOperator):
         error_statuses: Optional[List[str]] = None,
     ) -> None:
         """
-        Continuously gets item description from `_describe_item()` and waits until:
+        Continuously gets item description from `_describe_item()` and waits while:
         - status is in `wait_statuses`
         - status not in `ok_statuses` and `error_statuses`
         """
@@ -117,6 +117,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
     :param db_snapshot_identifier: The identifier for the DB snapshot
     :param tags: A list of tags in format `[{"Key": "something", "Value": "something"},]
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
+    :param wait_for_completion:  If True, waits for creation of the DB snapshot to complete. (default: True)
     """
 
     template_fields = ("db_snapshot_identifier", "db_identifier", "tags")
@@ -128,6 +129,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         db_identifier: str,
         db_snapshot_identifier: str,
         tags: Optional[Sequence[TagTypeDef]] = None,
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_conn_id",
         **kwargs,
     ):
@@ -136,6 +138,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         self.db_identifier = db_identifier
         self.db_snapshot_identifier = db_snapshot_identifier
         self.tags = tags or []
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info(
@@ -152,12 +155,8 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_instance_snap, default=str)
-            self._await_status(
-                'instance_snapshot',
-                self.db_snapshot_identifier,
-                wait_statuses=['creating'],
-                ok_statuses=['available'],
-            )
+            item_type = 'instance_snapshot'
+
         else:
             create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
                 DBClusterIdentifier=self.db_identifier,
@@ -165,13 +164,15 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
                 Tags=self.tags,
             )
             create_response = json.dumps(create_cluster_snap, default=str)
+            item_type = 'cluster_snapshot'
+
+        if self.wait_for_completion:
             self._await_status(
-                'cluster_snapshot',
+                item_type,
                 self.db_snapshot_identifier,
                 wait_statuses=['creating'],
                 ok_statuses=['available'],
             )
-
         return create_response
 
 
@@ -196,6 +197,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
     :param target_custom_availability_zone: The external custom Availability Zone identifier for the target
         Only when db_type='instance'
     :param source_region: The ID of the region that contains the snapshot to be copied
+    :param wait_for_completion:  If True, waits for snapshot copy to complete. (default: True)
     """
 
     template_fields = (
@@ -219,6 +221,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         option_group_name: str = "",
         target_custom_availability_zone: str = "",
         source_region: str = "",
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -234,6 +237,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         self.option_group_name = option_group_name
         self.target_custom_availability_zone = target_custom_availability_zone
         self.source_region = source_region
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info(
@@ -255,12 +259,8 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_instance_snap, default=str)
-            self._await_status(
-                'instance_snapshot',
-                self.target_db_snapshot_identifier,
-                wait_statuses=['creating'],
-                ok_statuses=['available'],
-            )
+            item_type = 'instance_snapshot'
+
         else:
             copy_cluster_snap = self.hook.conn.copy_db_cluster_snapshot(
                 SourceDBClusterSnapshotIdentifier=self.source_db_snapshot_identifier,
@@ -272,13 +272,15 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
                 SourceRegion=self.source_region,
             )
             copy_response = json.dumps(copy_cluster_snap, default=str)
+            item_type = 'cluster_snapshot'
+
+        if self.wait_for_completion:
             self._await_status(
-                'cluster_snapshot',
+                item_type,
                 self.target_db_snapshot_identifier,
                 wait_statuses=['copying'],
                 ok_statuses=['available'],
             )
-
         return copy_response
 
 
@@ -341,6 +343,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
     :param kms_key_id: The ID of the Amazon Web Services KMS key to use to encrypt the snapshot.
     :param s3_prefix: The Amazon S3 bucket prefix to use as the file name and path of the exported snapshot.
     :param export_only: The data to be exported from the snapshot.
+    :param wait_for_completion:  If True, waits for the DB snapshot export to complete. (default: True)
     """
 
     template_fields = (
@@ -363,6 +366,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         kms_key_id: str,
         s3_prefix: str = '',
         export_only: Optional[List[str]] = None,
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -375,6 +379,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         self.kms_key_id = kms_key_id
         self.s3_prefix = s3_prefix
         self.export_only = export_only or []
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info("Starting export task %s for snapshot %s", self.export_task_identifier, self.source_arn)
@@ -389,13 +394,14 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
             ExportOnly=self.export_only,
         )
 
-        self._await_status(
-            'export_task',
-            self.export_task_identifier,
-            wait_statuses=['starting', 'in_progress'],
-            ok_statuses=['complete'],
-            error_statuses=['canceling', 'canceled'],
-        )
+        if self.wait_for_completion:
+            self._await_status(
+                'export_task',
+                self.export_task_identifier,
+                wait_statuses=['starting', 'in_progress'],
+                ok_statuses=['complete'],
+                error_statuses=['canceling', 'canceled'],
+            )
 
         return json.dumps(start_export, default=str)
 
@@ -409,6 +415,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         :ref:`howto/operator:RdsCancelExportTaskOperator`
 
     :param export_task_identifier: The identifier of the snapshot export task to cancel
+    :param wait_for_completion:  If True, waits for DB snapshot export to cancel. (default: True)
     """
 
     template_fields = ("export_task_identifier",)
@@ -417,12 +424,14 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         self,
         *,
         export_task_identifier: str,
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
 
         self.export_task_identifier = export_task_identifier
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info("Canceling export task %s", self.export_task_identifier)
@@ -430,12 +439,14 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         cancel_export = self.hook.conn.cancel_export_task(
             ExportTaskIdentifier=self.export_task_identifier,
         )
-        self._await_status(
-            'export_task',
-            self.export_task_identifier,
-            wait_statuses=['canceling'],
-            ok_statuses=['canceled'],
-        )
+
+        if self.wait_for_completion:
+            self._await_status(
+                'export_task',
+                self.export_task_identifier,
+                wait_statuses=['canceling'],
+                ok_statuses=['canceled'],
+            )
 
         return json.dumps(cancel_export, default=str)
 
@@ -458,6 +469,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
     :param enabled: A value that indicates whether to activate the subscription (default True)l
     :param tags: A list of tags in format `[{"Key": "something", "Value": "something"},]
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
+    :param wait_for_completion:  If True, waits for creation of the subscription to complete. (default: True)
     """
 
     template_fields = (
@@ -479,6 +491,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         source_ids: Optional[Sequence[str]] = None,
         enabled: bool = True,
         tags: Optional[Sequence[TagTypeDef]] = None,
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -491,6 +504,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.source_ids = source_ids or []
         self.enabled = enabled
         self.tags = tags or []
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info("Creating event subscription '%s' to '%s'", self.subscription_name, self.sns_topic_arn)
@@ -504,12 +518,14 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
             Enabled=self.enabled,
             Tags=self.tags,
         )
-        self._await_status(
-            'event_subscription',
-            self.subscription_name,
-            wait_statuses=['creating'],
-            ok_statuses=['active'],
-        )
+
+        if self.wait_for_completion:
+            self._await_status(
+                'event_subscription',
+                self.subscription_name,
+                wait_statuses=['creating'],
+                ok_statuses=['active'],
+            )
 
         return json.dumps(create_subscription, default=str)
 
@@ -566,8 +582,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param wait_for_completion:  Whether or not wait for creation of the DB instance to
-        complete. (default: True)
+    :param wait_for_completion:  If True, waits for creation of the DB instance to complete. (default: True)
     """
 
     def __init__(
@@ -619,8 +634,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.delete_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param wait_for_completion:  Whether or not wait for deletion of the DB instance to
-        complete. (default: True)
+    :param wait_for_completion:  If True, waits for deletion of the DB instance to complete. (default: True)
     """
 
     def __init__(
