@@ -269,7 +269,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
-        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS check_table
+        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table)
     """
 
     def __init__(
@@ -301,7 +301,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
             ]
         )
         batch_statement = f"WHERE {self.batch}" if self.batch else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) {batch_statement};"
+        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) AS check_table {batch_statement};"
         records = hook.get_pandas_df(self.sql)
 
         if records.empty:
