@@ -571,12 +571,12 @@
                         "repository": {
                             "description": "The StatsD image repository.",
                             "type": "string",
-                            "default": "apache/airflow"
+                            "default": "quay.io/prometheus/statsd-exporter"
                         },
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
+                            "default": "v0.22.7"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -3750,6 +3750,16 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
+                },
+                "histogramBuckets": {
+                    "description": "A list of histogram buckets for the StatsD exporter.",
+                    "type": "array",
+                    "default": []
+                },
+                "defaultMappings": {
+                    "description": "Default mappings for StatsD exporter.",
+                    "type": "array",
+                    "default": []
                 },
                 "extraMappings": {
                     "description": "Additional mappings for StatsD exporter.",
