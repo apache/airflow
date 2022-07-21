@@ -329,6 +329,9 @@ sensors:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2
+  - integration-name: Amazon ECS
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.ecs
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.eks
@@ -394,6 +397,9 @@ hooks:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
+  - integration-name: Amazon ECS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ecs
   - integration-name: Amazon ElastiCache
     python-modules:
       - airflow.providers.amazon.aws.hooks.elasticache_replication_group
