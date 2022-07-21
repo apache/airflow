@@ -85,9 +85,9 @@ interface TableProps {
     setOffset: (offset: number) => void;
   },
   manualSort?: {
-    sortBy: SortingRule<number>[];
-    setSortBy: (sortBy: SortingRule<number>[]) => void;
-    initialSortBy?: SortingRule<number>[];
+    sortBy: SortingRule<object>[];
+    setSortBy: (sortBy: SortingRule<object>[]) => void;
+    initialSortBy?: SortingRule<object>[];
   },
   pageSize?: number;
   isLoading?: boolean;
@@ -174,6 +174,7 @@ const Table = ({
     if (setOffset) setOffset((pageIndex - 1 || 0) * pageSize);
   };
 
+  // When the sortBy state changes we need to manually call setSortBy
   useEffect(() => {
     if (manualSort) {
       manualSort.setSortBy(sortBy);
