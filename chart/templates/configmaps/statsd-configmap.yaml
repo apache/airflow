@@ -34,7 +34,12 @@ metadata:
 {{- end }}
 data:
   mappings.yml: |-
-{{ .Files.Get "dockerfiles/statsd-exporter/mappings.yml" | indent 4 }}
+    defaults:
+      observer_type: histogram
+      histogram_options:
+      buckets: {{ toYaml .Values.statsd.histogramBuckets }}
+    mappings:
+{{ toYaml .Values.statsd.defaultMappings | indent 6 }}
 {{ toYaml .Values.statsd.extraMappings | indent 6 }}
 {{- if .Values.statsd.dropUnknownMappings }}
       - match: "."
