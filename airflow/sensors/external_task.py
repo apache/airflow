@@ -103,11 +103,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     template_fields = ['external_dag_id', 'external_task_id', 'external_task_ids']
     ui_color = '#19647e'
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links"""
-        return [ExternalDagLink()]
+    operator_extra_links = [ExternalDagLink()]
 
     def __init__(
         self,
