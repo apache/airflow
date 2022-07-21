@@ -266,7 +266,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
             "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
         }
 
-    
+
     :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
         the operator that creates partition_clauses for the checks to run on, e.g.
 
@@ -318,9 +318,9 @@ class SQLTableCheckOperator(BaseSQLOperator):
             ]
         )
         partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) " 
+        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
         f"AS check_table {partition_clause_statement};"
-        
+
         records = hook.get_pandas_df(self.sql)
 
         if records.empty:
