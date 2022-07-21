@@ -1331,6 +1331,21 @@ statsd:
       name: "airflow_dagrun_dependency_check"
       labels:
         dag_id: "$1"
+    - match: airflow.ti_failures
+      name: "airflow_ti_tasks_failures_total"
+    - match: airflow.ti_successes
+      name: "airflow_ti_tasks_succeeded_total"
+    - match: airflow.ti.start.*.*
+      name: "airflow_ti_tasks_started_total"
+      labels:
+        dag_id: "$1"
+        task_id: "$2"
+    - match: airflow.ti.finish.*.*.*
+      name: "airflow_ti_tasks_finished_total"
+      labels:
+        dag_id: "$1"
+        task_id: "$2"
+        task_state: "$3"
     - match: airflow.operator_successes_(.*)
       match_type: regex
       name: "airflow_operator_successes"

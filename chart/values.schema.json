@@ -3766,6 +3766,11 @@
                     "type": "array",
                     "default": []
                 },
+                "dropUnknownMappings": {
+                    "description": "Enable dropping of unknown mappings in the StatsD exporter.",
+                    "type": "boolean",
+                    "default": []
+                },
                 "securityContext": {
                     "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
                     "type": "object",
