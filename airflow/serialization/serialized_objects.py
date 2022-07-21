@@ -596,9 +596,9 @@ class DependencyDetector:
         return deps
 
     @staticmethod
-    def detect_dag_dependencies(dag: DAG) -> List["DagDependency"]:
+    def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag.schedule_on:
+        if dag and dag.schedule_on:
             return [
                 DagDependency(
                     source="dataset",
@@ -870,7 +870,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return op
 
     @classmethod
-    def detect_dependencies(cls, op: Operator) -> Optional['DagDependency']:
+    def detect_dependencies(cls, op: Operator) -> Set['DagDependency']:
         """Detects between DAG dependencies for the operator."""
         dependency_detector = DependencyDetector()
         custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
