@@ -22,10 +22,13 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import createCache from '@emotion/cache';
+import { useSearchParams } from 'react-router-dom';
+import { Center } from '@chakra-ui/react';
 
 import App from 'src/App';
 
 import DatasetsList from './List';
+import DatasetDetails from './Details';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -36,13 +39,36 @@ const cache = createCache({
 });
 const mainElement = document.getElementById('react-container');
 
+const DATASET_ID = 'dataset_id';
+
+const Datasets = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const onBack = () => {
+    searchParams.delete(DATASET_ID);
+    setSearchParams(searchParams);
+  };
+
+  const onSelect = (datasetId: string) => {
+    searchParams.set(DATASET_ID, datasetId);
+    setSearchParams(searchParams);
+  };
+
+  const datasetId = searchParams.get(DATASET_ID);
+  return (datasetId
+    ? <DatasetDetails datasetId={datasetId} onBack={onBack} />
+    : <DatasetsList onSelect={onSelect} />
+  );
+};
+
 if (mainElement) {
   shadowRoot?.appendChild(mainElement);
-
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <DatasetsList />
+      <Center>
+        <Datasets />
+      </Center>
     </App>,
   );
 }

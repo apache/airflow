@@ -18,15 +18,27 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Box, Code, Heading } from '@chakra-ui/react';
+import {
+  Box,
+  Code,
+  Heading,
+} from '@chakra-ui/react';
+import { snakeCase } from 'lodash';
+import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
 import Table from 'src/components/Table';
 import Time from 'src/components/Time';
-import { snakeCase } from 'lodash';
-import type { SortingRule } from 'react-table';
+import type { API } from 'src/types';
 
-const DatasetsList = () => {
+interface Props {
+  onSelect: (datasetId: string) => void;
+}
+
+const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
+const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
+
+const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([]);
@@ -46,31 +58,33 @@ const DatasetsList = () => {
         Header: 'Extra',
         accessor: 'extra',
         disableSortBy: true,
+        Cell: CodeCell,
       },
       {
         Header: 'Created At',
         accessor: 'createdAt',
+        Cell: TimeCell,
       },
       {
         Header: 'Updated At',
         accessor: 'updatedAt',
+        Cell: TimeCell,
       },
     ],
     [],
   );
 
   const data = useMemo(
-    () => datasets.map((d) => ({
-      ...d,
-      extra: <Code>{d.extra}</Code>,
-      createdAt: <Time dateTime={d.createdAt} />,
-      updatedAt: <Time dateTime={d.updatedAt} />,
-    })),
+    () => datasets,
     [datasets],
   );
 
+  const onDatasetSelect = (row: Row<API.Dataset>) => {
+    onSelect(row.id);
+  };
+
   return (
-    <Box>
+    <Box maxWidth="1500px">
       <Heading mt={3} mb={2} fontWeight="normal">
         Datasets
       </Heading>
@@ -85,7 +99,11 @@ const DatasetsList = () => {
             totalEntries,
           }}
           pageSize={limit}
-          setSortBy={setSortBy}
+          manualSort={{
+            setSortBy,
+            sortBy,
+          }}
+          onRowClicked={onDatasetSelect}
         />
       </Box>
     </Box>

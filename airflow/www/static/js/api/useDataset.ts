@@ -23,33 +23,16 @@ import { useQuery } from 'react-query';
 import { getMetaValue } from 'src/utils';
 import type { API } from 'src/types';
 
-interface DatasetsData {
-  datasets: API.Dataset[];
-  totalEntries: number;
-}
-
 interface Props {
-  limit?: number;
-  offset?: number;
-  order?: string;
+  datasetId: string;
 }
 
-export default function useDatasets({ limit, offset, order }: Props) {
-  const query = useQuery(
-    ['datasets', limit, offset, order],
+export default function useDataset({ datasetId }: Props) {
+  return useQuery(
+    ['dataset', datasetId],
     () => {
-      const datasetsUrl = getMetaValue('datasets_api') || '/api/v1/datasets';
-      const orderParam = order ? { order_by: order } : {};
-      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
-        params: { offset, limit, ...orderParam },
-      });
-    },
-    {
-      keepPreviousData: true,
+      const datasetUrl = `${getMetaValue('datasets_api') || '/api/v1/datasets'}/${datasetId}`;
+      return axios.get<AxiosResponse, API.Dataset>(datasetUrl);
     },
   );
-  return {
-    ...query,
-    data: query.data ?? { datasets: [], totalEntries: 0 },
-  };
 }

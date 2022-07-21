@@ -23,25 +23,43 @@ import { useQuery } from 'react-query';
 import { getMetaValue } from 'src/utils';
 import type { API } from 'src/types';
 
-interface DatasetsData {
-  datasets: API.Dataset[];
+interface DatasetEventsData {
+  datasetEvents: API.DatasetEvent[];
   totalEntries: number;
 }
 
 interface Props {
+  datasetId?: string;
+  dagId?: string;
+  taskId?: string;
+  runId?: string;
+  mapIndex?: number;
   limit?: number;
   offset?: number;
   order?: string;
 }
 
-export default function useDatasets({ limit, offset, order }: Props) {
+export default function useDatasetEvents({
+  datasetId, dagId, runId, taskId, mapIndex, limit, offset, order,
+}: Props) {
   const query = useQuery(
-    ['datasets', limit, offset, order],
+    ['datasets-events', datasetId, dagId, runId, taskId, mapIndex, limit, offset, order],
     () => {
-      const datasetsUrl = getMetaValue('datasets_api') || '/api/v1/datasets';
-      const orderParam = order ? { order_by: order } : {};
-      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
-        params: { offset, limit, ...orderParam },
+      const datasetsUrl = getMetaValue('dataset_events_api') || '/api/v1/datasets/events';
+
+      const params = new URLSearchParams();
+
+      if (limit) params.set('limit', limit.toString());
+      if (offset) params.set('offset', offset.toString());
+      if (order) params.set('order_by', order);
+      if (datasetId) params.set('dataset_id', datasetId);
+      if (dagId) params.set('source_dag_id', dagId);
+      if (runId) params.set('source_run_id', runId);
+      if (taskId) params.set('source_task_id', taskId);
+      if (mapIndex) params.set('source_map_index', mapIndex.toString());
+
+      return axios.get<AxiosResponse, DatasetEventsData>(datasetsUrl, {
+        params,
       });
     },
     {
@@ -50,6 +68,6 @@ export default function useDatasets({ limit, offset, order }: Props) {
   );
   return {
     ...query,
-    data: query.data ?? { datasets: [], totalEntries: 0 },
+    data: query.data ?? { datasetEvents: [], totalEntries: 0 },
   };
 }

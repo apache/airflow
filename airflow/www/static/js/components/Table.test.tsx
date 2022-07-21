@@ -19,15 +19,16 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
+import React, { useState } from 'react';
 import '@testing-library/jest-dom';
 import { render, fireEvent, within } from '@testing-library/react';
 import { sortBy } from 'lodash';
+import type { SortingRule } from 'react-table';
 
 import Table from './Table';
 import { ChakraWrapper } from '../utils/testUtils';
 
-const data = [
+const data: Record<string, any>[] = [
   { firstName: 'Lamont', lastName: 'Grimes', country: 'United States' },
   { firstName: 'Alysa', lastName: 'Armstrong', country: 'Spain' },
   { firstName: 'Petra', lastName: 'Blick', country: 'France' },
@@ -93,9 +94,28 @@ describe('Test Table', () => {
     expect(getByText('No Data found.')).toBeInTheDocument();
   });
 
-  test('With pagination', async () => {
+  // Simulated pagination that would be done serverside
+  const PaginatedTable = () => {
+    const pageSize = 2;
+    const [offset, setOffset] = useState(0);
+    const filteredData = data.slice(offset, offset + pageSize);
+    return (
+      <Table
+        data={filteredData}
+        columns={columns}
+        pageSize={pageSize}
+        manualPagination={{
+          totalEntries: data.length,
+          offset,
+          setOffset,
+        }}
+      />
+    );
+  };
+
+  test('With manual pagination', async () => {
     const { getAllByRole, queryByText, getByTitle } = render(
-      <Table data={data} columns={columns} pageSize={2} />,
+      <PaginatedTable />,
       { wrapper: ChakraWrapper },
     );
 
@@ -152,10 +172,33 @@ describe('Test Table', () => {
     expect(next).toBeDisabled();
   });
 
-  test('With sorting', async () => {
-    const { getAllByRole } = render(<Table data={data} columns={columns} />, {
-      wrapper: ChakraWrapper,
-    });
+  // Simulate manual sorting that would be done serverside
+  const SortedTable = () => {
+    const [sortByVar, setSortBy] = useState<SortingRule<object>[]>([]);
+    const sort = sortByVar[0];
+    let sortedData = data;
+    if (sort) {
+      sortedData = sort.desc
+        ? sortBy(data, [(o) => o[sort.id]]).reverse()
+        : sortBy(data, [(o) => o[sort.id]]);
+    }
+    return (
+      <Table
+        data={sortedData}
+        columns={columns}
+        manualSort={{
+          sortBy: sortByVar,
+          setSortBy,
+        }}
+      />
+    );
+  };
+
+  test('With manual sorting', async () => {
+    const { getAllByRole } = render(
+      <SortedTable />,
+      { wrapper: ChakraWrapper },
+    );
 
     // Default order matches original data order //
     const firstNameHeader = getAllByRole('columnheader')[0];
