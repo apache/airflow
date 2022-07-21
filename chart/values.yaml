@@ -1317,6 +1317,8 @@ statsd:
   # Additional mappings for StatsD exporter.
   extraMappings: []
 
+  dropUnknownMappings: true
+
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer

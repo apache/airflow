@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+defaults:
+  observer_type: histogram
+  histogram_options:
+    buckets: [.005, .01, .025, .05, .1, .25, .5, 1, 2.5 ]
 mappings:
   # Map dot separated stats to labels
   - match: airflow.dagrun.dependency-check.*.*
