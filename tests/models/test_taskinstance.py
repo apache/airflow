@@ -1540,7 +1540,11 @@ class TestTaskInstance:
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
             DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
-        ).all() == [('dag3',), ('dag4',), ('dag5',)]
+        ).all() == [
+            ('example_dataset_dag3_req_dag1',),
+            ('example_dataset_dag4_req_dag1_dag2',),
+            ('example_dataset_dag5_req_dag1_D',),
+        ]
 
         # check that one event record created for dataset1 and this TI
         assert session.query(Dataset.uri).join(DatasetEvent.dataset).filter(

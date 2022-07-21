@@ -397,101 +397,6 @@ function common::show_pip_version_and_location() {
 }
 EOF
 
-# The content below is automatically copied from scripts/docker/prepare_node_modules.sh
-COPY <<"EOF" /prepare_node_modules.sh
-set -euo pipefail
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
-
-function prepare_node_modules() {
-    echo
-    echo "${COLOR_BLUE}Preparing node modules${COLOR_RESET}"
-    echo
-    local www_dir
-    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." ]]; then
-        # In case we are building from sources in production image, we should build the assets
-        www_dir="${AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES}}/airflow/www"
-    else
-        www_dir="$(python -m site --user-site)/airflow/www"
-    fi
-    pushd ${www_dir} || exit 1
-    set +e
-    yarn install --frozen-lockfile --no-cache 2>/tmp/out-yarn-install.txt
-    local res=$?
-    if [[ ${res} != 0 ]]; then
-        >&2 echo
-        >&2 echo "Error when running yarn install:"
-        >&2 echo
-        >&2 cat /tmp/out-yarn-install.txt && rm -f /tmp/out-yarn-install.txt
-        exit 1
-    fi
-    rm -f /tmp/out-yarn-install.txt
-    popd || exit 1
-}
-
-prepare_node_modules
-EOF
-
-# The content below is automatically copied from scripts/docker/compile_www_assets.sh
-COPY <<"EOF" /compile_www_assets.sh
-set -euo pipefail
-
-BUILD_TYPE=${BUILD_TYPE="prod"}
-REMOVE_ARTIFACTS=${REMOVE_ARTIFACTS="true"}
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
-
-function compile_www_assets() {
-    echo
-    echo "${COLOR_BLUE}Compiling www assets: running yarn ${BUILD_TYPE}${COLOR_RESET}"
-    echo
-    local www_dir
-    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." ]]; then
-        # In case we are building from sources in production image, we should build the assets
-        www_dir="${AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES}}/airflow/www"
-    else
-        www_dir="$(python -m site --user-site)/airflow/www"
-    fi
-    pushd ${www_dir} || exit 1
-    set +e
-    yarn run "${BUILD_TYPE}" 2>/tmp/out-yarn-run.txt
-    res=$?
-    if [[ ${res} != 0 ]]; then
-        >&2 echo
-        >&2 echo "Error when running yarn run:"
-        >&2 echo
-        >&2 cat /tmp/out-yarn-run.txt && rm -rf /tmp/out-yarn-run.txt
-        exit 1
-    fi
-    rm -f /tmp/out-yarn-run.txt
-    set -e
-    local md5sum_file
-    md5sum_file="static/dist/sum.md5"
-    readonly md5sum_file
-    find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${md5sum_file}"
-    if [[ ${REMOVE_ARTIFACTS} == "true" ]]; then
-        echo
-        echo "${COLOR_BLUE}Removing generated node modules${COLOR_RESET}"
-        echo
-        rm -rf "${www_dir}/node_modules"
-        rm -vf "${www_dir}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js}
-    else
-        echo
-        echo "${COLOR_BLUE}Leaving generated node modules${COLOR_RESET}"
-        echo
-    fi
-    popd || exit 1
-}
-
-compile_www_assets
-EOF
-
 # The content below is automatically copied from scripts/docker/pip
 COPY <<"EOF" /pip
 #!/usr/bin/env bash
@@ -1120,7 +1025,6 @@ ARG DEV_APT_DEPS="\
      libssl-dev \
      locales  \
      lsb-release \
-     nodejs \
      openssh-client \
      sasl2-bin \
      software-properties-common \
@@ -1132,9 +1036,7 @@ ARG DEV_APT_DEPS="\
 
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
-    curl --silent --fail --location https://deb.nodesource.com/setup_14.x | \
-        bash -o pipefail -o errexit -o nolog - \
-    && curl --silent https://dl.yarnpkg.com/debian/pubkey.gpg | \
+    curl --silent https://dl.yarnpkg.com/debian/pubkey.gpg | \
     apt-key add - >/dev/null 2>&1\
     && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
@@ -1196,18 +1098,10 @@ ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 # But it also can be `.` from local installation or GitHub URL pointing to specific branch or tag
 # Of Airflow. Note That for local source installation you need to have local sources of
 # Airflow checked out together with the Dockerfile and AIRFLOW_SOURCES_FROM and AIRFLOW_SOURCES_TO
-# set to "." and "/opt/airflow" respectively. Similarly AIRFLOW_SOURCES_WWW_FROM/TO are set to right source
-# and destination
+# set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
-# www to compile the assets but in case of breeze/CI builds we use latest sources and we override those
-# those SOURCES_FROM/TO with "airflow/www" and "/opt/airflow/airflow/www" respectively.
-# This is to rebuild the assets only when any of the www sources change
-ARG AIRFLOW_SOURCES_WWW_FROM="Dockerfile"
-ARG AIRFLOW_SOURCES_WWW_TO="/Dockerfile"
-
 # By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
 # but in case of breeze/CI builds we use latest sources and we override those
 # those SOURCES_FROM/TO with "." and "/opt/airflow" respectively
@@ -1303,25 +1197,7 @@ RUN bash /scripts/docker/install_pip_version.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-COPY --from=scripts compile_www_assets.sh prepare_node_modules.sh /scripts/docker/
-COPY --chown=airflow:0 ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
-
-# hadolint ignore=SC2086, SC2010
-RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
-        # only prepare node modules and compile assets if the prod image is build from sources
-        # otherwise they are already compiled-in the package.
-        bash /scripts/docker/prepare_node_modules.sh; \
-        REMOVE_ARTIFACTS="true" BUILD_TYPE="prod" bash /scripts/docker/compile_www_assets.sh; \
-        # Copy generated dist folder (otherwise it will be overridden by the COPY step below)
-        mv -f /opt/airflow/airflow/www/static/dist /tmp/dist; \
-    fi;
-
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
-
-# Copy back the generated dist folder
-RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
-        mv -f /tmp/dist /opt/airflow/airflow/www/static/dist; \
-    fi;
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
