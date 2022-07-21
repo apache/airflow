@@ -453,12 +453,29 @@ regenerate all those images (which might be needed in case new version of rich i
   :alt: Breeze regenerate-command-images
 
 
+Compiling www assets
+====================
+
+Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-www-assets``
+command takes care about it. This is needed when you want to run webserver inside of the breeze.
+
+.. image:: ./images/breeze/output-compile-www-assets.svg
+  :width: 100%
+  :alt: Breeze compile-www-assets
+
 Starting complete Airflow installation
 ======================================
 
 For testing Airflow oyou often want to start multiple components (in multiple terminals). Breeze has
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
+
+When you are starting airflow from local sources, www asset compilation is automatically executed before.
+
+.. code-block:: bash
+
+    breeze --python 3.7 --backend mysql start-airflow
+
 
 You can also use it to start any released version of Airflow from ``PyPI`` with the
 ``--use-airflow-version`` flag.
@@ -511,6 +528,7 @@ Those are commands mostly used by contributors:
 * Execute arbitrary command in the test environment with ``breeze shell`` command
 * Enter interactive shell in CI container when ``shell`` (or no command) is specified
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
+* Compile www assets for webserver ``breeze compile-www-assets`` command
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
@@ -1590,24 +1608,14 @@ If you set these variables, next time when you enter the environment the new por
 Managing Dependencies
 ---------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add JavaScript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
-
-Installing Dependencies for a Single Breeze Session
-...................................................
-
-You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
-quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for the node.js dependencies if your sources are mounted to the container).
-Therefore, if you want to retain a new dependency, follow the second option described below.
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
+for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
+or ``airflow/ui``, you need to compile them in the host with ``breeze compile-www-assets`` command.
 
 Adding Dependencies Permanently
 ...............................
 
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
-This should happen automatically if you modify any of these files.
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py``.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the

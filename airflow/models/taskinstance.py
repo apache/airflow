@@ -1518,7 +1518,8 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-            self._create_dataset_dag_run_queue_records(session=session)
+            if self.state == TaskInstanceState.SUCCESS:
+                self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
@@ -2296,8 +2297,13 @@ class TaskInstance(Base, LoggingMixin):
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
                     path = conf.get_mandatory_value('email', key)
-                    with open(path) as f:
-                        content = f.read()
+                    try:
+                        with open(path) as f:
+                            content = f.read()
+                    except FileNotFoundError:
+                        self.log.warning(f"Could not find email template file '{path!r}'. Using defaults...")
+                    except OSError:
+                        self.log.exception(f"Error while using email template '{path!r}'. Using defaults...")
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)
 
             subject = render('subject_template', default_subject)
