@@ -80,7 +80,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         }
 
     :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
-        the operator that creates partition_clausees for the checks to run on, e.g.
+        the operator that creates partition_clauses for the checks to run on, e.g.
 
     .. code-block:: python
 
@@ -268,7 +268,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     
     :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
-        the operator that creates partition_clausees for the checks to run on, e.g.
+        the operator that creates partition_clauses for the checks to run on, e.g.
 
     .. code-block:: python
 
