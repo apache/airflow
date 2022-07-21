@@ -25,9 +25,9 @@ import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
 import Time from 'src/components/Time';
-import { useDatasetEvents } from 'src/api';
-import useDataset from 'src/api/useDataset';
+import { useDatasetEvents, useDataset } from 'src/api';
 import Table from 'src/components/Table';
+import { ClipboardButton } from 'src/components/Clipboard';
 
 interface Props {
   datasetId: string;
@@ -46,6 +46,7 @@ const TaskInstanceLink = ({ cell: { value, row } }: any) => {
   const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
   return (<Link color="blue.500" href={url}>{value}</Link>);
 };
+const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
 
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;
@@ -90,6 +91,12 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
         accessor: 'sourceMapIndex',
         Cell: ({ cell: { value } }) => (value > -1 ? value : null),
       },
+      {
+        Header: 'Extra',
+        accessor: 'extra',
+        disableSortBy: true,
+        Cell: CodeCell,
+      },
     ],
     [],
   );
@@ -99,22 +106,20 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
     [datasetEvents],
   );
 
+  const memoSort = useMemo(() => sortBy, [sortBy]);
+
   return (
     <Box maxWidth="1500px">
       <Flex mt={3} justifyContent="space-between">
-        {isLoading && <Box><Spinner /></Box>}
+        {isLoading && <Spinner display="block" />}
         {!!dataset && (
           <Box>
             <Heading mb={2} fontWeight="normal">
-              Dataset
-              {' '}
-              {dataset.id}
-            </Heading>
-            <Text my={2}>
-              URI:
+              Dataset:
               {' '}
               {dataset.uri}
-            </Text>
+              <ClipboardButton value={dataset.uri} iconOnly ml={2} />
+            </Heading>
             {!!dataset.extra && (
               <Flex>
                 <Text mr={1}>Extra:</Text>
@@ -133,20 +138,24 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
         )}
         <Button onClick={onBack}>See all datasets</Button>
       </Flex>
-      <Heading size="lg" mt={3} mb={2} fontWeight="normal">Dataset Events</Heading>
+      <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
+      <Text>Whenever a DAG has updated this dataset.</Text>
       <Table
         data={data}
         columns={columns}
-        isLoading={isLoading}
         manualPagination={{
           offset,
           setOffset,
           totalEntries,
         }}
+        manualSort={{
+          setSortBy,
+          sortBy,
+          initialSortBy: memoSort,
+        }}
         pageSize={limit}
-        setSortBy={setSortBy}
+        isLoading={isEventsLoading}
       />
-      {!isLoading && isEventsLoading && <Spinner />}
     </Box>
   );
 };

@@ -46,6 +46,7 @@ import {
   Column,
   Hooks,
   SortingRule,
+  Row,
 } from 'react-table';
 import {
   MdKeyboardArrowLeft, MdKeyboardArrowRight,
@@ -83,18 +84,23 @@ interface TableProps {
     offset: number;
     setOffset: (offset: number) => void;
   },
+  manualSort?: {
+    sortBy: SortingRule<number>[];
+    setSortBy: (sortBy: SortingRule<number>[]) => void;
+    initialSortBy?: SortingRule<number>[];
+  },
   pageSize?: number;
-  setSortBy?: (sortBy: SortingRule<number>[]) => void;
   isLoading?: boolean;
   selectRows?: (selectedRows: number[]) => void;
-  onRowClicked?: (row: any, e: any) => void;
+  onRowClicked?: (row: Row<object>, e: any) => void;
 }
+
 const Table = ({
   data,
   columns,
   manualPagination,
+  manualSort,
   pageSize = 25,
-  setSortBy,
   isLoading = false,
   selectRows,
   onRowClicked,
@@ -145,10 +151,12 @@ const Table = ({
       data,
       pageCount,
       manualPagination: !!manualPagination,
-      manualSortBy: !!setSortBy,
+      manualSortBy: !!manualSort,
+      disableMultiSort: !!manualSort, // API currently supports ordering by a single column
       initialState: {
         pageIndex: offset ? offset / pageSize : 0,
         pageSize,
+        sortBy: manualSort?.initialSortBy || [],
       },
     },
     useSortBy,
@@ -167,8 +175,10 @@ const Table = ({
   };
 
   useEffect(() => {
-    if (setSortBy) setSortBy(sortBy);
-  }, [sortBy, setSortBy]);
+    if (manualSort) {
+      manualSort.setSortBy(sortBy);
+    }
+  }, [sortBy, manualSort]);
 
   useEffect(() => {
     if (selectRows) {

@@ -160,7 +160,10 @@ const MappedInstances = ({
           totalEntries,
         }}
         pageSize={limit}
-        setSortBy={setSortBy}
+        manualSort={{
+          setSortBy,
+          sortBy,
+        }}
         isLoading={isLoading}
         selectRows={canEdit ? selectRows : undefined}
       />

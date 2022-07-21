@@ -24,11 +24,12 @@ import {
   Heading,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
-import type { SortingRule } from 'react-table';
+import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
 import Table from 'src/components/Table';
 import Time from 'src/components/Time';
+import type { API } from 'src/types';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -49,10 +50,6 @@ const DatasetsList = ({ onSelect }: Props) => {
 
   const columns = useMemo(
     () => [
-      {
-        Header: 'ID',
-        accessor: 'id',
-      },
       {
         Header: 'URI',
         accessor: 'uri',
@@ -82,8 +79,8 @@ const DatasetsList = ({ onSelect }: Props) => {
     [datasets],
   );
 
-  const onDatasetSelect = (e: any) => {
-    onSelect(e.id);
+  const onDatasetSelect = (row: Row<API.Dataset>) => {
+    onSelect(row.id);
   };
 
   return (
@@ -102,7 +99,10 @@ const DatasetsList = ({ onSelect }: Props) => {
             totalEntries,
           }}
           pageSize={limit}
-          setSortBy={setSortBy}
+          manualSort={{
+            setSortBy,
+            sortBy,
+          }}
           onRowClicked={onDatasetSelect}
         />
       </Box>
