@@ -277,11 +277,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
-<<<<<<< HEAD
         FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table)
-=======
-        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS check_table
->>>>>>> 987f6c28a95fddfc629735692c9cafe6d3df3b16
     """
 
     def __init__(
