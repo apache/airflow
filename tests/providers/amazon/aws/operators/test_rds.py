@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from unittest.mock import patch
 
 import pytest
 
@@ -199,6 +200,28 @@ class TestRdsCreateDbSnapshotOperator:
         assert len(instance_snapshots) == 1
 
     @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_create_db_instance_snapshot_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+        instance_snapshot_operator = RdsCreateDbSnapshotOperator(
+            task_id='test_instance_no_wait',
+            db_type='instance',
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            db_identifier=DB_INSTANCE_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        instance_snapshot_operator.execute(None)
+
+        result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+        instance_snapshots = result.get("DBSnapshots")
+
+        assert instance_snapshots
+        assert len(instance_snapshots) == 1
+        assert mock_await_status.not_called()
+
+    @mock_rds
     def test_create_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         cluster_snapshot_operator = RdsCreateDbSnapshotOperator(
@@ -216,6 +239,28 @@ class TestRdsCreateDbSnapshotOperator:
 
         assert cluster_snapshots
         assert len(cluster_snapshots) == 1
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_create_db_cluster_snapshot_no_wait(self, mock_no_wait):
+        _create_db_cluster(self.hook)
+        cluster_snapshot_operator = RdsCreateDbSnapshotOperator(
+            task_id='test_cluster_no_wait',
+            db_type='cluster',
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            db_identifier=DB_CLUSTER_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        cluster_snapshot_operator.execute(None)
+
+        result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+        cluster_snapshots = result.get("DBClusterSnapshots")
+
+        assert cluster_snapshots
+        assert len(cluster_snapshots) == 1
+        assert mock_no_wait.not_called()
 
 
 @pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
@@ -251,6 +296,29 @@ class TestRdsCopyDbSnapshotOperator:
         assert len(instance_snapshots) == 1
 
     @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_copy_db_instance_snapshot_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+        _create_db_instance_snapshot(self.hook)
+
+        instance_snapshot_operator = RdsCopyDbSnapshotOperator(
+            task_id='test_instance_no_wait',
+            db_type='instance',
+            source_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            target_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT_COPY,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        instance_snapshot_operator.execute(None)
+        result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
+        instance_snapshots = result.get("DBSnapshots")
+
+        assert instance_snapshots
+        assert len(instance_snapshots) == 1
+        assert mock_await_status.not_called()
+
+    @mock_rds
     def test_copy_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
@@ -271,6 +339,30 @@ class TestRdsCopyDbSnapshotOperator:
 
         assert cluster_snapshots
         assert len(cluster_snapshots) == 1
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_copy_db_cluster_snapshot_no_wait(self, mock_await_status):
+        _create_db_cluster(self.hook)
+        _create_db_cluster_snapshot(self.hook)
+
+        cluster_snapshot_operator = RdsCopyDbSnapshotOperator(
+            task_id='test_cluster_no_wait',
+            db_type='cluster',
+            source_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        cluster_snapshot_operator.execute(None)
+        result = self.hook.conn.describe_db_cluster_snapshots(
+            DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT_COPY
+        )
+        cluster_snapshots = result.get("DBClusterSnapshots")
+
+        assert cluster_snapshots
+        assert len(cluster_snapshots) == 1
+        assert mock_await_status.not_called()
 
 
 @pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
@@ -356,6 +448,33 @@ class TestRdsStartExportTaskOperator:
         assert len(export_tasks) == 1
         assert export_tasks[0]['Status'] == 'complete'
 
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_start_export_task_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+        _create_db_instance_snapshot(self.hook)
+
+        start_export_operator = RdsStartExportTaskOperator(
+            task_id='test_start_no_wait',
+            export_task_identifier=EXPORT_TASK_NAME,
+            source_arn=EXPORT_TASK_SOURCE,
+            iam_role_arn=EXPORT_TASK_ROLE_ARN,
+            kms_key_id=EXPORT_TASK_KMS,
+            s3_bucket_name=EXPORT_TASK_BUCKET,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        start_export_operator.execute(None)
+
+        result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
+        export_tasks = result.get("ExportTasks")
+
+        assert export_tasks
+        assert len(export_tasks) == 1
+        assert export_tasks[0]['Status'] == 'complete'
+        assert mock_await_status.not_called()
+
 
 @pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsCancelExportTaskOperator:
@@ -389,6 +508,29 @@ class TestRdsCancelExportTaskOperator:
         assert export_tasks
         assert len(export_tasks) == 1
         assert export_tasks[0]['Status'] == 'canceled'
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_cancel_export_task_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+        _create_db_instance_snapshot(self.hook)
+        _start_export_task(self.hook)
+
+        cancel_export_operator = RdsCancelExportTaskOperator(
+            task_id='test_cancel_no_wait',
+            export_task_identifier=EXPORT_TASK_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        cancel_export_operator.execute(None)
+
+        result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
+        export_tasks = result.get("ExportTasks")
+
+        assert export_tasks
+        assert len(export_tasks) == 1
+        assert export_tasks[0]['Status'] == 'canceled'
+        assert mock_await_status.not_called()
 
 
 @pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
@@ -424,6 +566,30 @@ class TestRdsCreateEventSubscriptionOperator:
         assert subscriptions
         assert len(subscriptions) == 1
         assert subscriptions[0]['Status'] == 'active'
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_create_event_subscription_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+
+        create_subscription_operator = RdsCreateEventSubscriptionOperator(
+            task_id='test_create_no_wait',
+            subscription_name=SUBSCRIPTION_NAME,
+            sns_topic_arn=SUBSCRIPTION_TOPIC,
+            source_type='db-instance',
+            source_ids=[DB_INSTANCE_NAME],
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        create_subscription_operator.execute(None)
+
+        result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
+        subscriptions = result.get("EventSubscriptionsList")
+
+        assert subscriptions
+        assert len(subscriptions) == 1
+        assert subscriptions[0]['Status'] == 'active'
+        assert mock_await_status.not_called()
 
 
 @pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
@@ -488,6 +654,30 @@ class TestRdsCreateDbInstanceOperator:
         assert len(db_instances) == 1
         assert db_instances[0]['DBInstanceStatus'] == 'available'
 
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_create_db_instance_no_wait(self, mock_await_status):
+        create_db_instance_operator = RdsCreateDbInstanceOperator(
+            task_id='test_create_db_instance_no_wait',
+            db_instance_identifier=DB_INSTANCE_NAME,
+            db_instance_class="db.m5.large",
+            engine="postgres",
+            rds_kwargs={
+                "DBName": DB_INSTANCE_NAME,
+            },
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        create_db_instance_operator.execute(None)
+
+        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        db_instances = result.get("DBInstances")
+
+        assert db_instances
+        assert len(db_instances) == 1
+        assert db_instances[0]['DBInstanceStatus'] == 'available'
+        assert mock_await_status.not_called()
+
 
 @pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
 class TestRdsDeleteDbInstanceOperator:
@@ -518,3 +708,24 @@ class TestRdsDeleteDbInstanceOperator:
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+
+    @mock_rds
+    @patch.object(RdsBaseOperator, '_await_status')
+    def test_delete_event_subscription_no_wait(self, mock_await_status):
+        _create_db_instance(self.hook)
+
+        delete_db_instance_operator = RdsDeleteDbInstanceOperator(
+            task_id='test_delete_db_instance_no_wait',
+            db_instance_identifier=DB_INSTANCE_NAME,
+            rds_kwargs={
+                "SkipFinalSnapshot": True,
+            },
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+            wait_for_completion=False,
+        )
+        delete_db_instance_operator.execute(None)
+
+        with pytest.raises(self.hook.conn.exceptions.ClientError):
+            self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        assert mock_await_status.not_called()
