@@ -39,10 +39,18 @@ class SqsPublishOperator(BaseOperator):
     :param message_attributes: additional attributes for the message (default: None)
         For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
     :param delay_seconds: message delay (templated) (default: 1 second)
+    :param message_group_id: This parameter applies only to FIFO (first-in-first-out) queues. (default: None)
+        For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
     :param aws_conn_id: AWS connection id (default: aws_default)
     """
 
-    template_fields: Sequence[str] = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
+    template_fields: Sequence[str] = (
+        'sqs_queue',
+        'message_content',
+        'delay_seconds',
+        'message_attributes',
+        'message_group_id',
+    )
     template_fields_renderers = {'message_attributes': 'json'}
     ui_color = '#6ad3fa'
 
@@ -53,6 +61,7 @@ class SqsPublishOperator(BaseOperator):
         message_content: str,
         message_attributes: Optional[dict] = None,
         delay_seconds: int = 0,
+        message_group_id: Optional[str] = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
@@ -62,6 +71,7 @@ class SqsPublishOperator(BaseOperator):
         self.message_content = message_content
         self.delay_seconds = delay_seconds
         self.message_attributes = message_attributes or {}
+        self.message_group_id = message_group_id
 
     def execute(self, context: 'Context'):
         """
@@ -79,6 +89,7 @@ class SqsPublishOperator(BaseOperator):
             message_body=self.message_content,
             delay_seconds=self.delay_seconds,
             message_attributes=self.message_attributes,
+            message_group_id=self.message_group_id,
         )
 
         self.log.info('send_message result: %s', result)
