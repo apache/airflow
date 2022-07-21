@@ -873,7 +873,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def detect_dependencies(cls, op: Operator) -> Optional['DagDependency']:
         """Detects between DAG dependencies for the operator."""
         dependency_detector = DependencyDetector()
-        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector')
+        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
         deps = set()
         if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
             warnings.warn(
