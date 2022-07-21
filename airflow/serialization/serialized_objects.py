@@ -882,7 +882,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 DeprecationWarning,
             )
             dep = custom_dependency_detector.detect_task_dependencies(op)
-            if dep:
+            if type(dep) is DagDependency:
                 deps.add(dep)
         deps.update(dependency_detector.detect_task_dependencies(op))
         deps.update(dependency_detector.detect_dag_dependencies(op.dag))
