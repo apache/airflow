@@ -172,7 +172,6 @@ class TestAzureBatchHook(unittest.TestCase):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         hook.get_conn().job.return_value = {}
         status, msg = hook.test_connection()
-        print(status, msg)
         assert status is True
         assert msg == "Successfully connected to Azure Batch."
 
