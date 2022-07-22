@@ -2585,19 +2585,18 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
 
 
 @pytest.mark.parametrize(
-    'tags, should_fail',
+    'tags, should_pass',
     [
-        pytest.param([], False, id='empty tags'),
-        pytest.param(['a normal tag'], False, id='one tag'),
-        pytest.param(['a normal tag', 'another normal tag'], False, id='two tags'),
-        pytest.param(
-            ['a normal tag', 'a super long tag' * 20], True, id='two tags and one of them is of length > 100'
-        ),
+        pytest.param([], True, id="empty tags"),
+        pytest.param(['a normal tag'], True, id="one tag"),
+        pytest.param(['a normal tag', 'another normal tag'], True, id="two tags"),
+        pytest.param(['a' * 100], True, id="a tag that's of just length 100"),
+        pytest.param(['a normal tag', 'a' * 101], False, id="two tags and one of them is of length > 100"),
     ],
 )
-def test__tags_length(tags: List[str], should_fail: bool):
-    if should_fail:
+def test__tags_length(tags: List[str], should_pass: bool):
+    if should_pass:
+        models.DAG('test-dag', tags=tags)
+    else:
         with pytest.raises(AirflowException):
             models.DAG('test-dag', tags=tags)
-    else:
-        models.DAG('test-dag', tags=tags)
