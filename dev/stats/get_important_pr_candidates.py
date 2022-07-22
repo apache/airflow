@@ -54,12 +54,12 @@ option_github_token = click.option(
 )
 
 class PrStat:
-    PROVIDER_SCORE = 0.5
+    PROVIDER_SCORE = 0.8
     REGULAR_SCORE = 1.0
 
-    REVIEW_INTERACTION_VALUE = 1.0
+    REVIEW_INTERACTION_VALUE = 2.0
     COMMENT_INTERACTION_VALUE = 1.0
-    REACTION_INTERACTION_VALUE = 0.1
+    REACTION_INTERACTION_VALUE = 0.5
 
     def __init__(self, pull_request: PullRequest):
         self.pull_request = pull_request
@@ -97,17 +97,16 @@ class PrStat:
             reviews += 1
         return reviews
 
-    @cached_property
-    def num_interactions(self) -> float:
+    @property
+    def interaction_score(self) -> float:
         interactions = self.num_comments * PrStat.COMMENT_INTERACTION_VALUE
         interactions += self.num_reactions * PrStat.REACTION_INTERACTION_VALUE
         interactions += self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
-        
         return interactions
 
     @cached_property
     def num_interacting_users(self) -> int:
-        _ = self.num_interactions  # make sure the _users set is populated
+        _ = self.interaction_score  # make sure the _users set is populated
         return len(self._users)
 
     @cached_property
@@ -122,6 +121,19 @@ class PrStat:
             return 0
 
     @cached_property
+    def num_additions(self) -> int:
+        return self.pull_request.additions
+        
+    @cached_property
+    def num_deletions(self) -> int:
+        return self.pull_request.deletions
+
+    @cached_property
+    def change_score(self) -> int:
+        lineactions = self.num_additions + self.num_deletions
+        return lineactions / self.num_changed_files
+
+    @cached_property
     def comment_length(self) -> int:
         length = 0
         for comment in self.pull_request.get_comments():
@@ -134,21 +146,42 @@ class PrStat:
     
     @property
     def length_score(self) -> float:
-        if self.body_length > 500:
-            return 2
-        if self.body_length < 100:
-            return 0.75
-        return 1
+        score = 1
+        if self.comment_length > 3000:
+            score *= 1.3
+        if self.comment_length < 200:
+            score *= 0.8
+        if self.body_length > 2000:
+            score *= 1.4
+        if self.body_length < 1000:
+            score *= 0.8
+        if self.body_length < 20:
+            score *= 0.4
+        return score
 
     @property
     def score(self):
+        #
+        # Provider and dev-tools PRs should be considered, but should matter 20% less.
+        #
+        # A review is worth twice as much as a comment, and a comment is worth twice as much as a reaction.
+        #
+        # If a PR changed more than 20 files, it is likely to be a refactor and it should matter 30% less.
+        #
+        # These rules are still to-be-implemented:
+        #
+        # If there are over 3000 characters worth of comments, the PR should matter 30% more.
+        # If there are fewer than 200 characters worth of comments, the PR should matter 20% less.
+        #
+        # If the body contains over 2000 characters, the PR should matter 40% more.
+        # If the body contains fewer than 1000 characters, the PR should matter 20% less.
+        #
         return (
             1.0
-            * self.num_interactions
+            * self.interaction_score
             * self.label_score
             * self.length_score
-            * self.num_interacting_users
-            / (math.log10(self.num_changed_files) if self.num_changed_files > 10 else 1.0)
+            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0)
         )
 
     def __str__(self) -> str:
@@ -192,15 +225,20 @@ def main(github_token: str, date_start: datetime, save: click.File(), load: clic
 
             if verbose:
                 console.print(
-                    f'[bright_blue]Created at: {pr_stat.pull_request.created_at}, Merged at: {pr_stat.pull_request.merged_at}, '
-                    f'Overall score: {pr_stat.score:.2f}, '
-                    f'Label score: {pr_stat.label_score}, '
-                    f'Length score: {pr_stat.length_score}, '
-                    f'Body length: {pr_stat.body_length}, '
-                    f'Comment length: {pr_stat.comment_length}, '
-                    f'Interactions: {pr_stat.num_interactions}, '
-                    f'Users interacting: {pr_stat.num_interacting_users}, '
-                    f'Changed files: {pr_stat.num_changed_files}\n'
+                    f'-- Created at [bright_blue]{pr.created_at}[/], merged at [bright_blue]{pr.merged_at}[/]\n'
+                    f'-- Label score: [green]{pr_stat.label_score}[/]\n'
+                    f'-- Length score: [green]{pr_stat.length_score}[/] '
+                    f'(body length: {pr_stat.body_length}, '
+                    f'comment length: {pr_stat.comment_length})\n'
+                    f'-- Interaction score: [green]{pr_stat.interaction_score}[/] '
+                    f'(users interacting: {pr_stat.num_interacting_users}, '
+                    f'reviews: {pr_stat.num_reviews}, '
+                    f'comments: {pr_stat.num_comments})\n'
+                    f'-- Change score: [green]{pr_stat.change_score}[/] '
+                    f'(changed files: {pr_stat.num_changed_files}, '
+                    f'additions: {pr_stat.num_additions}, '
+                    f'deletions: {pr_stat.num_deletions})\n'
+                    f'-- Overall score: [red]{pr_stat.score:.2f}[/]\n'
                 )
 
     else:
@@ -235,15 +273,20 @@ def main(github_token: str, date_start: datetime, save: click.File(), load: clic
 
             if verbose:
                 console.print(
-                    f'[bright_blue]Created at: {pr.created_at}, Merged at: {pr.merged_at},[/] '
-                    f'Overall score: {pr_stat.score:.2f}, '
-                    f'Label score: {pr_stat.label_score}, '
-                    f'Length score: {pr_stat.length_score}, '
-                    f'Body length: {pr_stat.body_length}, '
-                    f'Comment length: {pr_stat.comment_length}, '
-                    f'Interactions: {pr_stat.num_interactions}, '
-                    f'Users interacting: {pr_stat.num_interacting_users}, '
-                    f'Changed files: {pr_stat.num_changed_files}\n'
+                    f'-- Created at [bright_blue]{pr.created_at}[/], merged at [bright_blue]{pr.merged_at}[/]\n'
+                    f'-- Label score: [green]{pr_stat.label_score}[/]\n'
+                    f'-- Length score: [green]{pr_stat.length_score}[/] '
+                    f'(body length: {pr_stat.body_length}, '
+                    f'comment length: {pr_stat.comment_length})\n'
+                    f'-- Interaction score: [green]{pr_stat.interaction_score}[/] '
+                    f'(users interacting: {pr_stat.num_interacting_users}, '
+                    f'reviews: {pr_stat.num_reviews}, '
+                    f'comments: {pr_stat.num_comments})\n'
+                    f'-- Change score: [green]{pr_stat.change_score}[/] '
+                    f'(changed files: {pr_stat.num_changed_files}, '
+                    f'additions: {pr_stat.num_additions}, '
+                    f'deletions: {pr_stat.num_deletions})\n'
+                    f'-- Overall score: [red]{pr_stat.score:.2f}[/]\n'
                 )
 
             selected_prs.append(pr_stat)
