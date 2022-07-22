@@ -168,8 +168,6 @@ class PrStat:
         #
         # If a PR changed more than 20 files, it is likely to be a refactor and it should matter 30% less.
         #
-        # These rules are still to-be-implemented:
-        #
         # If there are over 3000 characters worth of comments, the PR should matter 30% more.
         # If there are fewer than 200 characters worth of comments, the PR should matter 20% less.
         #
@@ -189,6 +187,25 @@ class PrStat:
             f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
             f"\"{self.pull_request.title}\". "
             f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+        )
+
+    def verboseStr(self) -> str:
+        return (
+            f'-- Created at [bright_blue]{self.pull_request.created_at}[/], '
+            f'merged at [bright_blue]{self.pull_request.merged_at}[/]\n'
+            f'-- Label score: [green]{self.label_score}[/]\n'
+            f'-- Length score: [green]{self.length_score}[/] '
+            f'(body length: {self.body_length}, '
+            f'comment length: {self.comment_length})\n'
+            f'-- Interaction score: [green]{self.interaction_score}[/] '
+            f'(users interacting: {self.num_interacting_users}, '
+            f'reviews: {self.num_reviews}, '
+            f'comments: {self.num_comments})\n'
+            f'-- Change score: [green]{self.change_score}[/] '
+            f'(changed files: {self.num_changed_files}, '
+            f'additions: {self.num_additions}, '
+            f'deletions: {self.num_deletions})\n'
+            f'-- Overall score: [red]{self.score:.2f}[/]\n'
         )
 
 
@@ -224,22 +241,7 @@ def main(github_token: str, date_start: datetime, save: click.File(), load: clic
             )
 
             if verbose:
-                console.print(
-                    f'-- Created at [bright_blue]{pr.created_at}[/], merged at [bright_blue]{pr.merged_at}[/]\n'
-                    f'-- Label score: [green]{pr_stat.label_score}[/]\n'
-                    f'-- Length score: [green]{pr_stat.length_score}[/] '
-                    f'(body length: {pr_stat.body_length}, '
-                    f'comment length: {pr_stat.comment_length})\n'
-                    f'-- Interaction score: [green]{pr_stat.interaction_score}[/] '
-                    f'(users interacting: {pr_stat.num_interacting_users}, '
-                    f'reviews: {pr_stat.num_reviews}, '
-                    f'comments: {pr_stat.num_comments})\n'
-                    f'-- Change score: [green]{pr_stat.change_score}[/] '
-                    f'(changed files: {pr_stat.num_changed_files}, '
-                    f'additions: {pr_stat.num_additions}, '
-                    f'deletions: {pr_stat.num_deletions})\n'
-                    f'-- Overall score: [red]{pr_stat.score:.2f}[/]\n'
-                )
+                console.print(pr_stat.verboseStr())
 
     else:
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
@@ -272,22 +274,7 @@ def main(github_token: str, date_start: datetime, save: click.File(), load: clic
             )
 
             if verbose:
-                console.print(
-                    f'-- Created at [bright_blue]{pr.created_at}[/], merged at [bright_blue]{pr.merged_at}[/]\n'
-                    f'-- Label score: [green]{pr_stat.label_score}[/]\n'
-                    f'-- Length score: [green]{pr_stat.length_score}[/] '
-                    f'(body length: {pr_stat.body_length}, '
-                    f'comment length: {pr_stat.comment_length})\n'
-                    f'-- Interaction score: [green]{pr_stat.interaction_score}[/] '
-                    f'(users interacting: {pr_stat.num_interacting_users}, '
-                    f'reviews: {pr_stat.num_reviews}, '
-                    f'comments: {pr_stat.num_comments})\n'
-                    f'-- Change score: [green]{pr_stat.change_score}[/] '
-                    f'(changed files: {pr_stat.num_changed_files}, '
-                    f'additions: {pr_stat.num_additions}, '
-                    f'deletions: {pr_stat.num_deletions})\n'
-                    f'-- Overall score: [red]{pr_stat.score:.2f}[/]\n'
-                )
+                console.print(pr_stat.verboseStr())
 
             selected_prs.append(pr_stat)
             if issue_num == MAX_PR_CANDIDATES:
