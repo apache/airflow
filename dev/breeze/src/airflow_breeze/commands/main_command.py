@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import platform
+import subprocess
+import sys
 
 from airflow_breeze.configure_rich_click import click
 from airflow_breeze.utils.common_options import (
@@ -63,5 +66,73 @@ from airflow_breeze.utils.common_options import (
 def main(ctx: click.Context, **kwargs):
     from airflow_breeze.commands.developer_commands import shell
 
+    check_for_rosetta_environment()
+    check_for_python_emulation()
+
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
+
+
+def check_for_python_emulation():
+    try:
+        system_machine = subprocess.check_output(["uname", "-m"], text=True).strip()
+        python_machine = platform.uname().machine
+        if system_machine != python_machine:
+            from airflow_breeze.utils.console import get_console
+
+            get_console().print(
+                f'\n\n[error]Your Python architecture is {python_machine} and '
+                f'system architecture is {system_machine}[/]'
+            )
+            get_console().print(
+                '[warning]This is very bad and your Python is 10x slower as it is emulated[/]'
+            )
+            get_console().print(
+                '[warning]You likely installed your Python wrongly and you should '
+                'remove it and reinstall from scratch[/]\n'
+            )
+            from inputimeout import inputimeout
+
+            user_status = inputimeout(
+                prompt="Are you REALLY sure you want to continue? (press y otherwise we exit in 20s) ",
+                timeout=20,
+            )
+            if not user_status.upper() in ['Y', 'YES']:
+                sys.exit(1)
+    except subprocess.CalledProcessError:
+        pass
+    except PermissionError:
+        pass
+
+
+def check_for_rosetta_environment():
+    try:
+        runs_in_rosetta = subprocess.check_output(
+            ["sysctl", "-n", "sysctl.proc_translated"], text=True
+        ).strip()
+        if runs_in_rosetta == '1':
+            from airflow_breeze.utils.console import get_console
+
+            get_console().print(
+                '\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]'
+            )
+            get_console().print(
+                '[warning]This is very bad and your Python is 10x slower as it is emulated[/]'
+            )
+            get_console().print(
+                '[warning]You likely have wrong architecture-based IDE (PyCharm/VSCode/Intellij) that '
+                'you run it on\n'
+                'You should download the right architecture for your Mac (Apple Silicon or Intel)[/]\n'
+            )
+            from inputimeout import inputimeout
+
+            user_status = inputimeout(
+                prompt="Are you REALLY sure you want to continue? (press y otherwise we exit in 20s) ",
+                timeout=20,
+            )
+            if not user_status.upper() in ['Y', 'YES']:
+                sys.exit(1)
+    except subprocess.CalledProcessError:
+        pass
+    except PermissionError:
+        pass
