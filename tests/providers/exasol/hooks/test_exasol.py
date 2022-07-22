@@ -139,7 +139,7 @@ class TestExasolHook(unittest.TestCase):
 
     def test_no_result_set(self):
         """Queries like DROP and SELECT are of type rowCount (not resultSet),
-         which raises an error in pyexasol if trying to iterate over them"""
+        which raises an error in pyexasol if trying to iterate over them"""
         self.cur.result_type = mock.Mock()
         self.cur.result_type.return_value = 'rowCount'
 
