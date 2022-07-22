@@ -53,6 +53,7 @@ option_github_token = click.option(
     envvar='GITHUB_TOKEN',
 )
 
+
 class PrStat:
     PROVIDER_SCORE = 0.8
     REGULAR_SCORE = 1.0
@@ -123,7 +124,7 @@ class PrStat:
     @cached_property
     def num_additions(self) -> int:
         return self.pull_request.additions
-        
+
     @cached_property
     def num_deletions(self) -> int:
         return self.pull_request.deletions
@@ -138,7 +139,7 @@ class PrStat:
             if actionsperfile < 5:
                 return 0.7
         return 1
-        
+
     @cached_property
     def comment_length(self) -> int:
         length = 0
@@ -149,7 +150,7 @@ class PrStat:
             if comment.body is not None:
                 length += len(comment.body)
         return length
-    
+
     @property
     def length_score(self) -> float:
         score = 1
@@ -228,8 +229,9 @@ DEFAULT_END_OF_MONTH = DEFAULT_BEGINNING_OF_MONTH.end_of('month').add(days=1)
 MAX_PR_CANDIDATES = 500
 DEFAULT_TOP_PRS = 10
 
+
 @click.command()
-@option_github_token # TODO: this should only be required if --load isn't provided
+@option_github_token  # TODO: this should only be required if --load isn't provided
 @click.option(
     '--date-start', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_BEGINNING_OF_MONTH.date())
 )
@@ -237,10 +239,18 @@ DEFAULT_TOP_PRS = 10
     '--date-end', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_END_OF_MONTH.date())
 )
 @click.option('--top-number', type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
-@click.option('--save',type=click.File("wb"), help="Save PR data to a pickle file")
-@click.option('--load',type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
+@click.option('--save', type=click.File("wb"), help="Save PR data to a pickle file")
+@click.option('--load', type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
 @click.option('--verbose', is_flag="True", help="Print scoring details")
-def main(github_token: str, date_start: datetime, save: click.File(), load: click.File(), date_end: datetime, top_number: int, verbose: bool):
+def main(
+    github_token: str,
+    date_start: datetime,
+    save: click.File(),
+    load: click.File(),
+    date_end: datetime,
+    top_number: int,
+    verbose: bool,
+):
     if load:
         console.print(f"Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding='bytes')
@@ -297,7 +307,8 @@ def main(github_token: str, date_start: datetime, save: click.File(), load: clic
         console.print(f" * {pr_stat}")
 
     if save:
-        pickle.dump(selected_prs,save)
+        pickle.dump(selected_prs, save)
+
 
 if __name__ == "__main__":
     main()
