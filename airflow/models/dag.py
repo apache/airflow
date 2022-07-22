@@ -376,7 +376,7 @@ class DAG(LoggingMixin):
         from airflow.utils.task_group import TaskGroup
 
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
-            raise AirflowException("tag cannot be longer than 100 characters")
+            raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
