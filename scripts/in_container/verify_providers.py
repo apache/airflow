@@ -149,7 +149,6 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         " for alternative uses",
         "hdfs",
     ),
-    ("This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.", "salesforce"),
     (
         "You have an incompatible version of 'pyarrow' installed (4.0.1), please install a version that"
         " adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
@@ -182,6 +181,7 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "going out for this old package name.",
         "scrapbook",
     ),
+    ("SelectableGroups dict interface is deprecated. Use select.", "markdown"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
@@ -210,9 +210,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau_job_status`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     (
@@ -249,6 +247,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
     "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
     "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
 }
 
 
@@ -282,9 +281,9 @@ def get_all_providers() -> List[str]:
     Returns all providers for regular packages.
     :return: list of providers that are considered for provider packages
     """
-    from setup import PROVIDERS_REQUIREMENTS
+    from setup import ALL_PROVIDERS
 
-    return list(PROVIDERS_REQUIREMENTS.keys())
+    return list(ALL_PROVIDERS)
 
 
 def import_all_classes(
@@ -364,8 +363,8 @@ def import_all_classes(
             """
 [red]ERROR: There were some import errors[/]
 
-[yellow]If the job is about installing providers in 2.1.0, most likely you are using features that[/]
-[yellow]are not available in Airflow 2.1.0 and you mast implement them in backwards-compatible way![/]
+[yellow]If the job is about installing providers in 2.2.0, most likely you are using features that[/]
+[yellow]are not available in Airflow 2.2.0 and you must implement them in backwards-compatible way![/]
 
 """,
         )
@@ -377,16 +376,6 @@ def import_all_classes(
         sys.exit(1)
     else:
         return imported_classes, all_warnings
-
-
-def get_provider_packages() -> List[str]:
-    """
-    Returns all provider packages.
-
-    """
-    from setup import PROVIDERS_REQUIREMENTS
-
-    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:

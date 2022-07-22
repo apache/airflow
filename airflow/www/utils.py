@@ -21,7 +21,6 @@ import time
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
-import markdown
 import sqlalchemy as sqla
 from flask import Response, request, url_for
 from flask.helpers import flash
@@ -31,16 +30,16 @@ from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
+from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
-from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -113,10 +112,11 @@ def get_mapped_summary(parent_instance, task_instances):
     )
 
     try_count = (
-        parent_instance.prev_attempted_tries
-        if parent_instance.prev_attempted_tries != 0
-        else parent_instance.try_number
+        parent_instance._try_number
+        if parent_instance._try_number != 0 or parent_instance.state in State.running
+        else parent_instance._try_number + 1
     )
+
     return {
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
@@ -126,48 +126,6 @@ def get_mapped_summary(parent_instance, task_instances):
         'mapped_states': mapped_states,
         'try_number': try_count,
     }
-
-
-def get_task_summaries(task, dag_runs: List[DagRun], session: Session) -> List[Dict[str, Any]]:
-    tis = session.query(
-        TaskInstance.task_id,
-        TaskInstance.run_id,
-        TaskInstance.map_index,
-        TaskInstance.state,
-        TaskInstance.start_date,
-        TaskInstance.end_date,
-        TaskInstance._try_number,
-    ).filter(
-        TaskInstance.dag_id == task.dag_id,
-        TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
-        TaskInstance.task_id == task.task_id,
-        # Only get normal task instances or the first mapped task
-        TaskInstance.map_index <= 0,
-    )
-
-    def _get_summary(task_instance):
-        if task_instance.map_index > -1:
-            return get_mapped_summary(
-                task_instance, task_instances=get_mapped_instances(task_instance, session)
-            )
-
-        try_count = (
-            task_instance._try_number
-            if task_instance._try_number != 0 or task_instance.state in State.running
-            else task_instance._try_number + 1
-        )
-
-        return {
-            'task_id': task_instance.task_id,
-            'run_id': task_instance.run_id,
-            'map_index': task_instance.map_index,
-            'state': task_instance.state,
-            'start_date': datetime_to_string(task_instance.start_date),
-            'end_date': datetime_to_string(task_instance.end_date),
-            'try_number': try_count,
-        }
-
-    return [_get_summary(ti) for ti in tis]
 
 
 def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
@@ -193,6 +151,13 @@ def check_import_errors(fileloc, session):
     if import_errors:
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+
+
+def check_dag_warnings(dag_id, session):
+    dag_warnings = session.query(DagWarning).filter(DagWarning.dag_id == dag_id).all()
+    if dag_warnings:
+        for dag_warning in dag_warnings:
+            flash(dag_warning.message, "warning")
 
 
 def get_sensitive_variables_fields():
@@ -519,10 +484,11 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
+    md = MarkdownIt("gfm-like")
     if s is None:
         return None
     s = textwrap.dedent(s)
-    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
+    return Markup(f'<div class="{css_class}" >{md.render(s)}</div>')
 
 
 def get_attr_renderer():

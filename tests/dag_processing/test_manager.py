@@ -427,7 +427,7 @@ class TestDagFileProcessorManager:
         # let's say the DAG was just parsed 2 seconds before the Freezed time
         last_finish_time = freezed_base_time - timedelta(seconds=10)
         manager._file_stats = {
-            "file_1.py": DagFileStat(1, 0, last_finish_time, 1.0, 1),
+            "file_1.py": DagFileStat(1, 0, last_finish_time, timedelta(seconds=1.0), 1),
         }
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
@@ -715,7 +715,9 @@ class TestDagFileProcessorManager:
         child_pipe.close()
         parent_pipe.close()
 
-        statsd_timing_mock.assert_called_with('dag_processing.last_duration.temp_dag', last_runtime)
+        statsd_timing_mock.assert_called_with(
+            'dag_processing.last_duration.temp_dag', timedelta(seconds=last_runtime)
+        )
 
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
@@ -864,6 +866,68 @@ class TestDagFileProcessorManager:
         # Verify no callbacks removed from database.
         with create_session() as session:
             assert session.query(DbCallbackRequest).count() == 1
+
+    def test_callback_queue(self, tmpdir):
+        # given
+        manager = DagFileProcessorManager(
+            dag_directory=TEST_DAG_FOLDER,
+            max_runs=1,
+            processor_timeout=timedelta(days=365),
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        dag1_req1 = DagCallbackRequest(
+            full_filepath="/green_eggs/ham/file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            msg=None,
+        )
+        dag1_req2 = DagCallbackRequest(
+            full_filepath="/green_eggs/ham/file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            msg=None,
+        )
+        dag1_sla1 = SlaCallbackRequest(full_filepath="/green_eggs/ham/file1.py", dag_id="dag1")
+        dag1_sla2 = SlaCallbackRequest(full_filepath="/green_eggs/ham/file1.py", dag_id="dag1")
+
+        dag2_req1 = DagCallbackRequest(
+            full_filepath="/green_eggs/ham/file2.py",
+            dag_id="dag2",
+            run_id="run1",
+            is_failure_callback=False,
+            msg=None,
+        )
+
+        # when
+        manager._add_callback_to_queue(dag1_req1)
+        manager._add_callback_to_queue(dag1_sla1)
+        manager._add_callback_to_queue(dag2_req1)
+
+        # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
+        assert manager._file_path_queue == [dag2_req1.full_filepath, dag1_req1.full_filepath]
+        assert set(manager._callback_to_execute.keys()) == {dag1_req1.full_filepath, dag2_req1.full_filepath}
+        assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
+        assert manager._callback_to_execute[dag2_req1.full_filepath] == [dag2_req1]
+
+        # when
+        manager._add_callback_to_queue(dag1_sla2)
+
+        # then - since sla2 == sla1, should not have brought dag1 to the fore
+        assert manager._file_path_queue == [dag2_req1.full_filepath, dag1_req1.full_filepath]
+        assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
+
+        # when
+        manager._add_callback_to_queue(dag1_req2)
+
+        # then - non-sla callback should have brought dag1 to the fore
+        assert manager._file_path_queue == [dag1_req1.full_filepath, dag2_req1.full_filepath]
+        assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1, dag1_req2]
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):

@@ -25,9 +25,9 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MOUNT_ALL,
 )
-from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
@@ -57,7 +57,8 @@ def run_pull_in_parallel(
     if not verify_image:
         results = [
             pool.apply_async(
-                run_pull_image, args=(image_param, dry_run, verbose, wait_for_image, tag_as_latest, poll_time)
+                run_pull_image,
+                args=(image_param, dry_run, verbose, wait_for_image, tag_as_latest, poll_time, True),
             )
             for image_param in image_params_list
         ]
@@ -82,12 +83,13 @@ def run_pull_in_parallel(
 
 
 def run_pull_image(
-    image_params: _CommonBuildParams,
+    image_params: CommonBuildParams,
     dry_run: bool,
     verbose: bool,
     wait_for_image: bool,
     tag_as_latest: bool,
-    poll_time: float,
+    poll_time: float = 10.0,
+    parallel: bool = False,
 ) -> Tuple[int, str]:
     """
     Pull image specified.
@@ -96,7 +98,8 @@ def run_pull_image(
     :param verbose: whether it's verbose
     :param wait_for_image: whether we should wait for the image to be available
     :param tag_as_latest: tag the image as latest
-    :param poll_time: what's the polling time between checks if images are there
+    :param poll_time: what's the polling time between checks if images are there (default 10 s)
+    :param parallel: whether the pull is run as part of parallel execution
     :return: Tuple of return code and description of the image pulled
     """
     get_console().print(
@@ -112,6 +115,7 @@ def run_pull_image(
             verbose=verbose,
             dry_run=dry_run,
             check=False,
+            enabled_output_group=not parallel,
         )
         if command_result.returncode == 0:
             command_result = run_command(
@@ -156,7 +160,7 @@ def run_pull_image(
             return command_result.returncode, f"Image Python {image_params.python}"
 
 
-def tag_image_as_latest(image_params: _CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
+def tag_image_as_latest(image_params: CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
     if image_params.airflow_image_name_with_tag == image_params.airflow_image_name:
         get_console().print(
             f"[info]Skip tagging {image_params.airflow_image_name} as latest as it is already 'latest'[/]"
@@ -177,7 +181,7 @@ def tag_image_as_latest(image_params: _CommonBuildParams, dry_run: bool, verbose
 
 
 def run_pull_and_verify_image(
-    image_params: _CommonBuildParams,
+    image_params: CommonBuildParams,
     dry_run: bool,
     verbose: bool,
     wait_for_image: bool,
@@ -197,6 +201,7 @@ def run_pull_and_verify_image(
         image_type=image_params.image_type,
         dry_run=dry_run,
         verbose=verbose,
+        slim_image=False,
         extra_pytest_args=extra_pytest_args,
     )
 

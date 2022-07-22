@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
 
-CLOUD_SQL_CREATE_VALIDATION = [
+CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
     dict(name="name", allow_empty=False),
     dict(
         name="settings",
@@ -318,6 +318,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_create_template_fields]
+    ui_color = '#FADBDA'
     operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
@@ -421,6 +422,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_patch_template_fields]
+    ui_color = '#FBDAC8'
     operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
@@ -503,6 +505,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_delete_template_fields]
+    ui_color = '#FEECD2'
 
     def execute(self, context: 'Context') -> Optional[bool]:
         hook = CloudSQLHook(
@@ -553,6 +556,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_create_template_fields]
+    ui_color = '#FFFCDB'
     operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
@@ -660,6 +664,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_patch_template_fields]
+    ui_color = '#ECF4D9'
     operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
@@ -758,6 +763,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_delete_template_fields]
+    ui_color = '#D5EAD8'
 
     def __init__(
         self,
@@ -843,6 +849,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_export_template_fields]
+    ui_color = '#D4ECEA'
     operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
@@ -953,6 +960,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_import_template_fields]
+    ui_color = '#D3EDFB'
     operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
@@ -1041,6 +1049,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'sql': 'sql'}
     # [END gcp_sql_query_template_fields]
+    ui_color = '#D3DEF1'
 
     def __init__(
         self,

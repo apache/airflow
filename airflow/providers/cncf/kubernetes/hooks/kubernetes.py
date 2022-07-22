@@ -14,26 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 import tempfile
-from typing import Any, Dict, Generator, Optional, Tuple, Union
-
-from kubernetes.config import ConfigException
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+import warnings
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 from kubernetes import client, config, watch
+from kubernetes.config import ConfigException
 
-try:
-    import airflow.utils.yaml as yaml
-except ImportError:
-    import yaml  # type: ignore[no-redef]
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.utils import yaml
 
 
 def _load_body_to_dict(body):
@@ -63,6 +55,14 @@ class KubernetesHook(BaseHook):
 
     :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
+    :param client_configuration: Optional dictionary of client configuration params.
+        Passed on to kubernetes client.
+    :param cluster_context: Optionally specify a context to use (e.g. if you have multiple
+        in your kubeconfig.
+    :param config_file: Path to kubeconfig file.
+    :param in_cluster: Set to ``True`` if running from within a kubernetes cluster.
+    :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
+    :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
     """
 
     conn_name_attr = 'kubernetes_conn_id'
@@ -91,6 +91,8 @@ class KubernetesHook(BaseHook):
             "extra__kubernetes__cluster_context": StringField(
                 lazy_gettext('Cluster context'), widget=BS3TextFieldWidget()
             ),
+            "extra__kubernetes__disable_verify_ssl": BooleanField(lazy_gettext('Disable SSL')),
+            "extra__kubernetes__disable_tcp_keepalive": BooleanField(lazy_gettext('Disable TCP keepalive')),
         }
 
     @staticmethod
@@ -108,6 +110,8 @@ class KubernetesHook(BaseHook):
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
         in_cluster: Optional[bool] = None,
+        disable_verify_ssl: Optional[bool] = None,
+        disable_tcp_keepalive: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id
@@ -115,6 +119,18 @@ class KubernetesHook(BaseHook):
         self.cluster_context = cluster_context
         self.config_file = config_file
         self.in_cluster = in_cluster
+        self.disable_verify_ssl = disable_verify_ssl
+        self.disable_tcp_keepalive = disable_tcp_keepalive
+
+        self._is_in_cluster: Optional[bool] = None
+
+        # these params used for transition in KPO to K8s hook
+        # for a deprecation period we will continue to consider k8s settings from airflow.cfg
+        self._deprecated_core_disable_tcp_keepalive: Optional[bool] = None
+        self._deprecated_core_disable_verify_ssl: Optional[bool] = None
+        self._deprecated_core_in_cluster: Optional[bool] = None
+        self._deprecated_core_cluster_context: Optional[str] = None
+        self._deprecated_core_config_file: Optional[str] = None
 
     @staticmethod
     def _coalesce_param(*params):
@@ -122,23 +138,50 @@ class KubernetesHook(BaseHook):
             if param is not None:
                 return param
 
-    def get_conn(self) -> Any:
-        """Returns kubernetes api session for use with requests"""
+    @cached_property
+    def conn_extras(self):
         if self.conn_id:
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson
         else:
             extras = {}
+        return extras
+
+    def _get_field(self, field_name):
+        if field_name.startswith('extra_'):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
+                f"when using this method."
+            )
+        if field_name in self.conn_extras:
+            return self.conn_extras[field_name] or None
+        prefixed_name = f"extra__kubernetes__{field_name}"
+        return self.conn_extras.get(prefixed_name) or None
+
+    @staticmethod
+    def _deprecation_warning_core_param(deprecation_warnings):
+        settings_list_str = ''.join([f"\n\t{k}={v!r}" for k, v in deprecation_warnings])
+        warnings.warn(
+            f"\nApplying core Airflow settings from section [kubernetes] with the following keys:"
+            f"{settings_list_str}\n"
+            "In a future release, KubernetesPodOperator will no longer consider core\n"
+            "Airflow settings; define an Airflow connection instead.",
+            DeprecationWarning,
+        )
+
+    def get_conn(self) -> client.ApiClient:
+        """Returns kubernetes api session for use with requests"""
         in_cluster = self._coalesce_param(
-            self.in_cluster, extras.get("extra__kubernetes__in_cluster") or None
+            self.in_cluster, self.conn_extras.get("extra__kubernetes__in_cluster") or None
         )
         cluster_context = self._coalesce_param(
-            self.cluster_context, extras.get("extra__kubernetes__cluster_context") or None
+            self.cluster_context, self.conn_extras.get("extra__kubernetes__cluster_context") or None
         )
         kubeconfig_path = self._coalesce_param(
-            self.config_file, extras.get("extra__kubernetes__kube_config_path") or None
+            self.config_file, self.conn_extras.get("extra__kubernetes__kube_config_path") or None
         )
-        kubeconfig = extras.get("extra__kubernetes__kube_config") or None
+
+        kubeconfig = self.conn_extras.get("extra__kubernetes__kube_config") or None
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
@@ -147,13 +190,52 @@ class KubernetesHook(BaseHook):
                 "kube_config, in_cluster are mutually exclusive. "
                 "You can only use one option at a time."
             )
+
+        disable_verify_ssl = self._coalesce_param(
+            self.disable_verify_ssl, _get_bool(self._get_field("disable_verify_ssl"))
+        )
+        disable_tcp_keepalive = self._coalesce_param(
+            self.disable_tcp_keepalive, _get_bool(self._get_field("disable_tcp_keepalive"))
+        )
+
+        # BEGIN apply settings from core kubernetes configuration
+        # this section should be removed in next major release
+        deprecation_warnings: List[Tuple[str, Any]] = []
+        if disable_verify_ssl is None and self._deprecated_core_disable_verify_ssl is True:
+            deprecation_warnings.append(('verify_ssl', False))
+            disable_verify_ssl = self._deprecated_core_disable_verify_ssl
+        # by default, hook will try in_cluster first. so we only need to
+        # apply core airflow config and alert when False and in_cluster not otherwise set.
+        if in_cluster is None and self._deprecated_core_in_cluster is False:
+            deprecation_warnings.append(('in_cluster', self._deprecated_core_in_cluster))
+            in_cluster = self._deprecated_core_in_cluster
+        if not cluster_context and self._deprecated_core_cluster_context:
+            deprecation_warnings.append(('cluster_context', self._deprecated_core_cluster_context))
+            cluster_context = self._deprecated_core_cluster_context
+        if not kubeconfig_path and self._deprecated_core_config_file:
+            deprecation_warnings.append(('config_file', self._deprecated_core_config_file))
+            kubeconfig_path = self._deprecated_core_config_file
+        if disable_tcp_keepalive is None and self._deprecated_core_disable_tcp_keepalive is True:
+            deprecation_warnings.append(('enable_tcp_keepalive', False))
+            disable_tcp_keepalive = True
+        if deprecation_warnings:
+            self._deprecation_warning_core_param(deprecation_warnings)
+        # END apply settings from core kubernetes configuration
+
+        if disable_verify_ssl is True:
+            _disable_verify_ssl()
+        if disable_tcp_keepalive is not True:
+            _enable_tcp_keepalive()
+
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
+            self._is_in_cluster = True
             config.load_incluster_config()
             return client.ApiClient()
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
+            self._is_in_cluster = False
             config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
@@ -166,6 +248,7 @@ class KubernetesHook(BaseHook):
                 self.log.debug("loading kube_config from: connection kube_config")
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
+                self._is_in_cluster = False
                 config.load_kube_config(
                     config_file=temp_config.name,
                     client_configuration=self.client_configuration,
@@ -175,28 +258,40 @@ class KubernetesHook(BaseHook):
 
         return self._get_default_client(cluster_context=cluster_context)
 
-    def _get_default_client(self, *, cluster_context=None):
+    def _get_default_client(self, *, cluster_context: Optional[str] = None) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
         # in the default location
         try:
             config.load_incluster_config(client_configuration=self.client_configuration)
+            self._is_in_cluster = True
         except ConfigException:
             self.log.debug("loading kube_config from: default file")
+            self._is_in_cluster = False
             config.load_kube_config(
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
         return client.ApiClient()
 
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+        if self._is_in_cluster is not None:
+            return self._is_in_cluster
+        self.api_client  # so we can determine if we are in_cluster or not
+        if TYPE_CHECKING:
+            assert self._is_in_cluster is not None
+        return self._is_in_cluster
+
     @cached_property
-    def api_client(self) -> Any:
+    def api_client(self) -> client.ApiClient:
         """Cached Kubernetes API client"""
         return self.get_conn()
 
     @cached_property
-    def core_v1_client(self):
+    def core_v1_client(self) -> client.CoreV1Api:
         return client.CoreV1Api(api_client=self.api_client)
 
     def create_custom_object(
@@ -284,12 +379,11 @@ class KubernetesHook(BaseHook):
         :param container: container name
         :param namespace: kubernetes namespace
         """
-        api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
         return (
             watcher,
             watcher.stream(
-                api.read_namespaced_pod_log,
+                self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
                 namespace=namespace if namespace else self.get_namespace(),
@@ -309,10 +403,24 @@ class KubernetesHook(BaseHook):
         :param container: container name
         :param namespace: kubernetes namespace
         """
-        api = client.CoreV1Api(self.api_client)
-        return api.read_namespaced_pod_log(
+        return self.core_v1_client.read_namespaced_pod_log(
             name=pod_name,
             container=container,
             _preload_content=False,
             namespace=namespace if namespace else self.get_namespace(),
         )
+
+
+def _get_bool(val) -> Optional[bool]:
+    """
+    Converts val to bool if can be done with certainty.
+    If we cannot infer intention we return None.
+    """
+    if isinstance(val, bool):
+        return val
+    elif isinstance(val, str):
+        if val.strip().lower() == 'true':
+            return True
+        elif val.strip().lower() == 'false':
+            return False
+    return None

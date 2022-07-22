@@ -46,14 +46,10 @@ if TYPE_CHECKING:
 
 def _check_cli_args(args):
     if not args:
-        raise ValueError("Args should be set")
-    if not isinstance(args[0], Namespace):
-        raise ValueError(
-            f"1st positional argument should be argparse.Namespace instance, but is {type(args[0])}"
-        )
+        raise ValueError(f"Args should be set: {args} [{type(args)}]")
 
 
-def action_cli(func=None, check_db=True):
+def action_cli(func=None, check_db=True, check_cli_args=True):
     def action_logging(f: T) -> T:
         """
         Decorates function to execute function at the same time submitting action_logging
@@ -79,15 +75,14 @@ def action_cli(func=None, check_db=True):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             """
-            An wrapper for cli functions. It assumes to have Namespace instance
-            at 1st positional argument
+            An wrapper for cli functions.
 
-            :param args: Positional argument. It assumes to have Namespace instance
-                at 1st positional argument
+            :param args: Positional argument.
             :param kwargs: A passthrough keyword argument
             """
-            _check_cli_args(args)
-            metrics = _build_metrics(f.__name__, args[0])
+            if check_cli_args:
+                _check_cli_args(args)
+            metrics = _build_metrics(f.__name__, args, kwargs)
             cli_action_loggers.on_pre_execution(**metrics)
             try:
                 # Check and run migrations if necessary
@@ -111,15 +106,16 @@ def action_cli(func=None, check_db=True):
     return action_logging
 
 
-def _build_metrics(func_name, namespace):
+def _build_metrics(func_name, args, kwargs):
     """
     Builds metrics dict from function args
-    It assumes that function arguments is from airflow.bin.cli module's function
-    and has Namespace instance where it optionally contains "dag_id", "task_id",
-    and "execution_date".
+    If the first item in args is a Namespace instance, it assumes that it
+    optionally contains "dag_id", "task_id", and "execution_date".
 
     :param func_name: name of function
-    :param namespace: Namespace instance from argparse
+    :param args: Arguments from wrapped function, possibly including the Namespace instance from
+                 argparse as the first argument
+    :param kwargs: Keyword arguments from wrapped function
     :return: dict with metrics
     """
     from airflow.models import Log
@@ -146,11 +142,7 @@ def _build_metrics(func_name, namespace):
         'user': getuser(),
     }
 
-    if not isinstance(namespace, Namespace):
-        raise ValueError(
-            f"namespace argument should be argparse.Namespace instance, but is {type(namespace)}"
-        )
-    tmp_dic = vars(namespace)
+    tmp_dic = vars(args[0]) if (args and isinstance(args[0], Namespace)) else kwargs
     metrics['dag_id'] = tmp_dic.get('dag_id')
     metrics['task_id'] = tmp_dic.get('task_id')
     metrics['execution_date'] = tmp_dic.get('execution_date')
@@ -306,11 +298,13 @@ class ColorMode:
     AUTO = "auto"
 
 
-def should_use_colors(args) -> bool:
+def should_use_colors(args_or_color):
     """Processes arguments and decides whether to enable color in output"""
-    if args.color == ColorMode.ON:
+    # args.color is from argparse, Click CLI will pass in the color directly
+    color = args_or_color.color if hasattr(args_or_color, 'color') else args_or_color
+    if color == ColorMode.ON:
         return True
-    if args.color == ColorMode.OFF:
+    if color == ColorMode.OFF:
         return False
     return is_terminal_support_colors()
 
@@ -325,6 +319,33 @@ def suppress_logs_and_warning(f: T) -> T:
     def _wrapper(*args, **kwargs):
         _check_cli_args(args)
         if args[0].verbose:
+            f(*args, **kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                logging.disable(logging.CRITICAL)
+                try:
+                    f(*args, **kwargs)
+                finally:
+                    # logging output again depends on the effective
+                    # levels of individual loggers
+                    logging.disable(logging.NOTSET)
+
+    return cast(T, _wrapper)
+
+
+def suppress_logs_and_warning_click_compatible(f: T) -> T:
+    """
+    Click compatible version of suppress_logs_and_warning.
+    Place after click_verbose decorator.
+
+    Decorator to suppress logging and warning messages
+    in cli functions.
+    """
+
+    @functools.wraps(f)
+    def _wrapper(*args, **kwargs):
+        if kwargs.get("verbose"):
             f(*args, **kwargs)
         else:
             with warnings.catch_warnings():

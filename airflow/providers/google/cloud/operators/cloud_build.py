@@ -24,7 +24,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple, Union
 from urllib.parse import unquote, urlparse
 
-import yaml
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
@@ -32,6 +31,7 @@ from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoS
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
+from airflow.utils import yaml
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

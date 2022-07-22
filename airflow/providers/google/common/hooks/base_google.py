@@ -31,11 +31,14 @@ import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
+import requests
 import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
-from google.auth import _cloud_sdk
+from google.auth import _cloud_sdk, compute_engine
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
+from google.auth.exceptions import RefreshError
+from google.auth.transport import _http_client
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
@@ -190,6 +193,9 @@ class GoogleBaseHook(BaseHook):
             "extra__google_cloud_platform__key_secret_name": StringField(
                 lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
             ),
+            "extra__google_cloud_platform__key_secret_project_id": StringField(
+                lazy_gettext('Keyfile Secret Project Id (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
+            ),
             "extra__google_cloud_platform__num_retries": IntegerField(
                 lazy_gettext('Number of Retries'),
                 validators=[NumberRange(min=0)],
@@ -234,6 +240,7 @@ class GoogleBaseHook(BaseHook):
         except json.decoder.JSONDecodeError:
             raise AirflowException('Invalid key JSON.')
         key_secret_name: Optional[str] = self._get_field('key_secret_name', None)
+        key_secret_project_id: Optional[str] = self._get_field('key_secret_project_id', None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
@@ -241,6 +248,7 @@ class GoogleBaseHook(BaseHook):
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
             key_secret_name=key_secret_name,
+            key_secret_project_id=key_secret_project_id,
             scopes=self.scopes,
             delegate_to=self.delegate_to,
             target_principal=target_principal,
@@ -263,7 +271,12 @@ class GoogleBaseHook(BaseHook):
 
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials"""
-        return self._get_credentials().token
+        credentials = self._get_credentials()
+        auth_req = google.auth.transport.requests.Request()
+        # credentials.token is None
+        # Need to refresh credentials to populate the token
+        credentials.refresh(auth_req)
+        return credentials.token
 
     @functools.lru_cache(maxsize=None)
     def _get_credentials_email(self) -> str:
@@ -274,6 +287,17 @@ class GoogleBaseHook(BaseHook):
         If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
         """
         credentials = self._get_credentials()
+
+        if isinstance(credentials, compute_engine.Credentials):
+            try:
+                credentials.refresh(_http_client.Request())
+            except RefreshError as msg:
+                """
+                If the Compute Engine metadata service can't be reached in this case the instance has not
+                credentials.
+                """
+                self.log.debug(msg)
+
         service_account_email = getattr(credentials, 'service_account_email', None)
         if service_account_email:
             return service_account_email
@@ -562,3 +586,19 @@ class GoogleBaseHook(BaseHook):
         while done is False:
             _, done = downloader.next_chunk()
         file_handle.flush()
+
+    def test_connection(self):
+        """Test the Google cloud connectivity from UI"""
+        status, message = False, ''
+        try:
+            token = self._get_access_token()
+            url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"
+            response = requests.post(url)
+            if response.status_code == 200:
+                status = True
+                message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

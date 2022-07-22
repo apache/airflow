@@ -97,12 +97,14 @@ class TestSQLCheckOperatorDbHook:
             'database': 'database',
             'role': 'role',
             'schema': 'schema',
+            'log_sql': False,
         }
         assert self._operator._hook.conn_type == 'snowflake'
         assert self._operator._hook.warehouse == 'warehouse'
         assert self._operator._hook.database == 'database'
         assert self._operator._hook.role == 'role'
         assert self._operator._hook.schema == 'schema'
+        assert not self._operator._hook.log_sql
 
     def test_sql_operator_hook_params_biguery(self, mock_get_conn):
         mock_get_conn.return_value = Connection(

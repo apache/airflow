@@ -49,7 +49,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'scheduler',
     'triggerer',
     'kerberos',
-    'github_enterprise',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
@@ -61,18 +60,12 @@ DEFAULT_TEST_SECTIONS = [
     'core',
     'database',
     "logging",
-    'cli',
     'api',
-    'operators',
     'hive',
-    'webserver',
-    'email',
     'smtp',
     'celery',
     'scheduler',
     'elasticsearch',
-    'elasticsearch_configs',
-    'kubernetes',
 ]
 
 

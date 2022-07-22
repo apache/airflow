@@ -20,10 +20,14 @@
 const config = {
   verbose: true,
   transform: {
-    '^.+\\.jsx?$': 'babel-jest',
+    '^.+\\.[jt]sx?$': 'babel-jest',
   },
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['./jest-setup.js'],
+  moduleDirectories: ['node_modules'],
+  moduleNameMapper: { // Listing all aliases
+    '^src/(.*)$': '<rootDir>/static/js/$1',
+  },
 };
 
 module.exports = config;

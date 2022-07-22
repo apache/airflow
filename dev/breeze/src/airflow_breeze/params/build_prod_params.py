@@ -16,33 +16,34 @@
 # under the License.
 
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
-    AIRFLOW_SOURCES_WWW_FROM,
-    AIRFLOW_SOURCES_WWW_TO,
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
 
 
 @dataclass
-class BuildProdParams(_CommonBuildParams):
+class BuildProdParams(CommonBuildParams):
     """
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
     airflow_constraints_mode: str = "constraints"
+    default_constraints_branch: str = os.environ.get(
+        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    )
     airflow_constraints_reference: str = ""
-    airflow_is_in_context: bool = False
     cleanup_context: bool = False
     disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
@@ -70,10 +71,6 @@ class BuildProdParams(_CommonBuildParams):
         build_args = []
         build_args.extend(
             [
-                "--build-arg",
-                "AIRFLOW_SOURCES_WWW_FROM=empty",
-                "--build-arg",
-                "AIRFLOW_SOURCES_WWW_TO=/empty",
                 "--build-arg",
                 "AIRFLOW_SOURCES_FROM=empty",
                 "--build-arg",
@@ -156,10 +153,6 @@ class BuildProdParams(_CommonBuildParams):
                     "--build-arg",
                     f"AIRFLOW_SOURCES_TO={AIRFLOW_SOURCES_TO}",
                     "--build-arg",
-                    f"AIRFLOW_SOURCES_WWW_FROM={AIRFLOW_SOURCES_WWW_FROM}",
-                    "--build-arg",
-                    f"AIRFLOW_SOURCES_WWW_TO={AIRFLOW_SOURCES_WWW_TO}",
-                    "--build-arg",
                     f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
                     "--build-arg",
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
@@ -185,31 +178,19 @@ class BuildProdParams(_CommonBuildParams):
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
-        airflow_pre_cached_pip = 'true'
-        if not self.airflow_is_in_context or self.disable_airflow_repo_cache:
-            airflow_pre_cached_pip = 'false'
-        return airflow_pre_cached_pip
+        return 'false' if self.disable_airflow_repo_cache else 'true'
 
     @property
     def install_mssql_client(self) -> str:
-        install_mssql = 'true'
-        if self.disable_mssql_client_installation:
-            install_mssql = 'false'
-        return install_mssql
+        return 'false' if self.disable_mssql_client_installation else 'true'
 
     @property
     def install_mysql_client(self) -> str:
-        install_mysql = 'true'
-        if self.disable_mysql_client_installation:
-            install_mysql = 'false'
-        return install_mysql
+        return 'false' if self.disable_mysql_client_installation else 'true'
 
     @property
     def install_postgres_client(self) -> str:
-        install_postgres = 'true'
-        if self.disable_postgres_client_installation:
-            install_postgres = 'false'
-        return install_postgres
+        return 'false' if self.disable_postgres_client_installation else 'true'
 
     @property
     def docker_context_files(self) -> str:
@@ -232,7 +213,6 @@ class BuildProdParams(_CommonBuildParams):
             "airflow_image_date_created",
             "airflow_image_readme_url",
             "airflow_image_repository",
-            "airflow_is_in_context",
             "airflow_pre_cached_pip_packages",
             "airflow_version",
             "build_id",

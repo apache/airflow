@@ -20,6 +20,7 @@ import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
+from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
@@ -1200,3 +1201,49 @@ def test_topological_group_dep():
         ],
         task6,
     ]
+
+
+def test_add_to_sub_group():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")):
+        tg = TaskGroup("section")
+        task = EmptyOperator(task_id="task")
+        with pytest.raises(TaskAlreadyInTaskGroup) as ctx:
+            tg.add(task)
+
+    assert str(ctx.value) == "cannot add 'task' to 'section' (already in the DAG's root group)"
+
+
+def test_add_to_another_group():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")):
+        tg = TaskGroup("section_1")
+        with TaskGroup("section_2"):
+            task = EmptyOperator(task_id="task")
+        with pytest.raises(TaskAlreadyInTaskGroup) as ctx:
+            tg.add(task)
+
+    assert str(ctx.value) == "cannot add 'section_2.task' to 'section_1' (already in group 'section_2')"
+
+
+def test_task_group_edge_modifier_chain():
+    from airflow.models.baseoperator import chain
+    from airflow.utils.edgemodifier import Label
+
+    with DAG(dag_id="test", start_date=pendulum.DateTime(2022, 5, 20)) as dag:
+        start = EmptyOperator(task_id="sleep_3_seconds")
+
+        with TaskGroup(group_id="group1") as tg:
+            t1 = EmptyOperator(task_id="dummy1")
+            t2 = EmptyOperator(task_id="dummy2")
+
+        t3 = EmptyOperator(task_id="echo_done")
+
+    # The case we are testing for is when a Label is inside a list -- meaning that we do tg.set_upstream
+    # instead of label.set_downstream
+    chain(start, [Label("branch three")], tg, t3)
+
+    assert start.downstream_task_ids == {t1.node_id, t2.node_id}
+    assert t3.upstream_task_ids == {t1.node_id, t2.node_id}
+    assert tg.upstream_task_ids == set()
+    assert tg.downstream_task_ids == {t3.node_id}
+    # Check that we can perform a topological_sort
+    dag.topological_sort()

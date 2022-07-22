@@ -21,7 +21,7 @@ from typing import Any, Iterable, Optional, Tuple
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class DrillHook(DbApiHook):
@@ -69,7 +69,7 @@ class DrillHook(DbApiHook):
         host = conn_md.host
         if conn_md.port is not None:
             host += f':{conn_md.port}'
-        conn_type = 'drill' if not conn_md.conn_type else conn_md.conn_type
+        conn_type = conn_md.conn_type or 'drill'
         dialect_driver = conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')
         storage_plugin = conn_md.extra_dejson.get('storage_plugin', 'dfs')
         return f'{conn_type}://{host}/{storage_plugin}?dialect_driver={dialect_driver}'

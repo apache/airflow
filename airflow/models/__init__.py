@@ -25,6 +25,8 @@ from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning
+from airflow.models.dataset import Dataset
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ImportError
 from airflow.models.log import Log
@@ -52,10 +54,12 @@ __all__ = [
     "BaseOperatorLink",
     "Connection",
     "DagBag",
+    "DagWarning",
     "DagModel",
     "DagPickle",
     "DagRun",
     "DagTag",
+    "Dataset",
     "DbCallbackRequest",
     "ImportError",
     "Log",

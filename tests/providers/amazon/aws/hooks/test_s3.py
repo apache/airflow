@@ -491,7 +491,11 @@ class TestAwsS3Hook:
         s3_hook.download_file(key=key, bucket_name=bucket)
 
         s3_hook.get_key.assert_called_once_with(key, bucket)
-        s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
+        s3_obj.download_fileobj.assert_called_once_with(
+            mock_temp_file,
+            Config=s3_hook.transfer_config,
+            ExtraArgs=s3_hook.extra_args,
+        )
 
     def test_generate_presigned_url(self, s3_bucket):
         hook = S3Hook()
@@ -524,6 +528,53 @@ class TestAwsS3Hook:
             hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
             assert resource.get()['ContentLanguage'] == "value"
+
+    def test_that_extra_args_not_changed_between_calls(self, s3_bucket):
+        original = {
+            "Metadata": {"metakey": "metaval"},
+            "ACL": "private",
+            "ServerSideEncryption": "aws:kms",
+            "SSEKMSKeyId": "arn:aws:kms:region:acct-id:key/key-id",
+        }
+        s3_hook = S3Hook(aws_conn_id="s3_test", extra_args=original)
+        assert s3_hook.extra_args == original
+        assert s3_hook.extra_args is not original
+
+        dummy = mock.MagicMock()
+        s3_hook.check_for_key = Mock(return_value=False)
+        mock_upload_fileobj = s3_hook.conn.upload_fileobj = Mock(return_value=None)
+        mock_upload_file = s3_hook.conn.upload_file = Mock(return_value=None)
+
+        # First Call - load_file_obj.
+        s3_hook.load_file_obj(dummy, "mock_key", s3_bucket, encrypt=True, acl_policy="public-read")
+        first_call_extra_args = mock_upload_fileobj.call_args_list[0][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert first_call_extra_args is not s3_hook.extra_args
+
+        # Second Call - load_bytes.
+        s3_hook.load_string("dummy", "mock_key", s3_bucket, acl_policy="bucket-owner-full-control")
+        second_call_extra_args = mock_upload_fileobj.call_args_list[1][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert second_call_extra_args is not s3_hook.extra_args
+        assert second_call_extra_args != first_call_extra_args
+
+        # Third Call - load_string.
+        s3_hook.load_bytes(b"dummy", "mock_key", s3_bucket, encrypt=True)
+        third_call_extra_args = mock_upload_fileobj.call_args_list[2][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert third_call_extra_args is not s3_hook.extra_args
+        assert third_call_extra_args not in [first_call_extra_args, second_call_extra_args]
+
+        # Fourth Call - load_file.
+        s3_hook.load_file("/dummy.png", "mock_key", s3_bucket, encrypt=True, acl_policy="bucket-owner-read")
+        fourth_call_extra_args = mock_upload_file.call_args_list[0][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert fourth_call_extra_args is not s3_hook.extra_args
+        assert fourth_call_extra_args not in [
+            third_call_extra_args,
+            first_call_extra_args,
+            second_call_extra_args,
+        ]
 
     @mock_s3
     def test_get_bucket_tagging_no_tags_raises_error(self):

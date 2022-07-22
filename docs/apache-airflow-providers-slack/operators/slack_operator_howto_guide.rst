@@ -32,7 +32,7 @@ The example below demonstrates how to send files to a Slack channel by both spec
 directly providing file contents. Note that the ``slack_conn_id``, ``channel``, and ``initial_comment`` values
 for the operators are specified as ``default_args`` of the DAG.
 
-.. exampleinclude:: /../../airflow/providers/slack/example_dags/example_slack.py
+.. exampleinclude:: /../../tests/system/providers/slack/example_slack.py
     :language: python
     :start-after: [START slack_operator_howto_guide]
     :end-before: [END slack_operator_howto_guide]

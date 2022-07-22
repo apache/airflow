@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -33,19 +33,20 @@ sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
 MOUNTS_HEADER = (
     '        # START automatically generated volumes from '
-    'NECESSARY_HOST_VOLUMES in docker_command_utils.py'
+    'VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py'
 )
 MOUNTS_FOOTER = (
-    '        # END automatically generated volumes from ' 'NECESSARY_HOST_VOLUMES in docker_command_utils.py'
+    '        # END automatically generated volumes from '
+    'VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py'
 )
 
 if __name__ == '__main__':
-    from airflow_breeze.utils.docker_command_utils import NECESSARY_HOST_VOLUMES
+    from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
 
     local_mount_file_path = AIRFLOW_SOURCES_DIR / 'scripts' / 'ci' / 'docker-compose' / 'local.yml'
     PREFIX = '      '
     volumes = []
-    for (src, dest) in NECESSARY_HOST_VOLUMES:
+    for (src, dest) in VOLUMES_FOR_SELECTED_MOUNTS:
         volumes.extend(
             [
                 PREFIX + "- type: bind\n",

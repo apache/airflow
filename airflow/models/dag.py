@@ -39,6 +39,7 @@ from typing import (
     FrozenSet,
     Iterable,
     List,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -53,7 +54,7 @@ import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, not_, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
@@ -63,13 +64,14 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import AirflowDagInconsistent, AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -77,13 +79,13 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.typing_compat import Literal, RePatternType
+from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import exactly_one, validate_key
+from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks
@@ -92,6 +94,7 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from airflow.decorators import TaskDecoratorCollection
+    from airflow.models.dataset import Dataset
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -109,6 +112,8 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
+
+SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
 
 # Backward compatibility: If neither schedule_interval nor timetable is
@@ -181,6 +186,32 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
         query = query.filter(DR.external_trigger == expression.false())
     query = query.order_by(DR.execution_date.desc())
     return query.first()
+
+
+def get_dataset_triggered_next_run_info(dag_ids: List[str], *, session: Session) -> Dict[str, str]:
+    """
+    Given a list of dag_ids, get string representing how close any that are dataset triggered are
+    their next run, e.g. "1 of 2 datasets updated"
+    """
+    return {
+        x.dag_id: f"{x.ready} of {x.total} datasets updated"
+        for x in session.query(
+            DatasetDagRef.dag_id,
+            func.count().label("total"),
+            func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
+        )
+        .join(
+            DDRQ,
+            and_(
+                DDRQ.dataset_id == DatasetDagRef.dataset_id,
+                DDRQ.target_dag_id == DatasetDagRef.dag_id,
+            ),
+            isouter=True,
+        )
+        .group_by(DatasetDagRef.dag_id)
+        .filter(DatasetDagRef.dag_id.in_(dag_ids))
+        .all()
+    }
 
 
 @functools.total_ordering
@@ -279,6 +310,7 @@ class DAG(LoggingMixin):
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :param tags: List of tags to help filtering DAGs in the UI.
+    :param schedule_on: List of upstream datasets if for use in triggering DAG runs.
     """
 
     _comps = {
@@ -305,6 +337,8 @@ class DAG(LoggingMixin):
 
     parent_dag: Optional["DAG"] = None  # Gets set when DAGs are loaded
 
+    # NOTE: When updating arguments here, please also keep arguments in @dag()
+    # below in sync. (Search for 'def dag(' in this file.)
     def __init__(
         self,
         dag_id: str,
@@ -323,9 +357,7 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[
-            Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-        ] = None,
+        sla_miss_callback: Optional[SLAMissCallback] = None,
         default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
@@ -338,6 +370,7 @@ class DAG(LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
+        schedule_on: Optional[Sequence["Dataset"]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -415,17 +448,29 @@ class DAG(LoggingMixin):
         if 'end_date' in self.default_args:
             self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
-        # Calculate the DAG's timetable.
-        if timetable is None:
-            self.timetable = create_timetable(schedule_interval, self.timezone)
-            if isinstance(schedule_interval, ArgNotSet):
-                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
-            self.schedule_interval: ScheduleInterval = schedule_interval
-        elif isinstance(schedule_interval, ArgNotSet):
+        # sort out DAG's scheduling behavior
+        scheduling_args = [schedule_interval, timetable, schedule_on]
+        if not at_most_one(*scheduling_args):
+            raise ValueError(
+                "At most one allowed for args 'schedule_interval', 'timetable', and 'schedule_on'."
+            )
+
+        self.timetable: Timetable
+        self.schedule_interval: ScheduleInterval
+        self.schedule_on: Optional[List["Dataset"]] = list(schedule_on) if schedule_on else None
+        if schedule_on:
+            if not isinstance(schedule_on, Sequence):
+                raise ValueError("Param `schedule_on` must be Sequence[Dataset]")
+            self.timetable = DatasetTriggeredTimetable()
+            self.schedule_interval = self.timetable.summary
+        elif timetable:
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
-            raise TypeError("cannot specify both 'schedule_interval' and 'timetable'")
+            if isinstance(schedule_interval, ArgNotSet):
+                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
+            self.schedule_interval = schedule_interval
+            self.timetable = create_timetable(schedule_interval, self.timezone)
 
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
@@ -483,6 +528,47 @@ class DAG(LoggingMixin):
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
+
+    def _check_schedule_interval_matches_timetable(self) -> bool:
+        """Check ``schedule_interval`` and ``timetable`` match.
+
+        This is done as a part of the DAG validation done before it's bagged, to
+        guard against the DAG's ``timetable`` (or ``schedule_interval``) from
+        being changed after it's created, e.g.
+
+        .. code-block:: python
+
+            dag1 = DAG("d1", timetable=MyTimetable())
+            dag1.schedule_interval = "@once"
+
+            dag2 = DAG("d2", schedule_interval="@once")
+            dag2.timetable = MyTimetable()
+
+        Validation is done by creating a timetable and check its summary matches
+        ``schedule_interval``. The logic is not bullet-proof, especially if a
+        custom timetable does not provide a useful ``summary``. But this is the
+        best we can do.
+        """
+        if self.schedule_interval == self.timetable.summary:
+            return True
+        try:
+            timetable = create_timetable(self.schedule_interval, self.timezone)
+        except ValueError:
+            return False
+        return timetable.summary == self.timetable.summary
+
+    def validate(self):
+        """Validate the DAG has a coherent setup.
+
+        This is called by the DAG bag before bagging the DAG.
+        """
+        if not self._check_schedule_interval_matches_timetable():
+            raise AirflowDagInconsistent(
+                f"inconsistent schedule: timetable {self.timetable.summary!r} "
+                f"does not match schedule_interval {self.schedule_interval!r}",
+            )
+        self.params.validate()
+        self.timetable.validate()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1957,7 +2043,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: Union[str, RePatternType, Iterable[str]],
+        task_ids_or_regex: Union[str, re.Pattern, Iterable[str]],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -1976,7 +2062,6 @@ class DAG(LoggingMixin):
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
 
@@ -1985,7 +2070,7 @@ class DAG(LoggingMixin):
         memo = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, RePatternType)):
+        if isinstance(task_ids_or_regex, (str, re.Pattern)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
@@ -2378,6 +2463,7 @@ class DAG(LoggingMixin):
 
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
+
         dag_ids = set(dag_by_ids.keys())
         query = (
             session.query(DagModel)
@@ -2438,10 +2524,10 @@ class DAG(LoggingMixin):
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
-            orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
+            orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
@@ -2468,6 +2554,65 @@ class DAG(LoggingMixin):
                     session.add(dag_tag_orm)
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
+
+        from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
+
+        class OutletRef(NamedTuple):
+            dag_id: str
+            task_id: str
+            uri: str
+
+        class InletRef(NamedTuple):
+            dag_id: str
+            uri: str
+
+        dag_references = set()
+        outlet_references = set()
+        outlet_datasets = set()
+        input_datasets = set()
+        for dag in dags:
+            for dataset in dag.schedule_on or []:
+                dag_references.add(InletRef(dag.dag_id, dataset.uri))
+                input_datasets.add(dataset)
+            for task in dag.tasks:
+                for obj in getattr(task, '_outlets', []):  # type: Dataset
+                    if isinstance(obj, Dataset):
+                        outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
+                        outlet_datasets.add(obj)
+        all_datasets = outlet_datasets.union(input_datasets)
+
+        # store datasets
+        stored_datasets = {}
+        for dataset in all_datasets:
+            stored_dataset = session.query(Dataset).filter(Dataset.uri == dataset.uri).first()
+            if stored_dataset:
+                stored_datasets[stored_dataset.uri] = stored_dataset
+            else:
+                session.add(dataset)
+                stored_datasets[dataset.uri] = dataset
+
+        session.flush()  # this is required to ensure each dataset has its PK loaded
+
+        del all_datasets
+
+        # store dag-schedule-on-dataset references
+        for dag_ref in dag_references:
+            session.merge(
+                DatasetDagRef(
+                    dataset_id=stored_datasets[dag_ref.uri].id,
+                    dag_id=dag_ref.dag_id,
+                )
+            )
+
+        # store task-outlet-dataset references
+        for outlet_ref in outlet_references:
+            session.merge(
+                DatasetTaskRef(
+                    dataset_id=stored_datasets[outlet_ref.uri].id,
+                    dag_id=outlet_ref.dag_id,
+                    task_id=outlet_ref.task_id,
+                )
+            )
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
@@ -2691,7 +2836,6 @@ class DagModel(Base):
     schedule_interval = Column(Interval)
     # Timetable/Schedule Interval description
     timetable_description = Column(String(1000), nullable=True)
-
     # Tags for view filter
     tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
 
@@ -2699,7 +2843,7 @@ class DagModel(Base):
     max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
-    has_import_errors = Column(Boolean(), default=False)
+    has_import_errors = Column(Boolean(), default=False, server_default='0')
 
     # The logical date of the next dag run.
     next_dagrun = Column(UtcDateTime)
@@ -2940,8 +3084,47 @@ class DagModel(Base):
             self.next_dagrun_create_after,
         )
 
+    @provide_session
+    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> Optional[str]:
+        if self.schedule_interval != "Dataset":
+            return None
+        return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
 
-def dag(*dag_args, **dag_kwargs):
+
+# NOTE: Please keep the list of arguments in sync with DAG.__init__.
+# Only exception: dag_id here should have a default value, but not in DAG.
+def dag(
+    dag_id: str = "",
+    description: Optional[str] = None,
+    schedule_interval: ScheduleIntervalArg = NOTSET,
+    timetable: Optional[Timetable] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    full_filepath: Optional[str] = None,
+    template_searchpath: Optional[Union[str, Iterable[str]]] = None,
+    template_undefined: Type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
+    user_defined_macros: Optional[Dict] = None,
+    user_defined_filters: Optional[Dict] = None,
+    default_args: Optional[Dict] = None,
+    concurrency: Optional[int] = None,
+    max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
+    max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
+    dagrun_timeout: Optional[timedelta] = None,
+    sla_miss_callback: Optional[SLAMissCallback] = None,
+    default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
+    orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
+    catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
+    on_success_callback: Optional[DagStateChangeCallback] = None,
+    on_failure_callback: Optional[DagStateChangeCallback] = None,
+    doc_md: Optional[str] = None,
+    params: Optional[Dict] = None,
+    access_control: Optional[Dict] = None,
+    is_paused_upon_creation: Optional[bool] = None,
+    jinja_environment_kwargs: Optional[Dict] = None,
+    render_template_as_native_obj: bool = False,
+    tags: Optional[List[str]] = None,
+    schedule_on: Optional[Sequence["Dataset"]] = None,
+) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
     Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
@@ -2950,11 +3133,7 @@ def dag(*dag_args, **dag_kwargs):
     :param dag_kwargs: Kwargs for DAG object.
     """
 
-    def wrapper(f: Callable):
-        # Get dag initializer signature and bind it to validate that dag_args, and dag_kwargs are correct
-        dag_sig = signature(DAG.__init__)
-        dag_bound_args = dag_sig.bind_partial(*dag_args, **dag_kwargs)
-
+    def wrapper(f: Callable) -> Callable[..., DAG]:
         @functools.wraps(f)
         def factory(*args, **kwargs):
             # Generate signature for decorated function and bind the arguments when called
@@ -2964,12 +3143,39 @@ def dag(*dag_args, **dag_kwargs):
             # Apply defaults to capture default values if set.
             f_sig.apply_defaults()
 
-            # Set function name as dag_id if not set
-            dag_id = dag_bound_args.arguments.get('dag_id', f.__name__)
-            dag_bound_args.arguments['dag_id'] = dag_id
-
             # Initialize DAG with bound arguments
-            with DAG(*dag_bound_args.args, **dag_bound_args.kwargs) as dag_obj:
+            with DAG(
+                dag_id or f.__name__,
+                description=description,
+                schedule_interval=schedule_interval,
+                timetable=timetable,
+                start_date=start_date,
+                end_date=end_date,
+                full_filepath=full_filepath,
+                template_searchpath=template_searchpath,
+                template_undefined=template_undefined,
+                user_defined_macros=user_defined_macros,
+                user_defined_filters=user_defined_filters,
+                default_args=default_args,
+                concurrency=concurrency,
+                max_active_tasks=max_active_tasks,
+                max_active_runs=max_active_runs,
+                dagrun_timeout=dagrun_timeout,
+                sla_miss_callback=sla_miss_callback,
+                default_view=default_view,
+                orientation=orientation,
+                catchup=catchup,
+                on_success_callback=on_success_callback,
+                on_failure_callback=on_failure_callback,
+                doc_md=doc_md,
+                params=params,
+                access_control=access_control,
+                is_paused_upon_creation=is_paused_upon_creation,
+                jinja_environment_kwargs=jinja_environment_kwargs,
+                render_template_as_native_obj=render_template_as_native_obj,
+                tags=tags,
+                schedule_on=schedule_on,
+            ) as dag_obj:
                 # Set DAG documentation from function documentation.
                 if f.__doc__:
                     dag_obj.doc_md = f.__doc__

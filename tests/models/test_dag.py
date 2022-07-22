@@ -30,6 +30,7 @@ from tempfile import NamedTemporaryFile
 from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import jinja2
 import pendulum
@@ -45,7 +46,8 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import dag as dag_decorator
+from airflow.models.dag import dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -64,7 +66,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
@@ -820,6 +822,43 @@ class TestDag(unittest.TestCase):
         # assert that has_import_error is now false
         assert not model.has_import_errors
         session.close()
+
+    def test_bulk_write_to_db_datasets_schedule_on(self):
+        """
+        Ensure that datasets referenced in a dag are correctly loaded into the database.
+        """
+        # todo: clear db
+        dag_id1 = 'test_dataset_dag1'
+        dag_id2 = 'test_dataset_dag2'
+        task_id = 'test_dataset_task'
+        uri1 = 's3://dataset1'
+        d1 = Dataset(uri1, extra={"not": "used"})
+        d2 = Dataset('s3://dataset2')
+        d3 = Dataset('s3://dataset3')
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule_on=[d1])
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
+        session = settings.Session()
+        dag1.clear()
+        DAG.bulk_write_to_db([dag1, dag2], session)
+        session.commit()
+        stored_datasets = {x.uri: x for x in session.query(Dataset).all()}
+        d1 = stored_datasets[d1.uri]
+        d2 = stored_datasets[d2.uri]
+        d3 = stored_datasets[d3.uri]
+        assert stored_datasets[uri1].extra == {"should": "be used"}
+        assert [x.dag_id for x in d1.dag_references] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in d1.task_references] == [(task_id, dag_id2)]
+        assert set(
+            session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id)
+            .filter(DatasetTaskRef.dag_id.in_((dag_id1, dag_id2)))
+            .all()
+        ) == {
+            (task_id, dag_id1, d2.id),
+            (task_id, dag_id1, d3.id),
+            (task_id, dag_id2, d1.id),
+        }
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -2243,6 +2282,32 @@ class TestDagDecorator:
         assert dag.params['value'] == value
 
 
+@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
+def test_dag_timetable_match_schedule_interval(timetable):
+    dag = DAG("my-dag", timetable=timetable)
+    assert dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
+def test_dag_schedule_interval_match_timetable(schedule_interval):
+    dag = DAG("my-dag", schedule_interval=schedule_interval)
+    assert dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("schedule_interval", [None, "@daily", timedelta(days=1)])
+def test_dag_schedule_interval_change_after_init(schedule_interval):
+    dag = DAG("my-dag", timetable=OnceTimetable())
+    dag.schedule_interval = schedule_interval
+    assert not dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
+def test_dag_timetable_change_after_init(timetable):
+    dag = DAG("my-dag")  # Default is timedelta(days=1).
+    dag.timetable = timetable
+    assert not dag._check_schedule_interval_matches_timetable()
+
+
 @pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
 def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
@@ -2518,3 +2583,39 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
         EmptyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
 
     assert dag._time_restriction == restrict
+
+
+@pytest.fixture()
+def reset_dataset():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
+
+
+def test_get_dataset_triggered_next_run_info(session, reset_dataset):
+    unique_id = str(uuid4())
+    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
+    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
+    dataset3 = Dataset(uri=f"s3://{unique_id}-3")
+    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
+    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
+
+    session.commit()
+    session.bulk_save_objects(
+        [
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
+        ]
+    )
+    session.commit()
+    session.expunge_all()
+
+    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    assert "0 of 1 datasets updated" == info[dag1.dag_id]
+
+    # This time, check both dag2 and dag3 at the same time (tests filtering)
+    info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
+    assert "1 of 2 datasets updated" == info[dag2.dag_id]
+    assert "1 of 3 datasets updated" == info[dag3.dag_id]
