@@ -121,6 +121,7 @@ const DagRunBar = ({
             zIndex={1}
             data-testid="run"
           >
+            {/* Scheduled is the default, hence no icon */}
             {runType !== 'scheduled' && (
               <RunTypeIcon
                 runType={runType}
