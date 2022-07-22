@@ -128,11 +128,17 @@ class PrStat:
     def num_deletions(self) -> int:
         return self.pull_request.deletions
 
-    @cached_property
+    @property
     def change_score(self) -> int:
         lineactions = self.num_additions + self.num_deletions
-        return lineactions / self.num_changed_files
-
+        actionsperfile = lineactions / self.num_changed_files
+        if self.num_changed_files > 10:
+            if actionsperfile > 20:
+                return 1.2
+            if actionsperfile < 5:
+                return 0.7
+        return 1
+        
     @cached_property
     def comment_length(self) -> int:
         length = 0
@@ -162,15 +168,19 @@ class PrStat:
     @property
     def score(self):
         #
+        # Current principles:
+        #
         # Provider and dev-tools PRs should be considered, but should matter 20% less.
         #
         # A review is worth twice as much as a comment, and a comment is worth twice as much as a reaction.
         #
-        # If a PR changed more than 20 files, it is likely to be a refactor and it should matter 30% less.
+        # If a PR changed more than 20 files, it should matter less the more files there are.
+        #
+        # If the avg # of changed lines per file is less than 5 and there are > 10 files, it should matter 30% less.
+        # If the avg # of changed lines per file is more than 20 and there are > 10 files, it should matter 20% more.
         #
         # If there are over 3000 characters worth of comments, the PR should matter 30% more.
         # If there are fewer than 200 characters worth of comments, the PR should matter 20% less.
-        #
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
@@ -179,6 +189,7 @@ class PrStat:
             * self.interaction_score
             * self.label_score
             * self.length_score
+            * self.change_score
             / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0)
         )
 
