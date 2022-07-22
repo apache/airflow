@@ -397,7 +397,7 @@ class TestElasticsearchTaskHandler:
             # have the log uploaded but will not be stored in elasticsearch.
             # so apply the strip() to log_file.read()
             log_line = log_file.read().strip()
-            assert self.end_of_log_mark.strip() == log_line
+            assert log_line.endswith(self.end_of_log_mark.strip())
         assert self.es_task_handler.closed
 
     def test_close_no_mark_end(self, ti):
@@ -518,7 +518,7 @@ class TestElasticsearchTaskHandler:
         ti._log = logger
         handler.set_context(ti)
 
-        t1 = pendulum.naive(year=2017, month=1, day=1, hour=1, minute=1, second=15)
+        t1 = pendulum.local(year=2017, month=1, day=1, hour=1, minute=1, second=15)
         t2, t3 = t1 + pendulum.duration(seconds=5), t1 + pendulum.duration(seconds=10)
 
         # act
@@ -532,6 +532,6 @@ class TestElasticsearchTaskHandler:
         # assert
         first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
         assert first_log['offset'] < second_log['offset'] < third_log['offset']
-        assert first_log['asctime'] == t1.format("YYYY-MM-DD HH:mm:ss,SSS")
-        assert second_log['asctime'] == t2.format("YYYY-MM-DD HH:mm:ss,SSS")
-        assert third_log['asctime'] == t3.format("YYYY-MM-DD HH:mm:ss,SSS")
+        assert first_log['asctime'] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
+        assert second_log['asctime'] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
+        assert third_log['asctime'] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
