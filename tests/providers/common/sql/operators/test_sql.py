@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pandas as pd
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -24,6 +25,9 @@ from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, S
 
 class MockHook:
     def get_first(self):
+        return
+
+    def get_pandas_df(self):
         return
 
 
@@ -95,20 +99,32 @@ class TestTableCheckOperator:
         "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
     }
 
-    def _construct_operator(self, monkeypatch, checks, return_vals):
-        def get_first_return(*arg):
-            return return_vals
+    def _construct_operator(self, monkeypatch, checks, return_df):
+        def get_pandas_df_return(*arg):
+            return return_df
 
         operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
-        monkeypatch.setattr(MockHook, "get_first", get_first_return)
+        monkeypatch.setattr(MockHook, "get_pandas_df", get_pandas_df_return)
         return operator
 
     def test_pass_all_checks_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.checks, ('1', 'y', 'true'))
+        df = pd.DataFrame(
+            data={
+                "check_name": ["row_count_check", "column_sum_check"],
+                "check_result": [
+                    "1",
+                    "y",
+                ],
+            }
+        )
+        operator = self._construct_operator(monkeypatch, self.checks, df)
         operator.execute()
 
     def test_fail_all_checks_check(self, monkeypatch):
-        operator = self._construct_operator(monkeypatch, self.checks, ('0', 'n', 'false'))
+        df = pd.DataFrame(
+            data={"check_name": ["row_count_check", "column_sum_check"], "check_result": ["0", "n"]}
+        )
+        operator = self._construct_operator(monkeypatch, self.checks, df)
         with pytest.raises(AirflowException):
             operator.execute()
