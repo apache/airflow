@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -55,7 +55,7 @@ class RedshiftSQLOperator(BaseOperator):
         *,
         sql: Union[str, Iterable[str]],
         redshift_conn_id: str = 'redshift_default',
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = True,
         **kwargs,
     ) -> None:

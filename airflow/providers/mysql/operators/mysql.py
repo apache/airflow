@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -59,9 +59,9 @@ class MySqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: Union[str, Iterable[str]],
         mysql_conn_id: str = 'mysql_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = False,
         database: Optional[str] = None,
         **kwargs,

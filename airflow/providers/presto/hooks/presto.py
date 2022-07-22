@@ -18,7 +18,7 @@
 import json
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional, overload
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union, overload
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -142,10 +142,6 @@ class PrestoHook(DbApiHook):
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
-    @staticmethod
-    def _strip_sql(sql: str) -> str:
-        return sql.strip().rstrip(';')
-
     @overload
     def get_records(self, sql: str = "", parameters: Optional[dict] = None):
         """Get a set of records from Presto
@@ -169,7 +165,7 @@ class PrestoHook(DbApiHook):
             sql = hql
 
         try:
-            return super().get_records(self._strip_sql(sql), parameters)
+            return super().get_records(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
@@ -196,7 +192,7 @@ class PrestoHook(DbApiHook):
             sql = hql
 
         try:
-            return super().get_first(self._strip_sql(sql), parameters)
+            return super().get_first(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
@@ -226,7 +222,7 @@ class PrestoHook(DbApiHook):
 
         cursor = self.get_cursor()
         try:
-            cursor.execute(self._strip_sql(sql), parameters)
+            cursor.execute(self.strip_sql_string(sql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             raise PrestoException(e)
@@ -241,32 +237,38 @@ class PrestoHook(DbApiHook):
     @overload
     def run(
         self,
-        sql: str = "",
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
-    ) -> None:
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> Optional[Union[Any, List[Any]]]:
         """Execute the statement against Presto. Can be used to create views."""
 
     @overload
     def run(
         self,
-        sql: str = "",
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
+        return_last: bool = True,
         hql: str = "",
-    ) -> None:
+    ) -> Optional[Union[Any, List[Any]]]:
         """:sphinx-autoapi-skip:"""
 
     def run(
         self,
-        sql: str = "",
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
+        return_last: bool = True,
         hql: str = "",
-    ) -> None:
+    ) -> Optional[Union[Any, List[Any]]]:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -276,7 +278,14 @@ class PrestoHook(DbApiHook):
             )
             sql = hql
 
-        return super().run(sql=self._strip_sql(sql), parameters=parameters, handler=handler)
+        return super().run(
+            sql=sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=split_statements,
+            return_last=return_last,
+        )
 
     def insert_rows(
         self,

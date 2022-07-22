@@ -16,7 +16,7 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -140,7 +140,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
         copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
 
-        sql: Union[list, str]
+        sql: Union[str, Iterable[str]]
 
         if self.method == 'REPLACE':
             sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]

@@ -17,8 +17,6 @@
 # under the License.
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
-import sqlparse
-
 from airflow.models import BaseOperator
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
@@ -52,7 +50,7 @@ class DrillOperator(BaseOperator):
         *,
         sql: str,
         drill_conn_id: str = 'drill_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -64,6 +62,4 @@ class DrillOperator(BaseOperator):
     def execute(self, context: 'Context'):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)
         self.hook = DrillHook(drill_conn_id=self.drill_conn_id)
-        sql = sqlparse.split(sqlparse.format(self.sql, strip_comments=True))
-        no_term_sql = [s[:-1] for s in sql if s[-1] == ';']
-        self.hook.run(no_term_sql, parameters=self.parameters)
+        self.hook.run(self.sql, parameters=self.parameters, split_statements=True)

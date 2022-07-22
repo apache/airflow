@@ -20,12 +20,13 @@
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
@@ -71,11 +72,11 @@ class DatabricksSqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: Union[str, Iterable[str]],
         databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
         http_path: Optional[str] = None,
         sql_endpoint_name: Optional[str] = None,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         session_configuration=None,
         http_headers: Optional[List[Tuple[str, str]]] = None,
         catalog: Optional[str] = None,
@@ -147,10 +148,11 @@ class DatabricksSqlOperator(BaseOperator):
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: 'Context'):
         self.log.info('Executing: %s', self.sql)
         hook = self._get_hook()
-        schema, results = hook.run(self.sql, parameters=self.parameters)
+        response = hook.run(self.sql, parameters=self.parameters, handler=fetch_all_handler)
+        schema, results = cast(List[Tuple[Any, Any]], response)[0]
         # self.log.info('Schema: %s', schema)
         # self.log.info('Results: %s', results)
         self._format_output(schema, results)

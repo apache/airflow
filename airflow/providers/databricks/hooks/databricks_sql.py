@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
 from contextlib import closing
 from copy import copy
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
@@ -139,19 +138,15 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
-    @staticmethod
-    def maybe_split_sql_string(sql: str) -> List[str]:
-        """
-        Splits strings consisting of multiple SQL expressions into an
-        TODO: do we need something more sophisticated?
-
-        :param sql: SQL string potentially consisting of multiple expressions
-        :return: list of individual expressions
-        """
-        splits = [s.strip() for s in re.split(";\\s*\r?\n", sql) if s.strip() != ""]
-        return splits
-
-    def run(self, sql: Union[str, List[str]], autocommit=True, parameters=None, handler=None):
+    def run(
+        self,
+        sql: Union[str, Iterable[str]],
+        autocommit: bool = False,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
+        handler: Optional[Callable] = None,
+        split_statements: bool = True,
+        return_last: bool = True,
+    ) -> Optional[Union[Tuple[str, Any], List[Tuple[str, Any]]]]:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -163,41 +158,44 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
-        :return: query results.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
+        :param return_last: Whether to return result for only last statement or for all after split
+        :return: return only result of the LAST SQL expression if handler was provided.
         """
+        scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
-            sql = self.maybe_split_sql_string(sql)
+            if split_statements:
+                sql = self.split_sql_string(sql)
+            else:
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
-            self.log.debug("Executing %d statements", len(sql))
+            self.log.debug("Executing following statements against Databricks DB: %s", list(sql))
         else:
             raise ValueError("List of SQL statements is empty")
 
-        conn = None
+        results = []
         for sql_statement in sql:
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
-            conn = self.get_conn()
-            with closing(conn.cursor()) as cur:
-                self.log.info("Executing statement: '%s', parameters: '%s'", sql_statement, parameters)
-                if parameters:
-                    cur.execute(sql_statement, parameters)
-                else:
-                    cur.execute(sql_statement)
-                schema = cur.description
-                results = []
-                if handler is not None:
-                    cur = handler(cur)
-                for row in cur:
-                    self.log.debug("Statement results: %s", row)
-                    results.append(row)
+            with closing(self.get_conn()) as conn:
+                self.set_autocommit(conn, autocommit)
 
-                self.log.info("Rows affected: %s", cur.rowcount)
-        if conn:
-            conn.close()
+                with closing(conn.cursor()) as cur:
+                    self._run_command(cur, sql_statement, parameters)
+
+                    if handler is not None:
+                        result = handler(cur)
+                        schema = cur.description
+                        results.append((schema, result))
+
             self._sql_conn = None
 
-        # Return only result of the last SQL expression
-        return schema, results
+        if handler is None:
+            return None
+        elif scalar_return_last:
+            return results[-1]
+        else:
+            return results
 
     def test_connection(self):
         """Test the Databricks SQL connection by running a simple query."""

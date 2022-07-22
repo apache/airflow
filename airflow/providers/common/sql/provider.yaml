@@ -24,7 +24,8 @@ description: |
 versions:
   - 1.0.0
 
-dependencies: []
+dependencies:
+  - sqlparse>=0.4.2
 
 additional-extras:
   - name: pandas
