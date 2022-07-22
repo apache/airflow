@@ -103,6 +103,7 @@ log = logging.getLogger(__name__)
 DEFAULT_VIEW_PRESETS = ['grid', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
+TAG_MAX_LEN = 100
 
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = Union[None, str, timedelta, relativedelta]
@@ -347,7 +348,7 @@ class DAG(LoggingMixin):
     ):
         from airflow.utils.task_group import TaskGroup
 
-        if tags and any(len(tag) > 100 for tag in tags):
+        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise AirflowException("tag cannot be longer than 100 characters")
 
         self.user_defined_macros = user_defined_macros
@@ -2758,7 +2759,7 @@ class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
 
     __tablename__ = "dag_tag"
-    name = Column(String(100), primary_key=True)
+    name = Column(String(TAG_MAX_LEN), primary_key=True)
     dag_id = Column(
         String(ID_LEN),
         ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey', ondelete='CASCADE'),
