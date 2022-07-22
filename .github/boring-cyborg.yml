@@ -39,6 +39,11 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
+  provider:Databricks:
+    - airflow/providers/databricks/**/*
+    - docs/apache-airflow-providers-databricks/**/*
+    - tests/providers/databricks/**/*
+
   provider:Snowflake:
     - airflow/providers/snowflake/**/*
     - docs/apache-airflow-providers-snowflake/**/*
