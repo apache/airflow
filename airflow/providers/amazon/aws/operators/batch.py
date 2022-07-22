@@ -115,7 +115,7 @@ class BatchOperator(BaseOperator):
     def operator_extra_links(self):
         op_extra_links = [BatchJobDetailsLink()]
         if self.wait_for_completion:
-            op_extra_links.extend(BatchJobDefinitionLink(), BatchJobQueueLink())
+            op_extra_links.extend([BatchJobDefinitionLink(), BatchJobQueueLink()])
         if not self.array_properties:
             # There is no CloudWatch Link to the parent Batch Job available.
             op_extra_links.append(CloudWatchEventsLink())
