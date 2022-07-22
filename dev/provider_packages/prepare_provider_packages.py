@@ -710,10 +710,16 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
         fetch_command.append("--unshallow")
     if verbose:
         console.print(f"Running command: '{' '.join(fetch_command)}'")
-    subprocess.check_call(
-        fetch_command,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        subprocess.check_call(
+            fetch_command,
+        )
+    except subprocess.CalledProcessError as e:
+        console.print(
+            '[yellow]Error when fetching tags from remote. Your tags might not be refreshed. '
+            f'Please refresh the tags manually via {" ".join(fetch_command)}\n'
+        )
+        console.print(f'[yellow]The error was: {e}')
 
 
 def get_git_log_command(
