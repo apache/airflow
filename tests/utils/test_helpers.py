@@ -28,6 +28,7 @@ from airflow.utils.helpers import (
     exactly_one,
     merge_dicts,
     prune_dict,
+    resolve_property_value,
     validate_group_key,
     validate_key,
 )
@@ -321,3 +322,28 @@ class TestHelpers:
         d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
         d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
         assert prune_dict(d2, mode=mode) == expected
+
+    def test_resolve_property_value_property(self):
+        class MockClass:
+            @property
+            def mock_property(self):
+                return "mock-property-value"
+
+        assert isinstance(MockClass.mock_property, property)
+        assert MockClass.mock_property != "mock-property-value"
+        assert resolve_property_value(MockClass, MockClass.mock_property) == "mock-property-value"
+        mock_class_instance = MockClass()
+        assert (
+            resolve_property_value(mock_class_instance, mock_class_instance.mock_property)
+            == "mock-property-value"
+        )
+
+    def test_resolve_property_value_attr(self):
+        class MockClass:
+            mock_attr = "mock-attr-value"
+
+        assert not isinstance(MockClass.mock_attr, property)
+        assert MockClass.mock_attr == "mock-attr-value"
+        assert resolve_property_value(MockClass, MockClass.mock_attr) == "mock-attr-value"
+        mock_class_instance = MockClass()
+        assert resolve_property_value(mock_class_instance, mock_class_instance.mock_attr) == "mock-attr-value"

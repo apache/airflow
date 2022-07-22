@@ -52,7 +52,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
-from tests.test_utils.mock_operators import CustomOperator, GoogleLink, MockOperator
+from tests.test_utils.mock_operators import CustomOperator, Dummy4TestOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 executor_config_pod = k8s.V1Pod(
@@ -2060,3 +2060,39 @@ def test_dummy_operator_serde(is_inherit):
         'template_fields': [],
         'template_fields_renderers': {},
     }
+
+
+def test_operator_partial_property_links_serde():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)):
+        mapped = Dummy4TestOperator.partial(task_id='mapped_task').expand(arg1=[1, 2, 3])
+
+    serialized = SerializedBaseOperator._serialize(mapped)
+
+    assert serialized == {
+        '_is_empty': False,
+        '_is_mapped': True,
+        '_task_module': 'tests.test_utils.mock_operators',
+        '_task_type': 'Dummy4TestOperator',
+        '_operator_extra_links': [{'tests.test_utils.mock_operators.AirflowLink': {}}],
+        'downstream_task_ids': [],
+        'expand_input': {
+            "type": "dict-of-lists",
+            "value": {
+                "__type": "dict",
+                "__var": {'arg1': [1, 2, 3]},
+            },
+        },
+        'partial_kwargs': {},
+        'task_id': 'mapped_task',
+        'template_fields': [],
+        'template_ext': [],
+        'template_fields_renderers': {},
+        'operator_extra_links': ['AirflowLink()'],
+        'ui_color': '#fff',
+        'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": False,
+        '_expand_input_attr': 'expand_input',
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.deps_for(BaseOperator)

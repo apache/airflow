@@ -376,3 +376,16 @@ def prune_dict(val: Any, mode='strict'):
         return new_list
     else:
         return val
+
+
+def resolve_property_value(obj, prop):
+    """Return class property value.
+
+    :param obj: Reference to class.
+    :param prop: Reference to class property.
+    :returns: If ``prop`` property than return property value,
+        otherwise it returns class attribute value.
+    """
+    if isinstance(prop, property):
+        return prop.fget(obj)
+    return prop

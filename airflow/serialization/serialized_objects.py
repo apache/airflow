@@ -54,6 +54,7 @@ from airflow.settings import json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
+from airflow.utils.helpers import resolve_property_value
 from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
@@ -349,6 +350,8 @@ class BaseSerialization:
         (3) Operator has a special field CLASS to record the original class
             name for displaying in UI.
         """
+        var = resolve_property_value(cls, var)
+
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
@@ -690,7 +693,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = cls._serialize_operator_extra_links(
-                op.operator_extra_links
+                resolve_property_value(op, op.operator_extra_links)
             )
 
         if include_deps:

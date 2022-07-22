@@ -67,6 +67,20 @@ class Dummy3TestOperator(BaseOperator):
     operator_extra_links = ()
 
 
+class Dummy4TestOperator(BaseOperator):
+    """
+    Example of an Operator that has an extra operator link as property
+    """
+
+    @property
+    def operator_extra_links(self):
+        return (AirflowLink(),)
+
+    def __init__(self, arg1=42, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+
+
 @attr.s(auto_attribs=True)
 class CustomBaseIndexOpLink(BaseOperatorLink):
     index: int = attr.ib()
