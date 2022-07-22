@@ -164,6 +164,10 @@ class ExasolHook(DbApiHook):
                 with closing(conn.execute(query, parameters)) as cur:
                     results = []
 
+                    if cur.result_type != "resultSet":
+                        # can't be iterated over
+                        break
+
                     if handler is not None:
                         cur = handler(cur)
 
