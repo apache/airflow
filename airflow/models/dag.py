@@ -2159,6 +2159,7 @@ class DAG(LoggingMixin):
         if (
             task.task_id in self.task_dict and self.task_dict[task.task_id] is not task
         ) or task.task_id in self._task_group.used_group_ids:
+            # TODO revert this after Airflow 2.0 upgrade is stable - over-written tasks are a data quality issue
             warnings.warn(
                 'The requested task could not be added to the DAG with dag_id {} because a '
                 'task with task_id {} is already in the DAG. This is not supported'

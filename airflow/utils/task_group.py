@@ -21,6 +21,7 @@ together when the DAG is displayed graphically.
 """
 import copy
 import re
+import warnings
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
@@ -120,7 +121,9 @@ class TaskGroup(TaskMixin):
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         if group_id in self.used_group_ids:
             if not add_suffix_on_collision:
-                raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
+                # TODO revert this after Airflow 2.0 upgrade is stable - over-written tasks are a data quality issue
+                warnings.warn(f"group_id '{self.group_id}' has already been added to the DAG",
+                              category=PendingDeprecationWarning)
             base = re.split(r'__\d+$', group_id)[0]
             suffixes = sorted(
                 int(re.split(r'^.+__', used_group_id)[1])
@@ -172,7 +175,13 @@ class TaskGroup(TaskMixin):
         key = task.group_id if isinstance(task, TaskGroup) else task.task_id
 
         if key in self.children:
-            raise DuplicateTaskIdFound(f"Task id '{key}' has already been added to the DAG")
+            # TODO revert this after Airflow 2.0 upgrade is stable - over-written tasks are a data quality issue
+            warnings.warn(
+                'The requested task could not be added to the DAG because a '
+                'task with task_id {} is already in the DAG. This is not supported'
+                'behavior as overwritten tasks enables unexpected behavior from DAG definition to creation.'
+                'This will cause an exception once this patch is removed.'.format(key),
+                category=PendingDeprecationWarning)
 
         if isinstance(task, TaskGroup):
             if task.children:
