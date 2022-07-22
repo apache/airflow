@@ -533,6 +533,9 @@ class Task(Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
         ...
 
+    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+        ...
+
 
 class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
@@ -552,6 +555,9 @@ class TaskDecorator(Protocol):
         **kwargs: Any,
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
+
+    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+        ...
 
 
 def task_decorator_factory(

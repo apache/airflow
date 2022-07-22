@@ -36,7 +36,7 @@ example_dataset_dag4_req_dag1_dag2 should run.
 Dags example_dataset_dag5_req_dag1_D and example_dataset_dag6_req_DD should not run because they depend on
 datasets that never get updated.
 """
-from datetime import datetime
+import pendulum
 
 from airflow.models import DAG, Dataset
 from airflow.operators.bash import BashOperator
@@ -49,7 +49,7 @@ dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
 dag1 = DAG(
     dag_id='example_dataset_dag1',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_interval='@daily',
     tags=['upstream'],
 )
@@ -61,21 +61,17 @@ BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sl
 with DAG(
     dag_id='example_dataset_dag2',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_interval=None,
     tags=['upstream'],
 ) as dag2:
-    BashOperator(
-        outlets=[dag2_dataset],
-        task_id='upstream_task_2',
-        bash_command="sleep 5",
-    )
+    BashOperator(outlets=[dag2_dataset], task_id='upstream_task_2', bash_command="sleep 5")
 
 # [START dag_dep]
 dag3 = DAG(
     dag_id='example_dataset_dag3_req_dag1',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_on=[dag1_dataset],
     tags=['downstream'],
 )
@@ -91,7 +87,7 @@ BashOperator(
 with DAG(
     dag_id='example_dataset_dag4_req_dag1_dag2',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_on=[dag1_dataset, dag2_dataset],
     tags=['downstream'],
 ) as dag4:
@@ -104,7 +100,7 @@ with DAG(
 with DAG(
     dag_id='example_dataset_dag5_req_dag1_D',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_on=[
         dag1_dataset,
         Dataset('s3://this-dataset-doesnt-get-triggered'),
@@ -120,7 +116,7 @@ with DAG(
 with DAG(
     dag_id='example_dataset_dag6_req_DD',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_on=[
         Dataset('s3://unrelated/dataset3.txt'),
         Dataset('s3://unrelated/dataset_other_unknown.txt'),

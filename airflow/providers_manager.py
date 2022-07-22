@@ -45,6 +45,7 @@ from typing import (
 import jsonschema
 from packaging import version as packaging_version
 
+from airflow.decorators.base import TaskDecorator
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
 from airflow.typing_compat import Literal
@@ -894,7 +895,8 @@ class ProvidersManager(LoggingMixin):
         return self._hooks_lazy_dict
 
     @property
-    def taskflow_decorators(self) -> Dict[str, Callable]:
+    # def taskflow_decorators(self) -> Dict[str, Callable]:
+    def taskflow_decorators(self) -> Dict[str, TaskDecorator]:
         self.initialize_providers_taskflow_decorator()
         return self._taskflow_decorators
 

@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the usage of the BranchPythonOperator."""
+"""Example DAG demonstrating the usage of the ``@task.branch`` TaskFlow API decorator."""
 
 import random
 
 import pendulum
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -35,31 +35,24 @@ with DAG(
     schedule_interval="@daily",
     tags=['example', 'example2'],
 ) as dag:
-    run_this_first = EmptyOperator(
-        task_id='run_this_first',
-    )
+    run_this_first = EmptyOperator(task_id='run_this_first')
 
     options = ['branch_a', 'branch_b', 'branch_c', 'branch_d']
 
-    branching = BranchPythonOperator(
-        task_id='branching',
-        python_callable=lambda: random.choice(options),
-    )
-    run_this_first >> branching
+    @task.branch()
+    def branching():
+        return random.choice(options)
 
-    join = EmptyOperator(
-        task_id='join',
-        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-    )
+    branch = branching()
+
+    run_this_first >> branch
+
+    join = EmptyOperator(task_id='join', trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
     for option in options:
-        t = EmptyOperator(
-            task_id=option,
-        )
+        t = EmptyOperator(task_id=option)
 
-        empty_follow = EmptyOperator(
-            task_id='follow_' + option,
-        )
+        empty_follow = EmptyOperator(task_id='follow_' + option)
 
         # Label is optional here, but it can help identify more complex branches
-        branching >> Label(option) >> t >> empty_follow >> join
+        branch >> Label(option) >> t >> empty_follow >> join
