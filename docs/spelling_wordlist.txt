@@ -1517,6 +1517,7 @@ unicode
 unittest
 unittests
 unix
+unmanaged
 unmappable
 unmapped
 unmapping
@@ -1551,6 +1552,7 @@ util
 utilise
 utils
 uuid
+vCPU
 validator
 vals
 ve

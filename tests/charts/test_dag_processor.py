@@ -372,6 +372,24 @@ class DagProcessorTest(unittest.TestCase):
             "spec.template.spec.containers[0].args", docs[0]
         )
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {
+            "dagProcessor": {
+                "enabled": True,
+            }
+        }
+        if revision_history_limit:
+            values['dagProcessor']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     @parameterized.expand(
         [
             (None, None),

@@ -51,6 +51,24 @@ class TriggererTest(unittest.TestCase):
 
         assert 0 == len(docs)
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {
+            "triggerer": {
+                "enabled": True,
+            }
+        }
+        if revision_history_limit:
+            values['triggerer']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={

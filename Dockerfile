@@ -48,7 +48,7 @@ ARG AIRFLOW_VERSION="2.3.3"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=22.1.2
+ARG AIRFLOW_PIP_VERSION=22.2
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -367,7 +367,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="22.1.2"
+            export AIRFLOW_PIP_VERSION="22.2"
         fi
     fi
 }
@@ -395,101 +395,6 @@ function common::show_pip_version_and_location() {
    echo "pip on path: $(which pip)"
    echo "Using pip: $(pip --version)"
 }
-EOF
-
-# The content below is automatically copied from scripts/docker/prepare_node_modules.sh
-COPY <<"EOF" /prepare_node_modules.sh
-set -euo pipefail
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
-
-function prepare_node_modules() {
-    echo
-    echo "${COLOR_BLUE}Preparing node modules${COLOR_RESET}"
-    echo
-    local www_dir
-    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." ]]; then
-        # In case we are building from sources in production image, we should build the assets
-        www_dir="${AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES}}/airflow/www"
-    else
-        www_dir="$(python -m site --user-site)/airflow/www"
-    fi
-    pushd ${www_dir} || exit 1
-    set +e
-    yarn install --frozen-lockfile --no-cache 2>/tmp/out-yarn-install.txt
-    local res=$?
-    if [[ ${res} != 0 ]]; then
-        >&2 echo
-        >&2 echo "Error when running yarn install:"
-        >&2 echo
-        >&2 cat /tmp/out-yarn-install.txt && rm -f /tmp/out-yarn-install.txt
-        exit 1
-    fi
-    rm -f /tmp/out-yarn-install.txt
-    popd || exit 1
-}
-
-prepare_node_modules
-EOF
-
-# The content below is automatically copied from scripts/docker/compile_www_assets.sh
-COPY <<"EOF" /compile_www_assets.sh
-set -euo pipefail
-
-BUILD_TYPE=${BUILD_TYPE="prod"}
-REMOVE_ARTIFACTS=${REMOVE_ARTIFACTS="true"}
-
-COLOR_BLUE=$'\e[34m'
-readonly COLOR_BLUE
-COLOR_RESET=$'\e[0m'
-readonly COLOR_RESET
-
-function compile_www_assets() {
-    echo
-    echo "${COLOR_BLUE}Compiling www assets: running yarn ${BUILD_TYPE}${COLOR_RESET}"
-    echo
-    local www_dir
-    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." ]]; then
-        # In case we are building from sources in production image, we should build the assets
-        www_dir="${AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES}}/airflow/www"
-    else
-        www_dir="$(python -m site --user-site)/airflow/www"
-    fi
-    pushd ${www_dir} || exit 1
-    set +e
-    yarn run "${BUILD_TYPE}" 2>/tmp/out-yarn-run.txt
-    res=$?
-    if [[ ${res} != 0 ]]; then
-        >&2 echo
-        >&2 echo "Error when running yarn run:"
-        >&2 echo
-        >&2 cat /tmp/out-yarn-run.txt && rm -rf /tmp/out-yarn-run.txt
-        exit 1
-    fi
-    rm -f /tmp/out-yarn-run.txt
-    set -e
-    local md5sum_file
-    md5sum_file="static/dist/sum.md5"
-    readonly md5sum_file
-    find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${md5sum_file}"
-    if [[ ${REMOVE_ARTIFACTS} == "true" ]]; then
-        echo
-        echo "${COLOR_BLUE}Removing generated node modules${COLOR_RESET}"
-        echo
-        rm -rf "${www_dir}/node_modules"
-        rm -vf "${www_dir}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js}
-    else
-        echo
-        echo "${COLOR_BLUE}Leaving generated node modules${COLOR_RESET}"
-        echo
-    fi
-    popd || exit 1
-}
-
-compile_www_assets
 EOF
 
 # The content below is automatically copied from scripts/docker/pip
@@ -1120,7 +1025,6 @@ ARG DEV_APT_DEPS="\
      libssl-dev \
      locales  \
      lsb-release \
-     nodejs \
      openssh-client \
      sasl2-bin \
      software-properties-common \
@@ -1132,9 +1036,7 @@ ARG DEV_APT_DEPS="\
 
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
-    curl --silent --fail --location https://deb.nodesource.com/setup_14.x | \
-        bash -o pipefail -o errexit -o nolog - \
-    && curl --silent https://dl.yarnpkg.com/debian/pubkey.gpg | \
+    curl --silent https://dl.yarnpkg.com/debian/pubkey.gpg | \
     apt-key add - >/dev/null 2>&1\
     && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
@@ -1196,18 +1098,10 @@ ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 # But it also can be `.` from local installation or GitHub URL pointing to specific branch or tag
 # Of Airflow. Note That for local source installation you need to have local sources of
 # Airflow checked out together with the Dockerfile and AIRFLOW_SOURCES_FROM and AIRFLOW_SOURCES_TO
-# set to "." and "/opt/airflow" respectively. Similarly AIRFLOW_SOURCES_WWW_FROM/TO are set to right source
-# and destination
+# set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
-# www to compile the assets but in case of breeze/CI builds we use latest sources and we override those
-# those SOURCES_FROM/TO with "airflow/www" and "/opt/airflow/airflow/www" respectively.
-# This is to rebuild the assets only when any of the www sources change
-ARG AIRFLOW_SOURCES_WWW_FROM="Dockerfile"
-ARG AIRFLOW_SOURCES_WWW_TO="/Dockerfile"
-
 # By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
 # but in case of breeze/CI builds we use latest sources and we override those
 # those SOURCES_FROM/TO with "." and "/opt/airflow" respectively
@@ -1283,50 +1177,31 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 COPY --from=scripts common.sh install_pip_version.sh \
      install_airflow_dependencies_from_branch_tip.sh /scripts/docker/
 
+# We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
+# docker-context-files folder. This can be done for both additional packages you want to install
+# as well as Airflow and Provider packages (it will be automatically detected if airflow
+# is installed from docker-context files rather than from PyPI)
+ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
+
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
 # are uninstalled, only dependencies remain
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
-# account for removed dependencies (we do not install them in the first place)
-# Upgrade to specific PIP version
+# account for removed dependencies (we do not install them in the first place) and in case
+# INSTALL_PACKAGES_FROM_CONTEXT is not set (because then caching it from main makes no sense).
 RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
-          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
+        ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
-COPY --from=scripts compile_www_assets.sh prepare_node_modules.sh /scripts/docker/
-COPY --chown=airflow:0 ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
-
-# hadolint ignore=SC2086, SC2010
-RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
-        # only prepare node modules and compile assets if the prod image is build from sources
-        # otherwise they are already compiled-in. We should do it in one step with removing artifacts \
-        # as we want to keep the final image small
-        bash /scripts/docker/prepare_node_modules.sh; \
-        REMOVE_ARTIFACTS="true" BUILD_TYPE="prod" bash /scripts/docker/compile_www_assets.sh; \
-        # Copy generated dist folder (otherwise it will be overridden by the COPY step below)
-        mv -f /opt/airflow/airflow/www/static/dist /tmp/dist; \
-    fi;
-
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
-
-# Copy back the generated dist folder
-RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
-        mv -f /tmp/dist /opt/airflow/airflow/www/static/dist; \
-    fi;
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
-# We can set this value to true in case we want to install .whl .tar.gz packages placed in the
-# docker-context-files folder. This can be done for both - additional packages you want to install
-# and for airflow as well (you have to set AIRFLOW_IS_IN_CONTEXT to true in this case)
-ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
-# By default we install latest airflow from PyPI or sources. You can set this parameter to false
-# if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
-# to skip installing Airflow/Providers from PyPI or sources.
-ARG AIRFLOW_IS_IN_CONTEXT="false"
+
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
 # * dill<0.3.3 required by apache-beam
@@ -1334,7 +1209,6 @@ ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
-    AIRFLOW_IS_IN_CONTEXT=${AIRFLOW_IS_IN_CONTEXT} \
     EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 WORKDIR ${AIRFLOW_HOME}
@@ -1345,7 +1219,8 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
-    elif [[ ${AIRFLOW_IS_IN_CONTEXT} == "false" ]]; then \
+    fi; \
+    if ! airflow version 2>/dev/null >/dev/null; then \
         bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \

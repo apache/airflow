@@ -47,9 +47,7 @@ mv -v ./dist/*.whl ./docker-context-files
 breeze build-prod-image \
      --builder airflow_cache \
      --run-in-parallel \
-     --airflow-is-in-context \
      --install-packages-from-context \
      --prepare-buildx-cache \
-     --disable-airflow-repo-cache \
      --platform linux/amd64,linux/arm64 \
      --verbose

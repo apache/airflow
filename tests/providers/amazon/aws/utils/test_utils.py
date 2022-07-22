@@ -16,16 +16,32 @@
 # under the License.
 
 from datetime import datetime
+from unittest import TestCase
+
+import pytz
 
 from airflow.providers.amazon.aws.utils import (
     datetime_to_epoch,
     datetime_to_epoch_ms,
     datetime_to_epoch_us,
     get_airflow_version,
+    trim_none_values,
 )
 
-DT = datetime(2000, 1, 1)
+DT = datetime(2000, 1, 1, tzinfo=pytz.UTC)
 EPOCH = 946_684_800
+
+
+class TestUtils(TestCase):
+    def test_trim_none_values(self):
+        input_object = {
+            "test": "test",
+            "empty": None,
+        }
+        expected_output_object = {
+            "test": "test",
+        }
+        assert trim_none_values(input_object) == expected_output_object
 
 
 def test_datetime_to_epoch():
