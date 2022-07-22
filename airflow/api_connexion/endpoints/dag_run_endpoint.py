@@ -102,7 +102,7 @@ def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION)
 def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get a DAG Run."""
+    """If dag run is dataset-triggered, return the dataset events that triggered it."""
     dag_run: Optional[DagRun] = (
         session.query(DagRun)
         .filter(
@@ -123,7 +123,6 @@ def get_upstream_dataset_events(
 
 
 def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session) -> List["DagRun"]:
-    """If dag run is dataset-triggered, return the dataset events that triggered it."""
     if not dag_run.run_type == DagRunType.DATASET_TRIGGERED:
         return []
 
