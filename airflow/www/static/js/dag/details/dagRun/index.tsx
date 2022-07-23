@@ -23,7 +23,7 @@ import {
   Box,
   Button,
   Link,
-  Divider,
+  Divider, Table, Tr, Td, Heading, Tbody,
 } from '@chakra-ui/react';
 
 import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
@@ -37,6 +37,7 @@ import { ClipboardText } from 'src/components/Clipboard';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
 
+import useUpstreamDatasetEvents from 'src/api/useUpstreamDatasetEvents';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
@@ -52,6 +53,8 @@ interface Props {
 
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
+  // @ts-ignore
+  const { data: { datasetEvents } } = useUpstreamDatasetEvents({ dagId, runId });
   const run = dagRuns.find((dr) => dr.runId === runId);
   if (!run) return null;
   const {
@@ -152,6 +155,25 @@ const DagRun = ({ runId }: Props) => {
           </Text>
         </>
       )}
+      <Table variant="striped">
+        <Tbody>
+          <>
+            <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+              <Td><Heading size="sm">Upstream dataset events</Heading></Td>
+              <Td />
+            </Tr>
+            {Object.entries(datasetEvents).map(([key, e]) => (
+              <Tr key={key}>
+                <Td>
+                  {e.datasetId}
+                </Td>
+                <Td>{e.createdAt}</Td>
+              </Tr>
+            ))}
+          </>
+        </Tbody>
+      </Table>
+
     </Box>
   );
 };
