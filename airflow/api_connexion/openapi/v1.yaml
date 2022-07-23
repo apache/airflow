@@ -3555,7 +3555,10 @@ components:
           type: string
           description: The dataset event creation time
           nullable: false
-
+        dataset:
+          $ref: '#/components/schemas/Dataset'
+          description: The dataset for which the event occurred.
+          nullable: false
 
     DatasetEventCollection:
       description: |

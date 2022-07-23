@@ -261,6 +261,10 @@ class DatasetEvent(Base):
         uselist=False,
     )
 
+    @property
+    def uri(self):
+        return self.dataset.uri
+
     def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
             return self.dataset_id == other.dataset_id and self.created_at == other.created_at

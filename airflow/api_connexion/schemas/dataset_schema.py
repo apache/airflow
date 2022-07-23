@@ -72,6 +72,7 @@ class DatasetEventSchema(SQLAlchemySchema):
     source_run_id = auto_field()
     source_map_index = auto_field()
     created_at = auto_field()
+    dataset = fields.Nested(DatasetSchema)
 
 
 class DatasetEventCollection(NamedTuple):
