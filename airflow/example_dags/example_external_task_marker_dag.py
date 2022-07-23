@@ -51,7 +51,7 @@ with DAG(
     dag_id="example_external_task_marker_parent",
     start_date=start_date,
     catchup=False,
-    schedule_interval=None,
+    schedule_interval="*/5 * * * *",
     tags=['example2'],
 ) as parent_dag:
     # [START howto_operator_external_task_marker]
@@ -65,7 +65,7 @@ with DAG(
 with DAG(
     dag_id="example_external_task_marker_child",
     start_date=start_date,
-    schedule_interval=None,
+    schedule_interval="*/5 * * * *",
     catchup=False,
     tags=['example2'],
 ) as child_dag:
