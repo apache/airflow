@@ -496,7 +496,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         follow_task_ids_if_false: List[str],
         conn_id: str = "default_conn_id",
         database: Optional[str] = None,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
