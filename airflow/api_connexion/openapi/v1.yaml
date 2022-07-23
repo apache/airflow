@@ -3228,6 +3228,9 @@ components:
         owner:
           type: string
           readOnly: true
+        outlets_datasets:
+          $ref: '#/components/schemas/OutletDataset'
+          readOnly: true
         start_date:
           type: string
           format: 'date-time'
@@ -3307,6 +3310,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Task'
+
+    OutletDatasetCollection:
+      type: array
+      description: Collection of datasets stored in task outlets attribute.
+      items:
+        $ref: '#/components/schemas/OutletDataset'
+    OutletDataset:
+      type: object
+      description: Dataset stored in task outlets attribute.
+      properties:
+        uri:
+          type: string
+          description: Dataset identifier
+        extra:
+          type: object
+          description: Extra dataset information
 
     # Plugin
     PluginCollectionItem:

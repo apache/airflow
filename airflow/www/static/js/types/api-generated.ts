@@ -1327,6 +1327,7 @@ export interface components {
       class_ref?: components["schemas"]["ClassReference"];
       task_id?: string;
       owner?: string;
+      outlets_datasets?: components["schemas"]["OutletDataset"];
       /** Format: date-time */
       start_date?: string;
       /** Format: date-time */
@@ -1356,6 +1357,15 @@ export interface components {
     /** @description Collection of tasks. */
     TaskCollection: {
       tasks?: components["schemas"]["Task"][];
+    };
+    /** @description Collection of datasets stored in task outlets attribute. */
+    OutletDatasetCollection: components["schemas"]["OutletDataset"][];
+    /** @description Dataset stored in task outlets attribute. */
+    OutletDataset: {
+      /** @description Dataset identifier */
+      uri?: string;
+      /** @description Extra dataset information */
+      extra?: { [key: string]: unknown };
     };
     /**
      * @description A plugin Item.
@@ -4034,6 +4044,8 @@ export type ExtraLink = SnakeToCamelCaseNested<components['schemas']['ExtraLink'
 export type ExtraLinkCollection = SnakeToCamelCaseNested<components['schemas']['ExtraLinkCollection']>;
 export type Task = SnakeToCamelCaseNested<components['schemas']['Task']>;
 export type TaskCollection = SnakeToCamelCaseNested<components['schemas']['TaskCollection']>;
+export type OutletDatasetCollection = SnakeToCamelCaseNested<components['schemas']['OutletDatasetCollection']>;
+export type OutletDataset = SnakeToCamelCaseNested<components['schemas']['OutletDataset']>;
 export type PluginCollectionItem = SnakeToCamelCaseNested<components['schemas']['PluginCollectionItem']>;
 export type PluginCollection = SnakeToCamelCaseNested<components['schemas']['PluginCollection']>;
 export type Role = SnakeToCamelCaseNested<components['schemas']['Role']>;

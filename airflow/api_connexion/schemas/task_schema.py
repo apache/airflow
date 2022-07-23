@@ -26,7 +26,30 @@ from airflow.api_connexion.schemas.common_schema import (
     WeightRuleField,
 )
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
+from airflow.models import Dataset
 from airflow.models.operator import Operator
+
+
+class OutletDataset(fields.String):
+    """Field for serializing Dataset objects stored in task outlets attribute."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, Dataset):
+            return dict(
+                uri=value.uri,
+                extra=value.extra,
+            )
+
+
+class OutletDatasetCollection(fields.List):
+    """Field for serializing datasets from task outlets attribute."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is None:
+            return None
+        return [
+            self.inner._serialize(each, attr, obj, **kwargs) for each in value if isinstance(each, Dataset)
+        ]
 
 
 class TaskSchema(Schema):
@@ -35,6 +58,7 @@ class TaskSchema(Schema):
     class_ref = fields.Method("_get_class_reference", dump_only=True)
     task_id = fields.String(dump_only=True)
     owner = fields.String(dump_only=True)
+    outlet_datasets = OutletDatasetCollection(OutletDataset(), attribute='_outlets', dump_only=True)
     start_date = fields.DateTime(dump_only=True)
     end_date = fields.DateTime(dump_only=True)
     trigger_rule = fields.String(dump_only=True)
