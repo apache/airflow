@@ -451,10 +451,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
-        if self.check_if_job_exists:
-            self._check_if_job_exists()
         model_config = self.config.get('Model')
         transform_config = self.config.get('Transform', self.config)
+        if self.check_if_job_exists:
+            self._check_if_transform_job_exists()
         if model_config:
             self.log.info('Creating SageMaker Model %s for transform job', model_config['ModelName'])
             self.hook.create_model(model_config)
@@ -473,14 +473,15 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 'Transform': self.hook.describe_transform_job(transform_config['TransformJobName']),
             }
 
-    def _check_if_job_exists(self) -> None:
-        transform_job_name = self.config['TransformJobName']
+    def _check_if_transform_job_exists(self) -> None:
+        transform_config = self.config.get('Transform', self.config)
+        transform_job_name = transform_config['TransformJobName']
         transform_jobs = self.hook.list_transform_jobs(name_contains=transform_job_name)
         if transform_job_name in [tj['TransformJobName'] for tj in transform_jobs]:
             if self.action_if_job_exists == 'increment':
                 self.log.info("Found existing training job with name '%s'.", transform_job_name)
                 new_training_job_name = f'{transform_job_name}-{(len(transform_jobs) + 1)}'
-                self.config['TransformJobName'] = new_training_job_name
+                transform_config['TransformJobName'] = new_training_job_name
                 self.log.info("Incremented training job name to '%s'.", new_training_job_name)
             elif self.action_if_job_exists == 'fail':
                 raise AirflowException(
