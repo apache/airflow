@@ -858,6 +858,16 @@ class TaskInstance(Base, LoggingMixin):
         if lock_for_update:
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
+                    from airflow.models.dagrun import DagRun  # Avoid circular import
+
+                    # Select the DagRun with a lock
+                    with_row_locks(
+                        session.query(DagRun).filter_by(
+                            dag_id=self.dag_id,
+                            run_id=self.run_id,
+                        ),
+                        session=session,
+                    ).one()
                     ti: Optional[TaskInstance] = qry.with_for_update().first()
         else:
             ti = qry.first()
