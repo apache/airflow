@@ -2121,12 +2121,6 @@
       type: string
       example: ~
       default: "False"
-    - name: dependency_detector
-      description: DAG dependency detector class to use
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "airflow.serialization.serialized_objects.DependencyDetector"
     - name: trigger_timeout_check_interval
       description: |
         How often to check for expired trigger requests that have not run yet.

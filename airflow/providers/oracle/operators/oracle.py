@@ -50,9 +50,9 @@ class OracleOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: Union[str, Iterable[str]],
         oracle_conn_id: str = 'oracle_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = False,
         **kwargs,
     ) -> None:
@@ -98,7 +98,7 @@ class OracleStoredProcedureOperator(BaseOperator):
         self.procedure = procedure
         self.parameters = parameters
 
-    def execute(self, context: 'Context') -> Optional[Union[List, Dict]]:
+    def execute(self, context: 'Context'):
         self.log.info('Executing: %s', self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)

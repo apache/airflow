@@ -550,7 +550,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable],
+        sql: Union[str, Iterable[str]],
         destination_dataset_table: Optional[str] = None,
         write_disposition: str = 'WRITE_EMPTY',
         allow_large_results: bool = False,

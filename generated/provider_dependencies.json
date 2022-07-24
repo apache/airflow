@@ -62,8 +62,7 @@
     "deps": [
       "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
-      "sqlalchemy-drill>=1.1.0",
-      "sqlparse>=0.4.1"
+      "sqlalchemy-drill>=1.1.0"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -191,7 +190,9 @@
     "cross-providers-deps": []
   },
   "common.sql": {
-    "deps": [],
+    "deps": [
+      "sqlparse>=0.4.2"
+    ],
     "cross-providers-deps": []
   },
   "databricks": {

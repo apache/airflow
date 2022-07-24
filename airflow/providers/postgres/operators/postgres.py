@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from psycopg2.sql import SQL, Identifier
 
@@ -53,10 +53,10 @@ class PostgresOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: Union[str, Iterable[str]],
         postgres_conn_id: str = 'postgres_default',
         autocommit: bool = False,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         database: Optional[str] = None,
         runtime_parameters: Optional[Mapping] = None,
         **kwargs,
