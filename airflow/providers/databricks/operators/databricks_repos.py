@@ -46,7 +46,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -54,7 +54,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch')
+    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
 
     __git_providers__ = {
         "github.com": "gitHub",
@@ -173,7 +173,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty.  (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -181,7 +181,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch')
+    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
 
     def __init__(
         self,
@@ -246,7 +246,7 @@ class DatabricksReposDeleteOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -254,7 +254,7 @@ class DatabricksReposDeleteOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path',)
+    template_fields: Sequence[str] = ('repo_path', 'databricks_conn_id')
 
     def __init__(
         self,
