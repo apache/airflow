@@ -106,6 +106,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "outlet_datasets": [],
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -191,6 +192,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "outlet_datasets": [],
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -257,6 +259,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "outlet_datasets": [],
                     "owner": "airflow",
                     'params': {
                         'foo': {
@@ -293,6 +296,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "outlet_datasets": [],
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -332,6 +336,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "is_mapped": True,
+                    # todo: should be "outlet_datasets": [], but does not work for mapped
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -360,6 +365,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "outlet_datasets": [],
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",

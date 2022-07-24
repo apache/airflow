@@ -39,6 +39,7 @@ class TestTaskSchema:
             "end_date": "2020-06-26T00:00:00+00:00",
             "execution_timeout": None,
             "extra_links": [],
+            "outlet_datasets": [],
             "owner": "airflow",
             "params": {},
             "pool": "default_pool",
@@ -78,6 +79,7 @@ class TestTaskCollectionSchema:
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "outlet_datasets": [],
                     "owner": "airflow",
                     'params': {
                         'foo': {
