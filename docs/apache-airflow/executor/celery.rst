@@ -28,6 +28,9 @@ change your ``airflow.cfg`` to point the executor parameter to
 
 If you use Amazon SQS as a Celery broker, set environment variables like this:
 
+.. note::
+   Using Amazon SQS for a Celery backed in Airflow is experimental and use at your own risk.
+
 .. code-block:: bash
 
     export AIRFLOW__CELERY__BROKER_URL=sqs://@your_sqs_host
