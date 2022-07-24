@@ -21,7 +21,7 @@ import React from 'react';
 import {
   Text,
   Box,
-  Flex,
+  Flex, Table, Tbody, Tr, Td, Heading,
 } from '@chakra-ui/react';
 
 import { finalStatesMap } from 'src/utils';
@@ -87,7 +87,7 @@ const Details = ({ instance, group, operator }: Props) => {
     }
   });
 
-  const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
+  const taskIdTitle = isGroup ? 'Task Group ID: ' : 'Task ID: ';
   const isStateFinal = state && ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
   const isOverall = (isMapped || isGroup) && 'Overall ';
 
@@ -95,10 +95,10 @@ const Details = ({ instance, group, operator }: Props) => {
     <Flex flexWrap="wrap" justifyContent="space-between">
       <Box>
         {tooltip && (
-          <>
-            <Text>{tooltip}</Text>
-            <br />
-          </>
+        <>
+          <Text>{tooltip}</Text>
+          <br />
+        </>
         )}
         {mappedStates && numMapped > 0 && (
         <Text>
@@ -119,45 +119,50 @@ const Details = ({ instance, group, operator }: Props) => {
         {summary.length > 0 && (
           summary
         )}
-        <br />
-        <Text>
-          {taskIdTitle}
-          <ClipboardText value={taskId} />
-        </Text>
-        <Text whiteSpace="nowrap">
-          Run Id:
-          {' '}
-          <ClipboardText value={runId} />
-        </Text>
-        {operator && (
-          <Text>
-            Operator:
-            {' '}
-            {operator}
-          </Text>
-        )}
-        <br />
-        <Text>
-          {isOverall}
-          Duration:
-          {' '}
-          {formatDuration(getDuration(startDate, endDate))}
-        </Text>
-        {startDate && (
-        <Text>
-          Started:
-          {' '}
-          <Time dateTime={startDate} />
-        </Text>
-        )}
-        {endDate && isStateFinal && (
-        <Text>
-          Ended:
-          {' '}
-          <Time dateTime={endDate} />
-        </Text>
-        )}
       </Box>
+      <br />
+      <br />
+      <Table variant="striped">
+        <Tbody>
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+            <Td><Heading size="sm">Task Instance Details</Heading></Td>
+            <Td />
+          </Tr>
+          <Tr>
+            <Td>{taskIdTitle}</Td>
+            <Td><ClipboardText value={taskId} /></Td>
+          </Tr>
+          <Tr>
+            <Td>Run ID</Td>
+            <Td><Text whiteSpace="nowrap"><ClipboardText value={runId} /></Text></Td>
+          </Tr>
+          {operator && (
+          <Tr>
+            <Td>Operator</Td>
+            <Td>{operator}</Td>
+          </Tr>
+          )}
+          <Tr>
+            <Td>
+              {isOverall}
+              Duration
+            </Td>
+            <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
+          </Tr>
+          {startDate && (
+          <Tr>
+            <Td>Started</Td>
+            <Td><Time dateTime={startDate} /></Td>
+          </Tr>
+          )}
+          {endDate && isStateFinal && (
+          <Tr>
+            <Td>Ended</Td>
+            <Td><Time dateTime={endDate} /></Td>
+          </Tr>
+          )}
+        </Tbody>
+      </Table>
     </Flex>
   );
 };
