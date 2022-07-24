@@ -362,3 +362,16 @@ class AzureBatchHook(BaseHook):
                 self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
+
+    def test_connection(self):
+        """Test a configured Azure Batch connection."""
+        try:
+            # Attempt to list existing  jobs under the configured Batch account and retrieve
+            # the first in the returned iterator. The Azure Batch API does allow for creation of a
+            # BatchServiceClient with incorrect values but then will fail properly once items are
+            # retrieved using the client. We need to _actually_ try to retrieve an object to properly
+            # test the connection.
+            next(self.get_conn().job.list(), None)
+        except Exception as e:
+            return False, str(e)
+        return True, "Successfully connected to Azure Batch."

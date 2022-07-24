@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import subprocess
-from pathlib import Path
 
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command"
+from airflow.decorators import task_group
+
+
+def test_task_group_with_overridden_kwargs():
+    @task_group(
+        default_args={
+            'params': {
+                'x': 5,
+                'y': 5,
+            },
+        },
+        add_suffix_on_collision=True,
+    )
+    def simple_tg():
+        ...
+
+    tg_with_overridden_kwargs = simple_tg.override(
+        group_id='custom_group_id',
+        default_args={
+            'params': {
+                'x': 10,
+            },
+        },
     )
 
-if __name__ == '__main__':
-    dir = Path("airflow") / "www"
-    subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=dir)
-    subprocess.check_call(['yarn', 'run', 'generate-api-types'], cwd=dir)
-    subprocess.check_call(['yarn', 'run', 'lint'], cwd=dir)
+    assert tg_with_overridden_kwargs.kwargs == {
+        'group_id': 'custom_group_id',
+        'default_args': {
+            'params': {
+                'x': 10,
+            },
+        },
+        'add_suffix_on_collision': True,
+    }

@@ -30,6 +30,7 @@ from tempfile import NamedTemporaryFile
 from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import jinja2
 import pendulum
@@ -43,10 +44,10 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
-from airflow.models import DAG, DagModel, DagRun, DagTag, Dataset, TaskFail, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import dag as dag_decorator
-from airflow.models.dataset import DatasetTaskRef
+from airflow.models.dag import dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -65,7 +66,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
@@ -2582,3 +2583,39 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
         EmptyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
 
     assert dag._time_restriction == restrict
+
+
+@pytest.fixture()
+def reset_dataset():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
+
+
+def test_get_dataset_triggered_next_run_info(session, reset_dataset):
+    unique_id = str(uuid4())
+    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
+    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
+    dataset3 = Dataset(uri=f"s3://{unique_id}-3")
+    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
+    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
+
+    session.commit()
+    session.bulk_save_objects(
+        [
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
+        ]
+    )
+    session.commit()
+    session.expunge_all()
+
+    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    assert "0 of 1 datasets updated" == info[dag1.dag_id]
+
+    # This time, check both dag2 and dag3 at the same time (tests filtering)
+    info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
+    assert "1 of 2 datasets updated" == info[dag2.dag_id]
+    assert "1 of 3 datasets updated" == info[dag3.dag_id]
