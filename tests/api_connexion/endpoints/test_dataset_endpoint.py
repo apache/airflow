@@ -47,6 +47,16 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
+def dataset_to_dict(d):
+    return dict(
+        id=d.id,
+        uri=d.uri,
+        extra=d.extra,
+        created_at=str(d.created_at),
+        updated_at=str(d.updated_at),
+    )
+
+
 class TestDatasetEndpoint:
 
     default_time = "2020-06-11T18:00:00+00:00"
@@ -70,6 +80,7 @@ class TestDatasetEndpoint:
         )
         session.add(dataset_model)
         session.commit()
+        return dataset_model
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
@@ -83,7 +94,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         assert response.json == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "created_at": self.default_time,
             "updated_at": self.default_time,
         }
@@ -129,14 +140,14 @@ class TestGetDatasets(TestDatasetEndpoint):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                 },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                 },
@@ -258,10 +269,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
 class TestGetDatasetEvents(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
-        self._create_dataset(session)
+        d = self._create_dataset(session)
         common = {
             "dataset_id": 1,
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
@@ -279,8 +290,18 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         response_data = response.json
         assert response_data == {
             "dataset_events": [
-                {"id": 1, "created_at": self.default_time, **common},
-                {"id": 2, "created_at": self.default_time, **common},
+                {
+                    "id": 1,
+                    "created_at": self.default_time,
+                    **common,
+                    "dataset": dataset_to_dict(d),
+                },
+                {
+                    "id": 2,
+                    "created_at": self.default_time,
+                    **common,
+                    "dataset": dataset_to_dict(d),
+                },
             ],
             "total_entries": 2,
         }
@@ -335,6 +356,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "dataset_id": 2,
+                    "dataset": dataset_to_dict(datasets[1]),
                     "extra": None,
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",

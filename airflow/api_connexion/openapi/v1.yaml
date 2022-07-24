@@ -3494,7 +3494,7 @@ components:
           description: The dataset uri
           nullable: false
         extra:
-          type: string
+          type: object
           description: The dataset extra
           nullable: true
         created_at:
@@ -3532,8 +3532,8 @@ components:
           type: integer
           description: The dataset id
         extra:
-          type: string
-          description: The dataset extra
+          type: object
+          description: The dataset event extra
           nullable: true
         source_dag_id:
           type: string
