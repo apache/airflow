@@ -23,15 +23,15 @@ from airflow.providers.slack.operators.slack import SlackAPIFileOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "slack_example_dag"
-
 # [START slack_operator_howto_guide]
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     default_args={'slack_conn_id': 'slack', 'channel': '#general', 'initial_comment': 'Hello World!'},
     max_active_runs=1,
-    tags=['example'],
+    catchup=False,
+    tags=['example', 'slack'],
 ) as dag:
 
     # Send file with filename and filetype
