@@ -786,6 +786,11 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
+        # https://github.com/apache/airflow/discussions/21021 - not fully sure I understand this issue - specifically
+        # why only certain setups run into (found more instances on the Slack, but astronomer folk never hit it, which
+        # confuses me. Not sure if this effects Airflow 2.3, so not going to push this upstream yet, but let's keep this
+        # in mind.
+        self._log = logging.getLogger('airflow.task')
 
     @provide_session
     def clear_xcom_data(self, session=None):
