@@ -1499,7 +1499,7 @@ export interface components {
       /** @description The task map index that updated the dataset. */
       source_map_index?: number | null;
       /** @description The dataset event creation time */
-      created_at?: string;
+      timestamp?: string;
     };
     /**
      * @description A collection of dataset events.
