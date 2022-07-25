@@ -533,7 +533,7 @@ class Task(Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
         ...
 
-    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def override(self, **kwargs: Any) -> "_TaskDecorator[FParams, FReturn, OperatorSubclass]":
         ...
 
 
@@ -556,7 +556,7 @@ class TaskDecorator(Protocol):
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
 
-    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def override(self, **kwargs: Any) -> "_TaskDecorator[FParams, FReturn, OperatorSubclass]":
         ...
 
 

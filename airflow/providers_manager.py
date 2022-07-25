@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -45,7 +46,6 @@ from typing import (
 import jsonschema
 from packaging import version as packaging_version
 
-from airflow.decorators.base import TaskDecorator
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
 from airflow.typing_compat import Literal
@@ -64,6 +64,9 @@ else:
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
 }
+
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
 
 
 class LazyDictWithCache(MutableMapping):
@@ -895,8 +898,7 @@ class ProvidersManager(LoggingMixin):
         return self._hooks_lazy_dict
 
     @property
-    # def taskflow_decorators(self) -> Dict[str, Callable]:
-    def taskflow_decorators(self) -> Dict[str, TaskDecorator]:
+    def taskflow_decorators(self) -> Dict[str, "TaskDecorator"]:
         self.initialize_providers_taskflow_decorator()
         return self._taskflow_decorators
 

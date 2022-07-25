@@ -36,8 +36,8 @@ with DAG(
     tags=["example"],
 ) as dag:
 
-    @task.branch
-    def branch(task_id_to_return):
+    @task.branch()
+    def branch(task_id_to_return: str) -> str:
         return task_id_to_return
 
     branch_1 = branch.override(task_id="branch_1")(task_id_to_return="true_1")
