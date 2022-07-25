@@ -1543,8 +1543,8 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     first_timestamp = pendulum.datetime(2022, 1, 1, tz='UTC')
     session.add_all(
         [
-            DatasetEvent(dataset_id=dataset1a.id, created_at=first_timestamp),
-            DatasetEvent(dataset_id=dataset1b.id, created_at=first_timestamp),
+            DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp),
+            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp),
         ]
     )
     dr1 = DagRun(
@@ -1557,9 +1557,9 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     session.add(dr1)
     session.add_all(
         [
-            DatasetEvent(dataset_id=dataset1a.id, created_at=first_timestamp.add(microseconds=2000)),
-            DatasetEvent(dataset_id=dataset1b.id, created_at=first_timestamp.add(microseconds=3000)),
-            DatasetEvent(dataset_id=dataset1b.id, created_at=first_timestamp.add(microseconds=4000)),
+            DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp.add(microseconds=2000)),
+            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp.add(microseconds=3000)),
+            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp.add(microseconds=4000)),
         ]
     )
     dr2 = DagRun(  # this dag run should be ignored
@@ -1578,15 +1578,13 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     )
     dr3.dag = dag2
     session.add(dr3)
-    session.add_all(
-        [DatasetEvent(dataset_id=dataset1a.id, created_at=first_timestamp.add(microseconds=5000))]
-    )
+    session.add_all([DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp.add(microseconds=5000))])
     session.commit()
     session.expunge_all()
 
     events = _get_upstream_dataset_events(dag_run=dr3, session=session)
 
-    event_times = [x.created_at for x in events]
+    event_times = [x.timestamp for x in events]
     assert event_times == [
         first_timestamp.add(microseconds=2000),
         first_timestamp.add(microseconds=3000),
@@ -1612,7 +1610,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         assert len(result) == 1
         created_at = pendulum.now('UTC')
         # make sure whatever is returned by this func is what comes out in response.
-        d = DatasetEvent(dataset_id=1, created_at=created_at)
+        d = DatasetEvent(dataset_id=1, timestamp=created_at)
         d.dataset = Dataset(id=1, uri='hello', created_at=created_at, updated_at=created_at)
         mock_get_events.return_value = [d]
         response = self.client.get(
@@ -1623,7 +1621,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         expected_response = {
             'dataset_events': [
                 {
-                    'created_at': str(created_at),
+                    'timestamp': str(created_at),
                     'dataset_id': 1,
                     'dataset_uri': d.dataset.uri,
                     'extra': None,

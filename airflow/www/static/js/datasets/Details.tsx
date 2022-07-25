@@ -67,8 +67,8 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'Created At',
-        accessor: 'createdAt',
+        Header: 'Timestamp',
+        accessor: 'timestamp',
         Cell: TimeCell,
       },
       {
