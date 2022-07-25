@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for all operators."""
+from __future__ import annotations
+
 import abc
 import collections
 import collections.abc
@@ -48,6 +50,7 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import urlparse
 
 import attr
 import pendulum
@@ -192,7 +195,7 @@ def partial(
     task_group: Optional["TaskGroup"] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    owner: str = DEFAULT_OWNER,
+    owner: str | Dict[str, str] = DEFAULT_OWNER,
     email: Union[None, str, Iterable[str]] = None,
     params: Optional[dict] = None,
     resources: Optional[Dict[str, Any]] = None,
@@ -779,7 +782,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not self.__from_mapped and task_group:
             task_group.add(self)
 
-        self.owner = owner
+        self.owner = self.parse_owner(owner)
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
@@ -1470,6 +1473,29 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             DagContext.pop_context_managed_dag()
 
         return cls.__serialized_fields
+
+    @staticmethod
+    def _is_valid_link(link) -> bool:
+        """Parses a given link, and verifies if it's a valid URL, or a 'mailto' link"""
+        try:
+            result = urlparse(link)
+            if link.startswith('mailto:'):
+                return all([result.scheme, result.path])
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
+
+    def parse_owner(self, owner: str | Dict[str, str]) -> Dict[str, str]:
+        """Receiving the owner from the task, and based on it's type returning an object with a link or not"""
+        if isinstance(owner, str):
+            return {owner: ""}
+        elif isinstance(owner, dict):
+            if not self._is_valid_link(owner['link']):
+                raise AirflowException(f"Wrong link format was used for the owner. Use a valid link")
+
+            return {owner['name']: owner['link']}
+        else:
+            raise AirflowException("Wrong owner structure was passed for owner")
 
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""

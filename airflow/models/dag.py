@@ -1131,7 +1131,21 @@ class DAG(LoggingMixin):
         :return: Comma separated list of owners in DAG tasks
         :rtype: str
         """
-        return ", ".join({t.owner for t in self.tasks})
+        return ", ".join({list(t.owner)[0] for t in self.tasks})
+
+    @property
+    def owner_links(self) -> Dict[str, Dict[str, str]]:
+        """
+        Return dict of all owners and links that are found in DAG tasks.
+
+        :return: Dict containing the owner and it's link, only if the link exists
+        :rtype: dict
+        """
+        owner_links_obj = {}
+        for task in self.tasks:
+            owner_links_obj.update(task.owner)
+
+        return {owner: link for owner, link in owner_links_obj.items() if link}
 
     @property
     def allow_future_exec_dates(self) -> bool:
@@ -2553,6 +2567,14 @@ class DAG(LoggingMixin):
                     orm_dag.tags.append(dag_tag_orm)
                     session.add(dag_tag_orm)
 
+            orm_dag_links = orm_dag.dag_owner_links or []
+            for orm_dag_link in orm_dag_links:
+                if orm_dag_link not in dag.owner_links:
+                    session.delete(orm_dag_link)
+            for owner_name, owner_link in dag.owner_links.items():
+                dag_owner_orm = DagOwnerLinks(dag_id=dag.dag_id, owner=owner_name, link=owner_link)
+                session.add(dag_owner_orm)
+
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
         from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
@@ -2793,6 +2815,27 @@ class DagTag(Base):
         return self.name
 
 
+class DagOwnerLinks(Base):
+    """A owner and the associated link to it, used as hyperlink in the DAG view."""
+    """sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('owner', sa.String(length=100), nullable=False),
+            sa.Column('link', sa.String(length=500), nullable=False),"""
+    __tablename__ = "dag_owner_links"
+    dag_id = Column(
+        String(ID_LEN),
+        ForeignKey('dag.dag_id', name='dag_owner_links_dag_id_fkey', ondelete='CASCADE'),
+    )
+    owner = Column(String(100),
+                   primary_key=True)
+    link = Column(String(100))
+
+    def __repr__(self):
+        return f"<DagOwnerLinks: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
+
+    def as_dict(self) -> Dict[str, Dict[str, str]]:
+        return {self.dag_id: {self.owner: self.link}}
+
+
 class DagModel(Base):
     """Table containing DAG properties"""
 
@@ -2838,6 +2881,8 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
     # Tags for view filter
     tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
+    dag_owner_links = relationship('DagOwnerLinks', cascade='all, delete, delete-orphan',
+                                   backref=backref('dag'))
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)

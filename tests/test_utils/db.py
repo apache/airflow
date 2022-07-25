@@ -35,6 +35,7 @@ from airflow.models import (
     Variable,
     XCom,
     errors,
+    DagOwnerLinks,
 )
 from airflow.models.dagcode import DagCode
 from airflow.models.dataset import Dataset, DatasetEvent
@@ -62,6 +63,7 @@ def clear_db_datasets():
 def clear_db_dags():
     with create_session() as session:
         session.query(DagTag).delete()
+        session.query(DagOwnerLinks).delete()
         session.query(DagModel).delete()
 
 
