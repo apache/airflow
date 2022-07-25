@@ -604,6 +604,15 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets.py
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
+      - id: compile-www-assets-dev
+        name: Compile www assets in dev mode
+        language: node
+        stages: ['manual']
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/www/
+        entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets_dev.py
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.19']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
         pass_filenames: false
