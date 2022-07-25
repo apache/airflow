@@ -26,7 +26,6 @@ import {
   Tbody,
   Tr,
   Td,
-  Heading,
 } from '@chakra-ui/react';
 
 import { finalStatesMap } from 'src/utils';
@@ -92,7 +91,7 @@ const Details = ({ instance, group, operator }: Props) => {
     }
   });
 
-  const taskIdTitle = isGroup ? 'Task Group ID: ' : 'Task ID: ';
+  const taskIdTitle = isGroup ? 'Task Group ID' : 'Task ID';
   const isStateFinal = state && ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
   const isOverall = (isMapped || isGroup) && 'Overall ';
 
@@ -100,27 +99,19 @@ const Details = ({ instance, group, operator }: Props) => {
     <Flex flexWrap="wrap" justifyContent="space-between">
       <Box>
         {tooltip && (
-        <>
-          <Text>{tooltip}</Text>
-          <br />
-        </>
+          <>
+            <Text>{tooltip}</Text>
+            <br />
+          </>
         )}
         {mappedStates && numMapped > 0 && (
-        <Text>
-          {numMapped}
-          {' '}
-          {numMapped === 1 ? 'Task ' : 'Tasks '}
-          Mapped
-        </Text>
-        )}
-        <Flex alignItems="center">
-          <Text as="strong">
-            {isOverall}
-            Status:
+          <Text>
+            {numMapped}
+            {' '}
+            {numMapped === 1 ? 'Task ' : 'Tasks '}
+            Mapped
           </Text>
-          <SimpleStatus state={state} mx={2} />
-          {state || 'no status'}
-        </Flex>
+        )}
         {summary.length > 0 && (
           summary
         )}
@@ -129,9 +120,17 @@ const Details = ({ instance, group, operator }: Props) => {
       <br />
       <Table variant="striped">
         <Tbody>
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-            <Td><Heading size="sm">Task Instance Details</Heading></Td>
-            <Td />
+          <Tr>
+            <Td>
+              {isOverall}
+              Status
+            </Td>
+            <Td>
+              <Flex>
+                <SimpleStatus state={state} mx={2} />
+                {state || 'no status'}
+              </Flex>
+            </Td>
           </Tr>
           <Tr>
             <Td>{taskIdTitle}</Td>
@@ -142,10 +141,10 @@ const Details = ({ instance, group, operator }: Props) => {
             <Td><Text whiteSpace="nowrap"><ClipboardText value={runId} /></Text></Td>
           </Tr>
           {operator && (
-          <Tr>
-            <Td>Operator</Td>
-            <Td>{operator}</Td>
-          </Tr>
+            <Tr>
+              <Td>Operator</Td>
+              <Td>{operator}</Td>
+            </Tr>
           )}
           <Tr>
             <Td>
@@ -155,16 +154,16 @@ const Details = ({ instance, group, operator }: Props) => {
             <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
           </Tr>
           {startDate && (
-          <Tr>
-            <Td>Started</Td>
-            <Td><Time dateTime={startDate} /></Td>
-          </Tr>
+            <Tr>
+              <Td>Started</Td>
+              <Td><Time dateTime={startDate} /></Td>
+            </Tr>
           )}
           {endDate && isStateFinal && (
-          <Tr>
-            <Td>Ended</Td>
-            <Td><Time dateTime={endDate} /></Td>
-          </Tr>
+            <Tr>
+              <Td>Ended</Td>
+              <Td><Time dateTime={endDate} /></Td>
+            </Tr>
           )}
         </Tbody>
       </Table>

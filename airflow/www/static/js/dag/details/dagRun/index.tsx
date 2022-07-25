@@ -23,7 +23,11 @@ import {
   Box,
   Button,
   Link,
-  Divider, Table, Tbody, Tr, Td, Heading,
+  Divider,
+  Table,
+  Tbody,
+  Tr,
+  Td,
 } from '@chakra-ui/react';
 
 import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
@@ -91,17 +95,17 @@ const DagRun = ({ runId }: Props) => {
           <QueueRun dagId={dagId} runId={runId} />
         </Flex>
         <Divider my={3} />
-        <Flex alignItems="center">
-          <Text as="strong">Status:</Text>
-          <SimpleStatus state={state} mx={2} />
-          {state || 'no status'}
-        </Flex>
       </Box>
       <Table variant="striped">
         <Tbody>
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-            <Td><Heading size="sm">DAG Run Summary</Heading></Td>
-            <Td />
+          <Tr>
+            <Td>Status</Td>
+            <Td>
+              <Flex>
+                <SimpleStatus state={state} mx={2} />
+                {state || 'no status'}
+              </Flex>
+            </Td>
           </Tr>
           <Tr>
             <Td>Run ID</Td>
