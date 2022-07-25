@@ -106,9 +106,13 @@ def check_for_python_emulation():
 
 
 def check_for_rosetta_environment():
+    if sys.platform != 'darwin':
+        return
     try:
         runs_in_rosetta = subprocess.check_output(
-            ["sysctl", "-n", "sysctl.proc_translated"], text=True
+            ["sysctl", "-n", "sysctl.proc_translated"],
+            text=True,
+            stderr=subprocess.DEVNULL,
         ).strip()
         if runs_in_rosetta == '1':
             from airflow_breeze.utils.console import get_console
