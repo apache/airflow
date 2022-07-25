@@ -44,7 +44,7 @@ class Neo4jOperator(BaseOperator):
         *,
         sql: str,
         neo4j_conn_id: str = 'neo4j_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

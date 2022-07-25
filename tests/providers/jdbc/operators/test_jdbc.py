@@ -19,7 +19,8 @@
 import unittest
 from unittest.mock import patch
 
-from airflow.providers.jdbc.operators.jdbc import JdbcOperator, fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 
 class TestJdbcOperator(unittest.TestCase):

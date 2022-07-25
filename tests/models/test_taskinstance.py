@@ -43,7 +43,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
-    UnmappableXComValuePushed,
     XComForMappingNotPushed,
 )
 from airflow.models import (
@@ -117,6 +116,15 @@ class CallbackWrapper:
     def success_handler(self, context):
         self.callback_ran = True
         self.task_state_in_callback = context['ti'].state
+
+
+@pytest.fixture()
+def clear_datasets():
+    # Clean up before ourselves
+    db.clear_db_datasets()
+    yield
+    # and after
+    db.clear_db_datasets()
 
 
 class TestTaskInstance:
@@ -1513,7 +1521,7 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_outlet_datasets(self, create_task_instance):
+    def test_outlet_datasets(self, create_task_instance, clear_datasets):
         """
         Verify that when we have an outlet dataset on a task, and the task
         completes successfully, a DatasetDagRunQueue is logged.
@@ -1540,7 +1548,7 @@ class TestTaskInstance:
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
             DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
-        ).all() == [
+        ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
             ('example_dataset_dag3_req_dag1',),
             ('example_dataset_dag4_req_dag1_dag2',),
             ('example_dataset_dag5_req_dag1_D',),
@@ -1559,10 +1567,7 @@ class TestTaskInstance:
             .count()
         ) == 1
 
-        # Clean up after ourselves
-        db.clear_db_datasets()
-
-    def test_outlet_datasets_failed(self, create_task_instance):
+    def test_outlet_datasets_failed(self, create_task_instance, clear_datasets):
         """
         Verify that when we have an outlet dataset on a task, and the task
         failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
@@ -1593,7 +1598,7 @@ class TestTaskInstance:
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
 
-    def test_outlet_datasets_skipped(self, create_task_instance):
+    def test_outlet_datasets_skipped(self, create_task_instance, clear_datasets):
         """
         Verify that when we have an outlet dataset on a task, and the task
         is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
@@ -2608,8 +2613,6 @@ class TestTaskInstanceRecordTaskMapXComPush:
         "return_value, exception_type, error_message",
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
-            ([123], UnmappableXComTypePushed, "unmappable return type 'list[int]'"),
-            ([{1: 3}], UnmappableXComValuePushed, "unmappable return value [{1: 3}] (dict keys must be str)"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
         ],
     )

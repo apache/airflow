@@ -105,8 +105,9 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.operator import Operator
@@ -852,6 +853,14 @@ class Airflow(AirflowBaseView):
                 permissions.RESOURCE_DAG,
             ) in user_permissions
 
+            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
+            if dataset_triggered_dag_ids:
+                dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+                    dataset_triggered_dag_ids, session=session
+                )
+            else:
+                dataset_triggered_next_run_info = {}
+
             for dag in dags:
                 dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
                 if all_dags_editable:
@@ -970,6 +979,7 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
         )
 
     @expose('/datasets')
@@ -3341,6 +3351,7 @@ class Airflow(AirflowBaseView):
             }
         )
         chart.buildcontent()
+
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
@@ -5309,24 +5320,24 @@ class DagDependenciesView(AirflowBaseView):
 
     def _calculate_graph(self):
 
-        nodes: List[Dict[str, Any]] = []
-        edges: List[Dict[str, str]] = []
+        nodes_dict: Dict[str, Any] = {}
+        edge_tuples: Set[Dict[str, str]] = set()
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
-            nodes.append(self._node_dict(dag_node_id, dag, "dag"))
+            if dag_node_id not in nodes_dict:
+                nodes_dict[dag_node_id] = self._node_dict(dag_node_id, dag, "dag")
 
             for dep in dependencies:
-                nodes.append(self._node_dict(dep.node_id, dep.dependency_id, dep.dependency_type))
-                edges.extend(
-                    [
-                        {"u": f"dag:{dep.source}", "v": dep.node_id},
-                        {"u": dep.node_id, "v": f"dag:{dep.target}"},
-                    ]
-                )
+                if dep.node_id not in nodes_dict:
+                    nodes_dict[dep.node_id] = self._node_dict(
+                        dep.node_id, dep.dependency_id, dep.dependency_type
+                    )
+                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
-        self.nodes = nodes
-        self.edges = edges
+        self.nodes = list(nodes_dict.values())
+        self.edges = [{"u": u, "v": v} for u, v in edge_tuples]
 
     @staticmethod
     def _node_dict(node_id, label, node_class):

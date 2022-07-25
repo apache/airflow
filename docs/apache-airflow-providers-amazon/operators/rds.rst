@@ -86,7 +86,7 @@ To export an Amazon RDS snapshot to Amazon S3 you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSStartExportTaskOperator`.
 The provided IAM role must have access to the S3 bucket.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_export.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_export.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_start_export_task]
@@ -101,7 +101,7 @@ To cancel an Amazon RDS export task to S3 you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSCancelExportTaskOperator`.
 Any data that has already been written to the S3 bucket isn't removed.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_export.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_export.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_cancel_export]
@@ -194,7 +194,7 @@ To wait a for an Amazon RDS snapshot export task with specific statuses you can 
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsExportTaskExistenceSensor`.
 By default, the sensor waits for the existence of a snapshot with status ``available``.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_export.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_export.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_rds_export_task_existence]
