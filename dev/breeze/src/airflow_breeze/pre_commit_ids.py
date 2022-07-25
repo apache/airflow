@@ -65,6 +65,7 @@ PRE_COMMIT_LIST = [
     'check-xml',
     'codespell',
     'compile-www-assets',
+    'compile-www-assets-dev',
     'create-missing-init-py-files-tests',
     'debug-statements',
     'detect-private-key',
