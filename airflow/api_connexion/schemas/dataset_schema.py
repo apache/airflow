@@ -33,7 +33,7 @@ class DatasetSchema(SQLAlchemySchema):
 
     id = auto_field()
     uri = auto_field()
-    extra = auto_field()
+    extra = fields.Dict()
     created_at = auto_field()
     updated_at = auto_field()
 
@@ -66,7 +66,8 @@ class DatasetEventSchema(SQLAlchemySchema):
 
     id = auto_field()
     dataset_id = auto_field()
-    extra = auto_field()
+    dataset_uri = fields.String(attribute='dataset.uri', dump_only=True)
+    extra = fields.Dict()
     source_task_id = auto_field()
     source_dag_id = auto_field()
     source_run_id = auto_field()

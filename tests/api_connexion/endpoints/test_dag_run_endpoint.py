@@ -1612,7 +1612,9 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         assert len(result) == 1
         created_at = pendulum.now('UTC')
         # make sure whatever is returned by this func is what comes out in response.
-        mock_get_events.return_value = [DatasetEvent(dataset_id=1, created_at=created_at)]
+        d = DatasetEvent(dataset_id=1, created_at=created_at)
+        d.dataset = Dataset(id=1, uri='hello', created_at=created_at, updated_at=created_at)
+        mock_get_events.return_value = [d]
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
             environ_overrides={'REMOTE_USER': "test"},
@@ -1623,6 +1625,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                 {
                     'created_at': str(created_at),
                     'dataset_id': 1,
+                    'dataset_uri': d.dataset.uri,
                     'extra': None,
                     'id': None,
                     'source_dag_id': None,
