@@ -37,7 +37,8 @@ data:
     defaults:
       observer_type: histogram
       histogram_options:
-      buckets: {{ toYaml .Values.statsd.histogramBuckets }}
+        buckets:
+{{ toYaml .Values.statsd.histogramBuckets | indent 10 }}
     mappings:
 {{ toYaml .Values.statsd.defaultMappings | indent 6 }}
 {{ toYaml .Values.statsd.extraMappings | indent 6 }}
