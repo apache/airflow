@@ -123,18 +123,6 @@ class UnmappableXComTypePushed(AirflowException):
         return f"unmappable return type {typename!r}"
 
 
-class UnmappableXComValuePushed(AirflowException):
-    """Raise when an invalid value is pushed as a mapped downstream's dependency."""
-
-    def __init__(self, value: Any, reason: str) -> None:
-        super().__init__(value, reason)
-        self.value = value
-        self.reason = reason
-
-    def __str__(self) -> str:
-        return f"unmappable return value {self.value!r} ({self.reason})"
-
-
 class UnmappableXComLengthPushed(AirflowException):
     """Raise when the pushed value is too large to map as a downstream's dependency."""
 

@@ -52,7 +52,6 @@ IGNORED = {
     # Only on MappedOperator.
     "expand_input",
     "partial_kwargs",
-    "validate_upstream_return_value",
 }
 
 
