@@ -52,7 +52,7 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         assert serialized_data == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "created_at": self.timestamp,
             "updated_at": self.timestamp,
         }
@@ -82,14 +82,14 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 },
@@ -116,7 +116,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
         assert serialized_data == {
             "id": 1,
             "dataset_id": 10,
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
@@ -129,7 +129,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         common = {
             "dataset_id": 10,
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
