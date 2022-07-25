@@ -27,7 +27,7 @@ import type { SortingRule } from 'react-table';
 import Time from 'src/components/Time';
 import { useDatasetEvents, useDataset } from 'src/api';
 import {
-  Table, TimeCell, CodeCell, TaskInstanceLink, RunLink, GridLink,
+  Table, TimeCell, CodeCell, TaskInstanceLink,
 } from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
 
@@ -60,24 +60,9 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
         Cell: TimeCell,
       },
       {
-        Header: 'Source DAG Id',
-        accessor: 'sourceDagId',
-        Cell: GridLink,
-      },
-      {
-        Header: 'Source DAG Run Id',
-        accessor: 'sourceRunId',
-        Cell: RunLink,
-      },
-      {
-        Header: 'Source Task Id',
+        Header: 'Source Task Instance',
         accessor: 'sourceTaskId',
         Cell: TaskInstanceLink,
-      },
-      {
-        Header: 'Source Map Index',
-        accessor: 'sourceMapIndex',
-        Cell: ({ cell: { value } }) => (value > -1 ? value : null),
       },
       {
         Header: 'Extra',

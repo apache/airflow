@@ -26,20 +26,13 @@ import Time from 'src/components/Time';
 
 export const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
 
-export const GridLink = ({ cell: { value } }: any) => <Link color="blue.600" href={`/dags/${value}/grid`}>{value}</Link>;
-
 export const DatasetLink = ({ cell: { value } }: any) => <Link color="blue.600" href={`/datasets?dataset_id=${value}`}>{value}</Link>;
 
-export const RunLink = ({ cell: { value, row } }: any) => {
-  const { sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.600" href={url}>{value}</Link>);
-};
-
 export const TaskInstanceLink = ({ cell: { value, row } }: any) => {
-  const { sourceRunId, sourceDagId } = row.original;
+  const { sourceRunId, sourceDagId, sourceMapIndex } = row.original;
   const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.600" href={url}>{value}</Link>);
+  const mapIndex = sourceMapIndex > -1 ? `[${sourceMapIndex}]` : '';
+  return (<Link color="blue.600" href={url}>{`${sourceDagId}.${value}${mapIndex}`}</Link>);
 };
 
 export const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;

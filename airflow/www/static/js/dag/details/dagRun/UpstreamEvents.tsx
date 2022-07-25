@@ -22,7 +22,7 @@ import {
 } from '@chakra-ui/react';
 
 import {
-  CodeCell, DatasetLink, GridLink, RunLink, Table, TaskInstanceLink, TimeCell,
+  CodeCell, DatasetLink, Table, TaskInstanceLink, TimeCell,
 } from 'src/components/Table';
 import { useUpstreamDatasetEvents } from 'src/api';
 import type { DagRun as DagRunType } from 'src/types';
@@ -47,24 +47,9 @@ const UpstreamEvents = ({ runId }: Props) => {
         Cell: TimeCell,
       },
       {
-        Header: 'Source DAG',
-        accessor: 'sourceDagId',
-        Cell: GridLink,
-      },
-      {
-        Header: 'Source DAG Run',
-        accessor: 'sourceRunId',
-        Cell: RunLink,
-      },
-      {
-        Header: 'Source Task',
+        Header: 'Source Task Instance',
         accessor: 'sourceTaskId',
         Cell: TaskInstanceLink,
-      },
-      {
-        Header: 'Source Map Index',
-        accessor: 'sourceMapIndex',
-        Cell: ({ cell: { value } }) => (value > -1 ? value : null),
       },
       {
         Header: 'Extra',
