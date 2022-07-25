@@ -21,7 +21,12 @@ import React from 'react';
 import {
   Text,
   Box,
-  Flex, Table, Tbody, Tr, Td, Heading,
+  Flex,
+  Table,
+  Tbody,
+  Tr,
+  Td,
+  Heading,
 } from '@chakra-ui/react';
 
 import { finalStatesMap } from 'src/utils';
