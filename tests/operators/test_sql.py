@@ -25,7 +25,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.sql import (
+from airflow.providers.common.sql.operators.sql import (
     BranchSQLOperator,
     SQLCheckOperator,
     SQLIntervalCheckOperator,

@@ -17,7 +17,7 @@
 # under the License.
 import warnings
 
-from airflow.operators.sql import SQLCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLCheckOperator
 
 
 class DruidCheckOperator(SQLCheckOperator):

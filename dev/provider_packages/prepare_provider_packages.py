@@ -314,7 +314,18 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
 
     :return: install requirements of the package
     """
-    install_requires = ALL_DEPENDENCIES[provider_package_id][DEPS]
+
+    def apply_version_suffix(install_clause: str) -> str:
+        if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix != "":
+            # This is workaround for `pip` bug. When you specify dependency as >= X.Y.Z, and you
+            # have packages X.Y.Zdev0 or X.Y.Zrc1 in a local file, such package is not considered
+            # as fulfilling the requirement, so we need to remove the limit altogether
+            return install_clause.split('>=')[0]
+        return install_clause
+
+    install_requires = [
+        apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
+    ]
     prefix = "\n    "
     return prefix + prefix.join(install_requires)
 

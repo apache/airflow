@@ -19,7 +19,11 @@
 
 import warnings
 
-from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
+from airflow.providers.common.sql.operators.sql import (
+    SQLCheckOperator,
+    SQLIntervalCheckOperator,
+    SQLValueCheckOperator,
+)
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.sql`.", DeprecationWarning, stacklevel=2

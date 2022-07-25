@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.operators.sql import (
+from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLIntervalCheckOperator,
     SQLThresholdCheckOperator,

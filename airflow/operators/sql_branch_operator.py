@@ -17,7 +17,7 @@
 """This module is deprecated. Please use :mod:`airflow.operators.sql`."""
 import warnings
 
-from airflow.operators.sql import BranchSQLOperator
+from airflow.providers.common.sql.operators.sql import BranchSQLOperator
 
 warnings.warn(
     "This module is deprecated. Please use :mod:`airflow.operators.sql`.", DeprecationWarning, stacklevel=2
