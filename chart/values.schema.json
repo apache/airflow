@@ -857,6 +857,15 @@
                         "description": "Type **as string** of secret E.G. Opaque, kubernetes.io/dockerconfigjson, etc.",
                         "type": "string"
                     },
+                    "labels": {
+                        "description": "Labels for the secret",
+                        "type": "object",
+                        "additionalProperties": {
+                            "description": "Label key",
+                            "default": null,
+                            "type": "string"
+                        }
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -887,8 +896,17 @@
                 "minProperties": 1,
                 "additionalProperties": false,
                 "properties": {
+                    "labels": {
+                        "description": "Labels for the configmap",
+                        "type": "object",
+                        "additionalProperties": {
+                            "description": "Label key",
+                            "default": null,
+                            "type": "string"
+                        }
+                    },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
                         "type": "string"
                     }
                 }

@@ -21,6 +21,7 @@ from base64 import b64encode
 from unittest import mock
 
 import yaml
+from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
@@ -148,3 +149,38 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         }
         for k8s_object in k8s_objects:
             assert k8s_object['metadata']['labels'] == expected_labels
+
+    @parameterized.expand(
+        [
+            ({}, {"label3": "value3", "label4": "value4"}),
+            ({"label1": "value1", "label2": "value2"}, {}),
+            ({"label1": "value1", "label2": "value2"}, {"label3": "value3", "label4": "value4"}),
+        ]
+    )
+    def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels):
+        k8s_objects = render_chart(
+            name=RELEASE_NAME,
+            values={
+                "labels": chart_labels,
+                "extraSecrets": {
+                    "{{ .Release.Name }}-extra-secret-1": {
+                        "labels": local_labels,
+                        "stringData": "data: secretData",
+                    }
+                },
+                "extraConfigMaps": {
+                    "{{ .Release.Name }}-extra-configmap-1": {
+                        "labels": local_labels,
+                        "data": "data: configData",
+                    }
+                },
+            },
+            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+        )
+        common_labels = {
+            "release": RELEASE_NAME,
+            "heritage": "Helm",
+            "chart": mock.ANY,
+        }
+        for k8s_object in k8s_objects:
+            assert k8s_object['metadata']['labels'] == {**common_labels, **chart_labels, **local_labels}
