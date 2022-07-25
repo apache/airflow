@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Misc
+~~~~
+
+* ``chore: Refactoring and Cleaning Apache Providers (#24219)``
+* ``AIP-47 - Migrate hive DAGs to new design #22439 (#24204)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add typing for airflow/configuration.py (#23716)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
 2.3.3
 .....
 

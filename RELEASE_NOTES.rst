@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.3.2 (2021-06-04)
+Airflow 2.3.2 (2022-06-04)
 --------------------------
 
 No significant changes
@@ -256,7 +256,7 @@ containing your previous ``log_id_template`` and ``log_filename_template``. For 
 
 .. code-block:: sql
 
-    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}_{task_id}_{run_id}_{try_number}', NOW());
+    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}-{task_id}-{execution_date}-{try_number}', NOW());
 
 BaseOperatorLink's ``get_link`` method changed to take a ``ti_key`` keyword argument (#21798)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -1243,6 +1243,13 @@ DaskExecutor - Dask Worker Resources and queues
 """""""""""""""""""""""""""""""""""""""""""""""
 
 If dask workers are not started with complementary resources to match the specified queues, it will now result in an ``AirflowException``\ , whereas before it would have just ignored the ``queue`` argument.
+
+Logical date of a DAG run triggered from the web UI now have its sub-second component set to zero
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Due to a change in how the logical date (``execution_date``) is generated for a manual DAG run, a manual DAG run’s logical date may not match its time-of-trigger, but have its sub-second part zero-ed out. For example, a DAG run triggered on ``2021-10-11T12:34:56.78901`` would have its logical date set to ``2021-10-11T12:34:56.00000``.
+
+This may affect some logic that expects on this quirk to detect whether a run is triggered manually or not. Note that ``dag_run.run_type`` is a more authoritative value for this purpose. Also, if you need this distinction between automated and manually-triggered run for “next execution date” calculation, please also consider using the new data interval variables instead, which provide a more consistent behavior between the two run types.
 
 New Features
 ^^^^^^^^^^^^

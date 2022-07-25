@@ -34,7 +34,15 @@ from sqlalchemy import MetaData
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
-from airflow.utils.db import check_migrations, create_default_connections, downgrade, resetdb, upgradedb
+from airflow.utils.db import (
+    check_migrations,
+    compare_server_default,
+    compare_type,
+    create_default_connections,
+    downgrade,
+    resetdb,
+    upgradedb,
+)
 
 
 class TestDb:
@@ -44,7 +52,10 @@ class TestDb:
             all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
-        mctx = MigrationContext.configure(engine.connect())
+        mctx = MigrationContext.configure(
+            engine.connect(),
+            opts={'compare_type': compare_type, 'compare_server_default': compare_server_default},
+        )
         diff = compare_metadata(mctx, all_meta_data)
         # known diffs to ignore
         ignores = [
@@ -65,7 +76,10 @@ class TestDb:
             # Ignore flask-session table/index
             lambda t: (t[0] == 'remove_table' and t[1].name == 'session'),
             lambda t: (t[0] == 'remove_index' and t[1].name == 'session_id'),
+            # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'sqlite_sequence'),
         ]
+
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 

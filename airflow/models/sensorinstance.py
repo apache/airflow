@@ -59,8 +59,8 @@ class SensorInstance(Base):
     shardcode = Column(Integer, nullable=False)
     poke_context = Column(Text, nullable=False)
     execution_context = Column(Text)
-    created_at = Column(UtcDateTime, default=timezone.utcnow(), nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow(), onupdate=timezone.utcnow(), nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     # SmartSensor doesn't support mapped operators, but this is needed for compatibly with the
     # log_filename_template of TaskInstances

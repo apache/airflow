@@ -324,6 +324,7 @@ class MappedOperator(AbstractOperator):
             "dag",
             "deps",
             "is_mapped",
+            "mapped_kwargs",  # This is needed to be able to accept XComArg.
             "subdag",
             "task_group",
             "upstream_task_ids",
@@ -843,7 +844,6 @@ class MappedOperator(AbstractOperator):
         :return: None if upstream tasks are not complete yet, or else total number of mapped TIs this task
             should have
         """
-
         lengths = self._get_map_lengths(run_id, session=session)
         expansion_kwargs = self._get_expansion_kwargs()
 

@@ -281,7 +281,7 @@ to refresh them.
 
 Every developer can also pull and run images being result of a specific CI run in GitHub Actions.
 This is a powerful tool that allows to reproduce CI failures locally, enter the images and fix them much
-faster. It is enough to pass ``--github-image-id`` and the registry and Breeze will download and execute
+faster. It is enough to pass ``--image-tag`` and the registry and Breeze will download and execute
 commands using the same image that was used during the CI tests.
 
 For example this command will run the same Python 3.8 image as was used in build identified with
@@ -289,8 +289,7 @@ For example this command will run the same Python 3.8 image as was used in build
 
 .. code-block:: bash
 
-  ./breeze-legacy --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e \
-    --python 3.8 --integration rabbitmq
+  breeze --image-tag 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e --python 3.8 --integration rabbitmq
 
 You can see more details and examples in `Breeze <BREEZE.rst>`_
 

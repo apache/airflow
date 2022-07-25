@@ -22,6 +22,7 @@ description: |
     `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 versions:
+  - 3.0.0
   - 2.3.3
   - 2.3.2
   - 2.3.1
@@ -33,7 +34,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: MongoDB
@@ -49,9 +50,6 @@ hooks:
   - integration-name: MongoDB
     python-modules:
       - airflow.providers.mongo.hooks.mongo
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.mongo.hooks.mongo.MongoHook
 
 connection-types:
   - hook-class-name: airflow.providers.mongo.hooks.mongo.MongoHook

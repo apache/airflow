@@ -136,7 +136,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-1-compatibility                        | Check that providers are 2.1 compatible.                         |         |
+| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -160,6 +160,8 @@ require Breeze Docker image to be build locally.
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-example-dags-urls                                | Check that example dags url include provider versions            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-executables-have-shebangs                        | Check that executables have shebang                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -207,9 +209,13 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-present                             | Check if system tests have required segments of code             |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-system-tests-tocs                                | Check that system tests is properly added                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-xml                                              | Check XML files with xmllint                                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                              | Run codespell to check for common misspellings in files          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| create-missing-init-py-files-tests                     | Create missing init.py files in tests                            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | debug-statements                                       | Detect accidentally committed debug statements                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -288,7 +294,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-file                                     | Update output of breeze commands in BREEZE.rst                   |         |
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

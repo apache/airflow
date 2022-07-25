@@ -29,6 +29,9 @@ from airflow.providers.google.marketing_platform.operators.search_ads import (
 from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
 from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_search_ads"
+
 # [START howto_search_ads_env_variables]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_search_ads"
@@ -52,6 +55,7 @@ with models.DAG(
     schedule_interval='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example"],
 ) as dag:
     # [START howto_search_ads_generate_report_operator]
     generate_report = GoogleSearchAdsInsertReportOperator(report=REPORT, task_id="generate_report")

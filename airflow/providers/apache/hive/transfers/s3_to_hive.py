@@ -142,11 +142,11 @@ class S3ToHiveOperator(BaseOperator):
             if not s3_hook.check_for_wildcard_key(self.s3_key):
                 raise AirflowException(f"No key matches {self.s3_key}")
             s3_key_object = s3_hook.get_wildcard_key(self.s3_key)
-        else:
-            if not s3_hook.check_for_key(self.s3_key):
-                raise AirflowException(f"The key {self.s3_key} does not exists")
+        elif s3_hook.check_for_key(self.s3_key):
             s3_key_object = s3_hook.get_key(self.s3_key)
 
+        else:
+            raise AirflowException(f"The key {self.s3_key} does not exists")
         _, file_ext = os.path.splitext(s3_key_object.key)
         if self.select_expression and self.input_compressed and file_ext.lower() != '.gz':
             raise AirflowException("GZIP is the only compression format Amazon S3 Select supports")
@@ -227,8 +227,7 @@ class S3ToHiveOperator(BaseOperator):
     def _get_top_row_as_list(self, file_name):
         with open(file_name) as file:
             header_line = file.readline().strip()
-            header_list = header_line.split(self.delimiter)
-            return header_list
+            return header_line.split(self.delimiter)
 
     def _match_headers(self, header_list):
         if not header_list:

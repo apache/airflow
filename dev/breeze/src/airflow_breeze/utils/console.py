@@ -19,6 +19,7 @@ Console used by all processes. We are forcing colors and terminal output as Bree
 to be only run in CI or real development terminal - in both cases we want to have colors on.
 """
 import os
+from enum import Enum
 from functools import lru_cache
 
 from rich.console import Console
@@ -54,6 +55,19 @@ def get_theme() -> Theme:
             "error": "red",
         }
     )
+
+
+class MessageType(Enum):
+    SUCCESS = "success"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+def message_type_from_return_code(return_code: int) -> MessageType:
+    if return_code == 0:
+        return MessageType.SUCCESS
+    return MessageType.ERROR
 
 
 @lru_cache(maxsize=None)

@@ -127,33 +127,27 @@ being installed.
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-Installation and upgrading of Airflow providers separately
-==========================================================
+Installing/upgrading/downgrading providers separately from Airflow core
+=======================================================================
 
-You can manually install all the providers you need. You can continue using the "providers" constraint files
-but the 'versioned' airflow constraints installs only the versions of providers that were available in PyPI at
-the time of preparing of the airflow version. However, usually you can use "main" version of the providers
-to install latest version of providers. Usually the providers work with most versions of Airflow, if there
-will be any incompatibilities, it will be captured as package dependencies.
+In order to add new features, implement bug-fixes or simply maintain backwards compatibility, you might need
+to install, upgrade or downgrade any of the providers you need. We release providers independently from the
+core of Airflow, so often new versions of providers are released before Airflow is, also if you do not want
+yet to upgrade Airflow to the latest version, you might want to install newly released providers separately.
+For installing the providers you should not use any constraint files (the constraints are for installing
+Airflow with providers, not to install providers separately).
 
-Note that "main" is just an example - you might need to choose a specific airflow version to install providers
-in specific version.
-
-.. code-block:: bash
-
-    PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.7
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
-    pip install "apache-airflow-providers-google" --constraint "${CONSTRAINT_URL}"
-
-You can also upgrade the providers to latest versions (you need to use main version of constraints for that):
+You should run provider's installation as a separate command after Airflow has been installed (usually
+with constraints). Constraints are only effective during the ``pip install`` command they were used with.
 
 .. code-block:: bash
 
-    PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.7
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
-    pip install "apache-airflow-providers-google" --upgrade --constraint "${CONSTRAINT_URL}"
+    pip install "apache-airflow-providers-google==8.0.0"
+
+Note, that installing, upgrading, downgrading providers separately is not guaranteed to work with all
+Airflow versions or other providers. Some providers have minimum-required version of Airflow and some
+versions of providers might have conflicting requirements with Airflow or other dependencies you
+might have installed.
 
 
 Installation and upgrade of Airflow core

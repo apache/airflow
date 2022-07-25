@@ -29,4 +29,4 @@ Google Marketing Platform Operators
 
 .. note::
     You can learn how to use Google Cloud integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/main/tests/system/providers/google/marketing_platform/>`_ of the particular example DAGs.
+    `source code <https://github.com/apache/airflow/tree/providers-google/8.1.0/tests/system/providers/google/marketing_platform>`_ of the particular example DAGs.

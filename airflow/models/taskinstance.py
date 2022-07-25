@@ -53,6 +53,7 @@ import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
+    DateTime,
     Float,
     ForeignKeyConstraint,
     Index,
@@ -75,7 +76,6 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
-from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -95,7 +95,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -201,6 +201,7 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = None
             ti.external_executor_id = None
+            ti.clear_next_method_args()
             session.merge(ti)
 
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
@@ -400,6 +401,20 @@ class TaskInstanceKey(NamedTuple):
         return self
 
 
+def _executor_config_comparator(x, y):
+    """
+    The TaskInstance.executor_config attribute is a pickled object that may contain
+    kubernetes objects.  If the installed library version has changed since the
+    object was originally pickled, due to the underlying ``__eq__`` method on these
+    objects (which converts them to JSON), we may encounter attribute errors. In this
+    case we should replace the stored object.
+    """
+    try:
+        return x == y
+    except AttributeError:
+        return False
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance. This table is the
@@ -420,9 +435,9 @@ class TaskInstance(Base, LoggingMixin):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    run_id = Column(StringID(), primary_key=True, nullable=False)
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
@@ -430,27 +445,30 @@ class TaskInstance(Base, LoggingMixin):
     duration = Column(Float)
     state = Column(String(20))
     _try_number = Column('try_number', Integer, default=0)
-    max_tries = Column(Integer)
+    max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False, server_default=text("1"))
+    pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill))
+    executor_config = Column(PickleType(pickler=dill, comparator=_executor_config_comparator))
 
-    external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    external_executor_id = Column(StringID())
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id = Column(BigInteger)
+    trigger_id = Column(Integer)
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(UtcDateTime)
+    trigger_timeout = Column(DateTime)
+    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
+    # migration, we are keeping it as DateTime pending a change where expensive
+    # migration is inevitable.
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
@@ -771,7 +789,13 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + f"/log?execution_date={iso}&task_id={self.task_id}&dag_id={self.dag_id}"
+        return (
+            f"{base_url}/log"
+            f"?execution_date={iso}"
+            f"&task_id={self.task_id}"
+            f"&dag_id={self.dag_id}"
+            f"&map_index={self.map_index}"
+        )
 
     @property
     def mark_success_url(self):

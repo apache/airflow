@@ -198,4 +198,5 @@ def cleanup_tables(args):
         clean_before_timestamp=args.clean_before_timestamp,
         verbose=args.verbose,
         confirm=not args.yes,
+        skip_archive=args.skip_archive,
     )
