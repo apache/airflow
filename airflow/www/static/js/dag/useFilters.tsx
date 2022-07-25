@@ -17,9 +17,30 @@
  * under the License.
  */
 
-/* global defaultDagRunDisplayNumber, moment */
+/* global moment */
 
 import { useSearchParams } from 'react-router-dom';
+
+declare const defaultDagRunDisplayNumber: number;
+
+export interface Filters {
+  baseDate: string | null,
+  numRuns: string | null,
+  runType: string | null,
+  runState: string | null,
+}
+
+export interface UtilFunctions {
+  onBaseDateChange: (value: string) => void,
+  onNumRunsChange: (value: string) => void,
+  onRunTypeChange: (value: string) => void,
+  onRunStateChange: (value: string) => void,
+  clearFilters: () => void,
+}
+
+export interface FilterHookReturn extends UtilFunctions {
+  filters: Filters,
+}
 
 // Params names
 export const BASE_DATE_PARAM = 'base_date';
@@ -32,15 +53,18 @@ date.setMilliseconds(0);
 
 export const now = date.toISOString();
 
-const useFilters = () => {
+const useFilters = (): FilterHookReturn => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const baseDate = searchParams.get(BASE_DATE_PARAM) || now;
-  const numRuns = searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber;
+  const numRuns = searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
   const runType = searchParams.get(RUN_TYPE_PARAM);
   const runState = searchParams.get(RUN_STATE_PARAM);
 
-  const makeOnChangeFn = (paramName, formatFn) => (value) => {
+  const makeOnChangeFn = (
+    paramName: string,
+    formatFn?: (arg: string) => string,
+  ) => (value: string) => {
     const formattedValue = formatFn ? formatFn(value) : value;
     const params = new URLSearchParams(searchParams);
 
@@ -52,7 +76,7 @@ const useFilters = () => {
 
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
-    (localDate) => moment(localDate).utc().format(),
+    (localDate: string) => moment(localDate).utc().format(),
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
