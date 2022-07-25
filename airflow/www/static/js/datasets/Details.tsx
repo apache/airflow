@@ -123,7 +123,7 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
             {!!dataset.extra && (
               <Flex>
                 <Text mr={1}>Extra:</Text>
-                <Code>{dataset.extra}</Code>
+                <Code>{JSON.stringify(dataset.extra)}</Code>
               </Flex>
             )}
             <Flex my={2}>
