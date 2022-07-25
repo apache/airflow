@@ -3228,7 +3228,7 @@ components:
         owner:
           type: string
           readOnly: true
-        outlets_datasets:
+        outlet_datasets:
           $ref: '#/components/schemas/OutletDataset'
           readOnly: true
         start_date:
