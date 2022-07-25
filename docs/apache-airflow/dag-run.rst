@@ -82,7 +82,7 @@ Data Interval
 
 Each DAG run in Airflow has an assigned "data interval" that represents the time
 range it operates in. For a DAG scheduled with ``@daily``, for example, each of
-its data interval would start each day at midnight (00:00) and end at midnight 
+its data interval would start each day at midnight (00:00) and end at midnight
 (24:00).
 
 A DAG run is usually scheduled *after* its associated data interval has ended,
