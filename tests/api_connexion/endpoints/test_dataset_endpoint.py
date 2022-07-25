@@ -284,26 +284,27 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "id": 1,
                     "created_at": self.default_time,
                     **common,
-                    "uri": d.uri,
+                    "dataset_uri": d.uri,
                 },
                 {
                     "id": 2,
                     "created_at": self.default_time,
                     **common,
-                    "uri": d.uri,
+                    "dataset_uri": d.uri,
                 },
             ],
             "total_entries": 2,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        'attr, value',
         [
             ('dataset_id', '2'),
             ('source_dag_id', 'dag2'),
             ('source_task_id', 'task2'),
             ('source_run_id', 'run2'),
             ('source_map_index', '2'),
-        ]
+        ],
     )
     @provide_session
     def test_filtering(self, attr, value, session):
@@ -346,7 +347,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "dataset_id": 2,
-                    "uri": datasets[1].uri,
+                    "dataset_uri": datasets[1].uri,
                     "extra": None,
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
