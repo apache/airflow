@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global filtersOptions, moment */
+/* global moment */
 
 import {
   Box,
@@ -27,10 +27,18 @@ import {
   Select,
 } from '@chakra-ui/react';
 import React from 'react';
+import type { DagRun, RunState, TaskState } from 'src/types';
 
-import { useTimezone } from '../../context/timezone';
-import { isoFormatWithoutTZ } from '../../datetime_utils';
+import { useTimezone } from 'src/context/timezone';
+import { isoFormatWithoutTZ } from 'src/datetime_utils';
 import useFilters from '../useFilters';
+
+declare const filtersOptions: {
+  dagStates: RunState[],
+  numRuns: number[],
+  runTypes: DagRun['runType'][],
+  taskStates: TaskState[]
+};
 
 const FilterBar = () => {
   const {
@@ -78,7 +86,7 @@ const FilterBar = () => {
         >
           <option value="" key="all">All Run Types</option>
           {filtersOptions.runTypes.map((value) => (
-            <option value={value} key={value}>{value}</option>
+            <option value={value.toString()} key={value}>{value}</option>
           ))}
         </Select>
       </Box>
