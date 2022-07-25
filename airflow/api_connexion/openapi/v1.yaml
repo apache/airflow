@@ -3555,9 +3555,9 @@ components:
           type: string
           description: The dataset event creation time
           nullable: false
-        dataset:
-          $ref: '#/components/schemas/Dataset'
-          description: The dataset for which the event occurred.
+        uri:
+          type: string
+          description: The URI of the dataset
           nullable: false
 
     DatasetEventCollection:

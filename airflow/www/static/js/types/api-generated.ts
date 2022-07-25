@@ -1498,8 +1498,8 @@ export interface components {
       source_map_index?: number | null;
       /** @description The dataset event creation time */
       created_at?: string;
-      /** @description The dataset for which the event occurred. */
-      dataset?: components["schemas"]["Dataset"];
+      /** @description The URI of the dataset */
+      uri?: string;
     };
     /**
      * @description A collection of dataset events.

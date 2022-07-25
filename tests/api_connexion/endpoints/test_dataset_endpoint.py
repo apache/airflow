@@ -47,16 +47,6 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
-def dataset_to_dict(d):
-    return dict(
-        id=d.id,
-        uri=d.uri,
-        extra=d.extra,
-        created_at=str(d.created_at),
-        updated_at=str(d.updated_at),
-    )
-
-
 class TestDatasetEndpoint:
 
     default_time = "2020-06-11T18:00:00+00:00"
@@ -294,13 +284,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "id": 1,
                     "created_at": self.default_time,
                     **common,
-                    "dataset": dataset_to_dict(d),
+                    "uri": d.uri,
                 },
                 {
                     "id": 2,
                     "created_at": self.default_time,
                     **common,
-                    "dataset": dataset_to_dict(d),
+                    "uri": d.uri,
                 },
             ],
             "total_entries": 2,
@@ -356,7 +346,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "dataset_id": 2,
-                    "dataset": dataset_to_dict(datasets[1]),
+                    "uri": datasets[1].uri,
                     "extra": None,
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",

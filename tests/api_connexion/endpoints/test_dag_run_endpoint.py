@@ -1594,16 +1594,6 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     ]
 
 
-def dataset_to_dict(d):
-    return dict(
-        id=d.id,
-        uri=d.uri,
-        extra=d.extra,
-        created_at=str(d.created_at),
-        updated_at=str(d.updated_at),
-    )
-
-
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
     @mock.patch('airflow.api_connexion.endpoints.dag_run_endpoint._get_upstream_dataset_events')
     def test_should_respond_200(self, mock_get_events, session):
@@ -1635,7 +1625,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                 {
                     'created_at': str(created_at),
                     'dataset_id': 1,
-                    'dataset': dataset_to_dict(d.dataset),
+                    'uri': d.dataset.uri,
                     'extra': None,
                     'id': None,
                     'source_dag_id': None,
