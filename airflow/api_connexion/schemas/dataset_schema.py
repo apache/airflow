@@ -72,7 +72,7 @@ class DatasetEventSchema(SQLAlchemySchema):
     source_dag_id = auto_field()
     source_run_id = auto_field()
     source_map_index = auto_field()
-    created_at = auto_field()
+    timestamp = auto_field()
 
 
 class DatasetEventCollection(NamedTuple):
