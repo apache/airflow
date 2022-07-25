@@ -972,6 +972,7 @@ class DataprocJobBaseOperator(BaseOperator):
                         delegate_to=self.delegate_to,
                         gcp_conn_id=self.gcp_conn_id,
                         impersonation_chain=self.impersonation_chain,
+                        pooling_period_seconds=10,
                     ),
                     method_name="execute_complete",
                 )

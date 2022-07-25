@@ -62,6 +62,7 @@ cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
 
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
+COMPOSER_TRIGGERS_STRING = "airflow.providers.google.cloud.triggers.dataproc.{}"
 
 TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
@@ -882,6 +883,47 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
             request_id=REQUEST_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            job=job,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_job.assert_not_called()
+
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(COMPOSER_TRIGGERS_STRING.format("DataprocHook"))
+    def test_execute_deferrable(self, mock_trigger_hook, mock_hook):
+        job = {}
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            asynchronous=True,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
         )
         op.execute(context=self.mock_context)
 
