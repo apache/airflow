@@ -18,11 +18,11 @@
 
 import logging
 import math
+import pickle
 import sys
 import textwrap
 from datetime import datetime
 from typing import List, Set
-import pickle
 
 import pendulum
 import rich_click as click
@@ -30,13 +30,13 @@ from github import Github
 from github.PullRequest import PullRequest
 from rich.console import Console
 
-
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
+
 
 console = Console(width=400, color_system="standard")
 
@@ -130,7 +130,7 @@ class PrStat:
         return self.pull_request.deletions
 
     @property
-    def change_score(self) -> int:
+    def change_score(self) -> float:
         lineactions = self.num_additions + self.num_deletions
         actionsperfile = lineactions / self.num_changed_files
         if self.num_changed_files > 10:
@@ -138,7 +138,7 @@ class PrStat:
                 return 1.2
             if actionsperfile < 5:
                 return 0.7
-        return 1
+        return 1.0
 
     @cached_property
     def comment_length(self) -> int:
@@ -153,7 +153,7 @@ class PrStat:
 
     @property
     def length_score(self) -> float:
-        score = 1
+        score = 1.0
         if self.comment_length > 3000:
             score *= 1.3
         if self.comment_length < 200:
@@ -177,8 +177,8 @@ class PrStat:
         #
         # If a PR changed more than 20 files, it should matter less the more files there are.
         #
-        # If the avg # of changed lines per file is less than 5 and there are > 10 files, it should matter 30% less.
-        # If the avg # of changed lines per file is more than 20 and there are > 10 files, it should matter 20% more.
+        # If the avg # of changed lines/file is < 5 and there are > 10 files, it should matter 30% less.
+        # If the avg # of changed lines/file is > 20 and there are > 10 files, it should matter 20% more.
         #
         # If there are over 3000 characters worth of comments, the PR should matter 30% more.
         # If there are fewer than 200 characters worth of comments, the PR should matter 20% less.
@@ -245,18 +245,19 @@ DEFAULT_TOP_PRS = 10
 def main(
     github_token: str,
     date_start: datetime,
-    save: click.File(),
-    load: click.File(),
+    save: click.File(),  # type: ignore
+    load: click.File(),  # type: ignore
     date_end: datetime,
     top_number: int,
     verbose: bool,
 ):
+    selected_prs: List[PrStat] = []
     if load:
-        console.print(f"Loading PRs from cache and recalculating scores.")
+        console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding='bytes')
         for pr_stat in selected_prs:
             console.print(
-                f"[green]Loading PR: #{pr_stat.pull_request.number} `{pr_stat.pull_request.title}` from cache.[/]"
+                f"[green]Loading PR: #{pr_stat.pull_request.number} `{pr_stat.pull_request.title}`.[/]"
                 f" Score: {pr_stat.score}."
                 f" Url: {pr_stat.pull_request.html_url}"
             )
@@ -270,7 +271,6 @@ def main(
         repo = g.get_repo("apache/airflow")
         pulls = repo.get_pulls(state="closed", sort="created", direction='desc')
         issue_num = 0
-        selected_prs: List[PrStat] = []
         for pr in pulls:
             issue_num += 1
             if not pr.merged:
