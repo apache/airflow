@@ -19,34 +19,22 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Box, Heading, Text, Code, Flex, Spinner, Button, Link,
+  Box, Heading, Text, Code, Flex, Spinner, Button,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
 import Time from 'src/components/Time';
 import { useDatasetEvents, useDataset } from 'src/api';
-import Table from 'src/components/Table';
+import {
+  Table, TimeCell, CodeCell, TaskInstanceLink, RunLink, GridLink,
+} from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
 
 interface Props {
   datasetId: string;
   onBack: () => void;
 }
-
-const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
-const GridLink = ({ cell: { value } }: any) => <Link color="blue.500" href={`/dags/${value}/grid`}>{value}</Link>;
-const RunLink = ({ cell: { value, row } }: any) => {
-  const { sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.500" href={url}>{value}</Link>);
-};
-const TaskInstanceLink = ({ cell: { value, row } }: any) => {
-  const { sourceRunId, sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.500" href={url}>{value}</Link>);
-};
-const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
 
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;

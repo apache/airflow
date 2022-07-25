@@ -36,6 +36,7 @@ import useMappedInstances from './useMappedInstances';
 import useDatasets from './useDatasets';
 import useDataset from './useDataset';
 import useDatasetEvents from './useDatasetEvents';
+import useUpstreamDatasetEvents from './useUpstreamDatasetEvents';
 
 axios.interceptors.response.use(
   (res: AxiosResponse) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -60,4 +61,5 @@ export {
   useDatasets,
   useDataset,
   useDatasetEvents,
+  useUpstreamDatasetEvents,
 };

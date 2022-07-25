@@ -20,23 +20,18 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
-  Code,
   Heading,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import Table from 'src/components/Table';
-import Time from 'src/components/Time';
+import { Table, TimeCell, CodeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 
 interface Props {
   onSelect: (datasetId: string) => void;
 }
-
-const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
-const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
 
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
