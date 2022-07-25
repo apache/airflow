@@ -75,16 +75,14 @@ const DagRun = ({ runId }: Props) => {
 
   return (
     <>
-      <Box>
-        <Flex justifyContent="space-between" alignItems="center">
-          <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
-          <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
-            Graph
-          </Button>
-          <MarkFailedRun dagId={dagId} runId={runId} />
-          <MarkSuccessRun dagId={dagId} runId={runId} />
-        </Flex>
-      </Box>
+      <Flex justifyContent="space-between" alignItems="center">
+        <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
+        <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
+          Graph
+        </Button>
+        <MarkFailedRun dagId={dagId} runId={runId} />
+        <MarkSuccessRun dagId={dagId} runId={runId} />
+      </Flex>
       <Box py="4px">
         <Divider my={3} />
         <Flex justifyContent="flex-end" alignItems="center">
