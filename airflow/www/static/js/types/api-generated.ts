@@ -1327,7 +1327,7 @@ export interface components {
       class_ref?: components["schemas"]["ClassReference"];
       task_id?: string;
       owner?: string;
-      outlet_datasets?: components["schemas"]["OutletDataset"];
+      outlet_datasets?: components["schemas"]["OutletDataset"][];
       /** Format: date-time */
       start_date?: string;
       /** Format: date-time */

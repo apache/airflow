@@ -3229,7 +3229,9 @@ components:
           type: string
           readOnly: true
         outlet_datasets:
-          $ref: '#/components/schemas/OutletDataset'
+          type: array
+          items:
+            $ref: '#/components/schemas/OutletDataset'
           readOnly: true
         start_date:
           type: string
