@@ -100,9 +100,12 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
+        d = Dataset('s3://abc')
+        session.add(d)
+        session.commit()
         event = DatasetEvent(
             id=1,
-            dataset_id=10,
+            dataset_id=d.id,
             extra={"foo": "bar"},
             source_dag_id="foo",
             source_task_id="bar",
@@ -115,7 +118,8 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
         serialized_data = dataset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": 10,
+            "dataset_id": d.id,
+            "dataset_uri": "s3://abc",
             "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",

@@ -1625,7 +1625,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                 {
                     'created_at': str(created_at),
                     'dataset_id': 1,
-                    'uri': d.dataset.uri,
+                    'dataset_uri': d.dataset.uri,
                     'extra': None,
                     'id': None,
                     'source_dag_id': None,

@@ -1486,6 +1486,8 @@ export interface components {
     DatasetEvent: {
       /** @description The dataset id */
       dataset_id?: number;
+      /** @description The URI of the dataset */
+      dataset_uri?: string;
       /** @description The dataset event extra */
       extra?: { [key: string]: unknown } | null;
       /** @description The DAG ID that updated the dataset. */
@@ -1498,8 +1500,6 @@ export interface components {
       source_map_index?: number | null;
       /** @description The dataset event creation time */
       created_at?: string;
-      /** @description The URI of the dataset */
-      uri?: string;
     };
     /**
      * @description A collection of dataset events.
