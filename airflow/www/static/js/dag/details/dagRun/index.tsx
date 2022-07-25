@@ -24,6 +24,10 @@ import {
   Button,
   Link,
   Divider,
+  Table,
+  Tbody,
+  Tr,
+  Td,
 } from '@chakra-ui/react';
 
 import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
@@ -74,7 +78,7 @@ const DagRun = ({ runId }: Props) => {
   const detailsLink = appendSearchParams(dagRunDetailsUrl, detailsParams);
 
   return (
-    <Box py="4px">
+    <>
       <Flex justifyContent="space-between" alignItems="center">
         <Button as={Link} variant="ghost" colorScheme="blue" href={detailsLink}>DAG Run Details</Button>
         <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
@@ -83,76 +87,89 @@ const DagRun = ({ runId }: Props) => {
         <MarkFailedRun dagId={dagId} runId={runId} />
         <MarkSuccessRun dagId={dagId} runId={runId} />
       </Flex>
-      <Divider my={3} />
-      <Flex justifyContent="flex-end" alignItems="center">
-        <Text fontWeight="bold" mr={2}>Re-run:</Text>
-        <ClearRun dagId={dagId} runId={runId} />
-        <QueueRun dagId={dagId} runId={runId} />
-      </Flex>
-      <Divider my={3} />
-      <Flex alignItems="center">
-        <Text as="strong">Status:</Text>
-        <SimpleStatus state={state} mx={2} />
-        {state || 'no status'}
-      </Flex>
-      <br />
-      <Text whiteSpace="nowrap">
-        Run Id:
-        {' '}
-        <ClipboardText value={runId} />
-      </Text>
-      <Text>
-        Run Type:
-        {' '}
-        {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
-        {runType === 'backfill' && <RiArrowGoBackFill style={{ display: 'inline' }} />}
-        {runType === 'scheduled' && <MdOutlineSchedule style={{ display: 'inline' }} />}
-        {runType}
-      </Text>
-      <Text>
-        Duration:
-        {' '}
-        {formatDuration(getDuration(startDate, endDate))}
-      </Text>
-      {lastSchedulingDecision && (
-      <Text>
-        Last Scheduling Decision:
-        {' '}
-        <Time dateTime={lastSchedulingDecision} />
-      </Text>
-      )}
-      <br />
-      {startDate && (
-      <Text>
-        Started:
-        {' '}
-        <Time dateTime={startDate} />
-      </Text>
-      )}
-      {endDate && (
-      <Text>
-        Ended:
-        {' '}
-        <Time dateTime={endDate} />
-      </Text>
-      )}
-      {dataIntervalStart && dataIntervalEnd && (
-        <>
-          <br />
-          <Text as="strong">Data Interval:</Text>
-          <Text>
-            Start:
-            {' '}
-            <Time dateTime={dataIntervalStart} />
-          </Text>
-          <Text>
-            End:
-            {' '}
-            <Time dateTime={dataIntervalEnd} />
-          </Text>
-        </>
-      )}
-    </Box>
+      <Box py="4px">
+        <Divider my={3} />
+        <Flex justifyContent="flex-end" alignItems="center">
+          <Text fontWeight="bold" mr={2}>Re-run:</Text>
+          <ClearRun dagId={dagId} runId={runId} />
+          <QueueRun dagId={dagId} runId={runId} />
+        </Flex>
+        <Divider my={3} />
+      </Box>
+      <Table variant="striped">
+        <Tbody>
+          <Tr>
+            <Td>Status</Td>
+            <Td>
+              <Flex>
+                <SimpleStatus state={state} mx={2} />
+                {state || 'no status'}
+              </Flex>
+            </Td>
+          </Tr>
+          <Tr>
+            <Td>Run ID</Td>
+            <Td><ClipboardText value={runId} /></Td>
+          </Tr>
+          <Tr>
+            <Td>Run type</Td>
+            <Td>
+              {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
+              {runType === 'backfill' && <RiArrowGoBackFill style={{ display: 'inline' }} />}
+              {runType === 'scheduled' && <MdOutlineSchedule style={{ display: 'inline' }} />}
+              {runType}
+
+            </Td>
+          </Tr>
+          <Tr>
+            <Td>Run duration</Td>
+            <Td>
+              {formatDuration(getDuration(startDate, endDate))}
+            </Td>
+          </Tr>
+          {lastSchedulingDecision && (
+            <Tr>
+              <Td>Last scheduling decision</Td>
+              <Td>
+                <Time dateTime={lastSchedulingDecision} />
+              </Td>
+            </Tr>
+          )}
+          {startDate && (
+            <Tr>
+              <Td>Started</Td>
+              <Td>
+                <Time dateTime={startDate} />
+              </Td>
+            </Tr>
+          )}
+          {endDate && (
+            <Tr>
+              <Td>Ended</Td>
+              <Td>
+                <Time dateTime={endDate} />
+              </Td>
+            </Tr>
+          )}
+          {dataIntervalStart && dataIntervalEnd && (
+            <>
+              <Tr>
+                <Td>Data interval start</Td>
+                <Td>
+                  <Time dateTime={dataIntervalStart} />
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Data interval end</Td>
+                <Td>
+                  <Time dateTime={dataIntervalEnd} />
+                </Td>
+              </Tr>
+            </>
+          )}
+        </Tbody>
+      </Table>
+    </>
   );
 };
 
