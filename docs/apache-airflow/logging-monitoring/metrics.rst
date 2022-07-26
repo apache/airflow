@@ -101,6 +101,7 @@ Name                                        Description
 ``scheduler.critical_section_busy``         Count of times a scheduler process tried to get a lock on the critical
                                             section (needed to send tasks to the executor) and found it locked by
                                             another process.
+``sla_missed``                              Number of SLA misses
 ``sla_callback_notification_failure``       Number of failed SLA miss callback notification attempts
 ``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
 ``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
