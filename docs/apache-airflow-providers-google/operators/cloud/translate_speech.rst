@@ -43,7 +43,7 @@ for more information, see: https://googleapis.github.io/google-cloud-python/late
 
 Arguments for translation need to be specified.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_translate_speech.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/translate_speech/example_translate_speech.py
       :language: python
       :start-after: [START howto_operator_translate_speech_arguments]
       :end-before: [END howto_operator_translate_speech_arguments]
@@ -52,7 +52,7 @@ Arguments for translation need to be specified.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_translate_speech.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/translate_speech/example_translate_speech.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_speech]
