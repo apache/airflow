@@ -31,14 +31,12 @@ task_id = 'test_emr_serverless_task_id'
 application_id = 'test_application_id'
 release_label = 'test'
 job_type = 'test'
-client_request_token = 'eac427d0-1c6d-4dfb9=a-32423412'
-config = {'name': 'test_application_emr_server=ss'}
+client_request_token = 'eac427d0-1c6d-4dfb9a-32423412'
+config = {'name': 'test_application_emr_serverless'}
 
-pplication_id = 'test_emr_serverless_create_application_operator'
 execution_role_arn = 'test_emr_serverless_role_arn'
 job_driver = {'test_key': 'test_value'}
 configuration_overrides = {'monitoringConfiguration': {'test_key': 'test_value'}}
-client_request_token = 'eac427d0-1c6d4df=-96aa-32423412'
 job_run_id = 'test_job_run_id'
 
 application_id_delete_operator = 'test_emr_serverless_delete_application_operator'
