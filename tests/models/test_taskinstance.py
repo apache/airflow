@@ -43,7 +43,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
-    UnmappableXComValuePushed,
     XComForMappingNotPushed,
 )
 from airflow.models import (
@@ -2614,8 +2613,6 @@ class TestTaskInstanceRecordTaskMapXComPush:
         "return_value, exception_type, error_message",
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
-            ([123], UnmappableXComTypePushed, "unmappable return type 'list[int]'"),
-            ([{1: 3}], UnmappableXComValuePushed, "unmappable return value [{1: 3}] (dict keys must be str)"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
         ],
     )
