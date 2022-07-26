@@ -29,24 +29,23 @@ from airflow.models import Connection
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import CommandExecutor
 
-GCP_AI_KEY = "gcp_ai.json"
-GCP_AUTOML_KEY = "gcp_automl.json"
-GCP_BIGQUERY_KEY = "gcp_bigquery.json"
-GCP_BIGTABLE_KEY = "gcp_bigtable.json"
-GCP_CLOUD_BUILD_KEY = "gcp_cloud_build.json"
-GCP_CLOUD_COMPOSER = "gcp_cloud_composer.json"
-GCP_CLOUDSQL_KEY = "gcp_cloudsql.json"
-GCP_COMPUTE_KEY = "gcp_compute.json"
-GCP_COMPUTE_SSH_KEY = "gcp_compute_ssh.json"
-GCP_DATACATALOG_KEY = "gcp_datacatalog.json"
-GCP_DATAFLOW_KEY = "gcp_dataflow.json"
-GCP_DATAFUSION_KEY = "gcp_datafusion.json"
-GCP_DATAPROC_KEY = "gcp_dataproc.json"
-GCP_DATASTORE_KEY = "gcp_datastore.json"
-GCP_DLP_KEY = "gcp_dlp.json"
-GCP_FUNCTION_KEY = "gcp_function.json"
-GCP_GCS_KEY = "gcp_gcs.json"
-GCP_GCS_TRANSFER_KEY = "gcp_gcs_transfer.json"
+GCP_AI_KEY = 'gcp_ai.json'
+GCP_BIGQUERY_KEY = 'gcp_bigquery.json'
+GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
+GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
+GCP_CLOUD_COMPOSER = 'gcp_cloud_composer.json'
+GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
+GCP_COMPUTE_KEY = 'gcp_compute.json'
+GCP_COMPUTE_SSH_KEY = 'gcp_compute_ssh.json'
+GCP_DATACATALOG_KEY = 'gcp_datacatalog.json'
+GCP_DATAFLOW_KEY = 'gcp_dataflow.json'
+GCP_DATAFUSION_KEY = 'gcp_datafusion.json'
+GCP_DATAPROC_KEY = 'gcp_dataproc.json'
+GCP_DATASTORE_KEY = 'gcp_datastore.json'
+GCP_DLP_KEY = 'gcp_dlp.json'
+GCP_FUNCTION_KEY = 'gcp_function.json'
+GCP_GCS_KEY = 'gcp_gcs.json'
+GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_GKE_KEY = "gcp_gke.json"
 GCP_KMS_KEY = "gcp_kms.json"
 GCP_MEMORYSTORE = "gcp_memorystore.json"
