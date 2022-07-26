@@ -46,6 +46,7 @@ from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
 
@@ -139,7 +140,7 @@ class QuboleHook(BaseHook):
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
         self.cmd: Optional[Command] = None
-        self.task_instance = None
+        self.task_instance: Optional["TaskInstance"] = None
 
     @staticmethod
     def handle_failure_retry(context) -> None:

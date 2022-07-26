@@ -47,7 +47,7 @@ class SalesforceBulkOperator(BaseOperator):
     def __init__(
         self,
         *,
-        operation: Literal[available_operations],
+        operation: Literal['insert', 'update', 'upsert', 'delete', 'hard_delete'],
         object_name: str,
         payload: list,
         external_id_field: str = 'Id',
