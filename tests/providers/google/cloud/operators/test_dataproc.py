@@ -64,7 +64,7 @@ cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
 
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
-COMPOSER_TRIGGERS_STRING = "airflow.providers.google.cloud.triggers.dataproc.{}"
+DATAPROC_TRIGGERS_STRING = "airflow.providers.google.cloud.triggers.dataproc.{}"
 
 TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
@@ -908,7 +908,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    @mock.patch(COMPOSER_TRIGGERS_STRING.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_STRING.format("DataprocHook"))
     def test_execute_deferrable(self, mock_trigger_hook, mock_hook):
         job = {}
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
