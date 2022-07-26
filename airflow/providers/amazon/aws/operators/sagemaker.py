@@ -479,10 +479,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         transform_jobs = self.hook.list_transform_jobs(name_contains=transform_job_name)
         if transform_job_name in [tj['TransformJobName'] for tj in transform_jobs]:
             if self.action_if_job_exists == 'increment':
-                self.log.info("Found existing training job with name '%s'.", transform_job_name)
-                new_training_job_name = f'{transform_job_name}-{(len(transform_jobs) + 1)}'
-                transform_config['TransformJobName'] = new_training_job_name
-                self.log.info("Incremented training job name to '%s'.", new_training_job_name)
+                self.log.info("Found existing transform job with name '%s'.", transform_job_name)
+                new_transform_job_name = f'{transform_job_name}-{(len(transform_jobs) + 1)}'
+                transform_config['TransformJobName'] = new_transform_job_name
+                self.log.info("Incremented transform job name to '%s'.", new_transform_job_name)
             elif self.action_if_job_exists == 'fail':
                 raise AirflowException(
                     f'A SageMaker transform job with name {transform_job_name} already exists.'
