@@ -243,7 +243,11 @@ class BackfillJob(BaseJob):
                     ti,
                 )
                 tis_to_be_scheduled.append(ti)
-                ti_status.running.pop(reduced_key)
+                try:
+                    ti_status.running.pop(reduced_key)
+                except KeyError:
+                    # the task is not running
+                    pass
                 ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances
