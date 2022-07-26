@@ -39,7 +39,7 @@ interface Props {
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'createdAt', desc: true }]);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
 
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
@@ -82,35 +82,33 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
   return (
-    <Box maxWidth="1500px">
-      <Flex mt={3} justifyContent="space-between">
-        {isLoading && <Spinner display="block" />}
-        {!!dataset && (
-          <Box>
-            <Heading mb={2} fontWeight="normal">
-              Dataset:
-              {' '}
-              {dataset.uri}
-              <ClipboardButton value={dataset.uri} iconOnly ml={2} />
-            </Heading>
-            {!!dataset.extra && (
-              <Flex>
-                <Text mr={1}>Extra:</Text>
-                <Code>{JSON.stringify(dataset.extra)}</Code>
-              </Flex>
-            )}
-            <Flex my={2}>
-              <Text mr={1}>Updated At:</Text>
-              <Time dateTime={dataset.updatedAt} />
+    <Box mt={[6, 3]} maxWidth="1500px">
+      <Button onClick={onBack}>See all datasets</Button>
+      {isLoading && <Spinner display="block" />}
+      {!!dataset && (
+        <Box>
+          <Heading my={2} fontWeight="normal">
+            Dataset:
+            {' '}
+            {dataset.uri}
+            <ClipboardButton value={dataset.uri} iconOnly ml={2} />
+          </Heading>
+          {!!dataset.extra && (
+            <Flex>
+              <Text mr={1}>Extra:</Text>
+              <Code>{JSON.stringify(dataset.extra)}</Code>
             </Flex>
-            <Flex my={2}>
-              <Text mr={1}>Created At:</Text>
-              <Time dateTime={dataset.createdAt} />
-            </Flex>
-          </Box>
-        )}
-        <Button onClick={onBack}>See all datasets</Button>
-      </Flex>
+          )}
+          <Flex my={2}>
+            <Text mr={1}>Updated At:</Text>
+            <Time dateTime={dataset.updatedAt} />
+          </Flex>
+          <Flex my={2}>
+            <Text mr={1}>Created At:</Text>
+            <Time dateTime={dataset.createdAt} />
+          </Flex>
+        </Box>
+      )}
       <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
       <Text>Whenever a DAG has updated this dataset.</Text>
       <Table

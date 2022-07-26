@@ -42,8 +42,8 @@ const UpstreamEvents = ({ runId }: Props) => {
         Cell: DatasetLink,
       },
       {
-        Header: 'Created At',
-        accessor: 'createdAt',
+        Header: 'Timestamp',
+        accessor: 'timestamp',
         Cell: TimeCell,
       },
       {

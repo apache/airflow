@@ -35,4 +35,6 @@ export const TaskInstanceLink = ({ cell: { value, row } }: any) => {
   return (<Link color="blue.600" href={url}>{`${sourceDagId}.${value}${mapIndex}`}</Link>);
 };
 
-export const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
+export const CodeCell = ({ cell: { value } }: any) => (
+  value ? <Code>{JSON.stringify(value)}</Code> : null
+);
