@@ -945,9 +945,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         mock_hook.return_value.wait_for_job.assert_not_called()
 
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
-        )
+        self.mock_ti.xcom_push.assert_not_called()
 
         assert isinstance(exc.value.trigger, DataprocBaseTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
