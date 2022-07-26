@@ -776,9 +776,10 @@ class TestDataprocAsyncHook(unittest.TestCase):
         with pytest.raises(TypeError):
             self.hook.submit_job(job=JOB, project_id=GCP_PROJECT)
 
+    @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
-    def test_cancel_job(self, mock_client):
-        self.hook.cancel_job(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
+    async def test_cancel_job(self, mock_client):
+        await self.hook.cancel_job(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.cancel_job.assert_called_once_with(
             request=dict(
