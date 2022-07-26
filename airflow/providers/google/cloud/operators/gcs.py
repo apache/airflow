@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
-from pendulum.datetime import DateTime
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -723,22 +722,25 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     def execute(self, context: "Context") -> List[str]:
         # Define intervals and prefixes.
         try:
-            timespan_start = context["data_interval_start"]
-            timespan_end = context["data_interval_end"]
+            orig_start = context["data_interval_start"]
+            orig_end = context["data_interval_end"]
         except KeyError:
-            timespan_start = pendulum.instance(context["execution_date"])
+            orig_start = pendulum.instance(context["execution_date"])
             following_execution_date = context["dag"].following_schedule(context["execution_date"])
             if following_execution_date is None:
-                timespan_end = None
+                orig_end = None
             else:
-                timespan_end = pendulum.instance(following_execution_date)
+                orig_end = pendulum.instance(following_execution_date)
 
-        if timespan_end is None:  # Only possible in Airflow before 2.2.
-            self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
-        elif timespan_start >= timespan_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
+        timespan_start = orig_start
+        if orig_end is None:  # Only possible in Airflow before 2.2.
+            self.log.warning("No following schedule found, setting timespan end to max %s", orig_end)
+            timespan_end = pendulum.instance(datetime.datetime.max)
+        elif orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
+            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+            timespan_end = pendulum.instance(datetime.datetime.max)
+        else:
+            timespan_end = orig_end
 
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)
