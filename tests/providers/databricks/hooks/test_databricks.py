@@ -29,7 +29,6 @@ import tenacity
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
-from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
@@ -75,7 +74,6 @@ HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
 TOKEN = 'token'
-USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
 STATE_MESSAGE = 'Waiting for cluster'
@@ -353,7 +351,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'cluster_name': 'new_name'},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -372,7 +370,7 @@ class TestDatabricksHook(unittest.TestCase):
             },
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -391,7 +389,7 @@ class TestDatabricksHook(unittest.TestCase):
             },
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -411,7 +409,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'notebook_params': NOTEBOOK_PARAMS, 'jar_params': JAR_PARAMS, 'job_id': JOB_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -427,7 +425,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'run_id': RUN_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -443,7 +441,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'run_id': RUN_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -459,7 +457,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'run_id': RUN_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -475,7 +473,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'run_id': RUN_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -514,7 +512,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'run_id': RUN_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -532,7 +530,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'cluster_id': CLUSTER_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -550,7 +548,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'cluster_id': CLUSTER_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -568,7 +566,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'cluster_id': CLUSTER_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -587,7 +585,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -606,7 +604,7 @@ class TestDatabricksHook(unittest.TestCase):
             json={'cluster_id': CLUSTER_ID, 'libraries': LIBRARIES},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -630,7 +628,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -671,7 +669,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -689,7 +687,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -712,7 +710,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -729,7 +727,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -746,7 +744,7 @@ class TestDatabricksHook(unittest.TestCase):
             json=None,
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -1131,7 +1129,7 @@ class TestDatabricksHookAsyncMethods:
             submit_run_endpoint(HOST),
             json={'cluster_name': 'new_name'},
             auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -1147,7 +1145,7 @@ class TestDatabricksHookAsyncMethods:
             get_run_endpoint(HOST),
             json={'run_id': RUN_ID},
             auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -1164,7 +1162,7 @@ class TestDatabricksHookAsyncMethods:
             get_run_endpoint(HOST),
             json={'run_id': RUN_ID},
             auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -1206,7 +1204,7 @@ class TestDatabricksHookAsyncAadToken:
             get_run_endpoint(HOST),
             json={'run_id': RUN_ID},
             auth=BearerAuth(TOKEN),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -1258,7 +1256,7 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
             get_run_endpoint(HOST),
             json={'run_id': RUN_ID},
             auth=BearerAuth(TOKEN),
-            headers=USER_AGENT_HEADER,
+            headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
@@ -1321,7 +1319,7 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
             json={'run_id': RUN_ID},
             auth=BearerAuth(TOKEN),
             headers={
-                **USER_AGENT_HEADER,
+                **self.hook.user_agent_header,
                 'X-Databricks-Azure-Workspace-Resource-Id': '/Some/resource',
                 'X-Databricks-Azure-SP-Management-Token': TOKEN,
             },
