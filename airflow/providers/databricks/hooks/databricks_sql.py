@@ -22,13 +22,11 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
-from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ('GET', 'api/2.0/sql/endpoints')
-USER_AGENT_STRING = f'airflow-{__version__}'
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -62,9 +60,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         http_headers: Optional[List[Tuple[str, str]]] = None,
         catalog: Optional[str] = None,
         schema: Optional[str] = None,
+        caller: str = "DatabricksSqlHook",
         **kwargs,
     ) -> None:
-        super().__init__(databricks_conn_id)
+        super().__init__(databricks_conn_id, caller=caller)
         self._sql_conn = None
         self._token: Optional[str] = None
         self._http_path = http_path
@@ -132,7 +131,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 catalog=self.catalog,
                 session_configuration=self.session_config,
                 http_headers=self.http_headers,
-                _user_agent_entry=USER_AGENT_STRING,
+                _user_agent_entry=self.user_agent_value,
                 **self._get_extra_config(),
                 **self.additional_params,
             )
