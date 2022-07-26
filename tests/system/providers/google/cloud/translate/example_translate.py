@@ -50,8 +50,8 @@ with models.DAG(
     translation_access = BashOperator(
         task_id="access", bash_command="echo '{{ task_instance.xcom_pull(\"translate\")[0] }}'"
     )
-    product_set_create >> translation_access
     # [END howto_operator_translate_access]
+    product_set_create >> translation_access
 
     # ### Everything below this line is not part of example ###
     # ### Just for system tests purpose ###
