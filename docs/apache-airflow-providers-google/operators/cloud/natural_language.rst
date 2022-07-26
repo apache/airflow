@@ -44,14 +44,14 @@ representing text.
 
 Here is an example of document with text provided as a string:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :start-after: [START howto_operator_gcp_natural_language_document_text]
     :end-before: [END howto_operator_gcp_natural_language_document_text]
 
 In addition to supplying string, a document can refer to content stored in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :start-after: [START howto_operator_gcp_natural_language_document_gcs]
     :end-before: [END howto_operator_gcp_natural_language_document_gcs]
@@ -66,7 +66,7 @@ public figures, landmarks, etc.), and returns information about those entities.
 Entity analysis is performed with the
 :class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator` operator.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entities]
@@ -77,7 +77,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entities_result]
@@ -94,7 +94,7 @@ as positive, negative, or neutral. Sentiment analysis is performed through
 the :class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator`
 operator.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entity_sentiment]
@@ -105,7 +105,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
@@ -123,7 +123,7 @@ through the
 :class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`
 operator.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_sentiment]
@@ -134,7 +134,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_sentiment_result]
@@ -151,7 +151,7 @@ content in a document, use the
 :class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator`
 operator.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_classify_text]
@@ -162,7 +162,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_natural_language.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/natural_language/example_natural_language.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_natural_language_analyze_classify_text_result]

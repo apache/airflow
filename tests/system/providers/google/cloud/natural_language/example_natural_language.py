@@ -19,7 +19,7 @@
 """
 Example Airflow DAG for Google Cloud Natural Language service
 """
-
+import os
 from datetime import datetime
 
 from google.cloud.language_v1.proto.language_service_pb2 import Document
@@ -32,6 +32,9 @@ from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeSentimentOperator,
     CloudNaturalLanguageClassifyTextOperator,
 )
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_gcp_natural_language"
 
 # [START howto_operator_gcp_natural_language_document_text]
 TEXT = """Airflow is a platform to programmatically author, schedule and monitor workflows.
@@ -51,12 +54,12 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 
 
 with models.DAG(
-    "example_gcp_natural_language",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=['example'],
 ) as dag:
-
     # [START howto_operator_gcp_natural_language_analyze_entities]
     analyze_entities = CloudNaturalLanguageAnalyzeEntitiesOperator(
         document=document, task_id="analyze_entities"
@@ -113,3 +116,8 @@ with models.DAG(
     analyze_entity_sentiment >> analyze_entity_sentiment_result
     analyze_sentiment >> analyze_sentiment_result
     analyze_classify_text >> analyze_classify_text_result
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
