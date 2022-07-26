@@ -148,8 +148,8 @@ class ParamsDict(MutableMapping[str, Any]):
         return iter(self.__dict)
 
     def __repr__(self):
-        return f'{self.dump()}'
-
+        return repr(self.dump())
+        
     def __setitem__(self, key: str, value: Any) -> None:
         """
         Override for dictionary's ``setitem`` method. This method make sure that all values are of
