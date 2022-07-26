@@ -48,7 +48,7 @@ class Dataset(Base):
         ),
         nullable=False,
     )
-    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
@@ -221,7 +221,7 @@ class DatasetEvent(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, nullable=False)
-    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     source_task_id = Column(StringID(), nullable=True)
     source_dag_id = Column(StringID(), nullable=True)
     source_run_id = Column(StringID(), nullable=True)

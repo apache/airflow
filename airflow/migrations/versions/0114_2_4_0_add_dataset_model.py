@@ -55,7 +55,7 @@ def _create_dataset_table():
             ),
             nullable=False,
         ),
-        sa.Column('extra', sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        sa.Column('extra', sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         sa.Column('created_at', TIMESTAMP, nullable=False),
         sa.Column('updated_at', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
@@ -123,7 +123,7 @@ def _create_dataset_event_table():
         'dataset_event',
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
         sa.Column('dataset_id', Integer, nullable=False),
-        sa.Column('extra', sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        sa.Column('extra', sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         sa.Column('source_task_id', String(250), nullable=True),
         sa.Column('source_dag_id', String(250), nullable=True),
         sa.Column('source_run_id', String(250), nullable=True),
