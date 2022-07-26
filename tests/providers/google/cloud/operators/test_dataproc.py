@@ -26,7 +26,7 @@ from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import Batch
 
 from airflow import AirflowException
-from airflow.exceptions import AirflowTaskTimeout
+from airflow.exceptions import AirflowTaskTimeout, TaskDeferred
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     DATAPROC_CLUSTER_LINK,
@@ -52,6 +52,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator,
 )
+from airflow.providers.google.cloud.triggers.dataproc import DataprocBaseTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
 from airflow.version import version as airflow_version
@@ -925,7 +927,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
             deferrable=True,
         )
-        op.execute(mock.MagicMock())
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -945,6 +948,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         self.mock_ti.xcom_push.assert_called_once_with(
             key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
         )
+
+        assert isinstance(exc.value.trigger, DataprocBaseTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
