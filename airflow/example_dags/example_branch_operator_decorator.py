@@ -18,8 +18,8 @@
 
 """Example DAG demonstrating the usage of the ``@task.branch`` TaskFlow API decorator."""
 
-from typing import List
 import random
+from typing import List
 
 import pendulum
 
