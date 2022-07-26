@@ -63,6 +63,7 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
         m.setattr('airflow.plugins_manager.registered_operator_link_classes', {})
 
         with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
+            lineagefile = File("/tmp/does_not_exist")
             EmptyOperator(task_id="task1")
             with TaskGroup(group_id='group'):
                 MockOperator.partial(task_id='mapped').expand(arg1=['a', 'b', 'c', 'd'])
