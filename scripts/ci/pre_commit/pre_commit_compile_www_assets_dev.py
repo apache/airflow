@@ -30,4 +30,4 @@ if __name__ == '__main__':
     env = os.environ.copy()
     env['FORCE_COLOR'] = "true"
     subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(dir))
-    subprocess.check_call(['yarn', 'run', 'build'], cwd=str(dir), env=env)
+    subprocess.check_call(['yarn', 'dev'], cwd=str(dir), env=env)

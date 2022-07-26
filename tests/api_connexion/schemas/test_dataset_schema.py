@@ -111,7 +111,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
             source_task_id="bar",
             source_run_id="custom",
             source_map_index=-1,
-            created_at=timezone.parse(self.timestamp),
+            timestamp=timezone.parse(self.timestamp),
         )
         session.add(event)
         session.flush()
@@ -125,7 +125,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
-            "created_at": self.timestamp,
+            "timestamp": self.timestamp,
         }
 
 
@@ -140,7 +140,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(id=i, created_at=timezone.parse(self.timestamp), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.timestamp), **common) for i in [1, 2]]
         session.add_all(events)
         session.flush()
         serialized_data = dataset_event_collection_schema.dump(
@@ -148,8 +148,8 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
         )
         assert serialized_data == {
             "dataset_events": [
-                {"id": 1, "created_at": self.timestamp, **common},
-                {"id": 2, "created_at": self.timestamp, **common},
+                {"id": 1, "timestamp": self.timestamp, **common},
+                {"id": 2, "timestamp": self.timestamp, **common},
             ],
             "total_entries": 2,
         }

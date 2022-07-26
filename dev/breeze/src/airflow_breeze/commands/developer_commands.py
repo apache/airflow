@@ -151,6 +151,14 @@ DEVELOPER_PARAMETERS = {
             ],
         },
     ],
+    "breeze compile-www-assets": [
+        {
+            "name": "Compile www assets flag",
+            "options": [
+                "--dev",
+            ],
+        }
+    ],
     "breeze start-airflow": [
         {
             "name": "Basic flags",
@@ -360,7 +368,7 @@ def start_airflow(
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
     if use_airflow_version is None:
-        run_compile_www_assets(verbose=verbose, dry_run=dry_run)
+        run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -553,18 +561,21 @@ def static_checks(
 @main.command(
     name="compile-www-assets",
     help="Compiles www assets.",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_extra_args=True,
-    ),
+)
+@click.option(
+    "--dev",
+    help="Run development version of assets compilation - it will not quit and automatically "
+    "recompile assets on-the-fly when they are changed.",
+    is_flag=True,
 )
 @option_verbose
 @option_dry_run
 def compile_www_assets(
+    dev: bool,
     verbose: bool,
     dry_run: bool,
 ):
-    compile_www_assets_result = run_compile_www_assets(verbose=verbose, dry_run=dry_run)
+    compile_www_assets_result = run_compile_www_assets(dev=dev, verbose=verbose, dry_run=dry_run)
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)

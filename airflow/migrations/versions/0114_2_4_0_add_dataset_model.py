@@ -128,10 +128,10 @@ def _create_dataset_event_table():
         sa.Column('source_dag_id', String(250), nullable=True),
         sa.Column('source_run_id', String(250), nullable=True),
         sa.Column('source_map_index', sa.Integer(), nullable=True, server_default='-1'),
-        sa.Column('created_at', TIMESTAMP, nullable=False),
+        sa.Column('timestamp', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
-    op.create_index('idx_dataset_id_created_at', 'dataset_event', ['dataset_id', 'created_at'])
+    op.create_index('idx_dataset_id_timestamp', 'dataset_event', ['dataset_id', 'timestamp'])
 
 
 def upgrade():

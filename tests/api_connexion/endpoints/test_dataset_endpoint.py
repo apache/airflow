@@ -269,7 +269,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(id=i, created_at=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
         assert session.query(DatasetEvent).count() == 2
@@ -282,13 +282,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "dataset_events": [
                 {
                     "id": 1,
-                    "created_at": self.default_time,
+                    "timestamp": self.default_time,
                     **common,
                     "dataset_uri": d.uri,
                 },
                 {
                     "id": 2,
-                    "created_at": self.default_time,
+                    "timestamp": self.default_time,
                     **common,
                     "dataset_uri": d.uri,
                 },
@@ -328,7 +328,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
                 source_map_index=i,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2, 3]
         ]
@@ -353,7 +353,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "source_task_id": "task2",
                     "source_run_id": "run2",
                     "source_map_index": 2,
-                    "created_at": self.default_time,
+                    "timestamp": self.default_time,
                 }
             ],
             "total_entries": 1,
@@ -369,7 +369,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id="custom",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -425,7 +425,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 10)
         ]
@@ -447,7 +447,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 110)
         ]
@@ -469,7 +469,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 200)
         ]

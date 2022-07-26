@@ -8,7 +8,7 @@ build-image:b62509a59badf3aa230e4562df751002
 build-prod-image:b9aa5dcefcd7067a6698f68c05adc2b8
 cleanup:9a94bd1063296ea86e895f671db0b330
 command-hash-export:83bc6a4a8c60b62da3d0f00e81d2c3ea
-compile-www-assets:5f0d8af0a2a074f2ee577604662598c8
+compile-www-assets:23675c1862d0968cbff6ab6f1d93d488
 config:92653afc11889e1b78e3a2e38f41107f
 docker-compose-tests:8ae3b6211fd31db81a750d1c6b96ec3d
 exec:e4329909b8b2a610fa4fad5116c4b896
@@ -29,7 +29,7 @@ self-upgrade:b5437c0a1a91533a11ee9d0a9692369c
 setup-autocomplete:355b72dee171c2fcba46fc90ac7c97b0
 shell:4680295fdd8a276d51518d29360c365c
 start-airflow:92cf775a952439a32d409cd2536da507
-static-checks:da65567b7ace6c226ff31d4ca8c34cc4
+static-checks:03e96245e60c225ed94514ad7b42ceb0
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 tests:e39111ecbd33a65ababb3cbfbac2b069
 verify-image:a6b3c70957aea96a5d4d261f23359a2d

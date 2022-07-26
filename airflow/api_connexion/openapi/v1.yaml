@@ -3555,7 +3555,7 @@ components:
           type: integer
           description: The task map index that updated the dataset.
           nullable: true
-        created_at:
+        timestamp:
           type: string
           description: The dataset event creation time
           nullable: false
