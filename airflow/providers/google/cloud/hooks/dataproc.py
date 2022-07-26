@@ -238,7 +238,6 @@ class DataprocHook(GoogleBaseHook):
 
         return JobControllerClient(
             credentials=self._get_credentials(),
-            transport="grpc_asyncio" if self.async_client else "grpc",
             client_info=CLIENT_INFO,
             client_options=client_options,
             transport="grpc_asyncio" if self.async_client else "grpc",
