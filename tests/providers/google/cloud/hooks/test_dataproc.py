@@ -588,8 +588,10 @@ class TestDataprocAsyncHook(unittest.TestCase):
 
     @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
-    def test_diagnose_cluster(self, mock_client):
-        async self.hook.diagnose_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
+    async def test_diagnose_cluster(self, mock_client):
+        await self.hook.diagnose_cluster(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.diagnose_cluster.assert_called_once_with(
             request=dict(
