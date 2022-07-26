@@ -87,7 +87,7 @@ class TokenAuth(AuthBase):
 class JobRunInfo(TypedDict):
     """Type class for the ``job_run_info`` dictionary."""
 
-    account_id: int
+    account_id: Optional[int]
     run_id: int
 
 

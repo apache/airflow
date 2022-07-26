@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import functools
 import inspect
 import re
 from typing import (
@@ -68,7 +67,7 @@ from airflow.models.mappedoperator import (
 )
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
@@ -236,13 +235,15 @@ class DecoratedOperator(BaseOperator):
         return args, kwargs
 
 
-Function = TypeVar("Function", bound=Callable)
+FParams = ParamSpec("FParams")
+
+FReturn = TypeVar("FReturn")
 
 OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define(slots=False)
-class _TaskDecorator(Generic[Function, OperatorSubclass]):
+class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
     """
     Helper class for providing dynamic task mapping to decorated functions.
 
@@ -251,7 +252,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     :meta private:
     """
 
-    function: Function = attr.ib()
+    function: Callable[FParams, FReturn] = attr.ib()
     operator_class: Type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
@@ -272,7 +273,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault('task_id', self.function.__name__)
 
-    def __call__(self, *args, **kwargs) -> XComArg:
+    def __call__(self, *args: "FParams.args", **kwargs: "FParams.kwargs") -> XComArg:
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -285,7 +286,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         return XComArg(op)
 
     @property
-    def __wrapped__(self) -> Function:
+    def __wrapped__(self) -> Callable[FParams, FReturn]:
         return self.function
 
     @cached_property
@@ -337,9 +338,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> XComArg:
-        from airflow.models.xcom_arg import XComArg
-
+    def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
         if not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
@@ -420,14 +419,14 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         )
         return XComArg(operator=operator)
 
-    def partial(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def partial(self, **kwargs: Any) -> "_TaskDecorator[FParams, FReturn, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs)
         old_kwargs = self.kwargs.get("op_kwargs", {})
         prevent_duplicates(old_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(old_kwargs)
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": kwargs})
 
-    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def override(self, **kwargs: Any) -> "_TaskDecorator[FParams, FReturn, OperatorSubclass]":
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
 
@@ -506,7 +505,7 @@ class DecoratedMappedOperator(MappedOperator):
         return {k: _render_if_not_already_resolved(k, v) for k, v in value.items()}
 
 
-class Task(Generic[Function]):
+class Task(Generic[FParams, FReturn]):
     """Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated
@@ -517,18 +516,21 @@ class Task(Generic[Function]):
     This type is implemented by ``_TaskDecorator`` at runtime.
     """
 
-    __call__: Function
+    __call__: Callable[FParams, XComArg]
 
-    function: Function
+    function: Callable[FParams, FReturn]
 
     @property
-    def __wrapped__(self) -> Function:
+    def __wrapped__(self) -> Callable[FParams, FReturn]:
+        ...
+
+    def partial(self, **kwargs: Any) -> "Task[FParams, FReturn]":
         ...
 
     def expand(self, **kwargs: "Mappable") -> XComArg:
         ...
 
-    def partial(self, **kwargs: Any) -> "Task[Function]":
+    def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
         ...
 
 
@@ -536,7 +538,10 @@ class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
 
     @overload
-    def __call__(self, python_callable: Function) -> Task[Function]:
+    def __call__(  # type: ignore[misc]
+        self,
+        python_callable: Callable[FParams, FReturn],
+    ) -> Task[FParams, FReturn]:
         """For the "bare decorator" ``@task`` case."""
 
     @overload
@@ -545,7 +550,7 @@ class TaskDecorator(Protocol):
         *,
         multiple_outputs: Optional[bool] = None,
         **kwargs: Any,
-    ) -> Callable[[Function], Task[Function]]:
+    ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
 
 
@@ -556,16 +561,20 @@ def task_decorator_factory(
     decorated_operator_class: Type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
-    """
-    A factory that generates a wrapper that wraps a function into an Airflow operator.
-    Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+    """Generate a wrapper that wraps a function into an Airflow operator.
 
-    :param python_callable: Function to decorate
-    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
-        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    :param decorated_operator_class: The operator that executes the logic needed to run the python function in
-        the correct environment
+    Can be reused in a single DAG.
 
+    :param python_callable: Function to decorate.
+    :param multiple_outputs: If set to True, the decorated function's return
+        value will be unrolled to multiple XCom values. Dict will unroll to XCom
+        values with its keys as XCom keys. If set to False (default), only at
+        most one XCom value is pushed.
+    :param decorated_operator_class: The operator that executes the logic needed
+        to run the python function in the correct environment.
+
+    Other kwargs are directly forwarded to the underlying operator class when
+    it's instantiated.
     """
     if multiple_outputs is None:
         multiple_outputs = cast(bool, attr.NOTHING)
@@ -579,10 +588,13 @@ def task_decorator_factory(
         return cast(TaskDecorator, decorator)
     elif python_callable is not None:
         raise TypeError('No args allowed while using @task, use kwargs instead')
-    decorator_factory = functools.partial(
-        _TaskDecorator,
-        multiple_outputs=multiple_outputs,
-        operator_class=decorated_operator_class,
-        kwargs=kwargs,
-    )
+
+    def decorator_factory(python_callable):
+        return _TaskDecorator(
+            function=python_callable,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        )
+
     return cast(TaskDecorator, decorator_factory)
