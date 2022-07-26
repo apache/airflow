@@ -1,7 +1,7 @@
 import asyncio
 
 from airflow import AirflowException
-from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
+from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from google.cloud.dataproc_v1 import JobStatus, Job
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
@@ -31,11 +31,10 @@ class DataprocBaseTrigger(BaseTrigger):
         self.region = region
         self.pooling_period_seconds = pooling_period_seconds
         self.delegate_to = delegate_to
-        self.hook = DataprocHook(
+        self.hook = DataprocAsyncHook(
             delegate_to=self.delegate_to,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            async_client=True,
         )
 
     def serialize(self):
@@ -52,14 +51,9 @@ class DataprocBaseTrigger(BaseTrigger):
             },
         )
 
-    async def get_job(self) -> Job:
-        return await self.hook.get_job(job_id=self.job_id, project_id=self.project_id, region=self.region)
-
     async def run(self):
         while True:
-            job: Job = await self.hook.get_job(
-                project_id=self.project_id, region=self.region, job_id=self.job_id
-            )
+            job = await self.hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
             state = job.status.state
             self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
             if state in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
