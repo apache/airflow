@@ -687,7 +687,7 @@ def _create_db_from_orm(session):
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION):
+def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
     """Initialize Airflow database."""
     db_exists = _get_current_revision(session)
     if db_exists:
@@ -695,7 +695,7 @@ def initdb(session: Session = NEW_SESSION):
     else:
         _create_db_from_orm(session=session)
     # Load default connections
-    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
+    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS') and load_connections:
         create_default_connections(session=session)
     # Add default pool & sync log_template
     add_default_pool_if_not_exists()
@@ -1515,9 +1515,8 @@ def upgradedb(
 
     if not to_revision and not _get_current_revision(session=session):
         # Don't load default connections
-        os.environ['AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS'] = 'False'
         # New DB; initialize and exit
-        initdb(session=session)
+        initdb(session=session, load_connections=False)
         return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
