@@ -636,8 +636,24 @@ class SchedulerJob(BaseJob):
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor_state=%s, try_number=%s, max_tries=%s, job_id=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
-                "queued_by_job_id=%s, pid=%s"
+                "queued_by_job_id=%s, pid=%s, op_classpath=%s"
             )
+
+            # Adding op_class path for the task instance log in order to track where the
+            # operator/sensor originated from
+            # Get task from the Serialized DAG
+            try:
+                dag = self.dagbag.get_dag(ti.dag_id)
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.exception("Marking task instance %s as %s", ti, state)
+                ti.set_state(state)
+                continue
+            ti.task = task
+
+            module_name, class_name = task._task_module, task._task_type
+            op_classpath = module_name + "." + class_name
+
             self.log.info(
                 msg,
                 ti.dag_id,
@@ -659,6 +675,7 @@ class SchedulerJob(BaseJob):
                 ti.queued_dttm,
                 ti.queued_by_job_id,
                 ti.pid,
+                op_classpath,
             )
 
             # There are two scenarios why the same TI with the same try_number is queued
@@ -682,15 +699,6 @@ class SchedulerJob(BaseJob):
                 )
                 self.log.error(msg, ti, state, ti.state, info)
 
-                # Get task from the Serialized DAG
-                try:
-                    dag = self.dagbag.get_dag(ti.dag_id)
-                    task = dag.get_task(ti.task_id)
-                except Exception:
-                    self.log.exception("Marking task instance %s as %s", ti, state)
-                    ti.set_state(state)
-                    continue
-                ti.task = task
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
