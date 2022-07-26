@@ -244,7 +244,7 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -286,7 +286,7 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
 fi
 
