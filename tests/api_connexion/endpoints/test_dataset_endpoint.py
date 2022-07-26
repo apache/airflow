@@ -70,6 +70,7 @@ class TestDatasetEndpoint:
         )
         session.add(dataset_model)
         session.commit()
+        return dataset_model
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
@@ -83,7 +84,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         assert response.json == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "created_at": self.default_time,
             "updated_at": self.default_time,
         }
@@ -129,14 +130,14 @@ class TestGetDatasets(TestDatasetEndpoint):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                 },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                 },
@@ -258,17 +259,17 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
 class TestGetDatasetEvents(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
-        self._create_dataset(session)
+        d = self._create_dataset(session)
         common = {
             "dataset_id": 1,
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(id=i, created_at=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
         assert session.query(DatasetEvent).count() == 2
@@ -279,20 +280,31 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         response_data = response.json
         assert response_data == {
             "dataset_events": [
-                {"id": 1, "created_at": self.default_time, **common},
-                {"id": 2, "created_at": self.default_time, **common},
+                {
+                    "id": 1,
+                    "timestamp": self.default_time,
+                    **common,
+                    "dataset_uri": d.uri,
+                },
+                {
+                    "id": 2,
+                    "timestamp": self.default_time,
+                    **common,
+                    "dataset_uri": d.uri,
+                },
             ],
             "total_entries": 2,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        'attr, value',
         [
             ('dataset_id', '2'),
             ('source_dag_id', 'dag2'),
             ('source_task_id', 'task2'),
             ('source_run_id', 'run2'),
             ('source_map_index', '2'),
-        ]
+        ],
     )
     @provide_session
     def test_filtering(self, attr, value, session):
@@ -316,7 +328,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
                 source_map_index=i,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2, 3]
         ]
@@ -335,12 +347,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "dataset_id": 2,
+                    "dataset_uri": datasets[1].uri,
                     "extra": None,
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
                     "source_run_id": "run2",
                     "source_map_index": 2,
-                    "created_at": self.default_time,
+                    "timestamp": self.default_time,
                 }
             ],
             "total_entries": 1,
@@ -356,7 +369,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id="custom",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -412,7 +425,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 10)
         ]
@@ -434,7 +447,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 110)
         ]
@@ -456,7 +469,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 200)
         ]

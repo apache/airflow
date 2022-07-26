@@ -67,8 +67,8 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'Created At',
-        accessor: 'createdAt',
+        Header: 'Timestamp',
+        accessor: 'timestamp',
         Cell: TimeCell,
       },
       {
@@ -123,7 +123,7 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
             {!!dataset.extra && (
               <Flex>
                 <Text mr={1}>Extra:</Text>
-                <Code>{dataset.extra}</Code>
+                <Code>{JSON.stringify(dataset.extra)}</Code>
               </Flex>
             )}
             <Flex my={2}>

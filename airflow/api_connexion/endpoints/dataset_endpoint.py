@@ -72,7 +72,7 @@ def get_dataset_events(
     *,
     limit: int,
     offset: int = 0,
-    order_by: str = "created_at",
+    order_by: str = "timestamp",
     dataset_id: Optional[int] = None,
     source_dag_id: Optional[str] = None,
     source_task_id: Optional[str] = None,
@@ -81,7 +81,7 @@ def get_dataset_events(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dataset events"""
-    allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'created_at']
+    allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'timestamp']
 
     query = session.query(DatasetEvent)
 

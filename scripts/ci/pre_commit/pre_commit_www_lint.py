@@ -28,4 +28,4 @@ if __name__ == '__main__':
     dir = Path("airflow") / "www"
     subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=dir)
     subprocess.check_call(['yarn', 'run', 'generate-api-types'], cwd=dir)
-    subprocess.check_call(['yarn', 'run', 'lint'], cwd=dir)
+    subprocess.check_call(['yarn', 'run', 'lint:fix'], cwd=dir)

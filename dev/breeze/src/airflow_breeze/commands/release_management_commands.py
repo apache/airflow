@@ -234,7 +234,7 @@ def prepare_airflow_packages(
     debug: bool,
 ):
     perform_environment_checks(verbose=verbose)
-    run_compile_www_assets(verbose=verbose, dry_run=dry_run)
+    run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
         github_repository=github_repository,
