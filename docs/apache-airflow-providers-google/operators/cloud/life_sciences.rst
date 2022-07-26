@@ -34,7 +34,7 @@ Pipeline Configuration
 In order to run the pipeline, it is necessary to configure the request body.
 Here is an example of the pipeline configuration with a single action.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_life_sciences.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/life_sciences/example_life_sciences.py
     :language: python
     :dedent: 0
     :start-after: [START howto_configure_simple_action_pipeline]
@@ -42,7 +42,7 @@ Here is an example of the pipeline configuration with a single action.
 
 The pipeline can also be configured with multiple action.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_life_sciences.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/life_sciences/example_life_sciences.py
     :language: python
     :dedent: 0
     :start-after: [START howto_configure_multiple_action_pipeline]
@@ -59,7 +59,7 @@ Use the
 :class:`~airflow.providers.google.cloud.operators.life_sciences.LifeSciencesRunPipelineOperator`
 to execute pipelines.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_life_sciences.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/life_sciences/example_life_sciences.py
     :language: python
     :dedent: 0
     :start-after: [START howto_run_pipeline]
