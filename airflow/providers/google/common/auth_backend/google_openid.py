@@ -23,7 +23,7 @@ from typing import Callable, Optional, TypeVar, cast
 import google
 import google.auth.transport.requests
 import google.oauth2.id_token
-from flask import Response, _request_ctx_stack, current_app, request as flask_request  # type: ignore
+from flask import Response, current_app, request as flask_request  # type: ignore
 from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
@@ -101,8 +101,7 @@ def _lookup_user(user_email: str):
 
 
 def _set_current_user(user):
-    ctx = _request_ctx_stack.top
-    ctx.user = user
+    current_app.appbuilder.sm.lm._update_request_context_with_user(user=user)  # type: ignore[attr-defined]
 
 
 T = TypeVar("T", bound=Callable)
