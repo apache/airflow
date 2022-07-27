@@ -16,6 +16,7 @@
 # under the License.
 
 import datetime
+from abc import ABC
 from typing import Any, Dict, Optional, Union
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
@@ -33,21 +34,13 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 Delta = Union[datetime.timedelta, relativedelta]
 
 
-class _DataIntervalTimetable(Timetable):
+class _CronAndDeltaTimetable(Timetable, ABC):
     """Basis for timetable implementations that schedule data intervals.
 
     This kind of timetable classes create periodic data intervals from an
     underlying schedule representation (e.g. a cron expression, or a timedelta
     instance), and schedule a DagRun at the end of each interval.
     """
-
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
-
-        This is called when ``catchup=False``. See docstring of subclasses for
-        exact skipping behaviour of a schedule.
-        """
-        raise NotImplementedError()
 
     def _align(self, current: DateTime) -> DateTime:
         """Align given time to the scheduled.
@@ -64,6 +57,17 @@ class _DataIntervalTimetable(Timetable):
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the last schedule before the current time."""
+        raise NotImplementedError()
+
+
+class _DataIntervalTimeTable(_CronAndDeltaTimetable, ABC):
+
+    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+        """Bound the earliest time a run can be scheduled.
+
+        This is called when ``catchup=False``. See docstring of subclasses for
+        exact skipping behaviour of a schedule.
+        """
         raise NotImplementedError()
 
     def next_dagrun_info(
@@ -114,7 +118,7 @@ def _is_schedule_fixed(expression: str) -> bool:
     return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
-class CronDataIntervalTimetable(_DataIntervalTimetable):
+class _CronTimetable(_CronAndDeltaTimetable, ABC):
     """Timetable that schedules data intervals with a cron expression.
 
     This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
@@ -158,7 +162,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, CronDataIntervalTimetable):
+        if not isinstance(other, _CronTimetable):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
 
@@ -214,6 +218,9 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             return next_time
         return current
 
+
+class CronDataIntervalTimetable(_CronTimetable, _DataIntervalTimeTable):
+
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
@@ -245,7 +252,46 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         return DataInterval(start=self._get_prev(end), end=end)
 
 
-class DeltaDataIntervalTimetable(_DataIntervalTimetable):
+class CronTriggerTimetable(_CronTimetable):
+    """Timetable that schedules in a plan cron-like fashion.
+
+    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
+    a five/six-segment representation, or one of ``cron_presets``.
+
+    The difference from `CronDataIntervalTimetable` is that a first DAG Run is kicked
+    off at the start of the period like a normal cron, while a first DAG Run starts
+    immediately after the DAG is registered if using `CronDataIntervalTimetable`.
+
+    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+    """
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        return DataInterval.exact(run_after)
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: Optional[DataInterval],
+        restriction: TimeRestriction,
+    ) -> Optional[DagRunInfo]:
+        if restriction.catchup:
+            if last_automated_data_interval is None:
+                if restriction.earliest is None:
+                    return None
+                next_start_time = self._align(restriction.earliest)
+            else:
+                next_start_time = self._align(last_automated_data_interval.end)
+        else:
+            current_time = DateTime.utcnow()
+            if restriction.earliest is not None and current_time < restriction.earliest:
+                next_start_time = self._align(restriction.earliest)
+            else:
+                next_start_time = self._align(current_time)
+        if restriction.latest is not None and restriction.latest < next_start_time:
+            return None
+        return DagRunInfo.exact(next_start_time)
+
+
+class DeltaDataIntervalTimetable(_DataIntervalTimeTable):
     """Timetable that schedules data intervals with a time delta.
 
     This corresponds to ``schedule_interval=<delta>``, where ``<delta>`` is
@@ -317,36 +363,3 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
 
     def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
         return DataInterval(start=self._get_prev(run_after), end=run_after)
-
-
-class PlainCronDataIntervalTimetable(CronDataIntervalTimetable):
-    """Timetable that schedules in a plan cron-like fashion.
-
-    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
-    a five/six-segment representation, or one of ``cron_presets``.
-
-    The difference from `CronDataIntervalTimetable` is that a first DAG Run is kicked
-    off at the start of the period like a normal cron, while a first DAG Run starts
-    immediately after the DAG is registered if using `CronDataIntervalTimetable`.
-
-    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
-    """
-
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        # Get the last complete period _after_ run_after, e.g. if a DAG run is
-        # scheduled at each midnight, the data interval of a manually triggered
-        # run at 1am 25th is between 0am 25th and 0am 26th.
-        data_interval = super().infer_manual_data_interval(run_after=run_after)
-        if DateTime.utcnow() == run_after:
-            return data_interval
-        else:
-            return DataInterval(
-                start=self._get_next(data_interval.start), end=self._get_next(data_interval.end)
-            )
-
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
-        latest = super()._skip_to_latest(earliest=earliest)
-        if DateTime.utcnow() == latest:
-            return latest
-        else:
-            return self._get_next(latest)
