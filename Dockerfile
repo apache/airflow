@@ -317,6 +317,7 @@ function install_airflow_dependencies_from_branch_tip() {
     # are conflicts, this might fail, but it should be fixed in the following installation steps
     set -x
     pip install --root-user-action ignore \
+      ${ADDITIONAL_PIP_INSTALL_FLAGS} \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
     # make sure correct PIP version is used
@@ -476,6 +477,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     # force reinstall all airflow + provider package local files with eager upgrade
     set -x
     pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
+        ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
         ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     set +x
@@ -496,7 +498,8 @@ function install_all_other_packages_from_docker_context_files() {
         grep -v apache_airflow | grep -v apache-airflow || true)
     if [[ -n "${reinstalling_other_packages}" ]]; then
         set -x
-        pip install --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
+        pip install ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         set -x
@@ -547,6 +550,7 @@ function install_airflow() {
         echo
         # eager upgrade
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
@@ -555,6 +559,7 @@ function install_airflow() {
             set -x
             pip uninstall apache-airflow --yes
             pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
             set +x
         fi
@@ -571,12 +576,14 @@ function install_airflow() {
         echo
         set -x
         pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         # then upgrade if needed without using constraints to account for new limits in setup.py
         pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         # make sure correct PIP version is used
@@ -617,6 +624,7 @@ function install_additional_dependencies() {
         echo
         set -x
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
@@ -631,6 +639,7 @@ function install_additional_dependencies() {
         echo
         set -x
         pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS}
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
@@ -1145,6 +1154,9 @@ RUN if [[ -f /docker-context-files/pip.conf ]]; then \
         cp /docker-context-files/.piprc "${AIRFLOW_USER_HOME_DIR}/.piprc"; \
     fi
 
+# Additional PIP flags passed to all pip install commands except reinstalling pip itself
+ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
+
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
@@ -1164,6 +1176,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     PATH=${PATH}:${AIRFLOW_USER_HOME_DIR}/.local/bin \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
+    ADDITIONAL_PIP_INSTALL_FLAGS=${ADDITIONAL_PIP_INSTALL_FLAGS} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_UID=${AIRFLOW_UID} \

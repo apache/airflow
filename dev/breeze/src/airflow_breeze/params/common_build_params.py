@@ -41,6 +41,7 @@ class CommonBuildParams:
     additional_runtime_apt_command: str = ""
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
+    additional_pip_install_flags: str = ""
     airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
     airflow_constraints_location: str = ""
     answer: Optional[str] = None

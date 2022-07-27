@@ -30,6 +30,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_dev_apt_deps,
     option_additional_dev_apt_env,
     option_additional_extras,
+    option_additional_pip_install_flags,
     option_additional_python_deps,
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
@@ -312,6 +313,7 @@ def run_build_in_parallel(
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_tag_as_latest
+@option_additional_pip_install_flags
 def build_prod_image(
     verbose: bool,
     dry_run: bool,
