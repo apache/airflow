@@ -550,6 +550,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
     set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
+    set_value_to_default_if_not_set(env, 'BREEZE_INIT_COMMAND', "")
     set_value_to_default_if_not_set(env, 'CI', "false")
     set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
     set_value_to_default_if_not_set(env, 'CI_EVENT_TYPE', "pull_request")
