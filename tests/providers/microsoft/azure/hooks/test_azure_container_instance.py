@@ -97,3 +97,17 @@ class TestAzureContainerInstanceHook(unittest.TestCase):
             )
         ]
         assert not self.hook.exists('test', 'not found')
+
+    @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list')
+    def test_connection_success(self, mock_container_groups_list):
+        mock_container_groups_list.return_value = iter([])
+        status, msg = self.hook.test_connection()
+        assert status is True
+        assert msg == "Successfully connected to Azure Container Instance."
+
+    @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list')
+    def test_connection_failure(self, mock_container_groups_list):
+        mock_container_groups_list.side_effect = Exception("Authentication failed.")
+        status, msg = self.hook.test_connection()
+        assert status is False
+        assert msg == "Authentication failed."

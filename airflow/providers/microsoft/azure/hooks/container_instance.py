@@ -138,3 +138,15 @@ class AzureContainerInstanceHook(AzureBaseHook):
             if container.name == name:
                 return True
         return False
+
+    def test_connection(self):
+        """Test a configured Azure Container Instance connection."""
+        try:
+            # Attempt to list existing container groups under the configured subscription and retrieve the
+            # first in the returned iterator. We need to _actually_ try to retrieve an object to properly
+            # test the connection.
+            next(self.connection.container_groups.list(), None)
+        except Exception as e:
+            return False, str(e)
+
+        return True, "Successfully connected to Azure Container Instance."
