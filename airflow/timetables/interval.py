@@ -33,7 +33,7 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 Delta = Union[datetime.timedelta, relativedelta]
 
 
-class _CronAndDeltaTimetable(Timetable):
+class _DataIntervalTimeTable(Timetable):
     """Basis for timetable implementations that schedule data intervals.
 
     This kind of timetable classes create periodic data intervals from an
@@ -57,9 +57,6 @@ class _CronAndDeltaTimetable(Timetable):
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the last schedule before the current time."""
         raise NotImplementedError()
-
-
-class _DataIntervalTimeTable(_CronAndDeltaTimetable):
 
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
@@ -117,7 +114,7 @@ def _is_schedule_fixed(expression: str) -> bool:
     return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
-class _CronTimetable(_CronAndDeltaTimetable):
+class _CronMixin:
     """Timetable that schedules data intervals with a cron expression.
 
     This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
@@ -151,7 +148,7 @@ class _CronTimetable(_CronAndDeltaTimetable):
         self.description = interval_description
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+    def deserialize(cls, data: Dict[str, Any]) -> "_CronMixin":
         from airflow.serialization.serialized_objects import decode_timezone
 
         return cls(data["expression"], decode_timezone(data["timezone"]))
@@ -161,7 +158,7 @@ class _CronTimetable(_CronAndDeltaTimetable):
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, _CronTimetable):
+        if not isinstance(other, _CronMixin):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
 
@@ -218,7 +215,7 @@ class _CronTimetable(_CronAndDeltaTimetable):
         return current
 
 
-class CronDataIntervalTimetable(_CronTimetable, _DataIntervalTimeTable):
+class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimeTable):
 
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
@@ -251,7 +248,7 @@ class CronDataIntervalTimetable(_CronTimetable, _DataIntervalTimeTable):
         return DataInterval(start=self._get_prev(end), end=end)
 
 
-class CronTriggerTimetable(_CronTimetable):
+class CronTriggerTimetable(_CronMixin, Timetable):
     """Timetable that schedules in a plan cron-like fashion.
 
     This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
