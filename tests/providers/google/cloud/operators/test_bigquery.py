@@ -912,6 +912,32 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             project_id=TEST_GCP_PROJECT_ID,
         )
+    
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_on_kill_after_execution_timeout(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_job = MagicMock(job_id=real_job_id, error_result=False)
+        mock_job.result.side_effect = AirflowTaskTimeout()
+        mock_hook.return_value.insert_job.return_value = mock_job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+        
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            cancel_on_kill=False,
+        )
+        with pytest.raises(AirflowTaskTimeout):
+            op.execute(context=self.mock_context)
+
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, job_id=job_id
+        )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute_failure(self, mock_hook):
