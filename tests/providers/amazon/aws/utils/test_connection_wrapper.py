@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from dataclasses import fields
 from typing import Optional
 from unittest import mock
 
 import pytest
+from botocore.config import Config
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -138,11 +140,24 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
 
-    @pytest.mark.parametrize("region_name", [None, "mock-aws-region"])
-    def test_get_region_name(self, region_name):
-        mock_conn = mock_connection_factory(extra={"region_name": region_name} if region_name else None)
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-        assert wrap_conn.region_name == region_name
+    @pytest.mark.parametrize(
+        "region_name,conn_region_name",
+        [
+            ("mock-region-name", None),
+            ("mock-region-name", "mock-connection-region-name"),
+            (None, "mock-connection-region-name"),
+            (None, None),
+        ],
+    )
+    def test_get_region_name(self, region_name, conn_region_name):
+        mock_conn = mock_connection_factory(
+            extra={"region_name": conn_region_name} if conn_region_name else None
+        )
+        wrap_conn = AwsConnectionWrapper(conn=mock_conn, region_name=region_name)
+        if region_name:
+            assert wrap_conn.region_name == region_name, "Expected provided region_name"
+        else:
+            assert wrap_conn.region_name == conn_region_name, "Expected connection region_name"
 
     @pytest.mark.parametrize("session_kwargs", [None, {"profile_name": "mock-profile"}])
     def test_get_session_kwargs(self, session_kwargs):
@@ -160,20 +175,30 @@ class TestAwsConnectionWrapper:
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert "profile_name" not in wrap_conn.session_kwargs
 
-    @mock.patch("airflow.providers.amazon.aws.utils.connection_wrapper.Config", autospec=True)
-    @pytest.mark.parametrize("botocore_config_kwargs", [None, {"user_agent": "Airflow Amazon Provider"}])
-    def test_get_botocore_config(self, mock_botocore_config, botocore_config_kwargs):
+    @mock.patch("airflow.providers.amazon.aws.utils.connection_wrapper.Config")
+    @pytest.mark.parametrize(
+        "botocore_config, botocore_config_kwargs",
+        [
+            (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
+            (Config(region_name="ap-southeast-1"), {"user_agent": "Airflow Amazon Provider"}),
+            (None, {"user_agent": "Airflow Amazon Provider"}),
+            (None, None),
+        ],
+    )
+    def test_get_botocore_config(self, mock_botocore_config, botocore_config, botocore_config_kwargs):
         mock_conn = mock_connection_factory(
             extra={"config_kwargs": botocore_config_kwargs} if botocore_config_kwargs else None
         )
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        wrap_conn = AwsConnectionWrapper(conn=mock_conn, botocore_config=botocore_config)
 
-        if not botocore_config_kwargs:
-            assert not mock_botocore_config.called
-            assert wrap_conn.botocore_config is None
+        if botocore_config:
+            assert wrap_conn.botocore_config == botocore_config, "Expected provided botocore_config"
+            assert mock_botocore_config.assert_not_called
+        elif not botocore_config_kwargs:
+            assert wrap_conn.botocore_config is None, "Expected default botocore_config"
+            assert mock_botocore_config.assert_not_called
         else:
-            assert mock_botocore_config.called
-            assert mock_botocore_config.call_count == 1
+            assert mock_botocore_config.assert_called_once
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls
 
     @pytest.mark.parametrize("endpoint_url", [None, "https://example.org"])
@@ -281,3 +306,48 @@ class TestAwsConnectionWrapper:
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert "ExternalId" in wrap_conn.assume_role_kwargs
         assert wrap_conn.assume_role_kwargs["ExternalId"] == mock_external_id_in_extra
+
+    @pytest.mark.parametrize(
+        "orig_wrapper",
+        [
+            AwsConnectionWrapper(
+                conn=mock_connection_factory(
+                    login="mock-login",
+                    password="mock-password",
+                    extra={
+                        "region_name": "mock-region",
+                        "botocore_kwargs": {"user_agent": "Airflow Amazon Provider"},
+                        "role_arn": MOCK_ROLE_ARN,
+                        "aws_session_token": "mock-aws-session-token",
+                    },
+                ),
+            ),
+            AwsConnectionWrapper(conn=mock_connection_factory()),
+            AwsConnectionWrapper(conn=None),
+            AwsConnectionWrapper(
+                conn=None,
+                region_name="mock-region",
+                botocore_config=Config(user_agent="Airflow Amazon Provider"),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("region_name", [None, "ca-central-1"])
+    @pytest.mark.parametrize("botocore_config", [None, Config(region_name="ap-southeast-1")])
+    def test_wrap_wrapper(self, orig_wrapper, region_name, botocore_config):
+        wrap_kwargs = {}
+        if region_name:
+            wrap_kwargs["region_name"] = region_name
+        if botocore_config:
+            wrap_kwargs["botocore_config"] = botocore_config
+        wrap_conn = AwsConnectionWrapper(conn=orig_wrapper, **wrap_kwargs)
+
+        # Non init fields should be same in orig_wrapper and child wrapper
+        wrap_non_init_fields = [f.name for f in fields(wrap_conn) if not f.init]
+        for field in wrap_non_init_fields:
+            assert getattr(wrap_conn, field) == getattr(
+                orig_wrapper, field
+            ), "Expected no changes in non-init values"
+
+        # Test overwrite/inherit init fields
+        assert wrap_conn.region_name == (region_name or orig_wrapper.region_name)
+        assert wrap_conn.botocore_config == (botocore_config or orig_wrapper.botocore_config)

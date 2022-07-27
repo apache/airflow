@@ -24,6 +24,7 @@ from unittest import mock
 
 import boto3
 import pytest
+from botocore.config import Config
 from moto.core import ACCOUNT_ID
 
 from airflow.models import Connection
@@ -45,6 +46,8 @@ except ImportError:
 
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
+MOCK_BOTO3_SESSION = mock.MagicMock(return_value="Mock boto3.session.Session")
+
 
 SAML_ASSERTION = """
 <?xml version="1.0"?>
@@ -149,6 +152,46 @@ class TestSessionFactory:
         assert session_factory_conn.conn_id == MOCK_AWS_CONN_ID
         assert session_factory_conn.conn_type == MOCK_CONN_TYPE
         assert sf.conn is session_factory_conn
+
+    def test_empty_conn_property(self):
+        sf = BaseSessionFactory(conn=None, region_name=None, config=None)
+        assert isinstance(sf.conn, AwsConnectionWrapper)
+
+    @pytest.mark.parametrize(
+        "region_name,conn_region_name",
+        [
+            ("eu-west-1", "cn-north-1"),
+            ("eu-west-1", None),
+            (None, "cn-north-1"),
+            (None, None),
+        ],
+    )
+    def test_resolve_region_name(self, region_name, conn_region_name):
+        conn = AwsConnectionWrapper(
+            conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID),
+            region_name=conn_region_name,
+        )
+        sf = BaseSessionFactory(conn=conn, region_name=region_name, config=None)
+        expected = region_name or conn_region_name
+        assert sf.region_name == expected
+
+    @pytest.mark.parametrize(
+        "botocore_config, conn_botocore_config",
+        [
+            (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
+            (Config(s3={"us_east_1_regional_endpoint": "regional"}), Config(region_name="ap-southeast-1")),
+            (None, Config(region_name="ap-southeast-1")),
+            (None, None),
+        ],
+    )
+    def test_resolve_botocore_config(self, botocore_config, conn_botocore_config):
+        conn = AwsConnectionWrapper(
+            conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID),
+            botocore_config=conn_botocore_config,
+        )
+        sf = BaseSessionFactory(conn=conn, config=botocore_config)
+        expected = botocore_config or conn_botocore_config
+        assert sf.config == expected
 
 
 class TestAwsBaseHook:
@@ -341,7 +384,11 @@ class TestAwsBaseHook:
     @mock.patch.object(AwsBaseHook, 'get_connection')
     @mock_sts
     def test_get_credentials_from_role_arn(self, mock_get_connection):
-        mock_connection = Connection(extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}')
+        mock_connection = Connection(
+            conn_id='aws_default',
+            conn_type=MOCK_CONN_TYPE,
+            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}',
+        )
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
@@ -445,6 +492,7 @@ class TestAwsBaseHook:
         duration_seconds = 901
 
         mock_connection = Connection(
+            conn_id=MOCK_AWS_CONN_ID,
             extra=json.dumps(
                 {
                     "role_arn": role_arn,
@@ -459,7 +507,7 @@ class TestAwsBaseHook:
                     },
                     "assume_role_kwargs": {"DurationSeconds": duration_seconds},
                 }
-            )
+            ),
         )
         mock_get_connection.return_value = mock_connection
 

@@ -66,19 +66,24 @@ class BaseSessionFactory(LoggingMixin):
     """
 
     def __init__(
-        self, conn: Union[Connection, AwsConnectionWrapper], region_name: Optional[str], config: Config
+        self,
+        conn: Optional[Union[Connection, AwsConnectionWrapper]],
+        region_name: Optional[str] = None,
+        config: Optional[Config] = None,
     ) -> None:
         super().__init__()
         self._conn = conn
         self._region_name = region_name
-        self.config = config
+        self._config = config
 
     @cached_property
     def conn(self) -> AwsConnectionWrapper:
         """Cached AWS Connection Wrapper."""
-        if isinstance(self._conn, AwsConnectionWrapper):
-            return self._conn
-        return AwsConnectionWrapper(self._conn)
+        return AwsConnectionWrapper(
+            conn=self._conn,
+            region_name=self._region_name,
+            botocore_config=self._config,
+        )
 
     @cached_property
     def basic_session(self) -> boto3.session.Session:
@@ -92,12 +97,13 @@ class BaseSessionFactory(LoggingMixin):
 
     @property
     def region_name(self) -> Optional[str]:
-        """Resolve region name.
+        """AWS Region Name read-only property."""
+        return self.conn.region_name
 
-        1. SessionFactory region_name
-        2. Connection region_name
-        """
-        return self._region_name or self.conn.region_name
+    @property
+    def config(self) -> Optional[Config]:
+        """Configuration for botocore client read-only property."""
+        return self.conn.botocore_config
 
     @property
     def role_arn(self) -> Optional[str]:
@@ -381,31 +387,41 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.verify = verify
         self.client_type = client_type
         self.resource_type = resource_type
-        self.region_name = region_name
-        self.config = config
+        self._region_name = region_name
+        self._config = config
+
+    @cached_property
+    def conn_detail(self) -> AwsConnectionWrapper:
+        """Get the Airflow Connection object and wrap it in helper (cached)."""
+        connection = self.get_connection(self.aws_conn_id) if self.aws_conn_id else None
+        return AwsConnectionWrapper(
+            conn=connection, region_name=self._region_name, botocore_config=self._config
+        )
+
+    @property
+    def region_name(self) -> Optional[str]:
+        """AWS Region Name read-only property."""
+        return self.conn_detail.region_name
+
+    @property
+    def config(self) -> Optional[Config]:
+        """Configuration for botocore client read-only property."""
+        return self.conn_detail.botocore_config
 
     def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
 
-        if not self.aws_conn_id:
+        if not self.conn_detail:
             session = boto3.session.Session(region_name=region_name)
             return session, None
 
         self.log.debug("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
 
         try:
-            # Fetch the Airflow connection object and wrap it in helper
-            connection_object = AwsConnectionWrapper(self.get_connection(self.aws_conn_id))
-
-            if connection_object.botocore_config:
-                # For historical reason botocore.config.Config from connection overwrites
-                # config which explicitly set in Hook.
-                self.config = connection_object.botocore_config
-
             session = SessionFactory(
-                conn=connection_object, region_name=region_name, config=self.config
+                conn=self.conn_detail, region_name=region_name, config=self.config
             ).create_session()
 
-            return session, connection_object.endpoint_url
+            return session, self.conn_detail.endpoint_url
 
         except AirflowException:
             self.log.warning(
@@ -491,6 +507,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @cached_property
     def conn_client_meta(self) -> ClientMeta:
+        """Get botocore.client.ClientMeta from Hook connection (cached)."""
         conn = self.conn
         if isinstance(conn, botocore.client.BaseClient):
             return conn.meta
@@ -498,10 +515,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @property
     def conn_region_name(self) -> str:
+        """Get actual AWS Region Name from Hook connection (cached)."""
         return self.conn_client_meta.region_name
 
     @property
     def conn_partition(self) -> str:
+        """Get associated AWS Region Partition from Hook connection (cached)."""
         return self.conn_client_meta.partition
 
     def get_conn(self) -> BaseAwsConnection:
