@@ -212,6 +212,14 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
 
+        # Some operators implement extra links as a run-time property (instead
+        # of a class-level attribute) that is only resolvable against a concrete
+        # task object. There's no way to resolve them here, just leave it empty.
+        if isinstance(self.operator_class.operator_extra_links, collections.abc.Collection):
+            operator_extra_links = self.operator_class.operator_extra_links
+        else:
+            operator_extra_links = ()
+
         op = MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
@@ -219,7 +227,7 @@ class OperatorPartial:
             task_id=task_id,
             params=params,
             deps=MappedOperator.deps_for(self.operator_class),
-            operator_extra_links=self.operator_class.operator_extra_links,
+            operator_extra_links=operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
             template_fields_renderers=self.operator_class.template_fields_renderers,
