@@ -203,6 +203,7 @@ class BuildProdParams(CommonBuildParams):
             "additional_dev_apt_command",
             "additional_dev_apt_deps",
             "additional_dev_apt_env",
+            "additional_pip_install_flags",
             "additional_python_deps",
             "additional_runtime_apt_command",
             "additional_runtime_apt_deps",

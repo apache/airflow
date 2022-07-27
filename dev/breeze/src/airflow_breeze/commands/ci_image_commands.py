@@ -30,6 +30,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_dev_apt_deps,
     option_additional_dev_apt_env,
     option_additional_extras,
+    option_additional_pip_install_flags,
     option_additional_python_deps,
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
@@ -273,6 +274,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
 @option_tag_as_latest
+@option_additional_pip_install_flags
 def build_image(
     verbose: bool,
     dry_run: bool,

@@ -49,6 +49,7 @@ function install_airflow_dependencies_from_branch_tip() {
     # are conflicts, this might fail, but it should be fixed in the following installation steps
     set -x
     pip install --root-user-action ignore \
+      ${ADDITIONAL_PIP_INSTALL_FLAGS} \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
     # make sure correct PIP version is used

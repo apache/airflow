@@ -55,6 +55,7 @@ function install_airflow() {
         echo
         # eager upgrade
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
@@ -63,6 +64,7 @@ function install_airflow() {
             set -x
             pip uninstall apache-airflow --yes
             pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
             set +x
         fi
@@ -79,12 +81,14 @@ function install_airflow() {
         echo
         set -x
         pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         # then upgrade if needed without using constraints to account for new limits in setup.py
         pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         # make sure correct PIP version is used

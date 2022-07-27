@@ -339,6 +339,12 @@ option_verify_image = click.option(
     is_flag=True,
     envvar='VERIFY_IMAGE',
 )
+option_additional_pip_install_flags = click.option(
+    '--additional-pip-install-flags',
+    help='Additional flags added to `pip install` commands (except reinstalling `pip` itself).',
+    envvar='ADDITIONAL_PIP_INSTALL_FLAGS',
+)
+
 option_install_providers_from_sources = click.option(
     '--install-providers-from-sources',
     help="Install providers from sources when installing.",
