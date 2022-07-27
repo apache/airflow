@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
     BaseSessionFactory,
     resolve_session_factory,
 )
+from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from tests.test_utils.config import conf_vars
 
 try:
@@ -41,6 +42,9 @@ except ImportError:
     mock_dynamodb2 = None
     mock_sts = None
     mock_iam = None
+
+MOCK_AWS_CONN_ID = "mock-conn-id"
+MOCK_CONN_TYPE = "aws"
 
 SAML_ASSERTION = """
 <?xml version="1.0"?>
@@ -114,7 +118,7 @@ class CustomSessionFactory(BaseSessionFactory):
         return mock.MagicMock()
 
 
-class TestAwsBaseHook:
+class TestSessionFactory:
     @conf_vars(
         {("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"}
     )
@@ -131,6 +135,23 @@ class TestAwsBaseHook:
         cls = resolve_session_factory()
         assert issubclass(cls, BaseSessionFactory)
 
+    @pytest.mark.parametrize(
+        "mock_conn",
+        [
+            Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID),
+            AwsConnectionWrapper(conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID)),
+        ],
+    )
+    def test_conn_property(self, mock_conn):
+        sf = BaseSessionFactory(conn=mock_conn, region_name=None, config=None)
+        session_factory_conn = sf.conn
+        assert isinstance(session_factory_conn, AwsConnectionWrapper)
+        assert session_factory_conn.conn_id == MOCK_AWS_CONN_ID
+        assert session_factory_conn.conn_type == MOCK_CONN_TYPE
+        assert sf.conn is session_factory_conn
+
+
+class TestAwsBaseHook:
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
@@ -259,80 +280,6 @@ class TestAwsBaseHook:
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
         assert table.item_count == 0
-
-    @mock.patch.object(AwsBaseHook, 'get_connection')
-    def test_get_credentials_from_login_with_token(self, mock_get_connection):
-        mock_connection = Connection(
-            login='aws_access_key_id',
-            password='aws_secret_access_key',
-            extra='{"aws_session_token": "test_token"}',
-        )
-        mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
-        credentials_from_hook = hook.get_credentials()
-        assert credentials_from_hook.access_key == 'aws_access_key_id'
-        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
-        assert credentials_from_hook.token == 'test_token'
-
-    @mock.patch.object(AwsBaseHook, 'get_connection')
-    def test_get_credentials_from_login_without_token(self, mock_get_connection):
-        mock_connection = Connection(
-            login='aws_access_key_id',
-            password='aws_secret_access_key',
-        )
-
-        mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='spam')
-        credentials_from_hook = hook.get_credentials()
-        assert credentials_from_hook.access_key == 'aws_access_key_id'
-        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
-        assert credentials_from_hook.token is None
-
-    @mock.patch.object(AwsBaseHook, 'get_connection')
-    def test_get_credentials_from_extra_with_token(self, mock_get_connection):
-        mock_connection = Connection(
-            extra='{"aws_access_key_id": "aws_access_key_id",'
-            '"aws_secret_access_key": "aws_secret_access_key",'
-            ' "aws_session_token": "session_token"}'
-        )
-        mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
-        credentials_from_hook = hook.get_credentials()
-        assert credentials_from_hook.access_key == 'aws_access_key_id'
-        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
-        assert credentials_from_hook.token == 'session_token'
-
-    @mock.patch.object(AwsBaseHook, 'get_connection')
-    def test_get_credentials_from_extra_without_token(self, mock_get_connection):
-        mock_connection = Connection(
-            extra='{"aws_access_key_id": "aws_access_key_id",'
-            '"aws_secret_access_key": "aws_secret_access_key"}'
-        )
-        mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
-        credentials_from_hook = hook.get_credentials()
-        assert credentials_from_hook.access_key == 'aws_access_key_id'
-        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
-        assert credentials_from_hook.token is None
-
-    @mock.patch(
-        'airflow.providers.amazon.aws.hooks.base_aws._parse_s3_config',
-        return_value=('aws_access_key_id', 'aws_secret_access_key'),
-    )
-    @mock.patch.object(AwsBaseHook, 'get_connection')
-    def test_get_credentials_from_extra_with_s3_config_and_profile(
-        self, mock_get_connection, mock_parse_s3_config
-    ):
-        mock_connection = Connection(
-            extra='{"s3_config_format": "aws", '
-            '"profile": "test", '
-            '"s3_config_file": "aws-credentials", '
-            '"region_name": "us-east-1"}'
-        )
-        mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
-        hook._get_credentials(region_name=None)
-        mock_parse_s3_config.assert_called_once_with('aws-credentials', 'aws', 'test')
 
     @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
     @mock.patch.object(AwsBaseHook, 'get_connection')

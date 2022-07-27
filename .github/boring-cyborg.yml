@@ -39,6 +39,11 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
+  provider:Common-sql:
+    - airflow/providers/common/sql/**/*
+    - docs/apache-airflow-providers-common-sql/**/*
+    - tests/providers/common/sql/**/*
+
   provider:Databricks:
     - airflow/providers/databricks/**/*
     - docs/apache-airflow-providers-databricks/**/*

@@ -96,7 +96,7 @@ class DictOfListsExpandInput(NamedTuple):
         they will not be present in the dict.
         """
         from airflow.models.taskmap import TaskMap
-        from airflow.models.xcom import XCom
+        from airflow.models.xcom import XCOM_RETURN_KEY, XCom
         from airflow.models.xcom_arg import XComArg
 
         # Populate literal mapped arguments first.
@@ -143,6 +143,7 @@ class DictOfListsExpandInput(NamedTuple):
             .filter(
                 XCom.dag_id == dag_id,
                 XCom.run_id == run_id,
+                XCom.key == XCOM_RETURN_KEY,
                 XCom.task_id.in_(mapped_dep_keys),
                 XCom.map_index >= 0,
             )
