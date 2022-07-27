@@ -33,7 +33,7 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 Delta = Union[datetime.timedelta, relativedelta]
 
 
-class _DataIntervalTimeTable(Timetable):
+class _DataIntervalTimetable(Timetable):
     """Basis for timetable implementations that schedule data intervals.
 
     This kind of timetable classes create periodic data intervals from an
@@ -215,7 +215,7 @@ class _CronMixin:
         return current
 
 
-class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimeTable):
+class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimetable):
 
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
@@ -287,7 +287,7 @@ class CronTriggerTimetable(_CronMixin, Timetable):
         return DagRunInfo.exact(next_start_time)
 
 
-class DeltaDataIntervalTimetable(_DataIntervalTimeTable):
+class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     """Timetable that schedules data intervals with a time delta.
 
     This corresponds to ``schedule_interval=<delta>``, where ``<delta>`` is
