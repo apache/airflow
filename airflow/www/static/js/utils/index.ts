@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import type { Task } from 'src/types';
+
 // Delay in ms for various hover actions
 const hoverDelay = 200;
 
@@ -49,9 +51,28 @@ const appendSearchParams = (url: string | null, params: URLSearchParams | string
   return `${url}${separator}${params}`;
 };
 
+interface GetTaskProps {
+  task: Task;
+  taskId: Task['id'];
+}
+
+const getTask = ({ taskId, task }: GetTaskProps) => {
+  if (task.id === taskId) return task;
+  if (task.children) {
+    let foundTask;
+    task.children.forEach((c) => {
+      const childTask = getTask({ taskId, task: c });
+      if (childTask) foundTask = childTask;
+    });
+    return foundTask;
+  }
+  return null;
+};
+
 export {
   hoverDelay,
   finalStatesMap,
   getMetaValue,
   appendSearchParams,
+  getTask,
 };

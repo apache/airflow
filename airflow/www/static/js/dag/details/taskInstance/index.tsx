@@ -33,7 +33,7 @@ import {
   TabPanel,
 } from '@chakra-ui/react';
 
-import { useGridData, useTasks } from 'src/api';
+import { useGridData } from 'src/api';
 import { getMetaValue } from 'src/utils';
 import type { Task, DagRun } from 'src/types';
 
@@ -76,7 +76,6 @@ const getTask = ({ taskId, runId, task }: GetTaskProps) => {
 const TaskInstance = ({ taskId, runId }: Props) => {
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const { data: { dagRuns, groups } } = useGridData();
-  const { data: { tasks } } = useTasks();
 
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
@@ -84,14 +83,16 @@ const TaskInstance = ({ taskId, runId }: Props) => {
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
+  if (!group || !run) return null;
+
+  const { children, isMapped, operator } = group;
+
   const handleTabsChange = (index: number) => {
     localStorage.setItem(detailsPanelActiveTabIndex, index.toString());
     setPreferedTabIndex(index);
   };
 
-  const isGroup = !!group?.children;
-  const isMapped = !!group?.isMapped;
-
+  const isGroup = !!children;
   const isSimpleTask = !isMapped && !isGroup;
 
   let isPreferedTabDisplayed = false;
@@ -109,11 +110,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
 
   const selectedTabIndex = isPreferedTabDisplayed ? preferedTabIndex : 0;
 
-  if (!group || !run) return null;
-
   const { executionDate } = run;
-  const task = tasks.find((t) => t.taskId === taskId);
-  const operator = (task?.classRef && task?.classRef?.className) ?? '';
 
   const instance = group.instances.find((ti) => ti.runId === runId);
   if (!instance) return null;
@@ -183,7 +180,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
                   <Divider my={2} />
                 </Box>
               )}
-              <Details instance={instance} group={group} operator={operator} />
+              <Details instance={instance} group={group} />
               <ExtraLinks
                 taskId={taskId}
                 dagId={dagId || ''}

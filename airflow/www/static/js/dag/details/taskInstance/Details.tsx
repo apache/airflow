@@ -38,10 +38,9 @@ import type { Task, TaskInstance, TaskState } from 'src/types';
 interface Props {
   instance: TaskInstance;
   group: Task;
-  operator: string;
 }
 
-const Details = ({ instance, group, operator }: Props) => {
+const Details = ({ instance, group }: Props) => {
   const isGroup = !!group.children;
   const summary: React.ReactNode[] = [];
 
@@ -57,6 +56,7 @@ const Details = ({ instance, group, operator }: Props) => {
   const {
     isMapped,
     tooltip,
+    operator,
   } = group;
 
   const numMap = finalStatesMap();
