@@ -65,7 +65,6 @@ const getDAGSummary = ({
       const childSummary = getDAGSummary({
         task: c, taskCount: tc, groupCount: gc, operators: op,
       });
-      // console.log(childSummary);
       if (childSummary) {
         tc = childSummary.taskCount;
         gc = childSummary.groupCount;

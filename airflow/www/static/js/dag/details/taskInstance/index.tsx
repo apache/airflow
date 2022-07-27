@@ -34,7 +34,7 @@ import {
 } from '@chakra-ui/react';
 
 import { useGridData } from 'src/api';
-import { getMetaValue } from 'src/utils';
+import { getMetaValue, getTask } from 'src/utils';
 import type { Task, DagRun } from 'src/types';
 
 import RunAction from './taskActions/Run';
@@ -56,23 +56,6 @@ interface Props {
   runId: DagRun['runId'];
 }
 
-interface GetTaskProps extends Props {
-  task: Task;
-}
-
-const getTask = ({ taskId, runId, task }: GetTaskProps) => {
-  if (task.id === taskId) return task;
-  if (task.children) {
-    let foundTask;
-    task.children.forEach((c) => {
-      const childTask = getTask({ taskId, runId, task: c });
-      if (childTask) foundTask = childTask;
-    });
-    return foundTask;
-  }
-  return null;
-};
-
 const TaskInstance = ({ taskId, runId }: Props) => {
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const { data: { dagRuns, groups } } = useGridData();
@@ -80,7 +63,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
-  const group = getTask({ taskId, runId, task: groups });
+  const group = getTask({ taskId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
   if (!group || !run) return null;
