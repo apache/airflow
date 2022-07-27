@@ -148,7 +148,7 @@ class _CronMixin:
         self.description = interval_description
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "_CronMixin":
+    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
         from airflow.serialization.serialized_objects import decode_timezone
 
         return cls(data["expression"], decode_timezone(data["timezone"]))
