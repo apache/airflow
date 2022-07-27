@@ -519,6 +519,7 @@ class GoogleBaseHook(BaseHook):
         """
         credentials_path = _cloud_sdk.get_application_default_credentials_path()
         project_id = self.project_id
+        self.log.info("in auth gcloud")
 
         with ExitStack() as exit_stack:
             exit_stack.enter_context(self.provide_gcp_credential_file_as_context())
@@ -528,6 +529,7 @@ class GoogleBaseHook(BaseHook):
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
+                self.log.info("in auth credentials %s", os.environ[CREDENTIALS])
                 check_output(
                     [
                         "gcloud",

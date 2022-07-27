@@ -74,7 +74,7 @@ class ComputeEngineBaseOperator(BaseOperator):
         pass
 
 
-class ComputeEngineCreateInstanceOperator(ComputeEngineBaseOperator):
+class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
     """
     Creates an Instance in Google Compute Engine based on specified parameters.
 
@@ -123,7 +123,7 @@ class ComputeEngineCreateInstanceOperator(ComputeEngineBaseOperator):
 
     operator_extra_links = (ComputeInstanceDetailsLink(),)
 
-    # [START gce_instance_start_template_fields]
+    # [START gce_instance_insert_template_fields]
     template_fields: Sequence[str] = (
         'body',
         'project_id',
@@ -133,7 +133,7 @@ class ComputeEngineCreateInstanceOperator(ComputeEngineBaseOperator):
         'api_version',
         'impersonation_chain',
     )
-    # [END gce_instance_start_template_fields]
+    # [END gce_instance_insert_template_fields]
 
     def __init__(
         self,
@@ -164,7 +164,7 @@ class ComputeEngineCreateInstanceOperator(ComputeEngineBaseOperator):
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             resource_id=self.resource_id,
             zone=zone,
@@ -215,19 +215,15 @@ class ComputeEngineCreateInstanceOperator(ComputeEngineBaseOperator):
         self.check_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new Instance
-            # is already created and if is, then we assume it was created - we do
+            # is already created and if is, then we assume it was created previously - we do
             # not check if content of the Instance is as expected.
-            # We assume success if the Instance is simply present
+            # We assume success if the Instance is simply present.
             existing_instance = hook.get_instance(
                 resource_id=self.resource_id,
                 project_id=self.project_id,
-                zone=self.zone
+                zone=self.zone,
             )
-            self.log.info(
-                "The %s Instance already exists. It was likely created by previous run of the operator. "
-                "Assuming success.",
-                self.resource_id,
-            )
+            self.log.info("The %s Instance already exists", self.resource_id)
             ComputeInstanceDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -256,11 +252,11 @@ class ComputeEngineCreateInstanceOperator(ComputeEngineBaseOperator):
         return hook.get_instance(
             resource_id=self.resource_id,
             project_id=self.project_id,
-            zone=self.zone
+            zone=self.zone,
         )
 
 
-class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator):
+class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator):
     """
     Creates an Instance in Google Compute Engine based on specified parameters from existing Template.
 
@@ -313,7 +309,7 @@ class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator)
 
     operator_extra_links = (ComputeInstanceDetailsLink(),)
 
-    # [START gce_instance_start_template_fields]
+    # [START gce_instance_insert_from_template_template_fields]
     template_fields: Sequence[str] = (
         'body',
         'source_instance_template',
@@ -324,7 +320,7 @@ class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         'api_version',
         'impersonation_chain',
     )
-    # [END gce_instance_start_template_fields]
+    # [END gce_instance_insert_from_template_template_fields]
 
     def __init__(
         self,
@@ -357,7 +353,7 @@ class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             resource_id=self.resource_id,
             zone=zone,
@@ -396,13 +392,9 @@ class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             existing_instance = hook.get_instance(
                 resource_id=self.resource_id,
                 project_id=self.project_id,
-                zone=self.zone
+                zone=self.zone,
             )
-            self.log.info(
-                "The %s Instance already exists. It was likely created by previous run of the operator. "
-                "Assuming success.",
-                self.resource_id,
-            )
+            self.log.info("The %s Instance already exists", self.resource_id)
             ComputeInstanceDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -422,7 +414,7 @@ class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             request_id=self.request_id,
             project_id=self.project_id,
             zone=self.zone,
-            source_instance_template=self.source_instance_template
+            source_instance_template=self.source_instance_template,
         )
         self.log.info("The specified Instance has been created SUCCESSFULLY")
         ComputeInstanceDetailsLink.persist(
@@ -433,7 +425,7 @@ class ComputeEngineCreateInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         return hook.get_instance(
             resource_id=self.resource_id,
             project_id=self.project_id,
-            zone=self.zone
+            zone=self.zone,
         )
 
 
@@ -476,7 +468,7 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
-    # [START gce_instance_stop_template_fields]
+    # [START gce_instance_delete_template_fields]
     template_fields: Sequence[str] = (
         'zone',
         'resource_id',
@@ -486,7 +478,7 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         'api_version',
         'impersonation_chain',
     )
-    # [END gce_instance_stop_template_fields]
+    # [END gce_instance_delete_template_fields]
 
     def __init__(
         self,
@@ -516,7 +508,7 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone=zone,
@@ -538,7 +530,7 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
             hook.get_instance(
                 resource_id=self.resource_id,
                 project_id=self.project_id,
-                zone=self.zone
+                zone=self.zone,
             )
             self.log.info("Successfully found Instance %s", self.resource_id)
             hook.delete_instance(
@@ -805,24 +797,7 @@ GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
     ),
 ]  # type: List[Dict[str, Any]]
 
-GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
-    "kind",
-    "id",
-    "name",
-    "creationTimestamp",
-    "properties.disks.sha256",
-    "properties.disks.kind",
-    "properties.disks.sourceImageEncryptionKey.sha256",
-    "properties.disks.index",
-    "properties.disks.licenses",
-    "properties.networkInterfaces.kind",
-    "properties.networkInterfaces.accessConfigs.kind",
-    "properties.networkInterfaces.name",
-    "properties.metadata.kind",
-    "selfLink",
-]
-
-GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
+GCE_INSTANCE_FIELDS_TO_SANITIZE = [
     "kind",
     "id",
     "creationTimestamp",
@@ -839,9 +814,9 @@ GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
 ]
 
 
-class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
+class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
-    Creates the Instance Template using specified fields.
+    Creates an Instance Template using specified fields.
 
     :param body: Instance template representation as object.
     :type body: Union[google.cloud.compute_v1.types.InstanceTemplate, dict].
@@ -880,7 +855,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
 
     operator_extra_links = (ComputeInstanceTemplateDetailsLink(),)
 
-    # [START gce_instance_template_copy_operator_template_fields]
+    # [START gce_instance_template_insert_template_fields]
     template_fields: Sequence[str] = (
         'body',
         'project_id',
@@ -889,7 +864,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         'api_version',
         'impersonation_chain',
     )
-    # [END gce_instance_template_copy_operator_template_fields]
+    # [END gce_instance_template_insert_template_fields]
 
     def __init__(
         self,
@@ -918,7 +893,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone='global',
@@ -979,11 +954,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
                 resource_id=self.resource_id,
                 project_id=self.project_id
             )
-            self.log.info(
-                "The %s Template already exists. It was likely created by previous run of the operator. "
-                "Assuming success.",
-                existing_template,
-            )
+            self.log.info("The %s Template already exists.", existing_template)
             ComputeInstanceTemplateDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -1002,7 +973,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         hook.insert_instance_template(
             body=self.body,
             request_id=self.request_id,
-            project_id=self.project_id
+            project_id=self.project_id,
         )
         self.log.info("The specified Instance Template has been created SUCCESSFULLY", self.body)
         ComputeInstanceTemplateDetailsLink.persist(
@@ -1013,7 +984,8 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         )
         return hook.get_instance_template(
             resource_id=self.resource_id,
-            project_id=self.project_id)
+            project_id=self.project_id,
+        )
 
 
 class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
@@ -1053,7 +1025,7 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
-    # [START gce_instance_stop_template_fields]
+    # [START gce_instance_template_delete_template_fields]
     template_fields: Sequence[str] = (
         'resource_id',
         'request_id',
@@ -1062,7 +1034,7 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         'api_version',
         'impersonation_chain',
     )
-    # [END gce_instance_stop_template_fields]
+    # [END gce_instance_template_delete_template_fields]
 
     def __init__(
         self,
@@ -1090,7 +1062,7 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone='global',
@@ -1109,15 +1081,15 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         )
         try:
             # Checking if specified Instance Template exists and if it does, delete it
-            existing_template = hook.get_instance_template(
+            hook.get_instance_template(
                 resource_id=self.resource_id,
-                project_id=self.project_id
+                project_id=self.project_id,
             )
             self.log.info("Successfully found Instance Template %s", self.resource_id)
             hook.delete_instance_template(
                 resource_id=self.resource_id,
                 project_id=self.project_id,
-                request_id=self.request_id
+                request_id=self.request_id,
             )
             self.log.info("Successfully deleted Instance template")
         except exceptions.NotFound as e:
@@ -1204,7 +1176,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone='global',
@@ -1408,3 +1380,298 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                 project_id=self.project_id or hook.project_id,
             )
             return True
+
+
+class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator):
+    """
+    Creates an Instance Group Managers using the body specified.
+    After the group is created, instances in the group are created using the specified Instance Template.
+
+    :param body: Instance Group Managers representation as object.
+    :type body: Union[google.cloud.compute_v1.types.InstanceGroupManager, dict].
+    :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
+    :param request_id: Unique request_id that you might add to achieve
+        full idempotence (for example when client call times out repeating the request
+        with the same request id will not create a new Instance Group Managers again)
+        It should be in UUID format as defined in RFC 4122
+    :type request_id: Optional[str]
+    :param resource_id: Name of the Instance Group Managers.
+    :type resource_id: str
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: Optional[str]
+    :param api_version: API version used (for example v1 - or beta). Defaults to v1.
+    :type api_version: Optional[str]
+    :param impersonation_chain: Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
+    """
+
+    operator_extra_links = (ComputeInstanceGroupManagerDetailsLink(),)
+
+    # [START gce_igm_insert_template_fields]
+    template_fields: Sequence[str] = (
+        'project_id',
+        'resource_id',
+        'zone',
+        'request_id',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
+    # [END gce_igm_insert_template_fields]
+
+    def __init__(
+        self,
+        *,
+        body: dict,
+        zone: str,
+        project_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version='v1',
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        validate_body: bool = True,
+        **kwargs,
+    ) -> None:
+        self.body = body
+        self.zone = zone
+        self.request_id = request_id
+        self.resource_id = body["name"]
+        self._field_validator = None  # Optional[GcpBodyFieldValidator]
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        if validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+            )
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+        super().__init__(
+            project_id=project_id,
+            zone=zone,
+            resource_id=body["name"],
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    def check_body_fields(self) -> None:
+        if 'name' not in self.body:
+            raise AirflowException(
+                f"'{self.body}' should contain at least name for the new operator "
+                f"in the 'name' field. Check (google.cloud.compute_v1.types.InstanceGroupManager) "
+                f"for more details about body fields description."
+            )
+        if 'base_instance_name' not in self.body:
+            raise AirflowException(
+                f"The body '{self.body}' should contain at least base instance name for the new operator "
+                f"in the 'base_instance_name' field. "
+                f"Check (google.cloud.compute_v1.types.InstanceGroupManager) "
+                f"for more details about body fields description."
+            )
+        if 'target_size' not in self.body:
+            raise AirflowException(
+                f"The body '{self.body}' should contain at least target size for the new operator "
+                f"in the 'target_size' field. Check (google.cloud.compute_v1.types.InstanceGroupManager) "
+                f"for more details about body fields description."
+            )
+        if 'instance_template' not in self.body:
+            raise AirflowException(
+                f"The body '{self.body}' should contain at least instance template for the new operator "
+                f"in the 'instance_template' field. "
+                f"Check (google.cloud.compute_v1.types.InstanceGroupManager) "
+                f"for more details about body fields description. "
+            )
+
+    def _validate_all_body_fields(self) -> None:
+        if self._field_validator:
+            self._field_validator.validate(self.body)
+
+    def execute(self, context: 'Context') -> dict:
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self._validate_all_body_fields()
+        self.check_body_fields()
+        try:
+            # Idempotence check (sort of) - we want to check if the new Instance Group Manager
+            # is already created and if isn't, we create new one
+            existing_instance_group_manager = hook.get_instance_group_manager(
+                resource_id=self.resource_id,
+                project_id=self.project_id,
+                zone=self.zone,
+            )
+            self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)
+            ComputeInstanceGroupManagerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                resource_id=self.resource_id,
+                project_id=self.project_id or hook.project_id,
+                location_id=self.zone,
+            )
+            return existing_instance_group_manager
+        except exceptions.NotFound as e:
+            # We actually expect to get 404 / Not Found here as the Instance Group Manager should
+            # not yet exist
+            if not e.code == 404:
+                raise e
+
+        self._field_sanitizer.sanitize(self.body)
+        self.log.info("Creating Instance Group Manager with specified body: %s", self.body)
+        hook.insert_instance_group_manager(
+            body=self.body,
+            request_id=self.request_id,
+            project_id=self.project_id,
+            zone=self.zone,
+        )
+        self.log.info("The specified Instance Group Manager has been created SUCCESSFULLY", self.body)
+        ComputeInstanceGroupManagerDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
+            project_id=self.project_id or hook.project_id,
+        )
+        return hook.get_instance_group_manager(
+            resource_id=self.resource_id,
+            project_id=self.project_id,
+            zone=self.zone,
+        )
+
+
+class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator):
+    """
+    Deletes an Instance Group Managers.
+    Deleting an Instance Group Manager is permanent and cannot be undone.
+
+    :param resource_id: Name of the Instance Group Managers.
+    :type resource_id: str
+    :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
+    :param request_id: Unique request_id that you might add to achieve
+        full idempotence (for example when client call times out repeating the request
+        with the same request id will not create a new Instance Group Managers again)
+        It should be in UUID format as defined in RFC 4122
+    :type request_id: Optional[str]
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: Optional[str]
+    :param api_version: API version used (for example v1 - or beta). Defaults to v1.
+    :type api_version: Optional[str]
+    :param impersonation_chain: Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
+    """
+
+    # [START gce_igm_delete_template_fields]
+    template_fields: Sequence[str] = (
+        'project_id',
+        'resource_id',
+        'zone',
+        'request_id',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
+    # [END gce_igm_delete_template_fields]
+
+    def __init__(
+        self,
+        *,
+        resource_id: str,
+        zone: str,
+        project_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version='v1',
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        validate_body: bool = True,
+        **kwargs,
+    ) -> None:
+        self.zone = zone
+        self.request_id = request_id
+        self.resource_id = resource_id
+        self._field_validator = None  # Optional[GcpBodyFieldValidator]
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        if validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+            )
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
+        super().__init__(
+            project_id=project_id,
+            zone=zone,
+            resource_id=resource_id,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    def execute(self, context: 'Context'):
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            # Checking if specified Instance Group Managers exists and if it does, delete it
+            hook.get_instance_group_manager(
+                resource_id=self.resource_id,
+                project_id=self.project_id,
+                zone=self.zone,
+            )
+            self.log.info("Successfully found Group Manager %s", self.resource_id)
+            hook.delete_instance_group_manager(
+                resource_id=self.resource_id,
+                project_id=self.project_id,
+                request_id=self.request_id,
+                zone=self.zone,
+            )
+            self.log.info("Successfully deleted Instance Group Managers")
+        except exceptions.NotFound as e:
+            # Expecting 404 Error in case if Instance Group Managers doesn't exist.
+            if e.code == 404:
+                self.log.error("Instance Group Managers %s doesn't exist", self.resource_id)
+                raise e
