@@ -102,6 +102,7 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "flower": {
+                        "enabled": True,
                         "serviceAccount": {
                             "annotations": {
                                 "example": "flower",
@@ -205,6 +206,22 @@ class TestServiceAccountAnnotations:
                     "example": "triggerer",
                 },
             ),
+            (
+                {
+                    "dagProcessor": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "dag-processor",
+                            },
+                        },
+                    },
+                },
+                "templates/dag-processor/dag-processor-serviceaccount.yaml",
+                {
+                    "example": "dag-processor",
+                },
+            ),
         ],
     )
     def test_annotations_are_added(self, values, show_only, expected_annotations):
@@ -270,6 +287,7 @@ class TestServiceAccountAnnotations:
         (
             {
                 "flower": {
+                    "enabled": True,
                     "podAnnotations": {
                         "example": "flower",
                     },
@@ -295,6 +313,20 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "dagProcessor": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "dag-processor",
+                    },
+                },
+            },
+            "templates/dag-processor/dag-processor-deployment.yaml",
+            {
+                "example": "dag-processor",
+            },
+        ),
+        (
+            {
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
@@ -305,6 +337,19 @@ class TestServiceAccountAnnotations:
             "templates/cleanup/cleanup-cronjob.yaml",
             {
                 "example": "cleanup",
+            },
+        ),
+        (
+            {
+                "redis": {
+                    "podAnnotations": {
+                        "example": "redis",
+                    },
+                },
+            },
+            "templates/redis/redis-statefulset.yaml",
+            {
+                "example": "redis",
             },
         ),
     ],

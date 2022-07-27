@@ -18,11 +18,12 @@
 
 import logging
 import sys
+import warnings
 from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -31,14 +32,22 @@ import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
-from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.session import create_session
 
+LOG_LINE_DEFAULTS = {'exc_text': '', 'stack_info': ''}
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
+
+# Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
+# LogTemplate model to record the log ID template used. If this function does
+# not exist, the task handler should use the log_id_template attribute instead.
+USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -65,8 +74,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def __init__(
         self,
         base_log_folder: str,
-        filename_template: str,
-        log_id_template: str,
         end_of_log_mark: str,
         write_stdout: bool,
         json_format: bool,
@@ -76,6 +83,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         host: str = "localhost:9200",
         frontend: str = "localhost:5601",
         es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
+        *,
+        filename_template: Optional[str] = None,
+        log_id_template: Optional[str] = None,
     ):
         """
         :param base_log_folder: base folder to store logs locally
@@ -86,12 +96,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch([host], **es_kwargs)  # type: ignore[attr-defined]
+        self.client = elasticsearch.Elasticsearch(host.split(';'), **es_kwargs)  # type: ignore[attr-defined]
 
-        self.log_id_template = log_id_template
+        if USE_PER_RUN_LOG_ID and log_id_template is not None:
+            warnings.warn(
+                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
+                DeprecationWarning,
+            )
+
+        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
-        self.end_of_log_mark = end_of_log_mark
+        self.end_of_log_mark = end_of_log_mark.strip()
         self.write_stdout = write_stdout
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
@@ -103,13 +119,21 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        dag_run = ti.get_dagrun()
-        dag = ti.task.dag
-        assert dag is not None  # For Mypy.
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)
+            if USE_PER_RUN_LOG_ID:
+                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+            else:
+                log_id_template = self.log_id_template
+
         try:
-            data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+            dag = ti.task.dag
         except AttributeError:  # ti.task is not always set.
             data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+        else:
+            if TYPE_CHECKING:
+                assert dag is not None
+            data_interval = dag.get_run_data_interval(dag_run)
 
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
@@ -126,7 +150,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 data_interval_end = ""
             execution_date = dag_run.execution_date.isoformat()
 
-        return self.log_id_template.format(
+        return log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=getattr(ti, "run_id", ""),
@@ -155,10 +179,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             key = getattr(log, self.host_field, 'default_host')
             grouped_logs[key].append(log)
 
-        # return items sorted by timestamp.
-        result = sorted(grouped_logs.items(), key=lambda kv: getattr(kv[1][0], 'message', '_'))
-
-        return result
+        return grouped_logs
 
     def _read_grouped_logs(self):
         return True
@@ -195,10 +216,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
-        loading_hosts = [
-            item[0] for item in logs_by_host if item[-1][-1].message != self.end_of_log_mark.strip()
-        ]
-        metadata['end_of_log'] = False if not logs else len(loading_hosts) == 0
+        metadata['end_of_log'] = False
+        for logs in logs_by_host.values():
+            if logs[-1].message == self.end_of_log_mark:
+                metadata['end_of_log'] = True
 
         cur_ts = pendulum.now()
         if 'last_log_timestamp' in metadata:
@@ -228,10 +249,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
         def concat_logs(lines):
-            log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark.strip() else len(lines)
+            log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark else len(lines)
             return '\n'.join(self._format_msg(lines[i]) for i in range(log_range))
 
-        message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host]
+        message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host.items()]
 
         return message, metadata
 
@@ -241,8 +262,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
             try:
-
-                return self.formatter._style.format(_ESJsonLogFmt(self.json_fields, **log_line.to_dict()))
+                return self.formatter._style.format(
+                    logging.makeLogRecord({**LOG_LINE_DEFAULTS, **log_line.to_dict()})
+                )
             except Exception:
                 pass
 
@@ -286,7 +308,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            record.offset = int(time() * (10**9))
+            setattr(record, self.offset_field, int(time() * (10**9)))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:
@@ -298,7 +320,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.mark_end_on_close = not ti.raw
 
         if self.json_format:
-            self.formatter = JSONFormatter(
+            self.formatter = ElasticsearchJSONFormatter(
                 fmt=self.formatter._fmt,
                 json_fields=self.json_fields + [self.offset_field],
                 extras={
@@ -347,7 +369,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.stream.write(self.end_of_log_mark)
+        self.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
 
         if self.write_stdout:
             self.handler.close()
@@ -379,13 +401,3 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def supports_external_link(self) -> bool:
         """Whether we can support external links"""
         return bool(self.frontend)
-
-
-class _ESJsonLogFmt:
-    """Helper class to read ES Logs and re-format it to match settings.LOG_FORMAT"""
-
-    # A separate class is needed because 'self.formatter._style.format' uses '.__dict__'
-    def __init__(self, json_fields: List, **kwargs):
-        for field in json_fields:
-            self.__setattr__(field, '')
-        self.__dict__.update(kwargs)

@@ -22,13 +22,10 @@ import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
-import pytest
 from jinja2 import StrictUndefined
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.providers.amazon.aws.operators.emr import EmrClusterLink, EmrCreateJobFlowOperator
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -79,6 +76,7 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
                 template_undefined=StrictUndefined,
             ),
         )
+        self.mock_context = MagicMock()
 
     def test_init(self):
         assert self.operator.aws_conn_id == 'aws_default'
@@ -129,7 +127,7 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
 
         # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
         with patch('boto3.session.Session', boto3_session_mock):
-            self.operator.execute(None)
+            self.operator.execute(self.mock_context)
 
         expected_args = {
             'Name': 'test_job_flow',
@@ -161,42 +159,4 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
         with patch('boto3.session.Session', boto3_session_mock):
-            assert self.operator.execute(None) == 'j-8989898989'
-
-
-@pytest.mark.need_serialized_dag
-def test_operator_extra_links(dag_maker, create_task_instance_of_operator):
-    ti = create_task_instance_of_operator(
-        EmrCreateJobFlowOperator, dag_id=TEST_DAG_ID, execution_date=DEFAULT_DATE, task_id=TASK_ID
-    )
-
-    serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
-
-    assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
-        {"airflow.providers.amazon.aws.operators.emr.EmrClusterLink": {}}
-    ], "Operator links should exist for serialized DAG"
-
-    assert isinstance(
-        deserialized_task.operator_extra_links[0], EmrClusterLink
-    ), "Operator link type should be preserved during deserialization"
-
-    assert (
-        ti.task.get_extra_links(ti, EmrClusterLink.name) == ""
-    ), "Operator link should only be added if job id is available in XCom"
-
-    assert (
-        deserialized_task.get_extra_links(ti, EmrClusterLink.name) == ""
-    ), "Operator link should be empty for deserialized task with no XCom push"
-
-    ti.xcom_push(key=XCOM_RETURN_KEY, value='j-SomeClusterId')
-
-    expected = "https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:j-SomeClusterId"
-    assert (
-        deserialized_task.get_extra_links(ti, EmrClusterLink.name) == expected
-    ), "Operator link should be preserved in deserialized tasks after execution"
-
-    assert (
-        ti.task.get_extra_links(ti, EmrClusterLink.name) == expected
-    ), "Operator link should be preserved after execution"
+            assert self.operator.execute(self.mock_context) == 'j-8989898989'

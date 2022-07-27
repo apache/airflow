@@ -18,12 +18,18 @@
 
 import datetime
 import os
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable, Optional, Union
 
+import attr
 from sqlalchemy import func
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
+from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.helpers import build_airflow_url_with_query
@@ -31,10 +37,10 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
-class ExternalTaskSensorLink(BaseOperatorLink):
+class ExternalDagLink(BaseOperatorLink):
     """
-    Operator link for ExternalTaskSensor. It allows users to access
-    DAG waited with ExternalTaskSensor.
+    Operator link for ExternalTaskSensor and ExternalTaskMarker.
+    It allows users to access DAG waited with ExternalTaskSensor or cleared by ExternalTaskMarker.
     """
 
     name = 'External DAG'
@@ -50,6 +56,24 @@ class ExternalTaskSensor(BaseSensorOperator):
     """
     Waits for a different DAG or a task in a different DAG to complete for a
     specific logical date.
+
+    By default the ExternalTaskSensor will wait for the external task to
+    succeed, at which point it will also succeed. However, by default it will
+    *not* fail if the external task fails, but will continue to check the status
+    until the sensor times out (thus giving you time to retry the external task
+    without also having to clear the sensor).
+
+    It is possible to alter the default behavior by setting states which
+    cause the sensor to fail, e.g. by setting ``allowed_states=[State.FAILED]``
+    and ``failed_states=[State.SUCCESS]`` you will flip the behaviour to get a
+    sensor which goes green when the external task *fails* and immediately goes
+    red if the external task *succeeds*!
+
+    Note that ``soft_fail`` is respected when examining the failed_states. Thus
+    if the external task enters a failed state and ``soft_fail == True`` the
+    sensor will _skip_ rather than fail. As a result, setting ``soft_fail=True``
+    and ``failed_states=[State.SKIPPED]`` will result in the sensor skipping if
+    the external task skips.
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
@@ -79,11 +103,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     template_fields = ['external_dag_id', 'external_task_id', 'external_task_ids']
     ui_color = '#19647e'
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links"""
-        return [ExternalTaskSensorLink()]
+    operator_extra_links = [ExternalDagLink()]
 
     def __init__(
         self,
@@ -178,11 +198,20 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if count_failed == len(dttm_filter):
             if self.external_task_ids:
+                if self.soft_fail:
+                    raise AirflowSkipException(
+                        f'Some of the external tasks {self.external_task_ids} '
+                        f'in DAG {self.external_dag_id} failed. Skipping due to soft_fail.'
+                    )
                 raise AirflowException(
                     f'Some of the external tasks {self.external_task_ids} '
                     f'in DAG {self.external_dag_id} failed.'
                 )
             else:
+                if self.soft_fail:
+                    raise AirflowSkipException(
+                        f'The external DAG {self.external_dag_id} failed. Skipping due to soft_fail.'
+                    )
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
 
         return count_allowed == len(dttm_filter)
@@ -283,6 +312,7 @@ class ExternalTaskMarker(EmptyOperator):
 
     template_fields = ['external_dag_id', 'external_task_id', 'execution_date']
     ui_color = '#19647e'
+    operator_extra_links = [ExternalDagLink()]
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
@@ -318,3 +348,19 @@ class ExternalTaskMarker(EmptyOperator):
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields
+
+
+@attr.s(auto_attribs=True)
+class ExternalTaskSensorLink(ExternalDagLink):
+    """
+    This external link is deprecated.
+    Please use :class:`airflow.sensors.external_task.ExternalDagLink`.
+    """
+
+    def __attrs_post_init__(self):
+        warnings.warn(
+            "This external link is deprecated. "
+            "Please use :class:`airflow.sensors.external_task.ExternalDagLink`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )

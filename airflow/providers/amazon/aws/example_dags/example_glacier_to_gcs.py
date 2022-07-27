@@ -32,20 +32,20 @@ with DAG(
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:
-    # [START howto_glacier_create_job_operator]
+    # [START howto_operator_glacier_create_job]
     create_glacier_job = GlacierCreateJobOperator(task_id="create_glacier_job", vault_name=VAULT_NAME)
     JOB_ID = '{{ task_instance.xcom_pull("create_glacier_job")["jobId"] }}'
-    # [END howto_glacier_create_job_operator]
+    # [END howto_operator_glacier_create_job]
 
-    # [START howto_glacier_job_operation_sensor]
+    # [START howto_sensor_glacier_job_operation]
     wait_for_operation_complete = GlacierJobOperationSensor(
         vault_name=VAULT_NAME,
         job_id=JOB_ID,
         task_id="wait_for_operation_complete",
     )
-    # [END howto_glacier_job_operation_sensor]
+    # [END howto_sensor_glacier_job_operation]
 
-    # [START howto_glacier_transfer_data_to_gcs]
+    # [START howto_transfer_glacier_to_gcs]
     transfer_archive_to_gcs = GlacierToGCSOperator(
         task_id="transfer_archive_to_gcs",
         vault_name=VAULT_NAME,
@@ -57,6 +57,6 @@ with DAG(
         # then whole file will be downloaded
         chunk_size=1024,
     )
-    # [END howto_glacier_transfer_data_to_gcs]
+    # [END howto_transfer_glacier_to_gcs]
 
     create_glacier_job >> wait_for_operation_complete >> transfer_archive_to_gcs

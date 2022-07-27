@@ -109,7 +109,8 @@ To run unit tests from the Visual Studio Code:
     :alt: Running tests
 
 Running Unit Tests
---------------------------------
+------------------
+
 To run unit, integration, and system tests from the Breeze and your
 virtualenv, you can use the `pytest <http://doc.pytest.org/en/latest/>`_ framework.
 
@@ -181,6 +182,33 @@ You can also specify individual tests or a group of tests:
 .. code-block:: bash
 
     breeze tests --db-reset tests/core/test_core.py::TestCore
+
+You can also limit the tests to execute to specific group of tests
+
+.. code-block:: bash
+
+    breeze tests --test-type Core
+
+In case of Providers tests, you can run tests for all providers
+
+.. code-block:: bash
+
+    breeze tests --test-type Providers
+
+You can also limit the set of providers you would like to run tests of
+
+.. code-block:: bash
+
+    breeze tests --test-type "Providers[airbyte,http]"
+
+
+You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
+test just prints "percentage" summary of the run as single line and only dumps full output of the test
+after it completes.
+
+.. code-block:: bash
+
+    breeze tests --test-type Core --limit-progress-output
 
 
 Running Tests of a specified type from the Host
@@ -471,8 +499,6 @@ This is done for three reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow parallel execution of the tests on Self-Hosted runners
-
-For case 1. see `Pull Request Workflow <PULL_REQUEST_WORKFLOW.rst#selective-ci-checks>`_  for details.
 
 For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
 test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
@@ -1074,8 +1100,7 @@ A simple example of a system test is available in:
 
 ``tests/providers/google/cloud/operators/test_compute_system.py``.
 
-It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py`` and
-``airflow.providers.google.cloud.example_dags.example_compute_igm.py``.
+It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py``.
 
 Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------

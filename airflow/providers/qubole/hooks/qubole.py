@@ -46,6 +46,7 @@ from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
 
@@ -139,7 +140,7 @@ class QuboleHook(BaseHook):
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
         self.cmd: Optional[Command] = None
-        self.task_instance = None
+        self.task_instance: Optional["TaskInstance"] = None
 
     @staticmethod
     def handle_failure_retry(context) -> None:
@@ -227,7 +228,10 @@ class QuboleHook(BaseHook):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            logpath = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
+            base_log_folder = conf.get('logging', 'BASE_LOG_FOLDER')
+            if base_log_folder is None:
+                raise ValueError("logging/BASE_LOG_FOLDER config value should be set")
+            logpath = os.path.expanduser(base_log_folder)
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')

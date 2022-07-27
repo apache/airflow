@@ -21,23 +21,11 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
-import pytest
+import pymssql
 
-from airflow import PY38
-
-if PY38:
-    MsSqlToHiveTransferOperator: None = None
-else:
-    from airflow.providers.apache.hive.transfers.mssql_to_hive import MsSqlToHiveOperator
-
-try:
-    import pymssql
-except ImportError:
-    pymssql = None
+from airflow.providers.apache.hive.transfers.mssql_to_hive import MsSqlToHiveOperator
 
 
-@pytest.mark.skipif(PY38, reason="Mssql package not available when Python >= 3.8.")
-@pytest.mark.skipif(pymssql is None, reason='pymssql package not present')
 class TestMsSqlToHiveTransfer(unittest.TestCase):
     def setUp(self):
         self.kwargs = dict(sql='sql', hive_table='table', task_id='test_mssql_to_hive', dag=None)
@@ -113,9 +101,7 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         mssql_to_hive_transfer.execute(context={})
 
         field_dict = OrderedDict()
-        col_count = 0
-        for field in mock_mssql_hook_cursor.return_value.description:
-            col_count += 1
+        for col_count, field in enumerate(mock_mssql_hook_cursor.return_value.description, start=1):
             col_position = f"Column{col_count}"
             field_dict[col_position] = mssql_to_hive_transfer.type_map(field[1])
         mock_hive_hook.return_value.load_file.assert_called_once_with(

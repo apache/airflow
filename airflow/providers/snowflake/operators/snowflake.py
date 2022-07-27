@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, List, Optional, Sequence, SupportsAbs
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
 
 from airflow.models import BaseOperator
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
@@ -83,9 +84,9 @@ class SnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Any,
+        sql: Union[str, Iterable[str]],
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: Optional[str] = None,
@@ -113,11 +114,11 @@ class SnowflakeOperator(BaseOperator):
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
 
-    def execute(self, context: Any) -> None:
+    def execute(self, context: Any):
         """Run query on snowflake"""
         self.log.info('Executing: %s', self.sql)
         hook = self.get_db_hook()
-        execution_info = hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        execution_info = hook.run(self.sql, self.autocommit, self.parameters, fetch_all_handler)
         self.query_ids = hook.query_ids
 
         if self.do_xcom_push:
@@ -186,9 +187,9 @@ class SnowflakeCheckOperator(SQLCheckOperator):
     def __init__(
         self,
         *,
-        sql: Any,
+        sql: str,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: Optional[str] = None,
@@ -257,7 +258,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         pass_value: Any,
         tolerance: Any = None,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: Optional[str] = None,
@@ -334,7 +335,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         date_filter_column: str = 'ds',
         days_back: SupportsAbs[int] = -7,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: Optional[str] = None,

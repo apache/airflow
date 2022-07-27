@@ -21,7 +21,7 @@ Operators
 =========
 
 Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
-Operations in a `Github <https://www.github.com/>`__.
+Operations in a `GitHub <https://www.github.com/>`__.
 
 You can build your own operator using :class:`~airflow.providers.github.operators.GithubOperator`
 and passing **github_method** and **github_method_args** from top level `PyGithub <https://www.pygithub.readthedocs.io/>`__ methods.
@@ -29,8 +29,9 @@ You can further process the result using **result_processor** Callable as you li
 
 An example of Listing all Repositories owned by a user, **client.get_user().get_repos()** can be implemented as following:
 
-.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+.. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_list_repos_github]
     :end-before: [END howto_operator_list_repos_github]
 
@@ -38,8 +39,9 @@ An example of Listing all Repositories owned by a user, **client.get_user().get_
 
 An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='apache/airflow').get_tags()** can be implemented as following:
 
-.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+.. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_list_tags_github]
     :end-before: [END howto_operator_list_tags_github]
 
@@ -54,18 +56,20 @@ an example of this is :class:`~airflow.providers.github.sensors.GithubTagSensor`
 
 
 Use the :class:`~airflow.providers.github.sensors.GithubTagSensor` to wait for creation of
-a Tag in `Github <https://www.github.com/>`__.
+a Tag in `GitHub <https://www.github.com/>`__.
 
 An example for tag **v1.0**:
 
-.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+.. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_tag_sensor_github]
     :end-before: [END howto_tag_sensor_github]
 
 Similar Functionality can be achieved by directly using :class:`~airflow.providers.github.sensors.GithubSensor` ,
 
-.. exampleinclude:: /../../airflow/providers/github/example_dags/example_github.py
+.. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_sensor_github]
     :end-before: [END howto_sensor_github]

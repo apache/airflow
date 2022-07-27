@@ -28,8 +28,6 @@ from click import Context
 
 from airflow_breeze import NAME, VERSION
 from airflow_breeze.commands.main_command import main
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.common_options import (
     option_answer,
@@ -44,11 +42,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.docker_command_utils import (
-    check_docker_resources,
-    get_env_variables_for_docker_commands,
-    get_extra_docker_flags,
-)
+from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
@@ -60,7 +54,7 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.recording import output_file_for_recording
 from airflow_breeze.utils.reinstall import ask_to_reinstall_breeze, reinstall_breeze, warn_non_editable
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.run_utils import assert_pre_commit_installed, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 CONFIGURATION_AND_MAINTENANCE_COMMANDS = {
@@ -70,9 +64,7 @@ CONFIGURATION_AND_MAINTENANCE_COMMANDS = {
         "self-upgrade",
         "setup-autocomplete",
         "config",
-        "resource-check",
-        "free-space",
-        "fix-ownership",
+        "regenerate-command-images",
         "command-hash-export",
         "version",
     ],
@@ -154,9 +146,9 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
         )
         images = command_result.stdout.splitlines() if command_result and command_result.stdout else []
         if images:
-            get_console().print("[light_blue]Removing images:[/]")
+            get_console().print("[info]Removing images:[/]")
             for image in images:
-                get_console().print(f"[light_blue] * {image}[/]")
+                get_console().print(f"[info] * {image}[/]")
             get_console().print()
             docker_rmi_command_to_execute = [
                 'docker',
@@ -170,12 +162,18 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
             elif given_answer == Answer.QUIT:
                 sys.exit(0)
         else:
-            get_console().print("[light_blue]No locally downloaded images to remove[/]\n")
+            get_console().print("[info]No locally downloaded images to remove[/]\n")
     get_console().print("Pruning docker images")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         system_prune_command_to_execute = ['docker', 'system', 'prune']
-        run_command(system_prune_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
+        run_command(
+            system_prune_command_to_execute,
+            verbose=verbose,
+            dry_run=dry_run,
+            check=False,
+            enabled_output_group=True,
+        )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
     get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
@@ -292,7 +290,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
 
 @option_verbose
 @main.command()
-def version(verbose: bool, python: str):
+def version(verbose: bool):
     """Print information about version of apache-airflow-breeze."""
 
     get_console().print(ASCIIART, style=ASCIIART_STYLE)
@@ -321,7 +319,6 @@ def version(verbose: bool, python: str):
 @click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
 @click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
 @click.option(
-    '-B/-b',
     '--colour/--no-colour',
     help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
     default=None,
@@ -386,30 +383,6 @@ def change_config(
     get_console().print()
 
 
-@main.command(name="free-space", help="Free space for jobs run in CI.")
-@option_verbose
-@option_dry_run
-@option_answer
-def free_space(verbose: bool, dry_run: bool, answer: str):
-    if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
-        run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
-        run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
-        run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
-        run_command(
-            ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
-        )
-        run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
-        run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
-
-
-@main.command(name="resource-check", help="Check if available docker resources are enough.")
-@option_verbose
-@option_dry_run
-def resource_check(verbose: bool, dry_run: bool):
-    shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
-
-
 def dict_hash(dictionary: Dict[str, Any]) -> str:
     """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
     dhash = hashlib.md5()
@@ -430,34 +403,10 @@ def command_hash_export(verbose: bool, output: IO):
         the_context_dict = ctx.to_info_dict()
         if verbose:
             get_console().print(the_context_dict)
-        output.write(dict_hash(the_context_dict) + "\n")
-
-
-@main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
-@option_verbose
-@option_dry_run
-def fix_ownership(verbose: bool, dry_run: bool):
-    shell_params = ShellParams(
-        verbose=verbose,
-        mount_sources=MOUNT_ALL,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        skip_environment_initialization=True,
-    )
-    extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
-    env = get_env_variables_for_docker_commands(shell_params)
-    cmd = [
-        "docker",
-        "run",
-        "-t",
-        *extra_docker_flags,
-        "--pull",
-        "never",
-        shell_params.airflow_image_name_with_tag,
-        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
-    ]
-    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
-    # Always succeed
-    sys.exit(0)
+        output.write(f"main:{dict_hash(the_context_dict['command']['params'])}\n")
+        commands_dict = the_context_dict['command']['commands']
+        for command in sorted(commands_dict.keys()):
+            output.write(f"{command}:{dict_hash(commands_dict[command])}\n")
 
 
 def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, force_setup: bool) -> bool:
@@ -525,3 +474,34 @@ def remove_autogenerated_code(script_path: str):
 
 def backup(script_path_file: Path):
     shutil.copy(str(script_path_file), str(script_path_file) + ".bak")
+
+
+@main.command(name="regenerate-command-images", help="Regenerate breeze command images.")
+@option_verbose
+@option_dry_run
+def regenerate_command_images(verbose: bool, dry_run: bool):
+    assert_pre_commit_installed(verbose=verbose)
+    perform_environment_checks(verbose=verbose)
+    try:
+        (AIRFLOW_SOURCES_ROOT / "images" / "breeze" / "output-commands-hash.txt").unlink()
+    except FileNotFoundError:
+        # when we go to Python 3.8+ we can add missing_ok = True instead of try/except
+        pass
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        'run',
+        'update-breeze-cmd-output',
+        '--all-files',
+    ]
+    env = os.environ.copy()
+    run_command(
+        command_to_execute,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        no_output_dump_on_exception=True,
+        text=True,
+        env=env,
+    )

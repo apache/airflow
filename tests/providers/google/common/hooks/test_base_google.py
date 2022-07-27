@@ -333,12 +333,31 @@ class TestGoogleBaseHook(unittest.TestCase):
             key_path=None,
             keyfile_dict=None,
             key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
             delegates=None,
         )
         assert ('CREDENTIALS', 'PROJECT_ID') == result
+
+    @mock.patch('requests.post')
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_connection_success(self, mock_get_creds_and_proj_id, requests_post):
+        requests_post.return_value.status_code = 200
+        credentials = mock.MagicMock()
+        type(credentials).token = mock.PropertyMock(return_value="TOKEN")
+        mock_get_creds_and_proj_id.return_value = (credentials, "PROJECT_ID")
+        self.instance.extras = {}
+        result = self.instance.test_connection()
+        assert result == (True, 'Connection successfully tested')
+
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_connection_failure(self, mock_get_creds_and_proj_id):
+        mock_get_creds_and_proj_id.side_effect = AirflowException('Invalid key JSON.')
+        self.instance.extras = {}
+        result = self.instance.test_connection()
+        assert result == (False, 'Invalid key JSON.')
 
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_get_creds_and_proj_id):
@@ -350,6 +369,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             key_path='KEY_PATH.json',
             keyfile_dict=None,
             key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -378,6 +398,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             key_path=None,
             keyfile_dict=service_account,
             key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -396,6 +417,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             key_path=None,
             keyfile_dict=None,
             key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to="USER",
             target_principal=None,
@@ -430,6 +452,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             key_path=None,
             keyfile_dict=None,
             key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -448,7 +471,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields" "are all mutually exclusive. "
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive. "
             ),
         ):
             self.instance._get_credentials_and_project_id()
@@ -634,6 +657,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             key_path=None,
             keyfile_dict=None,
             key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=target_principal,

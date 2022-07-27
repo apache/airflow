@@ -61,6 +61,7 @@ class TaskReschedule(Base):
             name="task_reschedule_ti_fkey",
             ondelete="CASCADE",
         ),
+        Index('idx_task_reschedule_dag_run', dag_id, run_id),
         ForeignKeyConstraint(
             [dag_id, run_id],
             ['dag_run.dag_id', 'dag_run.run_id'],

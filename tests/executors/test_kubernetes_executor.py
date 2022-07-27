@@ -29,6 +29,7 @@ from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
 from airflow import AirflowException
+from airflow.exceptions import PodReconciliationError
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
@@ -272,6 +273,44 @@ class TestKubernetesExecutor:
                 assert kubernetes_executor.task_queue.empty()
                 assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
 
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'
+    )
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    def test_run_next_pod_reconciliation_error(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+        """
+        When construct_pod raises PodReconciliationError, we should fail the task.
+        """
+        import sys
+
+        path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
+
+        mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
+        fail_msg = 'test message'
+        mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=PodReconciliationError(fail_msg))
+        mock_get_kube_client.return_value = mock_kube_client
+        mock_api_client = mock.MagicMock()
+        mock_api_client.sanitize_for_serialization.return_value = {}
+        mock_kube_client.api_client = mock_api_client
+        config = {('kubernetes', 'pod_template_file'): path}
+        with conf_vars(config):
+            kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.start()
+            # Execute a task while the Api Throws errors
+            try_number = 1
+            task_instance_key = TaskInstanceKey('dag', 'task', 'run_id', try_number)
+            kubernetes_executor.execute_async(
+                key=task_instance_key,
+                queue=None,
+                command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
+            )
+            kubernetes_executor.sync()
+
+            assert kubernetes_executor.task_queue.empty()
+            assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+            assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == fail_msg
+
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
@@ -313,9 +352,9 @@ class TestKubernetesExecutor:
     @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.run_pod_async')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
-        current_folder = pathlib.Path(__file__).parent.absolute()
+        current_folder = pathlib.Path(__file__).parent.resolve()
         template_file = str(
-            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").absolute()
+            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").resolve()
         )
 
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)

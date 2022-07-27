@@ -19,6 +19,7 @@
 import unittest
 from unittest.mock import patch
 
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 
@@ -33,5 +34,8 @@ class TestJdbcOperator(unittest.TestCase):
 
         mock_jdbc_hook.assert_called_once_with(jdbc_conn_id=jdbc_operator.jdbc_conn_id)
         mock_jdbc_hook.return_value.run.assert_called_once_with(
-            jdbc_operator.sql, jdbc_operator.autocommit, parameters=jdbc_operator.parameters
+            jdbc_operator.sql,
+            jdbc_operator.autocommit,
+            parameters=jdbc_operator.parameters,
+            handler=fetch_all_handler,
         )

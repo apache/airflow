@@ -19,6 +19,7 @@
 import json
 import unittest
 from unittest import mock
+from unittest.mock import PropertyMock
 
 from azure.batch import BatchServiceClient, models as batch_models
 
@@ -165,3 +166,19 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_wait_for_all_task_to_complete(self, mock_batch):
         # TODO: Add test
         pass
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
+    def test_connection_success(self, mock_batch):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
+        hook.get_conn().job.return_value = {}
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == "Successfully connected to Azure Batch."
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient')
+    def test_connection_failure(self, mock_batch):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
+        hook.get_conn().job.list = PropertyMock(side_effect=Exception("Authentication failed."))
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == "Authentication failed."

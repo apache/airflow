@@ -108,7 +108,7 @@ class FTPToS3Operator(BaseOperator):
                 gzip=self.gzip,
                 acl_policy=self.acl_policy,
             )
-            self.log.info(f'File upload to {s3_file_key}')
+            self.log.info('File upload to %s', s3_file_key)
 
     def execute(self, context: 'Context'):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
@@ -116,7 +116,7 @@ class FTPToS3Operator(BaseOperator):
 
         if self.ftp_filenames:
             if isinstance(self.ftp_filenames, str):
-                self.log.info(f'Getting files in {self.ftp_path}')
+                self.log.info('Getting files in %s', self.ftp_path)
 
                 list_dir = self.ftp_hook.list_directory(
                     path=self.ftp_path,
@@ -129,7 +129,7 @@ class FTPToS3Operator(BaseOperator):
                     files = list(filter(lambda f: ftp_filename in f, list_dir))
 
                 for file in files:
-                    self.log.info(f'Moving file {file}')
+                    self.log.info('Moving file %s', file)
 
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
                         filename = file.replace(self.ftp_filenames, self.s3_filenames)

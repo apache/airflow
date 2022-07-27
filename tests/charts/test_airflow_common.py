@@ -99,6 +99,8 @@ class TestAirflowCommon:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "dagProcessor": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -106,11 +108,12 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
             ],
         )
 
-        assert 6 == len(k8s_objects)
+        assert 7 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             if k8s_object['kind'] == 'CronJob':
@@ -128,7 +131,9 @@ class TestAirflowCommon:
         k8s_objects = render_chart(
             values={
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
+                "dagProcessor": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -165,12 +170,13 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
         )
 
-        assert 11 == len(k8s_objects)
+        assert 12 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -215,6 +221,7 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
 
@@ -244,6 +251,7 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
         expected_vars = [
@@ -268,6 +276,7 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
         expected_vars = [
@@ -290,15 +299,18 @@ class TestAirflowCommon:
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
-            values={},
+            values={
+                "dagProcessor": {"enabled": True},
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
-        assert 4 == len(docs)
+        assert 5 == len(docs)
         expected_mount = {
             "subPath": "airflow.cfg",
             "name": "config",
@@ -311,11 +323,12 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
-                "flower": {"priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"priorityClassName": "low-priority-pgbouncer"},
+                "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
+                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
+                "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
             },
@@ -325,11 +338,13 @@ class TestAirflowCommon:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
             ],
         )
 
+        assert 7 == len(docs)
         for doc in docs:
             component = doc['metadata']['labels']['component']
             priority = doc['spec']['template']['spec']['priorityClassName']

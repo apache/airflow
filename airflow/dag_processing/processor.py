@@ -43,6 +43,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -357,6 +358,7 @@ class DagFileProcessor(LoggingMixin):
         super().__init__()
         self.dag_ids = dag_ids
         self._log = log
+        self.dag_warnings: Set[Tuple[str, str]] = set()
 
     @provide_session
     def manage_slas(self, dag: DAG, session: Session = None) -> None:
@@ -433,6 +435,7 @@ class DagFileProcessor(LoggingMixin):
                             timestamp=ts,
                         )
                         sla_misses.append(sla_miss)
+                        Stats.incr('sla_missed')
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
@@ -560,6 +563,55 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @provide_session
+    def _validate_task_pools(self, *, dagbag: DagBag, session: Session = NEW_SESSION):
+        """
+        Validates and raise exception if any task in a dag is using a non-existent pool
+        :meta private:
+        """
+        from airflow.models.pool import Pool
+
+        def check_pools(dag):
+            task_pools = {task.pool for task in dag.tasks}
+            nonexistent_pools = task_pools - pools
+            if nonexistent_pools:
+                return (
+                    f"Dag '{dag.dag_id}' references non-existent pools: {list(sorted(nonexistent_pools))!r}"
+                )
+
+        pools = {p.pool for p in Pool.get_pools(session)}
+        for dag in dagbag.dags.values():
+            message = check_pools(dag)
+            if message:
+                self.dag_warnings.add(DagWarning(dag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
+            for subdag in dag.subdags:
+                message = check_pools(subdag)
+                if message:
+                    self.dag_warnings.add(DagWarning(subdag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
+
+    def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
+        """
+        For the DAGs in the given DagBag, record any associated configuration warnings and clear
+        warnings for files that no longer have them. These are usually displayed through the
+        Airflow UI so that users know that there are issues parsing DAGs.
+
+        :param session: session for ORM operations
+        :param dagbag: DagBag containing DAGs with configuration warnings
+        """
+        self._validate_task_pools(dagbag=dagbag)
+
+        stored_warnings = set(
+            session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags.keys())).all()
+        )
+
+        for warning_to_delete in stored_warnings - self.dag_warnings:
+            session.delete(warning_to_delete)
+
+        for warning_to_add in self.dag_warnings:
+            session.merge(warning_to_add)
+
+        session.commit()
+
+    @provide_session
     def execute_callbacks(
         self, dagbag: DagBag, callback_requests: List[CallbackRequest], session: Session = NEW_SESSION
     ) -> None:
@@ -607,7 +659,7 @@ class DagFileProcessor(LoggingMixin):
                     ti = TI(task, run_id=simple_ti.run_id, map_index=simple_ti.map_index)
                     # TODO: Use simple_ti to improve performance here in the future
                     ti.refresh_from_db()
-                    ti.handle_failure_with_callback(error=request.msg, test_mode=self.UNIT_TEST_MODE)
+                    ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE)
                     self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
 
     @provide_session
@@ -674,5 +726,11 @@ class DagFileProcessor(LoggingMixin):
             self.update_import_errors(session, dagbag)
         except Exception:
             self.log.exception("Error logging import errors!")
+
+        # Record DAG warnings in the metadatabase.
+        try:
+            self.update_dag_warnings(session=session, dagbag=dagbag)
+        except Exception:
+            self.log.exception("Error logging DAG warnings.")
 
         return len(dagbag.dags), len(dagbag.import_errors)

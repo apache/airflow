@@ -92,7 +92,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Docker Compose
 --------------
 
-- **Version**: Install the latest stable `Docker Compose<https://docs.docker.com/compose/install/>`_
+- **Version**: Install the latest stable `Docker Compose <https://docs.docker.com/compose/install/>`_
   and add it to the PATH. ``Breeze`` detects if you are using version that is too old and warns you to upgrade.
 - **Permissions**: Configure permission to be able to run the ``docker-compose`` command by your user.
 
@@ -127,9 +127,17 @@ Docker in WSL 2
 
 - **WSL 2 Docker mount errors**:
     Another reason to use Linux filesystem, is that sometimes - depending on the length of
-    your path, you might get strange errors when you try start ``Breeze``, such us
+    your path, you might get strange errors when you try start ``Breeze``, such as
     ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
     Airflow in Windows-mounted Filesystem is strongly discouraged.
+
+- **WSL 2 Docker volume remount errors**:
+    If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
+    Cannot create container for service airflow: not a directory`` when starting Breeze
+    after the first time or an error like ``docker: Error response from daemon: not a directory.
+    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
+    instead of using Docker Desktop for Windows.
 
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
@@ -165,6 +173,12 @@ environments. This can be done automatically by the following command (follow in
 .. code-block:: bash
 
     pipx ensurepath
+
+In Mac
+
+.. code-block:: bash
+
+    python -m pipx ensurepath
 
 
 Resources required
@@ -257,6 +271,8 @@ Those are all available flags of ``self-upgrade`` command:
 If you have several checked out Airflow sources, Breeze will warn you if you are using it from a different
 source tree and will offer you to re-install from those sources - to make sure that you are using the right
 version.
+
+You can skip Breeze's upgrade check by setting ``SKIP_BREEZE_UPGRADE_CHECK`` variable to non empty value.
 
 By default Breeze works on the version of Airflow that you run it in - in case you are outside of the
 sources of Airflow and you installed Breeze from a directory - Breeze will be run on Airflow sources from
@@ -425,6 +441,27 @@ of help of the commands only when they change.
   :width: 100%
   :alt: Breeze command-hash-export
 
+Regenerating images for documentation
+=====================================
+
+This documentation contains exported images with "help" of their commands and parameters. You can
+regenerate all those images (which might be needed in case new version of rich is used) via
+``regenerate-command-images`` command.
+
+.. image:: ./images/breeze/output-regenerate-command-images.svg
+  :width: 100%
+  :alt: Breeze regenerate-command-images
+
+
+Compiling www assets
+====================
+
+Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-www-assets``
+command takes care about it. This is needed when you want to run webserver inside of the breeze.
+
+.. image:: ./images/breeze/output-compile-www-assets.svg
+  :width: 100%
+  :alt: Breeze compile-www-assets
 
 Starting complete Airflow installation
 ======================================
@@ -432,6 +469,13 @@ Starting complete Airflow installation
 For testing Airflow oyou often want to start multiple components (in multiple terminals). Breeze has
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
+
+When you are starting airflow from local sources, www asset compilation is automatically executed before.
+
+.. code-block:: bash
+
+    breeze --python 3.7 --backend mysql start-airflow
+
 
 You can also use it to start any released version of Airflow from ``PyPI`` with the
 ``--use-airflow-version`` flag.
@@ -479,18 +523,17 @@ Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testi
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-Development tasks
------------------
-
 Those are commands mostly used by contributors:
 
 * Execute arbitrary command in the test environment with ``breeze shell`` command
 * Enter interactive shell in CI container when ``shell`` (or no command) is specified
 * Start containerised, development-friendly airflow installation with ``breeze start-airflow`` command
+* Compile www assets for webserver ``breeze compile-www-assets`` command
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``breeze tests`` command
+* Run docker-compose tests with ``breeze docker-compose-tests`` command.
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 
@@ -503,8 +546,53 @@ Additional management tasks:
 Tests
 -----
 
-* Run docker-compose tests with ``breeze docker-compose-tests`` command.
-* Run test specified with ``breeze tests`` command.
+You can regular unit tests with ``breeze`` in two different ways, either interactively run tests with
+the default ``shell`` command or via the ``tests`` command.
+
+Iterate on tests interactively
+-------------------------------
+
+You can simply enter the ``breeze`` container and run ``pytest`` command there. You can enter the
+container via just ``breeze`` command or ``breeze shell`` command (the latter has more options
+useful when you run integration or system tests). This is the best way if you want to interactively
+run selected tests and iterate with the tests. Once you enter ``breeze`` environment it is ready
+out-of-the-box to run your tests by running the right ``pytest`` command (autocomplete should help
+you with autocompleting test name if you start typing ``pytest tests<TAB>``).
+
+Here are few examples:
+
+Running single test:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore::test_check_operators
+
+To run the whole test class:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore
+
+You can re-run the tests interactively, add extra parameters to pytest and modify the files before
+re-running the test to iterate over the tests. You can also add more flags when starting the
+``breeze shell`` command when you run integration tests or system tests. Read more details about it
+in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
+on how to run them.
+
+Running group of tests
+-----------------------
+
+You can also run tests via built-in ``breeze tests`` command - similarly as iterative ``pytest`` command
+allows to run test individually, or by class or in any other way pytest allows to test them, but it
+also allows to run the tests in the same test "types" that are used to run the tests in CI: Core, Always
+API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
+replicate this behaviour.
+
+Another interesting use of the ``breeze tests`` command is that you can easily specify sub-set of the
+tests for Providers. ``breeze tests --test-type "Providers[airbyte,http]`` for example will only run
+tests for airbyte and http providers.
+
+Here is the detailed set of options for the ``breeze tests`` command.
 
 .. image:: ./images/breeze/output-tests.svg
   :width: 100%
@@ -544,12 +632,16 @@ Configuration and maintenance
 * Cleanup breeze with ``breeze cleanup`` command
 * Self-upgrade breeze with ``breeze self-upgrade`` command
 * Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
-* Checking available resources for docker with ``breeze resource-check`` command
-* Freeing space needed to run CI tests with ``breeze free-space`` command
-* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
 * Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
   regeneration of Breeze images)
+
+CI tasks
+--------
+* Freeing space needed to run CI tests with ``breeze free-space`` command
+* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
+* Checking available resources for docker with ``breeze resource-check`` command
+* Deciding which tests should be run with ``breeze selective-check`` command
 
 Release tasks
 -------------
@@ -998,7 +1090,7 @@ you have auto-complete setup you should see auto-completable list of all checks 
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy
+     breeze static-checks -t run-mypy
 
 The above will run mypy check for currently staged files.
 
@@ -1006,7 +1098,7 @@ You can also pass specific pre-commit flags for example ``--all-files`` :
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --all-files
+     breeze static-checks -t run-mypy --all-files
 
 The above will run mypy check for all files.
 
@@ -1014,7 +1106,7 @@ There is a convenience ``--last-commit`` flag that you can use to run static che
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --last-commit
+     breeze static-checks -t run-mypy --last-commit
 
 The above will run mypy check for all files in the last commit.
 
@@ -1022,7 +1114,7 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
@@ -1051,6 +1143,12 @@ command but it is very similar to current ``breeze`` command):
              alt="Airflow Breeze - Static checks">
       </a>
     </div>
+
+.. note::
+
+    When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
+    so that it can speed up static checks execution significantly. However, sometimes, the cache might
+    get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
 Building the Documentation
@@ -1268,8 +1366,8 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
-Resource check
-==============
+Running resource check
+----------------------
 
 Breeze requires certain resources to be available - disk, memory, CPU. When you enter Breeze's shell,
 the resources are checked and information if there is enough resources is displayed. However you can
@@ -1283,7 +1381,7 @@ Those are all available flags of ``resource-check`` command:
 
 
 Freeing the space
-=================
+-----------------
 
 When our CI runs a job, it needs all memory and disk it can have. We have a Breeze command that frees
 the memory and disk space used. You can also use it clear space locally but it performs a few operations
@@ -1296,8 +1394,26 @@ Those are all available flags of ``free-space`` command:
   :alt: Breeze free-space
 
 
+Selective check
+---------------
+
+When our CI runs a job, it needs to decide which tests to run, whether to build images and how much the test
+should be run on multiple combinations of Python, Kubernetes, Backend versions. In order to optimize time
+needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
+a specific commit that Breeze should run the tests on.
+
+More details about the algorithm used to pick the right tests can be
+found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
+
+Those are all available flags of ``selective-check`` command:
+
+.. image:: ./images/breeze/output-selective-check.svg
+  :width: 100%
+  :alt: Breeze selective-check
+
+
 Tracking backtracking issues for CI builds
-==========================================
+------------------------------------------
 
 When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
 lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
@@ -1492,24 +1608,14 @@ If you set these variables, next time when you enter the environment the new por
 Managing Dependencies
 ---------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add JavaScript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
-
-Installing Dependencies for a Single Breeze Session
-...................................................
-
-You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
-quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for the node.js dependencies if your sources are mounted to the container).
-Therefore, if you want to retain a new dependency, follow the second option described below.
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
+for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
+or ``airflow/ui``, you need to compile them in the host with ``breeze compile-www-assets`` command.
 
 Adding Dependencies Permanently
 ...............................
 
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
-This should happen automatically if you modify any of these files.
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py``.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the

@@ -30,6 +30,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.links.kubernetes_engine import (
+    KubernetesEngineClusterLink,
+    KubernetesEnginePodLink,
+)
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
@@ -180,6 +184,7 @@ class GKECreateClusterOperator(BaseOperator):
         'body',
         'impersonation_chain',
     )
+    operator_extra_links = (KubernetesEngineClusterLink(),)
 
     def __init__(
         self,
@@ -240,6 +245,7 @@ class GKECreateClusterOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
+        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
         return create_op
 
 
@@ -292,6 +298,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
     template_fields: Sequence[str] = tuple(
         {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
     )
+    operator_extra_links = (KubernetesEnginePodLink(),)
 
     def __init__(
         self,
@@ -419,4 +426,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             use_internal_ip=self.use_internal_ip,
         ) as config_file:
             self.config_file = config_file
-            return super().execute(context)
+            result = super().execute(context)
+            if not self.is_delete_operator_pod:
+                KubernetesEnginePodLink.persist(context=context, task_instance=self)
+            return result

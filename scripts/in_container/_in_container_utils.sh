@@ -80,14 +80,20 @@ function in_container_script_end() {
 #
 function in_container_cleanup_pyc() {
     set +o pipefail
+    if [[ ${CLEANED_PYC=} == "true" ]]; then
+        return
+    fi
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
+        -path "./provider_packages/airflow/www/node_modules" -prune -o \
+        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
         -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
     set -o pipefail
+    export CLEANED_PYC="true"
 }
 
 #
@@ -95,14 +101,20 @@ function in_container_cleanup_pyc() {
 #
 function in_container_cleanup_pycache() {
     set +o pipefail
+    if [[ ${CLEANED_PYCACHE=} == "true" ]]; then
+        return
+    fi
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
+        -path "./provider_packages/airflow/www/node_modules" -prune -o \
+        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
         -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
     set -o pipefail
+    export CLEANED_PYCACHE="true"
 }
 
 #
@@ -115,23 +127,21 @@ function in_container_fix_ownership() {
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
-            "/root/.aws"
-            "/root/.azure"
-            "/root/.config/gcloud"
-            "/root/.docker"
             "/opt/airflow/logs"
             "/opt/airflow/docs"
             "/opt/airflow/dags"
-            "${AIRFLOW_SOURCES}"
+            "/opt/airflow/airflow/"
         )
-        echo
-        echo "${COLOR_BLUE}Fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
-        echo "${COLOR_BLUE}Directories: ${DIRECTORIES_TO_FIX[*]}${COLOR_RESET}"
-        echo
-        find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
-            xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-        echo "${COLOR_BLUE}Fixed ownership of generated files."
-        echo
+        count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
+        if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
+            echo
+            echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
+            echo
+            find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
+                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+            echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
+            echo
+        fi
      else
         echo
         echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
@@ -212,8 +222,12 @@ function install_airflow_from_wheel() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${extras}" --constraint \
-        "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    if [[ ${constraints_reference} == "none" ]]; then
+        pip install "${airflow_package}${extras}"
+    else
+        pip install "${airflow_package}${extras}" --constraint \
+            "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    fi
 }
 
 function install_airflow_from_sdist() {
@@ -238,8 +252,12 @@ function install_airflow_from_sdist() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${extras}" --constraint \
-        "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    if [[ ${constraints_reference} == "none" ]]; then
+        pip install "${airflow_package}${extras}"
+    else
+        pip install "${airflow_package}${extras}" --constraint \
+            "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    fi
 }
 
 function uninstall_airflow() {
@@ -266,17 +284,20 @@ function uninstall_airflow_and_providers() {
 
 function install_released_airflow_version() {
     local version="${1}"
-    echo
-    echo "Installing released ${version} version of airflow with extras: ${AIRFLOW_EXTRAS} and constraints constraints-${version}"
-    echo
+    local constraints_reference
+    constraints_reference="${2:-}"
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
     if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
         BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
     else
         BRACKETED_AIRFLOW_EXTRAS=""
     fi
-    pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" \
-        --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    if [[ ${constraints_reference} == "none" ]]; then
+        pip install "${airflow_package}${extras}"
+    else
+        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" \
+            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    fi
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -291,7 +312,7 @@ function install_local_airflow_with_eager_upgrade() {
 
 
 function install_all_providers_from_pypi_with_eager_upgrade() {
-    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS))')
+    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_DEPENDENCIES))')
     ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
     local packages_to_install=()
     local provider_package
@@ -314,10 +335,8 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    # NOTE! Until we unyank the cncf.kubernetes provider, we explicitly install yanked 3.1.2 version
-    # TODO:(potiuk) REMOVE IT WHEN provider is released
     pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-        --upgrade --upgrade-strategy eager apache-airflow-providers-cncf-kubernetes==3.1.2
+        --upgrade --upgrade-strategy eager
 
 }
 

@@ -60,6 +60,20 @@ class WebserverDeploymentTest(unittest.TestCase):
             == "/mypath/path/health"
         )
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {"webserver": {}}
+        if revision_history_limit:
+            values['webserver']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     @parameterized.expand(
         [
             ({"config": {"webserver": {"base_url": ""}}},),
@@ -100,6 +114,24 @@ class WebserverDeploymentTest(unittest.TestCase):
         )
         assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
         assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
+
+    def test_should_add_scheme_to_liveness_and_readiness_probes(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "livenessProbe": {"scheme": "HTTPS"},
+                    "readinessProbe": {"scheme": "HTTPS"},
+                }
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "HTTPS" in jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.httpGet.scheme", docs[0]
+        )
+        assert "HTTPS" in jmespath.search(
+            "spec.template.spec.containers[0].readinessProbe.httpGet.scheme", docs[0]
+        )
 
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
         docs = render_chart(

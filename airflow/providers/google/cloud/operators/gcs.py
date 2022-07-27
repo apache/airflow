@@ -30,11 +30,11 @@ if TYPE_CHECKING:
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
-from pendulum.datetime import DateTime
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
 
 
@@ -107,6 +107,7 @@ class GCSCreateBucketOperator(BaseOperator):
         'impersonation_chain',
     )
     ui_color = '#f0eee4'
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -138,6 +139,12 @@ class GCSCreateBucketOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket_name,
+            project_id=self.project_id or hook.project_id,
         )
         try:
             hook.create_bucket(
@@ -200,6 +207,8 @@ class GCSListObjectsOperator(BaseOperator):
 
     ui_color = '#f0eee4'
 
+    operator_extra_links = (StorageLink(),)
+
     def __init__(
         self,
         *,
@@ -232,6 +241,13 @@ class GCSListObjectsOperator(BaseOperator):
             self.bucket,
             self.delimiter,
             self.prefix,
+        )
+
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket,
+            project_id=hook.project_id,
         )
 
         return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
@@ -288,8 +304,11 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-        if not objects and not prefix:
-            raise ValueError("Either object or prefix should be set. Both are None")
+        if objects is None and prefix is None:
+            err_message = "(Task {task_id}) Either object or prefix should be set. Both are None.".format(
+                **kwargs
+            )
+            raise ValueError(err_message)
 
         super().__init__(**kwargs)
 
@@ -346,6 +365,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcs_bucket_create_acl_template_fields]
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -370,6 +390,12 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket,
+            project_id=hook.project_id,
         )
         hook.insert_bucket_acl(
             bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
@@ -418,6 +444,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcs_object_create_acl_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -446,6 +473,12 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=f"{self.bucket}/{self.object_name}",
+            project_id=hook.project_id,
         )
         hook.insert_object_acl(
             bucket_name=self.bucket,
@@ -498,6 +531,7 @@ class GCSFileTransformOperator(BaseOperator):
         'transform_script',
         'impersonation_chain',
     )
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -549,6 +583,12 @@ class GCSFileTransformOperator(BaseOperator):
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
             self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                uri=f"{self.destination_bucket}/{self.destination_object}",
+                project_id=hook.project_id,
+            )
             hook.upload(
                 bucket_name=self.destination_bucket,
                 object_name=self.destination_object,
@@ -628,6 +668,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         'source_impersonation_chain',
         'destination_impersonation_chain',
     )
+    operator_extra_links = (StorageLink(),)
 
     @staticmethod
     def interpolate_prefix(prefix: str, dt: datetime.datetime) -> Optional[str]:
@@ -681,22 +722,25 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     def execute(self, context: "Context") -> List[str]:
         # Define intervals and prefixes.
         try:
-            timespan_start = context["data_interval_start"]
-            timespan_end = context["data_interval_end"]
+            orig_start = context["data_interval_start"]
+            orig_end = context["data_interval_end"]
         except KeyError:
-            timespan_start = pendulum.instance(context["execution_date"])
+            orig_start = pendulum.instance(context["execution_date"])
             following_execution_date = context["dag"].following_schedule(context["execution_date"])
             if following_execution_date is None:
-                timespan_end = None
+                orig_end = None
             else:
-                timespan_end = pendulum.instance(following_execution_date)
+                orig_end = pendulum.instance(following_execution_date)
 
-        if timespan_end is None:  # Only possible in Airflow before 2.2.
-            self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
-        elif timespan_start >= timespan_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", timespan_end)
-            timespan_end = DateTime.max
+        timespan_start = orig_start
+        if orig_end is None:  # Only possible in Airflow before 2.2.
+            self.log.warning("No following schedule found, setting timespan end to max %s", orig_end)
+            timespan_end = pendulum.instance(datetime.datetime.max)
+        elif orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
+            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+            timespan_end = pendulum.instance(datetime.datetime.max)
+        else:
+            timespan_end = orig_end
 
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)
@@ -717,6 +761,12 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         destination_hook = GCSHook(
             gcp_conn_id=self.destination_gcp_conn_id,
             impersonation_chain=self.destination_impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.destination_bucket,
+            project_id=destination_hook.project_id,
         )
 
         # Fetch list of files.
@@ -904,6 +954,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         'delegate_to',
         'impersonation_chain',
     )
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -938,6 +989,12 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self._get_uri(self.destination_bucket, self.destination_object),
+            project_id=hook.project_id,
+        )
         hook.sync(
             source_bucket=self.source_bucket,
             destination_bucket=self.destination_bucket,
@@ -947,3 +1004,8 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             delete_extra_files=self.delete_extra_files,
             allow_overwrite=self.allow_overwrite,
         )
+
+    def _get_uri(self, gcs_bucket: str, gcs_object: Optional[str]) -> str:
+        if gcs_object and gcs_object[-1] == "/":
+            gcs_object = gcs_object[:-1]
+        return f"{gcs_bucket}/{gcs_object}" if gcs_object else gcs_bucket

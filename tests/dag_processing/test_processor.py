@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import datetime
 import os
 from unittest import mock
@@ -34,7 +33,6 @@ from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -113,7 +111,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 1 day ago, but an sla of 0
         # so we'll already have an sla_miss on the books.
-        test_start_date = days_ago(1)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -142,7 +140,7 @@ class TestDagFileProcessor:
         # Create dag with a start of 1 day ago, but an sla of 0
         # so we'll already have an sla_miss on the books.
         # Pass anything besides a timedelta object to the sla argument.
-        test_start_date = days_ago(1)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -170,7 +168,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=2)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -198,7 +196,8 @@ class TestDagFileProcessor:
 
         sla_callback.assert_not_called()
 
-    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, dag_maker):
+    @mock.patch('airflow.dag_processing.processor.Stats.incr')
+    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, mock_stats_incr, dag_maker):
         """
         Test that the dag file processor does not try to insert already existing item into the database
         """
@@ -206,7 +205,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=2)
         with dag_maker(
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
@@ -231,6 +230,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
+        mock_stats_incr.assert_called_with('sla_missed')
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
@@ -247,7 +247,7 @@ class TestDagFileProcessor:
 
         sla_callback = MagicMock(side_effect=RuntimeError('Could not call function'))
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -277,7 +277,7 @@ class TestDagFileProcessor:
     ):
         session = settings.Session()
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         email1 = 'test1@test.com'
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
@@ -317,7 +317,7 @@ class TestDagFileProcessor:
         # Mock the callback function so we can verify that it was not called
         mock_send_email.side_effect = RuntimeError('Could not send an email')
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -347,7 +347,7 @@ class TestDagFileProcessor:
         """
         session = settings.Session()
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -366,7 +366,7 @@ class TestDagFileProcessor:
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-    @patch.object(TaskInstance, 'handle_failure_with_callback')
+    @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -423,18 +423,14 @@ class TestDagFileProcessor:
             tis = session.query(TaskInstance)
             assert tis[0].hostname == "test_hostname"
 
-    def test_process_file_should_failure_callback(self, monkeypatch, tmp_path):
+    def test_process_file_should_failure_callback(self, monkeypatch, tmp_path, get_test_dag):
         callback_file = tmp_path.joinpath("callback.txt")
         callback_file.touch()
         monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
-        dag_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), '../dags/test_on_failure_callback.py'
-        )
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
 
-        dag = dagbag.get_dag('test_om_failure_callback_dag')
-        task = dag.get_task(task_id='test_om_failure_callback_task')
+        dag = get_test_dag('test_on_failure_callback')
+        task = dag.get_task(task_id='test_on_failure_callback_task')
         with create_session() as session:
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
@@ -442,7 +438,7 @@ class TestDagFileProcessor:
                 run_type=DagRunType.SCHEDULED,
                 session=session,
             )
-            (ti,) = dagrun.task_instances
+            ti = dagrun.get_task_instance(task.task_id)
             ti.refresh_from_task(task)
 
             requests = [
@@ -452,9 +448,11 @@ class TestDagFileProcessor:
                     msg="Message",
                 )
             ]
-            dag_file_processor.process_file(dag_file, requests, session=session)
+            dag_file_processor.process_file(dag.fileloc, requests, session=session)
 
-        assert "Callback fired" == callback_file.read_text()
+        ti.refresh_from_db()
+        msg = ' '.join([str(k) for k in ti.key.primary]) + ' fired callback'
+        assert msg in callback_file.read_text()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmpdir):

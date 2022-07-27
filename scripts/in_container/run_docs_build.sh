@@ -18,7 +18,8 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-sudo -E "${AIRFLOW_SOURCES}/docs/build_docs.py" "${@}"
+cd "${AIRFLOW_SOURCES}" || exit 1
+python -m docs.build_docs "${@}"
 
 
 if [[ ( ${CI:="false"} == "true" || ${CI} == "True" ) && -d "${AIRFLOW_SOURCES}/docs/_build/docs/" ]]; then

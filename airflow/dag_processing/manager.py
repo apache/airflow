@@ -38,10 +38,10 @@ from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
-from airflow.callbacks.callback_requests import CallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagModel, DbCallbackRequest, errors
+from airflow.models import DagModel, DagWarning, DbCallbackRequest, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -49,7 +49,11 @@ from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
+from airflow.utils.process_utils import (
+    kill_child_processes_by_pids,
+    reap_process_group,
+    set_new_process_group,
+)
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
@@ -70,7 +74,7 @@ class DagFileStat(NamedTuple):
     num_dags: int
     import_errors: int
     last_finish_time: Optional[datetime]
-    last_duration: Optional[float]
+    last_duration: Optional[timedelta]
     run_count: int
 
 
@@ -213,7 +217,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
-        os.setpgid(0, 0)
+        set_new_process_group()
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.
@@ -395,7 +399,10 @@ class DagFileProcessorManager(LoggingMixin):
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
-        if conf.get('database', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
+        if (
+            conf.get_mandatory_value('database', 'sql_alchemy_conn').startswith('sqlite')
+            and self._parallelism > 1
+        ):
             self.log.warning(
                 "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d) when using sqlite. So we set parallelism to 1.",
@@ -468,8 +475,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         self.register_exit_signals()
 
-        # Start a new process group
-        os.setpgid(0, 0)
+        set_new_process_group()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
@@ -481,7 +487,11 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _deactivate_stale_dags(self, session=None):
-        """Detects DAGs which are no longer present in files and deactivate them."""
+        """
+        Detects DAGs which are no longer present in files
+
+        Deactivate them and remove them in the serialized_dag table
+        """
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
         if elapsed_time_since_refresh > self.deactivate_stale_dags_interval:
@@ -502,7 +512,7 @@ class DagFileProcessorManager(LoggingMixin):
                     dag.fileloc in last_parsed
                     and (dag.last_parsed_time + self._processor_timeout) < last_parsed[dag.fileloc]
                 ):
-                    self.log.info(f"DAG {dag.dag_id} is missing and will be deactivated.")
+                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
                     to_deactivate.add(dag.dag_id)
 
             if to_deactivate:
@@ -513,6 +523,10 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 if deactivated:
                     self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+
+                for dag_id in to_deactivate:
+                    SerializedDagModel.remove_dag(dag_id)
+                    self.log.info("Deleted DAG %s in serialized_dag table", dag_id)
 
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
@@ -581,6 +595,7 @@ class DagFileProcessorManager(LoggingMixin):
             if standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
+            DagWarning.purge_inactive_dag_warnings()
             self._refresh_dag_dir()
 
             self._kill_timed_out_processors()
@@ -664,16 +679,35 @@ class DagFileProcessorManager(LoggingMixin):
             guard.commit()
 
     def _add_callback_to_queue(self, request: CallbackRequest):
-        self._callback_to_execute[request.full_filepath].append(request)
-        # Callback has a higher priority over DAG Run scheduling
-        if request.full_filepath in self._file_path_queue:
-            # Remove file paths matching request.full_filepath from self._file_path_queue
-            # Since we are already going to use that filepath to run callback,
-            # there is no need to have same file path again in the queue
-            self._file_path_queue = [
-                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-            ]
-        self._file_path_queue.insert(0, request.full_filepath)
+
+        # requests are sent by dag processors. SLAs exist per-dag, but can be generated once per SLA-enabled
+        # task in the dag. If treated like other callbacks, SLAs can cause feedback where a SLA arrives,
+        # goes to the front of the queue, gets processed, triggers more SLAs from the same DAG, which go to
+        # the front of the queue, and we never get round to picking stuff off the back of the queue
+        if isinstance(request, SlaCallbackRequest):
+            if request in self._callback_to_execute[request.full_filepath]:
+                self.log.debug("Skipping already queued SlaCallbackRequest")
+                return
+
+            # not already queued, queue the file _at the back_, and add the request to the file's callbacks
+            self.log.debug("Queuing SlaCallbackRequest for %s", request.dag_id)
+            self._callback_to_execute[request.full_filepath].append(request)
+            if request.full_filepath not in self._file_path_queue:
+                self._file_path_queue.append(request.full_filepath)
+
+        # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
+        # already in the queue
+        else:
+            self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+            self._callback_to_execute[request.full_filepath].append(request)
+            if request.full_filepath in self._file_path_queue:
+                # Remove file paths matching request.full_filepath from self._file_path_queue
+                # Since we are already going to use that filepath to run callback,
+                # there is no need to have same file path again in the queue
+                self._file_path_queue = [
+                    file_path for file_path in self._file_path_queue if file_path != request.full_filepath
+                ]
+            self._file_path_queue.insert(0, request.full_filepath)
 
     def _refresh_dag_dir(self):
         """Refresh file paths from dag dir if we haven't done it for too long."""
@@ -828,7 +862,7 @@ class DagFileProcessorManager(LoggingMixin):
         :rtype: float
         """
         stat = self._file_stats.get(file_path)
-        return stat.last_duration if stat else None
+        return stat.last_duration.total_seconds() if stat and stat.last_duration else None
 
     def get_last_dag_count(self, file_path):
         """
@@ -921,7 +955,7 @@ class DagFileProcessorManager(LoggingMixin):
             count_import_errors = -1
             num_dags = 0
 
-        last_duration = (last_finish_time - processor.start_time).total_seconds()
+        last_duration = last_finish_time - processor.start_time
         stat = DagFileStat(
             num_dags=num_dags,
             import_errors=count_import_errors,

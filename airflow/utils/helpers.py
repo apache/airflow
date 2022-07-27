@@ -39,6 +39,7 @@ from typing import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import jinja2
@@ -256,7 +257,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     """
     import flask
 
-    view = conf.get('webserver', 'dag_default_view').lower()
+    view = conf.get_mandatory_value('webserver', 'dag_default_view').lower()
     return flask.url_for(f"Airflow.{view}", **query)
 
 
@@ -312,6 +313,24 @@ def exactly_one(*args) -> bool:
             "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
         )
     return sum(map(bool, args)) == 1
+
+
+def at_most_one(*args) -> bool:
+    """
+    Returns True if at most one of *args is "truthy", and False otherwise.
+
+    NOTSET is treated the same as None.
+
+    If user supplies an iterable, we raise ValueError and force them to unpack.
+    """
+
+    def is_set(val):
+        if val is NOTSET:
+            return False
+        else:
+            return bool(val)
+
+    return sum(map(is_set, args)) in (0, 1)
 
 
 def prune_dict(val: Any, mode='strict'):

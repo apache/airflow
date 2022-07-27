@@ -17,6 +17,7 @@
 
 
 import datetime
+import logging
 import numbers
 from contextlib import closing
 from typing import Any, Iterable, Mapping, Optional, Sequence, Union
@@ -67,7 +68,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         sql: str,
         spreadsheet_id: str,
         sql_conn_id: str,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         database: Optional[str] = None,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
@@ -120,7 +121,9 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info(f"Uploading data to https://docs.google.com/spreadsheets/d/{self.spreadsheet_id}")
+        if self.log.isEnabledFor(logging.INFO):
+            url = f"https://docs.google.com/spreadsheets/d/{self.spreadsheet_id}"
+            self.log.info("Uploading data to %s", url)
 
         sheet_hook.update_values(
             spreadsheet_id=self.spreadsheet_id,

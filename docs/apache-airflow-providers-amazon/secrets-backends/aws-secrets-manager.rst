@@ -31,7 +31,7 @@ Here is a sample configuration:
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": false}
 
 To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
-environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
+environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``, ``AWS_DEFAULT_REGION``.
 
 
 Storing and Retrieving Connections
@@ -62,7 +62,7 @@ console or through Amazon CLI as shown below:
 
     aws secretsmanager put-secret-value \
         --secret-id airflow/connections/smtp_default \
-        --secret-string [{"user": "nice_user"}, {"pass": "this_is_the_password"}, {"host": "ec2.8399.com"}, {"port": "999"}]
+        --secret-string '{"user": "nice_user","pass": "this_is_the_password","host": "ec2.8399.com","port": "999"}'
 
 Verify that you can get the secret:
 

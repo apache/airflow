@@ -15,23 +15,27 @@
     specific language governing permissions and limitations
     under the License.
 
-SQL to Amazon S3 Transfer Operator
-==================================
+================
+SQL to Amazon S3
+================
 
-Use SqlToS3Operator to copy data from a SQL server to an Amazon Simple Storage Service (S3) file.
-SqlToS3Operator is compatible with any SQL connection as long as the SQL hook has function that
+Use ``SqlToS3Operator`` to copy data from a SQL server to an Amazon Simple Storage Service (S3) file.
+``SqlToS3Operator`` is compatible with any SQL connection as long as the SQL hook has function that
 converts the SQL result to `pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`__
 (e.g. MySQL, Hive, ...).
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:SqlToS3Operator:
 
-MySQL to Amazon S3
-^^^^^^^^^^^^^^^^^^
+MySQL to Amazon S3 transfer operator
+====================================
 
 This example sends the response of a MySQL query to an Amazon S3 file.
 
@@ -47,6 +51,6 @@ Example usage:
     :end-before: [END howto_transfer_sql_to_s3]
 
 Reference
-^^^^^^^^^
+---------
 
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

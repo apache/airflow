@@ -133,9 +133,9 @@ the comments removed and configured in the ``$AIRFLOW_HOME/webserver_config.py``
 For more details, please refer to
 `Security section of FAB documentation <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
 
-Example using team based Authorization with Github OAuth
+Example using team based Authorization with GitHub OAuth
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-There are a few steps required in order to use team-based authorization with Github OAuth.
+There are a few steps required in order to use team-based authorization with GitHub OAuth.
 
 * configure OAuth through the FAB config in webserver_config.py
 * create a custom security manager class and supply it to FAB in webserver_config.py
@@ -150,9 +150,7 @@ Here is an example of what you might have in your webserver_config.py:
 
     AUTH_TYPE = AUTH_OAUTH
     AUTH_ROLES_SYNC_AT_LOGIN = True  # Checks roles on every login
-    AUTH_USER_REGISTRATION = (
-        True  # allow users who are not already in the FAB DB to register
-    )
+    AUTH_USER_REGISTRATION = True  # allow users who are not already in the FAB DB to register
     # Make sure to replace this with the path to your security manager class
     FAB_SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
     AUTH_ROLES_MAPPING = {
@@ -199,7 +197,7 @@ webserver_config.py itself if you wish.
 
 
     def team_parser(team_payload: Dict[str, Any]) -> List[int]:
-        # Parse the team payload from Github however you want here.
+        # Parse the team payload from GitHub however you want here.
         return [team["id"] for team in team_payload]
 
 
@@ -219,9 +217,7 @@ webserver_config.py itself if you wish.
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
-        def get_oauth_user_info(
-            self, provider: str, resp: Any
-        ) -> Dict[str, Union[str, List[str]]]:
+        def get_oauth_user_info(self, provider: str, resp: Any) -> Dict[str, Union[str, List[str]]]:
 
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,

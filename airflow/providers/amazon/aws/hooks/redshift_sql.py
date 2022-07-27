@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 from typing import Dict, List, Optional, Union
 
 import redshift_connector
@@ -23,12 +22,8 @@ from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
-from airflow.hooks.dbapi import DbApiHook
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from airflow.compat.functools import cached_property
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class RedshiftSQLHook(DbApiHook):
@@ -130,6 +125,4 @@ class RedshiftSQLHook(DbApiHook):
         conn_params = self._get_conn_params()
         conn_kwargs_dejson = self.conn.extra_dejson
         conn_kwargs: Dict = {**conn_params, **conn_kwargs_dejson}
-        conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
-
-        return conn
+        return redshift_connector.connect(**conn_kwargs)

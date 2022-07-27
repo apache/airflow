@@ -89,6 +89,8 @@ class GCSToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param source_object_required: Whether you want to raise an exception when the source object
         doesn't exist. It doesn't have any effect when the source objects are folders or patterns.
+    :param exact_match: When specified, only exact match of the source object (filename) will be
+        copied.
 
     :Example:
 
@@ -189,6 +191,7 @@ class GCSToGCSOperator(BaseOperator):
         is_older_than=None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         source_object_required=False,
+        exact_match=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -208,6 +211,7 @@ class GCSToGCSOperator(BaseOperator):
         self.is_older_than = is_older_than
         self.impersonation_chain = impersonation_chain
         self.source_object_required = source_object_required
+        self.exact_match = exact_match
 
     def execute(self, context: 'Context'):
 
@@ -341,6 +345,8 @@ class GCSToGCSOperator(BaseOperator):
                 raise AirflowException(msg)
 
         for source_obj in objects:
+            if self.exact_match and (source_obj != prefix or not source_obj.endswith(prefix)):
+                continue
             if self.destination_object is None:
                 destination_object = source_obj
             else:

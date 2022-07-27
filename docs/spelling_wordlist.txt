@@ -17,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+Appflow
 ArangoDB
 Arg
 Args
@@ -25,6 +26,7 @@ Async
 AsyncResult
 Atlassian
 Auth
+Authlib
 AutoMlClient
 Autoscale
 Avro
@@ -110,6 +112,7 @@ Datasync
 DateFrame
 Datetimepicker
 Datetimes
+Debounce
 Decrypt
 Decrypts
 DeidentifyContentResponse
@@ -193,6 +196,7 @@ Hou
 Http
 HttpError
 HttpRequest
+IGM
 IdP
 ImageAnnotatorClient
 Imap
@@ -281,6 +285,7 @@ OSS
 Oauth
 Oauthlib
 Okta
+OnFailure
 Oozie
 Opsgenie
 Optimise
@@ -344,6 +349,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+SFTPClient
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -378,6 +384,7 @@ StatefulSets
 StatsD
 StorageClass
 StoredInfoType
+StrictUndefined
 Stringified
 Subclasses
 Subdirectory
@@ -392,6 +399,7 @@ TCP
 TLS
 TTY
 TZ
+Tabular
 TaskDecorator
 TaskFlow
 TaskGroup
@@ -587,6 +595,7 @@ cfg
 cgi
 cgroups
 cgroupspy
+chakra
 changelog
 charset
 checklicence
@@ -795,6 +804,7 @@ evals
 eventlet
 evo
 exasol
+executables
 execvp
 exitcode
 explicit
@@ -820,12 +830,14 @@ filehandle
 fileloc
 filelocs
 filepath
+fileshare
 filesize
 filesystem
 filesystems
 filetype
 finalizers
 findall
+firestore
 firstname
 fluentd
 fmt
@@ -851,9 +863,12 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
+getboolean
 getfqdn
 getframe
+getint
 getsource
 gevent
 gid
@@ -874,6 +889,7 @@ greenlet
 groupId
 grpc
 gz
+gzipped
 hadoop
 hadoopcmd
 hardcoded
@@ -892,6 +908,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+hoc
 homebrew
 honoured
 hookable
@@ -991,6 +1008,7 @@ keytab
 killMode
 kinit
 kms
+knn
 knownHosts
 krb
 kube
@@ -1006,6 +1024,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz
@@ -1123,6 +1142,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm
@@ -1141,6 +1161,7 @@ param
 parametable
 parameterType
 parameterValue
+parameterization
 parameterizing
 paramiko
 params
@@ -1188,6 +1209,7 @@ preloading
 prepend
 prepended
 preprocess
+preprocessing
 presign
 presigned
 prestocmd
@@ -1242,6 +1264,7 @@ readme
 readthedocs
 realtime
 rebase
+recurse
 recurses
 redbubble
 redis
@@ -1304,6 +1327,7 @@ schedulable
 schedulername
 schemas
 sdk
+searchpath
 secretRef
 secretRefs
 securable
@@ -1314,6 +1338,7 @@ seealso
 seedlist
 segmentGranularity
 sendgrid
+serde
 serialise
 serializable
 serverless
@@ -1344,6 +1369,7 @@ sourceRepository
 sourceUploadUrl
 sparkApplication
 sparkcmd
+sparkr
 sparksql
 spegno
 spotahome
@@ -1474,6 +1500,7 @@ tsql
 tsv
 ttl
 tunables
+twitterHandle
 txt
 typeahead
 tz
@@ -1490,8 +1517,10 @@ unicode
 unittest
 unittests
 unix
+unmanaged
 unmappable
 unmapped
+unmapping
 unpause
 unpaused
 unpausing
@@ -1523,6 +1552,7 @@ util
 utilise
 utils
 uuid
+vCPU
 validator
 vals
 ve

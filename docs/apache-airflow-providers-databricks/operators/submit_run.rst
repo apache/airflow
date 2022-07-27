@@ -61,7 +61,7 @@ Specifying parameters as JSON
 
 An example usage of the DatabricksSubmitRunOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks.py
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_json]
     :end-before: [END howto_operator_databricks_json]
@@ -71,7 +71,14 @@ Using named parameters
 
 You can also use named parameters to initialize the operator and run the job.
 
-.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks.py
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_named]
     :end-before: [END howto_operator_databricks_named]
+
+DatabricksSubmitRunDeferrableOperator
+=====================================
+
+Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator.
+
+It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_

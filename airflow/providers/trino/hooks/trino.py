@@ -18,7 +18,8 @@
 import json
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional, overload
+from contextlib import closing
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union, overload
 
 import trino
 from trino.exceptions import DatabaseError
@@ -26,8 +27,8 @@ from trino.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
 try:
@@ -90,6 +91,7 @@ class TrinoHook(DbApiHook):
     default_conn_name = 'trino_default'
     conn_type = 'trino'
     hook_name = 'Trino'
+    query_id = ''
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
@@ -146,12 +148,8 @@ class TrinoHook(DbApiHook):
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
-    @staticmethod
-    def _strip_sql(sql: str) -> str:
-        return sql.strip().rstrip(';')
-
     @overload
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None):
+    def get_records(self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None):
         """Get a set of records from Trino
 
         :param sql: SQL statement to be executed.
@@ -159,10 +157,14 @@ class TrinoHook(DbApiHook):
         """
 
     @overload
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+    def get_records(
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
+    ):
         """:sphinx-autoapi-skip:"""
 
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+    def get_records(
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
+    ):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -173,12 +175,12 @@ class TrinoHook(DbApiHook):
             sql = hql
 
         try:
-            return super().get_records(self._strip_sql(sql), parameters)
+            return super().get_records(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
     @overload
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
+    def get_first(self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None) -> Any:
         """Returns only the first row, regardless of how many rows the query returns.
 
         :param sql: SQL statement to be executed.
@@ -186,10 +188,14 @@ class TrinoHook(DbApiHook):
         """
 
     @overload
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+    def get_first(
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
+    ) -> Any:
         """:sphinx-autoapi-skip:"""
 
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+    def get_first(
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
+    ) -> Any:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -200,13 +206,13 @@ class TrinoHook(DbApiHook):
             sql = hql
 
         try:
-            return super().get_first(self._strip_sql(sql), parameters)
+            return super().get_first(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
     @overload
     def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, **kwargs
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, **kwargs
     ):  # type: ignore[override]
         """Get a pandas dataframe from a sql query.
 
@@ -216,12 +222,12 @@ class TrinoHook(DbApiHook):
 
     @overload
     def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = "", **kwargs
     ):  # type: ignore[override]
         """:sphinx-autoapi-skip:"""
 
     def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
+        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = "", **kwargs
     ):  # type: ignore[override]
         """:sphinx-autoapi-skip:"""
         if hql:
@@ -236,7 +242,7 @@ class TrinoHook(DbApiHook):
 
         cursor = self.get_cursor()
         try:
-            cursor.execute(self._strip_sql(sql), parameters)
+            cursor.execute(self.strip_sql_string(sql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             raise TrinoException(e)
@@ -251,32 +257,38 @@ class TrinoHook(DbApiHook):
     @overload
     def run(
         self,
-        sql: str = "",
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
-    ) -> None:
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> Optional[Union[Any, List[Any]]]:
         """Execute the statement against Trino. Can be used to create views."""
 
     @overload
     def run(
         self,
-        sql: str = "",
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
+        return_last: bool = True,
         hql: str = "",
-    ) -> None:
+    ) -> Optional[Union[Any, List[Any]]]:
         """:sphinx-autoapi-skip:"""
 
     def run(
         self,
-        sql: str = "",
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
+        return_last: bool = True,
         hql: str = "",
-    ) -> None:
+    ) -> Optional[Union[Any, List[Any]]]:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -287,7 +299,12 @@ class TrinoHook(DbApiHook):
             sql = hql
 
         return super().run(
-            sql=self._strip_sql(sql), autocommit=autocommit, parameters=parameters, handler=handler
+            sql=sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=split_statements,
+            return_last=return_last,
         )
 
     def insert_rows(
@@ -318,3 +335,19 @@ class TrinoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every, replace)
+
+    def test_connection(self):
+        """Tests the connection from UI using Trino specific query"""
+        status, message = False, ''
+        try:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.execute("select 1")
+                    if cur.fetchone():
+                        status = True
+                        message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

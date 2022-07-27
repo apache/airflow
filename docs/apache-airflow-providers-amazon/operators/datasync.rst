@@ -15,8 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-AWS DataSync Operator
-=====================
+============
+AWS DataSync
+============
 
 `AWS DataSync <https://aws.amazon.com/datasync/>`__ is a data-transfer service that simplifies, automates,
 and accelerates moving and replicating data between on-premises storage systems and AWS storage services over
@@ -27,10 +28,13 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:DataSyncOperator:
 
 Interact with AWS DataSync Tasks
---------------------------------
+================================
 
 You can use :class:`~airflow.providers.amazon.aws.operators.datasync.DataSyncOperator` to
 find, create, update, execute and delete AWS DataSync tasks.
@@ -55,7 +59,7 @@ Execute a task
 
 To execute a specific task, you can pass the ``task_arn`` to the operator.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_datasync.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_datasync.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_datasync_specific_task]
@@ -69,7 +73,7 @@ If one task is found, this one will be executed.
 If more than one task is found, the operator will raise an Exception. To avoid this, you can set
 ``allow_random_task_choice`` to ``True`` to randomly choose from candidate tasks.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_datasync.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_datasync.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_datasync_search_task]
@@ -88,7 +92,7 @@ existing Task was found. If these are left to their default value (None) then no
 Also, because ``delete_task_after_execution`` is set to ``True``, the task will be deleted
 from AWS DataSync after it completes successfully.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_datasync.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_datasync.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_datasync_create_task]
@@ -107,6 +111,4 @@ to randomly choose from candidate Locations.
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for DataSync <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/datasync.html>`__
+* `AWS boto3 library documentation for DataSync <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/datasync.html>`__

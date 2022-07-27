@@ -17,6 +17,7 @@
 
 .. image:: /img/helm-logo.svg
     :width: 100
+    :class: no-scaled-link
 
 Helm Chart for Apache Airflow
 =============================
@@ -64,7 +65,7 @@ Requirements
 Features
 --------
 
-* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``.
+* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
 * Supported database backend: ``PostgresSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
@@ -118,10 +119,13 @@ To uninstall/delete the ``airflow`` deployment:
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-Installing the Chart with ArgoCD
---------------------------------
+.. note::
+  Some kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``, for example, ``brokerUrlSecret`` or ``fernetKeySecret``.
 
-When installing the chart using ArgoCD, you MUST set the two following values, or your application
+Installing the Chart with Argo CD or Flux
+-----------------------------------------
+
+When installing the chart using Argo CD or Flux, you MUST set the two following values, or your application
 will not start as the migrations will not be run:
 
 .. code-block:: yaml

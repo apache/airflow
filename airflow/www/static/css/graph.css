@@ -125,6 +125,25 @@ g.node text {
   border-radius: 4px;
   background-color: #f0f0f0;
   cursor: move;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+#graph-svg {
+  overflow: visible;
+}
+
+.refresh-actions {
+  justify-content: flex-end;
+  min-width: 225px;
+  display: inline-flex;
+  align-items: center;
+  right: 20px;
+  margin-top: 10px;
+  margin-bottom: 15px;
+  position: absolute;
+  background-color: #f0f0f0ee; /* the last two chars apply an opacity to the background color */
 }
 
 .legend-item.dag {
@@ -142,6 +161,11 @@ g.node text {
   background-color: #e6f1f2;
 }
 
+.legend-item.dataset {
+  float: left;
+  background-color: #fcecd4;
+}
+
 g.node.dag rect {
   fill: #e8f7e4;
 }
@@ -152,4 +176,8 @@ g.node.trigger rect {
 
 g.node.sensor rect {
   fill: #e6f1f2;
+}
+
+g.node.dataset rect {
+  fill: #fcecd4;
 }

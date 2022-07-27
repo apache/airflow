@@ -71,8 +71,7 @@ class ExecutorLoader:
 
         from airflow.configuration import conf
 
-        executor_name = conf.get('core', 'EXECUTOR')
-
+        executor_name = conf.get_mandatory_value('core', 'EXECUTOR')
         cls._default_executor = cls.load_executor(executor_name)
 
         return cls._default_executor

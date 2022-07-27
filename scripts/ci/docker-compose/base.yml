@@ -72,6 +72,7 @@ services:
       - LIST_OF_INTEGRATION_TESTS_TO_RUN=${LIST_OF_INTEGRATION_TESTS_TO_RUN}
       - RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS}
       - START_AIRFLOW=${START_AIRFLOW}
+      - SKIP_CONSTRAINTS=${SKIP_CONSTRAINTS}
       - SKIP_ENVIRONMENT_INITIALIZATION=${SKIP_ENVIRONMENT_INITIALIZATION}
       - SKIP_SSH_SETUP=${SKIP_SSH_SETUP}
       - TEST_TYPE=${TEST_TYPE}
@@ -90,8 +91,3 @@ services:
       - "${FLOWER_HOST_PORT}:5555"
     cap_add:
       - SYS_PTRACE
-volumes:
-  sqlite-db-volume:
-  postgres-db-volume:
-  mysql-db-volume:
-  mssql-db-volume:
