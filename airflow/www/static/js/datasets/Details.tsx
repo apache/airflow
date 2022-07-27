@@ -55,11 +55,6 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'Timestamp',
-        accessor: 'timestamp',
-        Cell: TimeCell,
-      },
-      {
         Header: 'Source Task Instance',
         accessor: 'sourceTaskId',
         Cell: TaskInstanceLink,
@@ -69,6 +64,11 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
         accessor: 'extra',
         disableSortBy: true,
         Cell: CodeCell,
+      },
+      {
+        Header: 'When',
+        accessor: 'timestamp',
+        Cell: TimeCell,
       },
     ],
     [],

@@ -19,22 +19,43 @@
 
 import React from 'react';
 import {
-  Code, Link,
+  Code, Link, Box, Text,
 } from '@chakra-ui/react';
 
 import Time from 'src/components/Time';
 
-export const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
+interface CellProps {
+  cell: {
+    value: any;
+    row: {
+      original: Record<string, any>;
+    }
+  }
+}
 
-export const DatasetLink = ({ cell: { value } }: any) => <Link color="blue.600" href={`/datasets?dataset_id=${value}`}>{value}</Link>;
+export const TimeCell = ({ cell: { value } }: CellProps) => <Time dateTime={value} />;
 
-export const TaskInstanceLink = ({ cell: { value, row } }: any) => {
+export const DatasetLink = ({ cell: { value, row } }: CellProps) => (
+  <Link
+    color="blue.600"
+    href={`/datasets?dataset_id=${row.original.datasetId}`}
+  >
+    {value}
+  </Link>
+);
+
+export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
   const { sourceRunId, sourceDagId, sourceMapIndex } = row.original;
   const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
   const mapIndex = sourceMapIndex > -1 ? `[${sourceMapIndex}]` : '';
-  return (<Link color="blue.600" href={url}>{`${sourceDagId}.${value}${mapIndex}`}</Link>);
+  return (
+    <Box>
+      <Link color="blue.600" href={url}>{`${sourceDagId}.${value}${mapIndex}`}</Link>
+      <Text>{sourceRunId}</Text>
+    </Box>
+  );
 };
 
-export const CodeCell = ({ cell: { value } }: any) => (
+export const CodeCell = ({ cell: { value } }: CellProps) => (
   value ? <Code>{JSON.stringify(value)}</Code> : null
 );

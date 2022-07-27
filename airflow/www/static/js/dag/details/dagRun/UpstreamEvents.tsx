@@ -37,14 +37,9 @@ const UpstreamEvents = ({ runId }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'Dataset ID',
-        accessor: 'datasetId',
+        Header: 'Dataset URI',
+        accessor: 'datasetUri',
         Cell: DatasetLink,
-      },
-      {
-        Header: 'Timestamp',
-        accessor: 'timestamp',
-        Cell: TimeCell,
       },
       {
         Header: 'Source Task Instance',
@@ -56,6 +51,11 @@ const UpstreamEvents = ({ runId }: Props) => {
         accessor: 'extra',
         disableSortBy: true,
         Cell: CodeCell,
+      },
+      {
+        Header: 'When',
+        accessor: 'timestamp',
+        Cell: TimeCell,
       },
     ],
     [],
