@@ -36,6 +36,12 @@ from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
     CloudMemorystoreMemcachedHook,
 )
+from airflow.providers.google.cloud.links.cloud_memorystore import (
+    MemcachedInstanceDetailsLink,
+    MemcachedInstanceListLink,
+    RedisInstanceDetailsLink,
+    RedisInstanceListLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -94,6 +100,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -132,6 +139,13 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(result)
 
@@ -257,6 +271,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -296,6 +311,13 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -341,6 +363,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -379,6 +402,13 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -420,6 +450,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -455,6 +486,13 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(result)
 
@@ -505,6 +543,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -543,6 +582,13 @@ class CloudMemorystoreImportOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -588,6 +634,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceListLink(),)
 
     def __init__(
         self,
@@ -623,6 +670,11 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceListLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
         )
         instances = [Instance.to_dict(a) for a in result]
         return instances
@@ -683,6 +735,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -715,7 +768,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        hook.update_instance(
+        res = hook.update_instance(
             update_mask=self.update_mask,
             instance=self.instance,
             location=self.location,
@@ -724,6 +777,15 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        # projects/PROJECT_NAME/locations/LOCATION/instances/INSTANCE
+        location_id, instance_id = res.name.split("/")[-3::2]
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id or instance_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -767,6 +829,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -798,7 +861,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
-        hook.update_instance(
+        res = hook.update_instance(
             update_mask={"paths": ["memory_size_gb"]},
             instance={"memory_size_gb": self.memory_size_gb},
             location=self.location,
@@ -807,6 +870,15 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        # projects/PROJECT_NAME/locations/LOCATION/instances/INSTANCE
+        location_id, instance_id = res.name.split("/")[-3::2]
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id or instance_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -869,6 +941,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (RedisInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -920,6 +993,13 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        RedisInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -1055,6 +1135,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -1096,6 +1177,13 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        MemcachedInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            location_id=self.location,
+            project_id=self.project_id,
         )
 
 
@@ -1143,6 +1231,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         "metadata",
         "gcp_conn_id",
     )
+    operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -1177,6 +1266,13 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        MemcachedInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return cloud_memcache.Instance.to_dict(result)
 
@@ -1282,6 +1378,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -1317,6 +1414,13 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        MemcachedInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return cloud_memcache.Instance.to_dict(result)
 
@@ -1360,6 +1464,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (MemcachedInstanceListLink(),)
 
     def __init__(
         self,
@@ -1392,6 +1497,11 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        MemcachedInstanceListLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
         )
         instances = [cloud_memcache.Instance.to_dict(a) for a in result]
         return instances
@@ -1449,6 +1559,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -1481,7 +1592,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        hook.update_instance(
+        res = hook.update_instance(
             update_mask=self.update_mask,
             instance=self.instance,
             location=self.location,
@@ -1490,6 +1601,15 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        # projects/PROJECT_NAME/locations/LOCATION/instances/INSTANCE
+        location_id, instance_id = res.name.split("/")[-3::2]
+        MemcachedInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id or instance_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -1532,6 +1652,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
     def __init__(
         self,
@@ -1573,4 +1694,11 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        MemcachedInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            location_id=self.location,
+            project_id=self.project_id,
         )
