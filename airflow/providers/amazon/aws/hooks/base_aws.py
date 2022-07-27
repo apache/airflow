@@ -44,7 +44,7 @@ from slugify import slugify
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -391,9 +391,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self._config = config
 
     @cached_property
-    def conn_detail(self) -> AwsConnectionWrapper:
+    def conn_config(self) -> AwsConnectionWrapper:
         """Get the Airflow Connection object and wrap it in helper (cached)."""
-        connection = self.get_connection(self.aws_conn_id) if self.aws_conn_id else None
+        connection = None
+        if self.aws_conn_id:
+            try:
+                connection = self.get_connection(self.aws_conn_id)
+            except AirflowNotFoundException as ex:
+                self.log.warning(
+                    "Unable to use Airflow Connection for credentials. Error: '%s.' "
+                    "Fallback on boto3 credential strategy. See: "
+                    "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
+                    ex,
+                )
+
         return AwsConnectionWrapper(
             conn=connection, region_name=self._region_name, botocore_config=self._config
         )
@@ -401,41 +412,21 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     @property
     def region_name(self) -> Optional[str]:
         """AWS Region Name read-only property."""
-        return self.conn_detail.region_name
+        return self.conn_config.region_name
 
     @property
     def config(self) -> Optional[Config]:
         """Configuration for botocore client read-only property."""
-        return self.conn_detail.botocore_config
+        return self.conn_config.botocore_config
 
     def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
-
-        if not self.conn_detail:
-            session = boto3.session.Session(region_name=region_name)
-            return session, None
-
         self.log.debug("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
 
-        try:
-            session = SessionFactory(
-                conn=self.conn_detail, region_name=region_name, config=self.config
-            ).create_session()
+        session = SessionFactory(
+            conn=self.conn_config, region_name=region_name, config=self.config
+        ).create_session()
 
-            return session, self.conn_detail.endpoint_url
-
-        except AirflowException:
-            self.log.warning(
-                "Unable to use Airflow Connection for credentials. "
-                "Fallback on boto3 credential strategy. See: "
-                "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html"
-            )
-
-        self.log.debug(
-            "Creating session using boto3 credential strategy region_name=%s",
-            region_name,
-        )
-        session = boto3.session.Session(region_name=region_name)
-        return session, None
+        return session, self.conn_config.endpoint_url
 
     def get_client_type(
         self,
@@ -507,7 +498,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @cached_property
     def conn_client_meta(self) -> ClientMeta:
-        """Get botocore.client.ClientMeta from Hook connection (cached)."""
+        """Get botocore client metadata from Hook connection (cached)."""
         conn = self.conn
         if isinstance(conn, botocore.client.BaseClient):
             return conn.meta

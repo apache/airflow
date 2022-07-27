@@ -17,6 +17,7 @@
 # under the License.
 #
 import json
+import os
 import unittest
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
@@ -718,6 +719,23 @@ class TestAwsBaseHook:
         result, message = hook.test_connection()
         assert result
         assert hook.client_type == "s3"  # Same client_type which defined during initialisation
+
+    @mock.patch.dict(os.environ, {f"AIRFLOW_CONN_{MOCK_AWS_CONN_ID.upper()}": "aws://"})
+    def test_conn_config(self):
+        """Tests retrieve connection config: conn_id exists, empty or not exists"""
+        hook = AwsBaseHook(aws_conn_id=MOCK_AWS_CONN_ID)
+        conn_config_exist = hook.conn_config
+        assert conn_config_exist is hook.conn_config, "Expected cached Connection Config"
+        assert isinstance(conn_config_exist, AwsConnectionWrapper)
+        assert conn_config_exist
+
+        conn_config_empty = AwsBaseHook(aws_conn_id=None).conn_config
+        assert isinstance(conn_config_empty, AwsConnectionWrapper)
+        assert not conn_config_empty
+
+        conn_config_fallback_not_exists = AwsBaseHook(aws_conn_id=None).conn_config
+        assert isinstance(conn_config_fallback_not_exists, AwsConnectionWrapper)
+        assert not conn_config_fallback_not_exists
 
 
 class ThrowErrorUntilCount:
