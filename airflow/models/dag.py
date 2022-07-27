@@ -54,7 +54,7 @@ import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, not_, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
@@ -71,6 +71,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -103,6 +104,7 @@ log = logging.getLogger(__name__)
 DEFAULT_VIEW_PRESETS = ['grid', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
+TAG_MAX_LEN = 100
 
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = Union[None, str, timedelta, relativedelta]
@@ -185,6 +187,32 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
         query = query.filter(DR.external_trigger == expression.false())
     query = query.order_by(DR.execution_date.desc())
     return query.first()
+
+
+def get_dataset_triggered_next_run_info(dag_ids: List[str], *, session: Session) -> Dict[str, str]:
+    """
+    Given a list of dag_ids, get string representing how close any that are dataset triggered are
+    their next run, e.g. "1 of 2 datasets updated"
+    """
+    return {
+        x.dag_id: f"{x.ready} of {x.total} datasets updated"
+        for x in session.query(
+            DatasetDagRef.dag_id,
+            func.count().label("total"),
+            func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
+        )
+        .join(
+            DDRQ,
+            and_(
+                DDRQ.dataset_id == DatasetDagRef.dataset_id,
+                DDRQ.target_dag_id == DatasetDagRef.dag_id,
+            ),
+            isouter=True,
+        )
+        .group_by(DatasetDagRef.dag_id)
+        .filter(DatasetDagRef.dag_id.in_(dag_ids))
+        .all()
+    }
 
 
 @functools.total_ordering
@@ -346,6 +374,9 @@ class DAG(LoggingMixin):
         schedule_on: Optional[Sequence["Dataset"]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
+
+        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
+            raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -2755,7 +2786,7 @@ class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
 
     __tablename__ = "dag_tag"
-    name = Column(String(100), primary_key=True)
+    name = Column(String(TAG_MAX_LEN), primary_key=True)
     dag_id = Column(
         String(ID_LEN),
         ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey', ondelete='CASCADE'),
@@ -3056,6 +3087,12 @@ class DagModel(Base):
             self.next_dagrun,
             self.next_dagrun_create_after,
         )
+
+    @provide_session
+    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> Optional[str]:
+        if self.schedule_interval != "Dataset":
+            return None
+        return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
 
 
 # NOTE: Please keep the list of arguments in sync with DAG.__init__.

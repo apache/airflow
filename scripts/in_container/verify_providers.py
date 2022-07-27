@@ -141,6 +141,11 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
         "snowflake",
     ),
+    (
+        "You have an incompatible version of 'pyarrow' installed (6.0.1), please install a version that "
+        "adheres to: 'pyarrow<8.1.0,>=8.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
     ("dns.hash module will be removed in future versions. Please use hashlib instead.", "dns"),
     ("PKCS#7 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
     ("PKCS#12 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
@@ -247,6 +252,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
     "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
     "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
 }
 
 

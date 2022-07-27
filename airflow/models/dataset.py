@@ -17,12 +17,14 @@
 # under the License.
 from urllib.parse import urlparse
 
+import sqlalchemy_jsonfield
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import ID_LEN, Base, StringID
+from airflow.settings import json
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class Dataset(Base):
@@ -46,7 +48,7 @@ class Dataset(Base):
         ),
         nullable=False,
     )
-    extra = Column(ExtendedJSON, nullable=True)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
@@ -211,6 +213,7 @@ class DatasetEvent(Base):
     :param source_dag_id: the dag_id of the TI which updated the dataset
     :param source_run_id: the run_id of the TI which updated the dataset
     :param source_map_index: the map_index of the TI which updated the dataset
+    :param timestamp: the time the event was logged
 
     We use relationships instead of foreign keys so that dataset events are not deleted even
     if the foreign key object is.
@@ -218,16 +221,16 @@ class DatasetEvent(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, nullable=False)
-    extra = Column(ExtendedJSON, nullable=True)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     source_task_id = Column(StringID(), nullable=True)
     source_dag_id = Column(StringID(), nullable=True)
     source_run_id = Column(StringID(), nullable=True)
     source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset_event"
     __table_args__ = (
-        Index('idx_dataset_id_created_at', dataset_id, created_at),
+        Index('idx_dataset_id_timestamp', dataset_id, timestamp),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
@@ -261,9 +264,13 @@ class DatasetEvent(Base):
         uselist=False,
     )
 
+    @property
+    def uri(self):
+        return self.dataset.uri
+
     def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.created_at == other.created_at
+            return self.dataset_id == other.dataset_id and self.timestamp == other.timestamp
         else:
             return NotImplemented
 

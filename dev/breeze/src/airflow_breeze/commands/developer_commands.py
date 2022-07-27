@@ -75,6 +75,7 @@ from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     filter_out_none,
     run_command,
+    run_compile_www_assets,
 )
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
@@ -83,6 +84,7 @@ DEVELOPER_COMMANDS = {
     "commands": [
         "shell",
         "start-airflow",
+        "compile-www-assets",
         "exec",
         "stop",
         "build-docs",
@@ -148,6 +150,14 @@ DEVELOPER_PARAMETERS = {
                 "--debian-version",
             ],
         },
+    ],
+    "breeze compile-www-assets": [
+        {
+            "name": "Compile www assets flag",
+            "options": [
+                "--dev",
+            ],
+        }
     ],
     "breeze start-airflow": [
         {
@@ -357,6 +367,8 @@ def start_airflow(
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
+    if use_airflow_version is None:
+        run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -544,6 +556,29 @@ def static_checks(
     if static_checks_result.returncode != 0:
         get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
     sys.exit(static_checks_result.returncode)
+
+
+@main.command(
+    name="compile-www-assets",
+    help="Compiles www assets.",
+)
+@click.option(
+    "--dev",
+    help="Run development version of assets compilation - it will not quit and automatically "
+    "recompile assets on-the-fly when they are changed.",
+    is_flag=True,
+)
+@option_verbose
+@option_dry_run
+def compile_www_assets(
+    dev: bool,
+    verbose: bool,
+    dry_run: bool,
+):
+    compile_www_assets_result = run_compile_www_assets(dev=dev, verbose=verbose, dry_run=dry_run)
+    if compile_www_assets_result.returncode != 0:
+        get_console().print("[warn]New assets were generated[/]")
+    sys.exit(0)
 
 
 @main.command(name="stop", help="Stop running breeze environment.")

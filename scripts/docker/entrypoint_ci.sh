@@ -71,11 +71,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
         echo
-        if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
-            pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
-            ./ask_for_recompile_assets_if_needed.sh
-            popd >/dev/null
-        fi
         # Cleanup the logs, tmp when entering the environment
         sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
         sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
@@ -203,6 +198,8 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
 
+    in_container_fix_ownership
+
     if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
         # Set up ssh keys
         echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
@@ -247,7 +244,7 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -289,7 +286,7 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
 fi
 

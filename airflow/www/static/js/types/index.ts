@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import * as API from './api-generated';
+
 type RunState = 'success' | 'running' | 'queued' | 'failed';
 
 type TaskState = RunState
@@ -43,7 +45,7 @@ interface Dag {
 
 interface DagRun {
   runId: string;
-  runType: 'manual' | 'backfill' | 'scheduled';
+  runType: 'manual' | 'backfill' | 'scheduled' | 'dataset_triggered';
   state: RunState;
   executionDate: string;
   dataIntervalStart: string;
@@ -75,13 +77,14 @@ interface Task {
   isMapped?: boolean;
 }
 
-interface Dataset {
-  id: string;
-  uri: string;
-  extra: string;
-  createdAt: string;
-  updatedAt: string;
-}
+type SnakeToCamelCase<S extends string> =
+  S extends `${infer T}_${infer U}`
+    ? `${T}${Capitalize<SnakeToCamelCase<U>>}`
+    : S;
+
+type SnakeToCamelCaseNested<T> = T extends object ? {
+  [K in keyof T as SnakeToCamelCase<K & string>]: SnakeToCamelCaseNested<T[K]>
+} : T;
 
 export type {
   Dag,
@@ -90,5 +93,7 @@ export type {
   TaskState,
   TaskInstance,
   Task,
-  Dataset,
+  API,
+  SnakeToCamelCase,
+  SnakeToCamelCaseNested,
 };

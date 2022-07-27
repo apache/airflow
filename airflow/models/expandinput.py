@@ -28,7 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cache
-from airflow.exceptions import UnmappableXComTypePushed, UnmappableXComValuePushed
+from airflow.exceptions import UnmappableXComTypePushed
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 
@@ -72,11 +72,6 @@ class DictOfListsExpandInput(NamedTuple):
     """
 
     value: dict[str, Mappable]
-
-    @staticmethod
-    def validate_xcom(value: Any) -> None:
-        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
 
     def get_unresolved_kwargs(self) -> dict[str, Any]:
         """Get the kwargs dict that can be inferred without resolving."""
@@ -213,18 +208,6 @@ class ListOfDictsExpandInput(NamedTuple):
     """
 
     value: XComArg
-
-    @staticmethod
-    def validate_xcom(value: Any) -> None:
-        if not isinstance(value, collections.abc.Collection):
-            raise UnmappableXComTypePushed(value)
-        if isinstance(value, (str, bytes, collections.abc.Mapping)):
-            raise UnmappableXComTypePushed(value)
-        for item in value:
-            if not isinstance(item, collections.abc.Mapping):
-                raise UnmappableXComTypePushed(value, item)
-            if not all(isinstance(k, str) for k in item):
-                raise UnmappableXComValuePushed(value, reason="dict keys must be str")
 
     def get_unresolved_kwargs(self) -> dict[str, Any]:
         """Get the kwargs dict that can be inferred without resolving.

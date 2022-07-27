@@ -18,7 +18,7 @@
 
 import os
 import subprocess
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Mapping, Optional, Union
 
 from pinotdb import connect
 
@@ -275,7 +275,7 @@ class PinotDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
         return f'{conn_type}://{host}/{endpoint}'
 
-    def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
+    def get_records(self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None) -> Any:
         """
         Executes the sql and returns a set of records.
 
@@ -287,7 +287,7 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
+    def get_first(self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 

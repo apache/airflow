@@ -103,11 +103,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     template_fields = ['external_dag_id', 'external_task_id', 'external_task_ids']
     ui_color = '#19647e'
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links"""
-        return [ExternalDagLink()]
+    operator_extra_links = [ExternalDagLink()]
 
     def __init__(
         self,
@@ -316,14 +312,10 @@ class ExternalTaskMarker(EmptyOperator):
 
     template_fields = ['external_dag_id', 'external_task_id', 'execution_date']
     ui_color = '#19647e'
+    operator_extra_links = [ExternalDagLink()]
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links"""
-        return [ExternalDagLink()]
 
     def __init__(
         self,

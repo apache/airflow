@@ -43,7 +43,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
-    UnmappableXComValuePushed,
     XComForMappingNotPushed,
 )
 from airflow.models import (
@@ -117,6 +116,15 @@ class CallbackWrapper:
     def success_handler(self, context):
         self.callback_ran = True
         self.task_state_in_callback = context['ti'].state
+
+
+@pytest.fixture()
+def clear_datasets():
+    # Clean up before ourselves
+    db.clear_db_datasets()
+    yield
+    # and after
+    db.clear_db_datasets()
 
 
 class TestTaskInstance:
@@ -1411,6 +1419,40 @@ class TestTaskInstance:
         assert 'template: test_email_alert_with_config' == title
         assert 'template: test_email_alert_with_config' == body
 
+    @patch('airflow.models.taskinstance.send_email')
+    def test_email_alert_with_filenotfound_config(self, mock_send_email, dag_maker):
+        with dag_maker(dag_id='test_failure_email'):
+            task = BashOperator(
+                task_id='test_email_alert_with_config',
+                bash_command='exit 1',
+                email='to',
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+
+        # Run test when the template file is not found
+        opener = mock_open(read_data='template: {{ti.task_id}}')
+        opener.side_effect = FileNotFoundError
+        with patch('airflow.models.taskinstance.open', opener, create=True):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
+
+        (email_error, title_error, body_error), _ = mock_send_email.call_args
+
+        # Rerun task without any error and no template file
+        try:
+            ti.run()
+        except AirflowException:
+            pass
+
+        (email_default, title_default, body_default), _ = mock_send_email.call_args
+
+        assert email_error == email_default == 'to'
+        assert title_default == title_error
+        assert body_default == body_error
+
     @pytest.mark.parametrize("task_id", ["test_email_alert", "test_email_alert__1"])
     @patch('airflow.models.taskinstance.send_email')
     def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
@@ -1479,7 +1521,7 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_outlet_datasets(self, create_task_instance):
+    def test_outlet_datasets(self, create_task_instance, clear_datasets):
         """
         Verify that when we have an outlet dataset on a task, and the task
         completes successfully, a DatasetDagRunQueue is logged.
@@ -1501,12 +1543,16 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+        assert ti.state == TaskInstanceState.SUCCESS
 
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
             DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
-        ).all() == [('dag3',), ('dag4',), ('dag5',)]
+        ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
+            ('example_dataset_dag3_req_dag1',),
+            ('example_dataset_dag4_req_dag1_dag2',),
+            ('example_dataset_dag5_req_dag1_D',),
+        ]
 
         # check that one event record created for dataset1 and this TI
         assert session.query(Dataset.uri).join(DatasetEvent.dataset).filter(
@@ -1520,6 +1566,67 @@ class TestTaskInstance:
             .filter(DatasetEvent.source_task_instance == ti)
             .count()
         ) == 1
+
+    def test_outlet_datasets_failed(self, create_task_instance, clear_datasets):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        not generated
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag9
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag9.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag9.get_task('fail_task')
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        with pytest.raises(AirflowFailException):
+            ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.FAILED
+
+        # check that no dagruns were queued
+        assert session.query(DatasetDagRunQueue).count() == 0
+
+        # check that no dataset events were generated
+        assert session.query(DatasetEvent).count() == 0
+
+    def test_outlet_datasets_skipped(self, create_task_instance, clear_datasets):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        not generated
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag7
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag7.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag7.get_task('skip_task')
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.SKIPPED
+
+        # check that no dagruns were queued
+        assert session.query(DatasetDagRunQueue).count() == 0
+
+        # check that no dataset events were generated
+        assert session.query(DatasetEvent).count() == 0
 
     @staticmethod
     def _test_previous_dates_setup(
@@ -2506,8 +2613,6 @@ class TestTaskInstanceRecordTaskMapXComPush:
         "return_value, exception_type, error_message",
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
-            ([123], UnmappableXComTypePushed, "unmappable return type 'list[int]'"),
-            ([{1: 3}], UnmappableXComValuePushed, "unmappable return value [{1: 3}] (dict keys must be str)"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
         ],
     )

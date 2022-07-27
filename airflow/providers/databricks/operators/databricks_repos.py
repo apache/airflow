@@ -21,6 +21,7 @@ import re
 from typing import TYPE_CHECKING, Optional, Sequence
 from urllib.parse import urlparse
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
@@ -46,7 +47,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -54,7 +55,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch')
+    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
 
     __git_providers__ = {
         "github.com": "gitHub",
@@ -116,11 +117,13 @@ class DatabricksReposCreateOperator(BaseOperator):
             pass
         return provider
 
-    def _get_hook(self) -> DatabricksHook:
+    @cached_property
+    def _hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            caller="DatabricksReposCreateOperator",
         )
 
     def execute(self, context: 'Context'):
@@ -140,22 +143,21 @@ class DatabricksReposCreateOperator(BaseOperator):
                     f"repo_path should have form of /Repos/{{folder}}/{{repo-name}}, got '{self.repo_path}'"
                 )
             payload["path"] = self.repo_path
-        hook = self._get_hook()
         existing_repo_id = None
         if self.repo_path is not None:
-            existing_repo_id = hook.get_repo_by_path(self.repo_path)
+            existing_repo_id = self._hook.get_repo_by_path(self.repo_path)
             if existing_repo_id is not None and not self.ignore_existing_repo:
                 raise AirflowException(f"Repo with path '{self.repo_path}' already exists")
         if existing_repo_id is None:
-            result = hook.create_repo(payload)
+            result = self._hook.create_repo(payload)
             repo_id = result["id"]
         else:
             repo_id = existing_repo_id
         # update repo if necessary
         if self.branch is not None:
-            hook.update_repo(str(repo_id), {'branch': str(self.branch)})
+            self._hook.update_repo(str(repo_id), {'branch': str(self.branch)})
         elif self.tag is not None:
-            hook.update_repo(str(repo_id), {'tag': str(self.tag)})
+            self._hook.update_repo(str(repo_id), {'tag': str(self.tag)})
 
         return repo_id
 
@@ -173,7 +175,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty.  (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -181,7 +183,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch')
+    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
 
     def __init__(
         self,
@@ -213,17 +215,18 @@ class DatabricksReposUpdateOperator(BaseOperator):
         self.branch = branch
         self.tag = tag
 
-    def _get_hook(self) -> DatabricksHook:
+    @cached_property
+    def _hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            caller="DatabricksReposUpdateOperator",
         )
 
     def execute(self, context: 'Context'):
-        hook = self._get_hook()
         if self.repo_path is not None:
-            self.repo_id = hook.get_repo_by_path(self.repo_path)
+            self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:
                 raise AirflowException(f"Can't find Repo ID for path '{self.repo_path}'")
         if self.branch is not None:
@@ -231,7 +234,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
         else:
             payload = {'tag': str(self.tag)}
 
-        result = hook.update_repo(str(self.repo_id), payload)
+        result = self._hook.update_repo(str(self.repo_id), payload)
         return result['head_commit_id']
 
 
@@ -246,7 +249,7 @@ class DatabricksReposDeleteOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -254,7 +257,7 @@ class DatabricksReposDeleteOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path',)
+    template_fields: Sequence[str] = ('repo_path', 'databricks_conn_id')
 
     def __init__(
         self,
@@ -278,18 +281,19 @@ class DatabricksReposDeleteOperator(BaseOperator):
         self.repo_path = repo_path
         self.repo_id = repo_id
 
-    def _get_hook(self) -> DatabricksHook:
+    @cached_property
+    def _hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
+            caller="DatabricksReposDeleteOperator",
         )
 
     def execute(self, context: 'Context'):
-        hook = self._get_hook()
         if self.repo_path is not None:
-            self.repo_id = hook.get_repo_by_path(self.repo_path)
+            self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:
                 raise AirflowException(f"Can't find Repo ID for path '{self.repo_path}'")
 
-        hook.delete_repo(str(self.repo_id))
+        self._hook.delete_repo(str(self.repo_id))

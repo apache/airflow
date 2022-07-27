@@ -39,6 +39,16 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
+  provider:Common-sql:
+    - airflow/providers/common/sql/**/*
+    - docs/apache-airflow-providers-common-sql/**/*
+    - tests/providers/common/sql/**/*
+
+  provider:Databricks:
+    - airflow/providers/databricks/**/*
+    - docs/apache-airflow-providers-databricks/**/*
+    - tests/providers/databricks/**/*
+
   provider:Snowflake:
     - airflow/providers/snowflake/**/*
     - docs/apache-airflow-providers-snowflake/**/*
@@ -119,7 +129,6 @@ labelPRBasedOnFilePath:
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
     - airflow/www/.stylelintrc
-    - airflow/www/compile_assets.sh
     - airflow/www/package.json
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock

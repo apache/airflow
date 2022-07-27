@@ -193,6 +193,10 @@ class TestParamsDict:
         with pytest.raises(ParamValidationError, match=r'Invalid input for param key: 1 is not'):
             pd.update({'key': 1})
 
+    def test_repr(self):
+        pd = ParamsDict({'key': Param('value', type='string')})
+        assert repr(pd) == "{'key': 'value'}"
+
 
 class TestDagParamRuntime:
     VALUE = 42
