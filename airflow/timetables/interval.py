@@ -278,7 +278,7 @@ class CronTriggerTimetable(_CronTimetable):
                     return None
                 next_start_time = self._align(restriction.earliest)
             else:
-                next_start_time = self._align(last_automated_data_interval.end)
+                next_start_time = self._get_next(last_automated_data_interval.end)
         else:
             current_time = DateTime.utcnow()
             if restriction.earliest is not None and current_time < restriction.earliest:
