@@ -114,7 +114,7 @@ const DagRun = ({ runId }: Props) => {
           <Tr>
             <Td>Run type</Td>
             <Td>
-            <RunTypeIcon runType={runType} />
+              <RunTypeIcon runType={runType} />
               {runType}
             </Td>
           </Tr>
