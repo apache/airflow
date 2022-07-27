@@ -142,6 +142,20 @@ def default_config_yaml() -> List[Dict[str, Any]]:
         return yaml.safe_load(config_file)
 
 
+SENSITIVE_CONFIG_VALUES = {
+    ('database', 'sql_alchemy_conn'),
+    ('core', 'fernet_key'),
+    ('celery', 'broker_url'),
+    ('celery', 'flower_basic_auth'),
+    ('celery', 'result_backend'),
+    ('atlas', 'password'),
+    ('smtp', 'smtp_password'),
+    ('webserver', 'secret_key'),
+    # The following options are deprecated
+    ('core', 'sql_alchemy_conn'),
+}
+
+
 class AirflowConfigParser(ConfigParser):
     """Custom Airflow Configparser supporting defaults and deprecated options"""
 
@@ -150,18 +164,8 @@ class AirflowConfigParser(ConfigParser):
     # is to not store password on boxes in text files.
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
-    sensitive_config_values: Set[Tuple[str, str]] = {
-        ('database', 'sql_alchemy_conn'),
-        ('core', 'fernet_key'),
-        ('celery', 'broker_url'),
-        ('celery', 'flower_basic_auth'),
-        ('celery', 'result_backend'),
-        ('atlas', 'password'),
-        ('smtp', 'smtp_password'),
-        ('webserver', 'secret_key'),
-        # The following options are deprecated
-        ('core', 'sql_alchemy_conn'),
-    }
+
+    sensitive_config_values: Set[Tuple[str, str]] = SENSITIVE_CONFIG_VALUES
 
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a

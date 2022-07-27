@@ -3743,8 +3743,38 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = AIRFLOW_CONFIG
+
+        expose_config = conf.get('webserver', 'expose_config')
+
         # Don't show config when expose_config variable is False in airflow config
-        if conf.getboolean("webserver", "expose_config"):
+        # Don't show sensitive config values if expose_config variable is 'non-sensitive-only'
+        # in airflow config
+        if expose_config.lower() == 'non-sensitive-only':
+            from airflow.configuration import SENSITIVE_CONFIG_VALUES
+
+            with open(AIRFLOW_CONFIG) as file:
+                config = file.readlines()
+                for line in config:
+                    for _, key in SENSITIVE_CONFIG_VALUES:
+                        if key in line and not line.startswith('#'):
+                            config[config.index(line)] = key + ' = ***\n'
+                            break
+
+                config = ''.join(config)
+
+            running_conf = conf.as_dict(True, True)
+            for section, key in SENSITIVE_CONFIG_VALUES:
+                running_conf_value = running_conf[section].get(key, None)
+                if running_conf_value:
+                    new = ('***', running_conf_value[1])
+                    running_conf[section][key] = new
+
+            table = [
+                (section, key, value, source)
+                for section, parameters in running_conf.items()
+                for key, (value, source) in parameters.items()
+            ]
+        elif expose_config.lower() in ['true', 't', '1']:
             with open(AIRFLOW_CONFIG) as file:
                 config = file.read()
             table = [
@@ -3758,7 +3788,6 @@ class ConfigurationView(AirflowBaseView):
                 "configuration, most likely for security reasons."
             )
             table = None
-
         if raw:
             return Response(response=config, status=200, mimetype="application/text")
         else:
