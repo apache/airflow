@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import re
 from typing import Callable
 from unittest import mock
 
@@ -375,7 +376,7 @@ def test_get_task_stats_from_query():
     assert data == expected_data
 
 
-INVALID_DATETIME_RESPONSE = "Invalid datetime: &#x27;invalid&#x27;"
+INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d+;")
 
 
 @pytest.mark.parametrize(
@@ -432,4 +433,4 @@ def test_invalid_dates(app, admin_client, url, content):
     resp = admin_client.get(url, follow_redirects=True)
 
     assert resp.status_code == 400
-    assert content in resp.get_data().decode()
+    assert re.search(content, resp.get_data().decode())
