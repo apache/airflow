@@ -20,6 +20,7 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
+from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.models.dataset import Dataset, DatasetEvent
 
 
@@ -33,7 +34,7 @@ class DatasetSchema(SQLAlchemySchema):
 
     id = auto_field()
     uri = auto_field()
-    extra = fields.Dict()
+    extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
 
@@ -67,7 +68,7 @@ class DatasetEventSchema(SQLAlchemySchema):
     id = auto_field()
     dataset_id = auto_field()
     dataset_uri = fields.String(attribute='dataset.uri', dump_only=True)
-    extra = fields.Dict()
+    extra = JsonObjectField()
     source_task_id = auto_field()
     source_dag_id = auto_field()
     source_run_id = auto_field()

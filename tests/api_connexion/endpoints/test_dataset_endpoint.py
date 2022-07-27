@@ -348,7 +348,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "id": 2,
                     "dataset_id": 2,
                     "dataset_uri": datasets[1].uri,
-                    "extra": None,
+                    "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
                     "source_run_id": "run2",
