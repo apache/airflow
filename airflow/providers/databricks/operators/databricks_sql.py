@@ -42,7 +42,7 @@ class DatabricksSqlOperator(BaseOperator):
         :ref:`howto/operator:DatabricksSqlOperator`
 
     :param databricks_conn_id: Reference to
-        :ref:`Databricks connection id<howto/connection:databricks>`
+        :ref:`Databricks connection id<howto/connection:databricks>` (templated)
     :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
         If not specified, it should be either specified in the Databricks connection's extra parameters,
         or ``sql_endpoint_name`` must be specified.
@@ -65,7 +65,14 @@ class DatabricksSqlOperator(BaseOperator):
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = ('sql', '_output_path', 'schema', 'catalog', 'http_headers')
+    template_fields: Sequence[str] = (
+        'sql',
+        '_output_path',
+        'schema',
+        'catalog',
+        'http_headers',
+        'databricks_conn_id',
+    )
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'sql': 'sql'}
 
@@ -179,7 +186,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
     :param file_format: Required file format. Supported formats are
         ``CSV``, ``JSON``, ``AVRO``, ``ORC``, ``PARQUET``, ``TEXT``, ``BINARYFILE``.
     :param databricks_conn_id: Reference to
-        :ref:`Databricks connection id<howto/connection:databricks>`
+        :ref:`Databricks connection id<howto/connection:databricks>` (templated)
     :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
         If not specified, it should be either specified in the Databricks connection's extra parameters,
         or ``sql_endpoint_name`` must be specified.
@@ -210,6 +217,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         '_file_location',
         '_files',
         '_table_name',
+        'databricks_conn_id',
     )
 
     def __init__(

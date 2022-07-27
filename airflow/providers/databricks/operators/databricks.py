@@ -530,8 +530,8 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
-    :param python_named_parameters: A list of parameters for jobs with python wheel tasks,
-        e.g. "python_named_parameters": {"name": "john doe", "age":  "35"}.
+    :param python_named_params: A list of named parameters for jobs with python wheel tasks,
+        e.g. "python_named_params": {"name": "john doe", "age":  "35"}.
         If specified upon run-now, it would overwrite the parameters specified in job setting.
         This field will be templated.
 
@@ -566,7 +566,7 @@ class DatabricksRunNowOperator(BaseOperator):
         token based authentication, provide the key ``token`` in the extra field for the
         connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param polling_period_seconds: Controls the rate which we poll for the result of
-        this run. By default the operator will poll every 30 seconds.
+        this run. By default, the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -594,7 +594,7 @@ class DatabricksRunNowOperator(BaseOperator):
         python_params: Optional[List[str]] = None,
         jar_params: Optional[List[str]] = None,
         spark_submit_params: Optional[List[str]] = None,
-        python_named_parameters: Optional[Dict[str, str]] = None,
+        python_named_params: Optional[Dict[str, str]] = None,
         idempotency_token: Optional[str] = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
@@ -625,8 +625,8 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
             self.json['python_params'] = python_params
-        if python_named_parameters is not None:
-            self.json['python_named_parameters'] = python_named_parameters
+        if python_named_params is not None:
+            self.json['python_named_params'] = python_named_params
         if jar_params is not None:
             self.json['jar_params'] = jar_params
         if spark_submit_params is not None:
