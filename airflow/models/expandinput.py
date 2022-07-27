@@ -28,8 +28,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cache
-from airflow.exceptions import UnmappableXComTypePushed
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
@@ -98,7 +96,7 @@ class DictOfListsExpandInput(NamedTuple):
         they will not be present in the dict.
         """
         from airflow.models.taskmap import TaskMap
-        from airflow.models.xcom import XCom
+        from airflow.models.xcom import XCOM_RETURN_KEY, XCom
         from airflow.models.xcom_arg import XComArg
 
         # Populate literal mapped arguments first.
