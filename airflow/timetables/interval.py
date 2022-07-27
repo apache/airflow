@@ -158,7 +158,7 @@ class _CronMixin:
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, _CronMixin):
+        if not isinstance(other, type(self)):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
 
