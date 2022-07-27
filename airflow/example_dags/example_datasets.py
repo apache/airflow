@@ -46,17 +46,16 @@ dag1_dataset = Dataset('s3://dag1/output_1.txt', extra={'hi': 'bye'})
 # [END dataset_def]
 dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
 
-dag1 = DAG(
+with DAG(
     dag_id='example_dataset_dag1',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_interval='@daily',
     tags=['upstream'],
-)
-
-# [START task_outlet]
-BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sleep 5", dag=dag1)
-# [END task_outlet]
+) as dag1:
+    # [START task_outlet]
+    BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sleep 5")
+    # [END task_outlet]
 
 with DAG(
     dag_id='example_dataset_dag2',
@@ -68,21 +67,19 @@ with DAG(
     BashOperator(outlets=[dag2_dataset], task_id='upstream_task_2', bash_command="sleep 5")
 
 # [START dag_dep]
-dag3 = DAG(
+with DAG(
     dag_id='example_dataset_dag3_req_dag1',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule_on=[dag1_dataset],
     tags=['downstream'],
-)
+) as dag3:
 # [END dag_dep]
-
-BashOperator(
-    outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
-    task_id='downstream_1',
-    bash_command="sleep 5",
-    dag=dag3,
-)
+    BashOperator(
+        outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
+        task_id='downstream_1',
+        bash_command="sleep 5",
+    )
 
 with DAG(
     dag_id='example_dataset_dag4_req_dag1_dag2',
