@@ -59,6 +59,11 @@ here so that users affected can find the reason for the changes.
 Airflow 2.3
 ~~~~~~~~~~~
 
+* 2.4.0
+
+  * You can specify additional ``pip install`` flags when you build the image via ``ADDITIONAL_PIP_INSTALL_FLAGS``
+    build arg.
+
 * 2.3.0
 
   * Airflow 2.3 ``Dockerfile`` is now better optimized for caching and "standalone" which means that you

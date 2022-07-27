@@ -375,6 +375,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``DEPENDENCIES_EPOCH_NUMBER``            | ``2``                                    | increasing this number will reinstall    |
 |                                          |                                          | all apt dependencies                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the   |
+|                                          |                                          | installation commands (except when       |
+|                                          |                                          | reinstalling ``pip`` itself)             |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_NO_CACHE_DIR``                     | ``true``                                 | if true, then no pip cache will be       |
 |                                          |                                          | stored                                   |
 +------------------------------------------+------------------------------------------+------------------------------------------+

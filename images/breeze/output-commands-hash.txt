@@ -4,8 +4,8 @@
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:fa4319079b275ce966502346f083f2e3
 build-docs:20b1a171a93c8ae1a62a0f3a804501f2
-build-image:b00ae014f9c45c116e8dd0ea72b61d19
-build-prod-image:6c614f9c76e776912dc1cf4506d2b6f5
+build-image:0e539da40e65f94a040ff40d2557c82f
+build-prod-image:9cefa22fe54047ac4d3df195908ac60b
 cleanup:9a94bd1063296ea86e895f671db0b330
 command-hash-export:83bc6a4a8c60b62da3d0f00e81d2c3ea
 compile-www-assets:23675c1862d0968cbff6ab6f1d93d488
