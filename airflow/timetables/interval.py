@@ -16,7 +16,6 @@
 # under the License.
 
 import datetime
-from abc import ABC
 from typing import Any, Dict, Optional, Union
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
@@ -34,7 +33,7 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 Delta = Union[datetime.timedelta, relativedelta]
 
 
-class _CronAndDeltaTimetable(Timetable, ABC):
+class _CronAndDeltaTimetable(Timetable):
     """Basis for timetable implementations that schedule data intervals.
 
     This kind of timetable classes create periodic data intervals from an
@@ -60,7 +59,7 @@ class _CronAndDeltaTimetable(Timetable, ABC):
         raise NotImplementedError()
 
 
-class _DataIntervalTimeTable(_CronAndDeltaTimetable, ABC):
+class _DataIntervalTimeTable(_CronAndDeltaTimetable):
 
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
@@ -118,7 +117,7 @@ def _is_schedule_fixed(expression: str) -> bool:
     return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
-class _CronTimetable(_CronAndDeltaTimetable, ABC):
+class _CronTimetable(_CronAndDeltaTimetable):
     """Timetable that schedules data intervals with a cron expression.
 
     This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
