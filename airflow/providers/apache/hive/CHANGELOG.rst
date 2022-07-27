@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* The ``hql`` parameter in ``get_records`` of ``HiveServer2Hook`` has been renamed to sql to match the
+  ``get_records`` DbApiHook signature. If you used it as a positional parameter, this is no change for you,
+  but if you used it as keyword one, you need to rename it.
+* ``hive_conf`` parameter has been renamed to ``parameters`` and it is now second parameter, to match ``get_records``
+  signature from the DbApiHook. You need to rename it if you used it.
+* ``schema`` parameter in ``get_records`` is an optional kwargs extra parameter that you can add, to match
+  the schema of ``get_records`` from DbApiHook.
+
 3.1.0
 .....
 

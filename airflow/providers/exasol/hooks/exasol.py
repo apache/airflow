@@ -77,7 +77,12 @@ class ExasolHook(DbApiHook):
             df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
             return df
 
-    def get_records(self, sql: str, parameters: Optional[dict] = None) -> List[Union[dict, Tuple[Any, ...]]]:
+    def get_records(
+        self,
+        sql: Union[str, List[str]],
+        parameters: Optional[Union[Iterable, Mapping]] = None,
+        **kwargs: dict,
+    ) -> List[Union[dict, Tuple[Any, ...]]]:
         """
         Executes the sql and returns a set of records.
 
@@ -89,7 +94,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: str, parameters: Optional[dict] = None) -> Optional[Any]:
+    def get_first(self, sql: Union[str, List[str]], parameters: Optional[dict] = None) -> Optional[Any]:
         """
         Executes the sql and returns the first resulting row.
 

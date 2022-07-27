@@ -181,7 +181,12 @@ class DbApiHook(BaseHook):
         with closing(self.get_conn()) as conn:
             yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
 
-    def get_records(self, sql, parameters=None):
+    def get_records(
+        self,
+        sql: Union[str, List[str]],
+        parameters: Optional[Union[Iterable, Mapping]] = None,
+        **kwargs: dict,
+    ):
         """
         Executes the sql and returns a set of records.
 
@@ -197,7 +202,7 @@ class DbApiHook(BaseHook):
                     cur.execute(sql)
                 return cur.fetchall()
 
-    def get_first(self, sql, parameters=None):
+    def get_first(self, sql: Union[str, List[str]], parameters=None):
         """
         Executes the sql and returns the first resulting row.
 

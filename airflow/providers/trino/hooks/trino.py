@@ -17,9 +17,8 @@
 # under the License.
 import json
 import os
-import warnings
 from contextlib import closing
-from typing import Any, Callable, Iterable, List, Mapping, Optional, Union, overload
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
 
 import trino
 from trino.exceptions import DatabaseError
@@ -148,96 +147,32 @@ class TrinoHook(DbApiHook):
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
-    @overload
-    def get_records(self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None):
-        """Get a set of records from Trino
-
-        :param sql: SQL statement to be executed.
-        :param parameters: The parameters to render the SQL query with.
-        """
-
-    @overload
     def get_records(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
+        self,
+        sql: Union[str, List[str]] = "",
+        parameters: Optional[Union[Iterable, Mapping]] = None,
+        **kwargs: dict,
     ):
-        """:sphinx-autoapi-skip:"""
-
-    def get_records(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
-    ):
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
+        if not isinstance(sql, str):
+            raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
         try:
             return super().get_records(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
-    @overload
-    def get_first(self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None) -> Any:
-        """Returns only the first row, regardless of how many rows the query returns.
-
-        :param sql: SQL statement to be executed.
-        :param parameters: The parameters to render the SQL query with.
-        """
-
-    @overload
     def get_first(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
+        self, sql: Union[str, List[str]] = "", parameters: Optional[Union[Iterable, Mapping]] = None
     ) -> Any:
-        """:sphinx-autoapi-skip:"""
-
-    def get_first(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = ""
-    ) -> Any:
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
+        if not isinstance(sql, str):
+            raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
         try:
             return super().get_first(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
-    @overload
     def get_pandas_df(
         self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, **kwargs
     ):  # type: ignore[override]
-        """Get a pandas dataframe from a sql query.
-
-        :param sql: SQL statement to be executed.
-        :param parameters: The parameters to render the SQL query with.
-        """
-
-    @overload
-    def get_pandas_df(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = "", **kwargs
-    ):  # type: ignore[override]
-        """:sphinx-autoapi-skip:"""
-
-    def get_pandas_df(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, hql: str = "", **kwargs
-    ):  # type: ignore[override]
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
         import pandas
 
         cursor = self.get_cursor()
@@ -254,7 +189,6 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    @overload
     def run(
         self,
         sql: Union[str, Iterable[str]],
@@ -264,40 +198,6 @@ class TrinoHook(DbApiHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> Optional[Union[Any, List[Any]]]:
-        """Execute the statement against Trino. Can be used to create views."""
-
-    @overload
-    def run(
-        self,
-        sql: Union[str, Iterable[str]],
-        autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Optional[Callable] = None,
-        split_statements: bool = False,
-        return_last: bool = True,
-        hql: str = "",
-    ) -> Optional[Union[Any, List[Any]]]:
-        """:sphinx-autoapi-skip:"""
-
-    def run(
-        self,
-        sql: Union[str, Iterable[str]],
-        autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Optional[Callable] = None,
-        split_statements: bool = False,
-        return_last: bool = True,
-        hql: str = "",
-    ) -> Optional[Union[Any, List[Any]]]:
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
         return super().run(
             sql=sql,
             autocommit=autocommit,

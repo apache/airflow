@@ -426,11 +426,11 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.sql_proxy_was_downloaded = False
         self.sql_proxy_version = sql_proxy_version
         self.download_sql_proxy_dir = None
-        self.sql_proxy_process = None  # type: Optional[Popen]
+        self.sql_proxy_process: Optional[Popen] = None
         self.instance_specification = instance_specification
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
-        self.command_line_parameters = []  # type:  List[str]
+        self.command_line_parameters: List[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
         self.sql_proxy_path = (
             sql_proxy_binary_path if sql_proxy_binary_path else self.path_prefix + "_cloud_sql_proxy"
@@ -705,28 +705,28 @@ class CloudSQLDatabaseHook(BaseHook):
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson
-        self.project_id = self.extras.get('project_id', default_gcp_project_id)  # type: Optional[str]
-        self.instance = self.extras.get('instance')  # type: Optional[str]
-        self.database = self.cloudsql_connection.schema  # type: Optional[str]
-        self.location = self.extras.get('location')  # type: Optional[str]
-        self.database_type = self.extras.get('database_type')  # type: Optional[str]
-        self.use_proxy = self._get_bool(self.extras.get('use_proxy', 'False'))  # type: bool
-        self.use_ssl = self._get_bool(self.extras.get('use_ssl', 'False'))  # type: bool
-        self.sql_proxy_use_tcp = self._get_bool(self.extras.get('sql_proxy_use_tcp', 'False'))  # type: bool
-        self.sql_proxy_version = self.extras.get('sql_proxy_version')  # type: Optional[str]
-        self.sql_proxy_binary_path = self.extras.get('sql_proxy_binary_path')  # type: Optional[str]
-        self.user = self.cloudsql_connection.login  # type: Optional[str]
-        self.password = self.cloudsql_connection.password  # type: Optional[str]
-        self.public_ip = self.cloudsql_connection.host  # type: Optional[str]
-        self.public_port = self.cloudsql_connection.port  # type: Optional[int]
-        self.sslcert = self.extras.get('sslcert')  # type: Optional[str]
-        self.sslkey = self.extras.get('sslkey')  # type: Optional[str]
-        self.sslrootcert = self.extras.get('sslrootcert')  # type: Optional[str]
+        self.project_id = self.extras.get('project_id', default_gcp_project_id)
+        self.instance = self.extras.get('instance')
+        self.database = self.cloudsql_connection.schema
+        self.location = self.extras.get('location')
+        self.database_type = self.extras.get('database_type')
+        self.use_proxy = self._get_bool(self.extras.get('use_proxy', 'False'))
+        self.use_ssl = self._get_bool(self.extras.get('use_ssl', 'False'))
+        self.sql_proxy_use_tcp = self._get_bool(self.extras.get('sql_proxy_use_tcp', 'False'))
+        self.sql_proxy_version = self.extras.get('sql_proxy_version')
+        self.sql_proxy_binary_path = self.extras.get('sql_proxy_binary_path')
+        self.user = self.cloudsql_connection.login
+        self.password = self.cloudsql_connection.password
+        self.public_ip = self.cloudsql_connection.host
+        self.public_port = self.cloudsql_connection.port
+        self.sslcert = self.extras.get('sslcert')
+        self.sslkey = self.extras.get('sslkey')
+        self.sslrootcert = self.extras.get('sslrootcert')
         # Port and socket path and db_hook are automatically generated
         self.sql_proxy_tcp_port = None
-        self.sql_proxy_unique_path = None  # type: Optional[str]
-        self.db_hook = None  # type: Optional[Union[PostgresHook, MySqlHook]]
-        self.reserved_tcp_socket = None  # type: Optional[socket.socket]
+        self.sql_proxy_unique_path: Optional[str] = None
+        self.db_hook: Optional[Union[PostgresHook, MySqlHook]] = None
+        self.reserved_tcp_socket: Optional[socket.socket] = None
         # Generated based on clock + clock sequence. Unique per host (!).
         # This is important as different hosts share the database
         self.db_conn_id = str(uuid.uuid1())
@@ -828,18 +828,18 @@ class CloudSQLDatabaseHook(BaseHook):
         if not self.database_type:
             raise ValueError("The database_type should be set")
 
-        database_uris = CONNECTION_URIS[self.database_type]  # type: Dict[str, Dict[str, str]]
+        database_uris = CONNECTION_URIS[self.database_type]
         ssl_spec = None
         socket_path = None
         if self.use_proxy:
-            proxy_uris = database_uris['proxy']  # type: Dict[str, str]
+            proxy_uris = database_uris['proxy']
             if self.sql_proxy_use_tcp:
                 format_string = proxy_uris['tcp']
             else:
                 format_string = proxy_uris['socket']
                 socket_path = f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
         else:
-            public_uris = database_uris['public']  # type: Dict[str, str]
+            public_uris = database_uris['public']
             if self.use_ssl:
                 format_string = public_uris['ssl']
                 ssl_spec = {'cert': self.sslcert, 'key': self.sslkey, 'ca': self.sslrootcert}
@@ -876,7 +876,7 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection_uri
 
     def _get_instance_socket_name(self) -> str:
-        return self.project_id + ":" + self.location + ":" + self.instance  # type: ignore
+        return self.project_id + ":" + self.location + ":" + self.instance
 
     def _get_sqlproxy_instance_specification(self) -> str:
         instance_specification = self._get_instance_socket_name()
@@ -921,10 +921,13 @@ class CloudSQLDatabaseHook(BaseHook):
         that uses proxy or connects directly to the Google Cloud SQL database.
         """
         if self.database_type == 'postgres':
-            self.db_hook = PostgresHook(connection=connection, schema=self.database)
+            db_hook: Union[PostgresHook, MySqlHook] = PostgresHook(
+                connection=connection, schema=self.database
+            )
         else:
-            self.db_hook = MySqlHook(connection=connection, schema=self.database)
-        return self.db_hook
+            db_hook = MySqlHook(connection=connection, schema=self.database)
+        self.db_hook = db_hook
+        return db_hook
 
     def cleanup_database_hook(self) -> None:
         """Clean up database hook after it was used."""
