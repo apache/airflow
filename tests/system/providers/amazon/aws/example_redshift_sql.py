@@ -23,18 +23,22 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import set_env_id
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-ENV_ID = set_env_id()
 DAG_ID = 'example_redshift_sql'
+
+sys_test_context_task = SystemTestContextBuilder().build()
 
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=None,
+    schedule_interval='@once',
     catchup=False,
     tags=['example'],
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
+
     setup__task_create_table = RedshiftSQLOperator(
         task_id='setup__create_table',
         sql="""
@@ -79,9 +83,12 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
         setup__task_create_table,
         setup__task_insert_data,
+        # TEST BODY
         [task_select_data, task_select_filtered_data],
+        # TEST TEARDOWN
         teardown__task_drop_table,
     )
 
