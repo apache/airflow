@@ -728,9 +728,7 @@ class DagRun(Base, LoggingMixin):
                 try:
                     ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
-                    if ti.state == State.REMOVED:
-                        pass  # ti has already been removed, just ignore it
-                    else:
+                    if ti.state != State.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
                         ti.state = State.REMOVED
                         session.flush()
