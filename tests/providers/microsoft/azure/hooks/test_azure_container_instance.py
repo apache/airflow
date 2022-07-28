@@ -50,7 +50,7 @@ class TestAzureContainerInstanceHook(unittest.TestCase):
             'azure.common.credentials.ServicePrincipalCredentials.__init__', autospec=True, return_value=None
         ):
             with patch('azure.mgmt.containerinstance.ContainerInstanceManagementClient'):
-                self.hook = AzureContainerInstanceHook(conn_id='azure_container_instance_test')
+                self.hook = AzureContainerInstanceHook(azure_conn_id='azure_container_instance_test')
 
     @patch('azure.mgmt.containerinstance.models.ContainerGroup')
     @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.create_or_update')
