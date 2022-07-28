@@ -3775,6 +3775,7 @@ class ConfigurationView(AirflowBaseView):
                 for key, (value, source) in parameters.items()
             ]
         elif expose_config.lower() in ['true', 't', '1']:
+
             with open(AIRFLOW_CONFIG) as file:
                 config = file.read()
             table = [
