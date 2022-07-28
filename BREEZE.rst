@@ -472,7 +472,7 @@ command takes care about it. This is needed when you want to run webserver insid
 Starting complete Airflow installation
 ======================================
 
-For testing Airflow oyou often want to start multiple components (in multiple terminals). Breeze has
+For testing Airflow you often want to start multiple components (in multiple terminals). Breeze has
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
 
