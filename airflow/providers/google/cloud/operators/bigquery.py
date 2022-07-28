@@ -2156,32 +2156,6 @@ class BigQueryInsertJobOperator(BaseOperator):
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute(self, context: Any):
-        job_types = {
-            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
-            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
-            ExtractJob._JOB_TYPE: ["sourceTable"],
-            QueryJob._JOB_TYPE: ["destinationTable"],
-        }
-
-        if self.project_id:
-            for job_type, tables_prop in job_types.items():
-                job_configuration = job.to_api_repr()["configuration"]
-                if job_type in job_configuration:
-                    for table_prop in tables_prop:
-                        if table_prop in job_configuration[job_type]:
-                            table = job_configuration[job_type][table_prop]
-                            persist_kwargs = {
-                                "context": context,
-                                "task_instance": self,
-                                "project_id": self.project_id,
-                                "table_id": table,
-                            }
-                            if not isinstance(table, str):
-                                persist_kwargs["table_id"] = table["tableId"]
-                                persist_kwargs["dataset_id"] = table["datasetId"]
-
-                            BigQueryTableLink.persist(**persist_kwargs)
-
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -2216,11 +2190,37 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
+        job_types = {
+            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            ExtractJob._JOB_TYPE: ["sourceTable"],
+            QueryJob._JOB_TYPE: ["destinationTable"],
+        }
+
+        if self.project_id:
+            for job_type, tables_prop in job_types.items():
+                job_configuration = job.to_api_repr()["configuration"]
+                if job_type in job_configuration:
+                    for table_prop in tables_prop:
+                        if table_prop in job_configuration[job_type]:
+                            table = job_configuration[job_type][table_prop]
+                            persist_kwargs = {
+                                "context": context,
+                                "task_instance": self,
+                                "project_id": self.project_id,
+                                "table_id": table,
+                            }
+                            if not isinstance(table, str):
+                                persist_kwargs["table_id"] = table["tableId"]
+                                persist_kwargs["dataset_id"] = table["datasetId"]
+
+                            BigQueryTableLink.persist(**persist_kwargs)
+
         self.job_id = job.job_id
         # Wait for the job to complete
         job.result(timeout=self.result_timeout, retry=self.result_retry)
         self._handle_job_error(job)
-        
+
         return self.job_id
 
     def on_kill(self) -> None:
