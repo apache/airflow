@@ -24,13 +24,12 @@ import {
   BreadcrumbLink,
   Text,
 } from '@chakra-ui/react';
-import { MdPlayArrow, MdOutlineSchedule } from 'react-icons/md';
-import { RiArrowGoBackFill } from 'react-icons/ri';
 
 import { getMetaValue } from 'src/utils';
 import useSelection from 'src/dag/useSelection';
 import Time from 'src/components/Time';
 import { useTasks, useGridData } from 'src/api';
+import RunTypeIcon from 'src/components/RunTypeIcon';
 
 import BreadcrumbText from './BreadcrumbText';
 
@@ -54,33 +53,21 @@ const Header = () => {
 
   let runLabel;
   if (dagRun && runId) {
-    if (runId.includes('manual__') || runId.includes('scheduled__') || runId.includes('backfill__')) {
-      runLabel = (<Time dateTime={dagRun.dataIntervalStart || dagRun.executionDate} />);
-    } else {
-      runLabel = runId;
-    }
-    if (dagRun.runType === 'manual') {
-      runLabel = (
-        <>
-          <MdPlayArrow style={{ display: 'inline' }} />
-          {runLabel}
-        </>
-      );
-    } else if (dagRun.runType === 'backfill') {
-      runLabel = (
-        <>
-          <RiArrowGoBackFill style={{ display: 'inline' }} />
-          {runLabel}
-        </>
-      );
-    } else if (dagRun.runType === 'scheduled') {
-      runLabel = (
-        <>
-          <MdOutlineSchedule style={{ display: 'inline' }} />
-          {runLabel}
-        </>
-      );
-    }
+    // If a runId includes the runtype then parse the time, otherwise use the custom run id
+    const runName = (
+      runId.includes('manual__')
+      || runId.includes('scheduled__')
+      || runId.includes('backfill__')
+      || runId.includes('dataset_triggered__')
+    )
+      ? <Time dateTime={dagRun.dataIntervalStart || dagRun.executionDate} />
+      : runId;
+    runLabel = (
+      <>
+        <RunTypeIcon runType={dagRun.runType} />
+        {runName}
+      </>
+    );
   }
 
   const isMapped = task && task.isMapped;
