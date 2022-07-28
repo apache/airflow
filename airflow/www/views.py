@@ -110,6 +110,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.dataset import Dataset
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -353,6 +354,8 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
+                'operator': item.task_type,
             }
 
         # Task Group
