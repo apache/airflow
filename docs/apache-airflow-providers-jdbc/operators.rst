@@ -34,7 +34,7 @@ To use this operator you need:
 
         pip install apache-airflow[jdbc]
 
-  * Install a `JVM <https://adoptopenjdk.net/installation.html>`_ and
+  * Install a `JVM <https://adoptium.net/installation/>`_ and
     add a ``JAVA_HOME`` env variable.
   * Have the JDBC driver for your database installed.
 
