@@ -22,7 +22,7 @@ import collections
 import collections.abc
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Sequence, Sized, Union
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -195,7 +195,7 @@ class DictOfListsExpandInput(NamedTuple):
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
 
-    def resolve(self, context: Context, session: Session) -> dict[str, Any]:
+    def resolve(self, context: Context, session: Session) -> Mapping[str, Any]:
         return {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
 
 
@@ -245,12 +245,20 @@ class ListOfDictsExpandInput(NamedTuple):
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return value
 
-    def resolve(self, context: Context, session: Session) -> dict[str, Any]:
+    def resolve(self, context: Context, session: Session) -> Mapping[str, Any]:
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
-        # Validation should be done when the upstream returns.
-        return self.value.resolve(context, session)[map_index]
+        mappings = self.value.resolve(context, session)
+        if not isinstance(mappings, collections.abc.Sequence):
+            raise ValueError(f"expand_kwargs() expects a list[dict], not {type(mappings).__name__}")
+        mapping = mappings[map_index]
+        if not isinstance(mapping, collections.abc.Mapping):
+            raise ValueError(f"expand_kwargs() expects a list[dict], not list[{type(mapping).__name__}]")
+        for key in mapping:
+            if not isinstance(key, str):
+                raise ValueError(f"expand_kwargs() input dict keys must be str, not {type(key).__name__}")
+        return mapping
 
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.

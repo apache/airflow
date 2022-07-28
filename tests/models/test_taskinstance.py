@@ -34,6 +34,7 @@ import pytest
 from freezegun import freeze_time
 
 from airflow import models, settings
+from airflow.decorators import task
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
@@ -2639,6 +2640,41 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "create_upstream",
+        [
+            # The task returns an invalid expand_kwargs() input (a list[int] instead of list[dict]).
+            pytest.param(lambda: task(task_id="push")(lambda: [0])(), id="normal"),
+            # This task returns a list[dict] (correct), but we use map() to transform it to list[int] (wrong).
+            pytest.param(lambda: task(task_id="push")(lambda: [{"v": ""}])().map(lambda _: 0), id="mapped"),
+        ],
+    )
+    def test_expand_kwargs_error_if_received_invalid(self, dag_maker, session, create_upstream):
+        with dag_maker(dag_id="test_expand_kwargs_error_if_received_invalid", session=session):
+            push_task = create_upstream()
+
+            @task()
+            def pull(v):
+                print(v)
+
+            pull.expand_kwargs(push_task)
+
+        dr = dag_maker.create_dagrun()
+
+        # Run "push".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert decision.schedulable_tis
+        for ti in decision.schedulable_tis:
+            ti.run()
+
+        # Run "pull".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert decision.schedulable_tis
+        for ti in decision.schedulable_tis:
+            with pytest.raises(ValueError) as ctx:
+                ti.run()
+            assert str(ctx.value) == "expand_kwargs() expects a list[dict], not list[int]"
 
     @pytest.mark.parametrize(
         "downstream, error_message",
