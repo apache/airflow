@@ -69,10 +69,57 @@ const getTask = ({ taskId, task }: GetTaskProps) => {
   return null;
 };
 
+interface SummaryProps {
+  task: Task;
+  taskCount?: number;
+  groupCount?: number;
+  operators?: Record<string, number>;
+}
+
+const getTaskSummary = ({
+  task,
+  taskCount = 0,
+  groupCount = 0,
+  operators = {},
+}: SummaryProps) => {
+  let tc = taskCount;
+  let gc = groupCount;
+  const op = operators;
+  if (task.children) {
+    if (task.id) { // Don't count the root
+      gc += 1;
+    }
+    task.children.forEach((c) => {
+      const childSummary = getTaskSummary({
+        task: c, taskCount: tc, groupCount: gc, operators: op,
+      });
+      if (childSummary) {
+        tc = childSummary.taskCount;
+        gc = childSummary.groupCount;
+      }
+    });
+  } else {
+    if (task.operator) {
+      if (!op[task.operator]) {
+        op[task.operator] = 1;
+      } else if (operators[task.operator]) {
+        op[task.operator] += 1;
+      }
+    }
+    tc += 1;
+  }
+  return {
+    taskCount: tc,
+    groupCount: gc,
+    operators: op,
+  };
+};
+
 export {
   hoverDelay,
   finalStatesMap,
   getMetaValue,
   appendSearchParams,
   getTask,
+  getTaskSummary,
 };
