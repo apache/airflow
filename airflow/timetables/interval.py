@@ -216,7 +216,6 @@ class _CronMixin:
 
 
 class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimetable):
-
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
@@ -260,6 +259,7 @@ class CronTriggerTimetable(_CronMixin, Timetable):
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
+
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval.exact(run_after)
 
