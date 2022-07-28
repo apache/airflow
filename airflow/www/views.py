@@ -3756,6 +3756,8 @@ class ConfigurationView(AirflowBaseView):
                 config = file.readlines()
                 for line in config:
                     for _, key in SENSITIVE_CONFIG_VALUES:
+                        # this masks the keys wherever it's found not
+                        # minding the section
                         if key in line and not line.startswith('#'):
                             config[config.index(line)] = key + ' = ***\n'
                             break
