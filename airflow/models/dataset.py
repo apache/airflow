@@ -52,8 +52,8 @@ class Dataset(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dag_references = relationship("DatasetDagRef", back_populates="dataset")
-    task_references = relationship("DatasetTaskRef", back_populates="dataset")
+    downstream_dag_references = relationship("DatasetDagRef", back_populates="dataset")
+    upstream_task_references = relationship("DatasetTaskRef", back_populates="dataset")
 
     __tablename__ = "dataset"
     __table_args__ = (
@@ -130,7 +130,7 @@ class DatasetTaskRef(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("Dataset", back_populates="task_references")
+    dataset = relationship("Dataset")
 
     __tablename__ = "dataset_task_ref"
     __table_args__ = (

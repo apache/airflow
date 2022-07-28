@@ -24,6 +24,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets
 
@@ -78,7 +79,8 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         self._create_dataset(session)
         assert session.query(Dataset).count() == 1
 
-        response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
+        with assert_queries_count(5):
+            response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         assert response.json == {
@@ -87,6 +89,8 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
             "extra": {'foo': 'bar'},
             "created_at": self.default_time,
             "updated_at": self.default_time,
+            "downstream_dag_references": [],
+            "upstream_task_references": [],
         }
 
     def test_should_respond_404(self):
@@ -121,7 +125,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(Dataset).count() == 2
 
-        response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
+        with assert_queries_count(8):
+            response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -133,6 +138,8 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
+                    "downstream_dag_references": [],
+                    "upstream_task_references": [],
                 },
                 {
                     "id": 2,
@@ -140,6 +147,8 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
+                    "downstream_dag_references": [],
+                    "upstream_task_references": [],
                 },
             ],
             "total_entries": 2,
