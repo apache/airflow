@@ -346,8 +346,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: Compile www assets
-        run: breeze compile-www-assets
       - name: >-
           Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
