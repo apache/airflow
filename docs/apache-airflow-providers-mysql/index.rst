@@ -39,13 +39,13 @@ Content
     :hidden:
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/mysql/index>
+    System Tests <_api/tests/providers/mysql/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/tests/system/providers/mysql>
+    Example DAGs <https://github.com/apache/airflow/blob/main/tests/providers/mysql/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-mysql/>
     Installing from sources <installing-providers-from-sources>
 
