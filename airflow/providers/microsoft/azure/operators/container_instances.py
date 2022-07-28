@@ -184,7 +184,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         # Check name again in case it was templated.
         self._check_name(self.name)
 
-        self._ci_hook = AzureContainerInstanceHook(conn_id=self.ci_conn_id)
+        self._ci_hook = AzureContainerInstanceHook(azure_conn_id=self.ci_conn_id)
 
         if self.fail_if_exists:
             self.log.info("Testing if container group already exists")

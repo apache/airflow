@@ -36,7 +36,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
     client_id (Application ID) as login, the generated password as password,
     and tenantId and subscriptionId in the extra's field as a json.
 
-    :param conn_id: :ref:`Azure connection id<howto/connection:azure>` of
+    :param azure_conn_id: :ref:`Azure connection id<howto/connection:azure>` of
         a service principal which will be used to start the container instance.
     """
 
@@ -45,8 +45,8 @@ class AzureContainerInstanceHook(AzureBaseHook):
     conn_type = 'azure_container_instance'
     hook_name = 'Azure Container Instance'
 
-    def __init__(self, conn_id: str = default_conn_name) -> None:
-        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
+    def __init__(self, azure_conn_id: str = default_conn_name) -> None:
+        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=azure_conn_id)
         self.connection = self.get_conn()
 
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
@@ -138,3 +138,15 @@ class AzureContainerInstanceHook(AzureBaseHook):
             if container.name == name:
                 return True
         return False
+
+    def test_connection(self):
+        """Test a configured Azure Container Instance connection."""
+        try:
+            # Attempt to list existing container groups under the configured subscription and retrieve the
+            # first in the returned iterator. We need to _actually_ try to retrieve an object to properly
+            # test the connection.
+            next(self.connection.container_groups.list(), None)
+        except Exception as e:
+            return False, str(e)
+
+        return True, "Successfully connected to Azure Container Instance."
