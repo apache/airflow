@@ -906,6 +906,7 @@ class AirflowConfigParser(ConfigParser):
             include_cmds=include_cmds,
             include_env=include_env,
             include_secret=include_secret,
+            display_sensitive=display_sensitive,
         )
 
         # add env vars and overwrite because they have priority
@@ -1064,6 +1065,7 @@ class AirflowConfigParser(ConfigParser):
         include_env: bool,
         include_cmds: bool,
         include_secret: bool,
+        display_sensitive: bool,
     ):
         for (source_name, config) in configs:
             for section in config.sections():
@@ -1079,6 +1081,7 @@ class AirflowConfigParser(ConfigParser):
                     include_env=include_env,
                     include_cmds=include_cmds,
                     include_secret=include_secret,
+                    display_sensitive=display_sensitive,
                 )
 
     @staticmethod
@@ -1149,6 +1152,7 @@ class AirflowConfigParser(ConfigParser):
         include_env: bool,
         include_cmds: bool,
         include_secret: bool,
+        display_sensitive: bool,
     ):
         sect = config_sources.setdefault(section, OrderedDict())
         for (k, val) in config.items(section=section, raw=raw):
@@ -1184,6 +1188,9 @@ class AirflowConfigParser(ConfigParser):
                         )
                     ):
                         continue
+            if not display_sensitive:
+                if (section, k) in AirflowConfigParser.sensitive_config_values:
+                    val = '< hidden >'
             if display_source:
                 sect[k] = (val, source_name)
             else:

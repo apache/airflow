@@ -3759,21 +3759,14 @@ class ConfigurationView(AirflowBaseView):
                         # this masks the keys wherever it's found not
                         # minding the section
                         if key in line and not line.startswith('#'):
-                            config[config.index(line)] = key + ' = ***\n'
+                            config[config.index(line)] = key + ' = < hidden >\n'
                             break
 
                 config = ''.join(config)
 
-            running_conf = conf.as_dict(True, True)
-            for section, key in SENSITIVE_CONFIG_VALUES:
-                running_conf_value = running_conf[section].get(key, None)
-                if running_conf_value:
-                    new = ('***', running_conf_value[1])
-                    running_conf[section][key] = new
-
             table = [
                 (section, key, value, source)
-                for section, parameters in running_conf.items()
+                for section, parameters in conf.as_dict(True, False).items()
                 for key, (value, source) in parameters.items()
             ]
         elif expose_config.lower() in ['true', 't', '1']:
@@ -3791,6 +3784,7 @@ class ConfigurationView(AirflowBaseView):
                 "configuration, most likely for security reasons."
             )
             table = None
+
         if raw:
             return Response(response=config, status=200, mimetype="application/text")
         else:
