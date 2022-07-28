@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add Dataset model
+"""Add dag_owner_attributes table
 
 Revision ID: 38d6c28f9cf9
 Revises: 0038cd0c28b4
