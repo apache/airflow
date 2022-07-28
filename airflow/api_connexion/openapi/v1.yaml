@@ -3034,6 +3034,13 @@ components:
       properties:
         key:
           type: string
+        description:
+          type: string
+          description: |
+            The description of the variable.
+
+            *New in version 2.4.0*
+          nullable: true
 
     VariableCollection:
       type: object
