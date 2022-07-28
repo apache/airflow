@@ -52,7 +52,7 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         assert serialized_data == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "created_at": self.timestamp,
             "updated_at": self.timestamp,
         }
@@ -82,14 +82,14 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 },
@@ -100,28 +100,32 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
+        d = Dataset('s3://abc')
+        session.add(d)
+        session.commit()
         event = DatasetEvent(
             id=1,
-            dataset_id=10,
+            dataset_id=d.id,
             extra={"foo": "bar"},
             source_dag_id="foo",
             source_task_id="bar",
             source_run_id="custom",
             source_map_index=-1,
-            created_at=timezone.parse(self.timestamp),
+            timestamp=timezone.parse(self.timestamp),
         )
         session.add(event)
         session.flush()
         serialized_data = dataset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": 10,
-            "extra": "{'foo': 'bar'}",
+            "dataset_id": d.id,
+            "dataset_uri": "s3://abc",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
-            "created_at": self.timestamp,
+            "timestamp": self.timestamp,
         }
 
 
@@ -129,14 +133,14 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         common = {
             "dataset_id": 10,
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(id=i, created_at=timezone.parse(self.timestamp), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.timestamp), **common) for i in [1, 2]]
         session.add_all(events)
         session.flush()
         serialized_data = dataset_event_collection_schema.dump(
@@ -144,8 +148,8 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
         )
         assert serialized_data == {
             "dataset_events": [
-                {"id": 1, "created_at": self.timestamp, **common},
-                {"id": 2, "created_at": self.timestamp, **common},
+                {"id": 1, "timestamp": self.timestamp, **common},
+                {"id": 2, "timestamp": self.timestamp, **common},
             ],
             "total_entries": 2,
         }

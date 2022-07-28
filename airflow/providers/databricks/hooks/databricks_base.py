@@ -46,8 +46,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-
-USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+from airflow.providers_manager import ProvidersManager
 
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
 # https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
@@ -96,6 +95,7 @@ class BaseDatabricksHook(BaseHook):
         retry_limit: int = 3,
         retry_delay: float = 1.0,
         retry_args: Optional[Dict[Any, Any]] = None,
+        caller: str = "Unknown",
     ) -> None:
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
@@ -106,6 +106,7 @@ class BaseDatabricksHook(BaseHook):
         self.retry_delay = retry_delay
         self.aad_tokens: Dict[str, dict] = {}
         self.aad_timeout_seconds = 10
+        self.caller = caller
 
         def my_after_func(retry_state):
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
@@ -128,6 +129,21 @@ class BaseDatabricksHook(BaseHook):
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
+
+    @cached_property
+    def user_agent_header(self) -> Dict[str, str]:
+        return {'user-agent': self.user_agent_value}
+
+    @cached_property
+    def user_agent_value(self) -> str:
+        manager = ProvidersManager()
+        package_name = manager.hooks[BaseDatabricksHook.conn_type].package_name  # type: ignore[union-attr]
+        provider = manager.providers[package_name]
+        version = provider.version
+        if provider.is_source:
+            version += "-source"
+
+        return f'Airflow/{__version__} Databricks/{version} ({self.caller})'
 
     @cached_property
     def host(self) -> str:
@@ -209,7 +225,7 @@ class BaseDatabricksHook(BaseHook):
                         resp = requests.get(
                             AZURE_METADATA_SERVICE_TOKEN_URL,
                             params=params,
-                            headers={**USER_AGENT_HEADER, "Metadata": "true"},
+                            headers={**self.user_agent_header, "Metadata": "true"},
                             timeout=self.aad_timeout_seconds,
                         )
                     else:
@@ -227,7 +243,7 @@ class BaseDatabricksHook(BaseHook):
                             AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
                             data=data,
                             headers={
-                                **USER_AGENT_HEADER,
+                                **self.user_agent_header,
                                 'Content-Type': 'application/x-www-form-urlencoded',
                             },
                             timeout=self.aad_timeout_seconds,
@@ -274,7 +290,7 @@ class BaseDatabricksHook(BaseHook):
                         async with self._session.get(
                             url=AZURE_METADATA_SERVICE_TOKEN_URL,
                             params=params,
-                            headers={**USER_AGENT_HEADER, "Metadata": "true"},
+                            headers={**self.user_agent_header, "Metadata": "true"},
                             timeout=self.aad_timeout_seconds,
                         ) as resp:
                             resp.raise_for_status()
@@ -294,7 +310,7 @@ class BaseDatabricksHook(BaseHook):
                             url=AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
                             data=data,
                             headers={
-                                **USER_AGENT_HEADER,
+                                **self.user_agent_header,
                                 'Content-Type': 'application/x-www-form-urlencoded',
                             },
                             timeout=self.aad_timeout_seconds,
@@ -467,7 +483,7 @@ class BaseDatabricksHook(BaseHook):
         url = f'https://{self.host}/{endpoint}'
 
         aad_headers = self._get_aad_headers()
-        headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
+        headers = {**self.user_agent_header, **aad_headers}
 
         auth: AuthBase
         token = self._get_token()
@@ -525,7 +541,7 @@ class BaseDatabricksHook(BaseHook):
         url = f'https://{self.host}/{endpoint}'
 
         aad_headers = await self._a_get_aad_headers()
-        headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
+        headers = {**self.user_agent_header, **aad_headers}
 
         auth: aiohttp.BasicAuth
         token = await self._a_get_token()
@@ -551,7 +567,7 @@ class BaseDatabricksHook(BaseHook):
                         url,
                         json=json,
                         auth=auth,
-                        headers={**headers, **USER_AGENT_HEADER},
+                        headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
                     ) as response:
                         response.raise_for_status()

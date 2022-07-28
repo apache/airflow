@@ -20,9 +20,9 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, overload
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
 
-from airflow.decorators.base import Function, Task, TaskDecorator
+from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -68,7 +68,7 @@ class TaskDecoratorCollection:
         """
     # [START mixin_for_typing]
     @overload
-    def python(self, python_callable: Function) -> Task[Function]: ...
+    def python(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     # [END mixin_for_typing]
     @overload
     def __call__(
@@ -81,7 +81,7 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Aliasing ``python``; signature should match exactly."""
     @overload
-    def __call__(self, python_callable: Function) -> Task[Function]:
+    def __call__(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]:
         """Aliasing ``python``; signature should match exactly."""
     @overload
     def virtualenv(
@@ -122,7 +122,7 @@ class TaskDecoratorCollection:
             such as transmission a large amount of XCom to TaskAPI.
         """
     @overload
-    def virtualenv(self, python_callable: Function) -> Task[Function]: ...
+    def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     @overload
     def branch(self, *, multiple_outputs: Optional[bool] = None, **kwargs) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
@@ -134,7 +134,7 @@ class TaskDecoratorCollection:
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         """
     @overload
-    def branch(self, python_callable: Function) -> Task[Function]: ...
+    def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     # [START decorator_signature]
     def docker(
         self,

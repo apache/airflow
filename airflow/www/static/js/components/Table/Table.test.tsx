@@ -25,8 +25,8 @@ import { render, fireEvent, within } from '@testing-library/react';
 import { sortBy } from 'lodash';
 import type { SortingRule } from 'react-table';
 
-import Table from './Table';
-import { ChakraWrapper } from '../utils/testUtils';
+import { ChakraWrapper } from 'src/utils/testUtils';
+import { Table } from '.';
 
 const data: Record<string, any>[] = [
   { firstName: 'Lamont', lastName: 'Grimes', country: 'United States' },

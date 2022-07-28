@@ -138,7 +138,7 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info('Executing SQL check: %s', sql)
-        row = presto.get_first(hql=sql)
+        row = presto.get_first(sql)
         self.log.info("Record: %s", row)
         if not row:
             raise AirflowException("The query returned None")
