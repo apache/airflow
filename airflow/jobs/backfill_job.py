@@ -50,6 +50,14 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
+def _pop_running_ti(ti_status, reduced_key):
+    try:
+        ti_status.running.pop(reduced_key)
+    except KeyError:
+        # the task is not running tracking dict
+        pass
+
+
 class BackfillJob(BaseJob):
     """
     A backfill job consists of a dag or subdag for a specific time range. It
@@ -185,15 +193,6 @@ class BackfillJob(BaseJob):
         self.rerun_failed_tasks = rerun_failed_tasks
         self.run_backwards = run_backwards
         super().__init__(*args, **kwargs)
-
-
-def _pop_running_ti(ti_status, reduced_key):
-    try:
-        ti_status.running.pop(reduced_key)
-    except KeyError:
-        # the task is not running tracking dict
-        pass
-
 
     @provide_session
     def _update_counters(self, ti_status, session=None):
