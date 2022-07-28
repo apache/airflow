@@ -19,14 +19,16 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Box, Heading, Text, Code, Flex, Spinner, Button, Link,
+  Box, Heading, Text, Code, Flex, Spinner, Button,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
 import Time from 'src/components/Time';
 import { useDatasetEvents, useDataset } from 'src/api';
-import Table from 'src/components/Table';
+import {
+  Table, TimeCell, CodeCell, TaskInstanceLink,
+} from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
 
 interface Props {
@@ -34,24 +36,10 @@ interface Props {
   onBack: () => void;
 }
 
-const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
-const GridLink = ({ cell: { value } }: any) => <Link color="blue.500" href={`/dags/${value}/grid`}>{value}</Link>;
-const RunLink = ({ cell: { value, row } }: any) => {
-  const { sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.500" href={url}>{value}</Link>);
-};
-const TaskInstanceLink = ({ cell: { value, row } }: any) => {
-  const { sourceRunId, sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.500" href={url}>{value}</Link>);
-};
-const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
-
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'createdAt', desc: true }]);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
 
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
@@ -67,35 +55,20 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'Timestamp',
-        accessor: 'timestamp',
-        Cell: TimeCell,
-      },
-      {
-        Header: 'Source DAG Id',
-        accessor: 'sourceDagId',
-        Cell: GridLink,
-      },
-      {
-        Header: 'Source DAG Run Id',
-        accessor: 'sourceRunId',
-        Cell: RunLink,
-      },
-      {
-        Header: 'Source Task Id',
+        Header: 'Source Task Instance',
         accessor: 'sourceTaskId',
         Cell: TaskInstanceLink,
-      },
-      {
-        Header: 'Source Map Index',
-        accessor: 'sourceMapIndex',
-        Cell: ({ cell: { value } }) => (value > -1 ? value : null),
       },
       {
         Header: 'Extra',
         accessor: 'extra',
         disableSortBy: true,
         Cell: CodeCell,
+      },
+      {
+        Header: 'When',
+        accessor: 'timestamp',
+        Cell: TimeCell,
       },
     ],
     [],
@@ -109,35 +82,33 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
   return (
-    <Box maxWidth="1500px">
-      <Flex mt={3} justifyContent="space-between">
-        {isLoading && <Spinner display="block" />}
-        {!!dataset && (
-          <Box>
-            <Heading mb={2} fontWeight="normal">
-              Dataset:
-              {' '}
-              {dataset.uri}
-              <ClipboardButton value={dataset.uri} iconOnly ml={2} />
-            </Heading>
-            {!!dataset.extra && (
-              <Flex>
-                <Text mr={1}>Extra:</Text>
-                <Code>{JSON.stringify(dataset.extra)}</Code>
-              </Flex>
-            )}
-            <Flex my={2}>
-              <Text mr={1}>Updated At:</Text>
-              <Time dateTime={dataset.updatedAt} />
+    <Box mt={[6, 3]} maxWidth="1500px">
+      <Button onClick={onBack}>See all datasets</Button>
+      {isLoading && <Spinner display="block" />}
+      {!!dataset && (
+        <Box>
+          <Heading my={2} fontWeight="normal">
+            Dataset:
+            {' '}
+            {dataset.uri}
+            <ClipboardButton value={dataset.uri} iconOnly ml={2} />
+          </Heading>
+          {!!dataset.extra && (
+            <Flex>
+              <Text mr={1}>Extra:</Text>
+              <Code>{JSON.stringify(dataset.extra)}</Code>
             </Flex>
-            <Flex my={2}>
-              <Text mr={1}>Created At:</Text>
-              <Time dateTime={dataset.createdAt} />
-            </Flex>
-          </Box>
-        )}
-        <Button onClick={onBack}>See all datasets</Button>
-      </Flex>
+          )}
+          <Flex my={2}>
+            <Text mr={1}>Updated At:</Text>
+            <Time dateTime={dataset.updatedAt} />
+          </Flex>
+          <Flex my={2}>
+            <Text mr={1}>Created At:</Text>
+            <Time dateTime={dataset.createdAt} />
+          </Flex>
+        </Box>
+      )}
       <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
       <Text>Whenever a DAG has updated this dataset.</Text>
       <Table
