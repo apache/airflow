@@ -288,6 +288,7 @@ def clear_task_instances(
             if dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
                 dr.start_date = None
+    session.flush()
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
@@ -847,6 +848,9 @@ class TaskInstance(Base, LoggingMixin):
             session is committed.
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
+
+        if self in session:
+            session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
 
         qry = (
             # To avoid joining any relationships by default select the all
