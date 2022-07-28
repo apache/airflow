@@ -853,7 +853,7 @@ class TaskInstance(Base, LoggingMixin):
             session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
 
         qry = (
-            # To avoid joining any relationships by default select the all
+            # To avoid joining any relationships, by default select all
             # columns, not the object. This also means we get (effectively) a
             # namedtuple back, not a TI object
             session.query(*TaskInstance.__table__.columns).filter(
