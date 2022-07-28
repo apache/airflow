@@ -215,6 +215,7 @@ class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimetable):
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
+
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
