@@ -29,7 +29,11 @@ from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
-from airflow.providers.google.cloud.links.vertex_ai import VertexAIModelLink, VertexAITrainingPipelinesLink
+from airflow.providers.google.cloud.links.vertex_ai import (
+    VertexAIModelLink,
+    VertexAITrainingLink,
+    VertexAITrainingPipelinesLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -411,7 +415,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         'command',
         'impersonation_chain',
     ]
-    operator_extra_links = (VertexAIModelLink(),)
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -428,7 +432,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_custom_container_training_job(
+        model, training_id = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -478,9 +482,13 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             sync=True,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
     def on_kill(self) -> None:
@@ -755,7 +763,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         'region',
         'impersonation_chain',
     ]
-    operator_extra_links = (VertexAIModelLink(),)
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -774,7 +782,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_custom_python_package_training_job(
+        model, training_id = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -825,9 +833,13 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             sync=True,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
     def on_kill(self) -> None:
@@ -1104,7 +1116,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         'requirements',
         'impersonation_chain',
     ]
-    operator_extra_links = (VertexAIModelLink(),)
+    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
         self,
@@ -1123,7 +1135,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model = self.hook.create_custom_training_job(
+        model, training_id = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -1174,9 +1186,13 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             sync=True,
         )
 
-        result = Model.to_dict(model)
-        model_id = self.hook.extract_model_id(result)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        if model:
+            result = Model.to_dict(model)
+            model_id = self.hook.extract_model_id(result)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+        else:
+            result = model  # type: ignore
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
     def on_kill(self) -> None:
