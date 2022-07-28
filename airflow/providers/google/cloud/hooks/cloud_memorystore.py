@@ -478,8 +478,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        result.result()
+        updated_instance = result.result()
         self.log.info("Instance updated: %s", instance.name)
+        return updated_instance
 
 
 class CloudMemorystoreMemcachedHook(GoogleBaseHook):
@@ -833,8 +834,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         result = client.update_instance(
             update_mask=update_mask, resource=instance, retry=retry, timeout=timeout, metadata=metadata or ()
         )
-        result.result()
+        updated_instance = result.result()
         self.log.info("Instance updated: %s", instance.name)
+        return updated_instance
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_parameters(

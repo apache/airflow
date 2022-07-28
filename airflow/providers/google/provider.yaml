@@ -980,6 +980,10 @@ extra-links:
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
   - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
   - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceListLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceDetailsLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceListLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 

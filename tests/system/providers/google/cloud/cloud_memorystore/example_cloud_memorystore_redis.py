@@ -22,7 +22,6 @@ import os
 from datetime import datetime
 
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -36,36 +35,27 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreGetInstanceOperator,
     CloudMemorystoreImportOperator,
     CloudMemorystoreListInstancesOperator,
-    CloudMemorystoreMemcachedApplyParametersOperator,
-    CloudMemorystoreMemcachedCreateInstanceOperator,
-    CloudMemorystoreMemcachedDeleteInstanceOperator,
-    CloudMemorystoreMemcachedGetInstanceOperator,
-    CloudMemorystoreMemcachedListInstancesOperator,
-    CloudMemorystoreMemcachedUpdateInstanceOperator,
-    CloudMemorystoreMemcachedUpdateParametersOperator,
     CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
-
-START_DATE = datetime(2021, 1, 1)
-
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-
-MEMORYSTORE_REDIS_INSTANCE_NAME = os.environ.get(
-    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME", "test-memorystore-redis"
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSBucketCreateAclEntryOperator,
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
 )
-MEMORYSTORE_REDIS_INSTANCE_NAME_2 = os.environ.get(
-    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME_2", "test-memorystore-redis-2"
-)
-MEMORYSTORE_REDIS_INSTANCE_NAME_3 = os.environ.get(
-    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME_3", "test-memorystore-redis-3"
-)
-MEMORYSTORE_MEMCACHED_INSTANCE_NAME = os.environ.get(
-    "GCP_MEMORYSTORE_MEMCACHED_INSTANCE_NAME", "test-memorystore-memcached-1"
-)
+from airflow.utils.trigger_rule import TriggerRule
 
-BUCKET_NAME = os.environ.get("GCP_MEMORYSTORE_BUCKET", "INVALID BUCKET NAME")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
+DAG_ID = "cloud_memorystore_redis"
+
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+LOCATION = "europe-north1"
+MEMORYSTORE_REDIS_INSTANCE_NAME = f"{ENV_ID}-redis-1"
+MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"{ENV_ID}-redis-2"
+MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"{ENV_ID}-redis-3"
+
 EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 
 # [START howto_operator_instance]
@@ -74,25 +64,23 @@ FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}
 
 SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
 
-# [START howto_operator_memcached_instance]
-MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 1, "memory_size_mb": 1024}}
-# [END howto_operator_memcached_instance]
-
 
 with models.DAG(
-    "gcp_cloud_memorystore_redis",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
+    start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+
     # [START howto_operator_create_instance]
     create_instance = CloudMemorystoreCreateInstanceOperator(
         task_id="create-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance_id=MEMORYSTORE_REDIS_INSTANCE_NAME,
         instance=FIRST_INSTANCE,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [END howto_operator_create_instance]
 
@@ -105,18 +93,18 @@ with models.DAG(
 
     create_instance_2 = CloudMemorystoreCreateInstanceOperator(
         task_id="create-instance-2",
-        location="europe-north1",
+        location=LOCATION,
         instance_id=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
         instance=SECOND_INSTANCE,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
 
     # [START howto_operator_get_instance]
     get_instance = CloudMemorystoreGetInstanceOperator(
         task_id="get-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         do_xcom_push=True,
     )
     # [END howto_operator_get_instance]
@@ -130,18 +118,18 @@ with models.DAG(
     # [START howto_operator_failover_instance]
     failover_instance = CloudMemorystoreFailoverInstanceOperator(
         task_id="failover-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
         data_protection_mode=FailoverInstanceRequest.DataProtectionMode(
             FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS
         ),
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [END howto_operator_failover_instance]
 
     # [START howto_operator_list_instances]
     list_instances = CloudMemorystoreListInstancesOperator(
-        task_id="list-instances", location="-", page_size=100, project_id=GCP_PROJECT_ID
+        task_id="list-instances", location="-", page_size=100, project_id=PROJECT_ID
     )
     # [END howto_operator_list_instances]
 
@@ -154,9 +142,9 @@ with models.DAG(
     # [START howto_operator_update_instance]
     update_instance = CloudMemorystoreUpdateInstanceOperator(
         task_id="update-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance_id=MEMORYSTORE_REDIS_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         update_mask={"paths": ["memory_size_gb"]},
         instance={"memory_size_gb": 2},
     )
@@ -175,56 +163,58 @@ with models.DAG(
     # [START howto_operator_export_instance]
     export_instance = CloudMemorystoreExportInstanceOperator(
         task_id="export-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME,
         output_config={"gcs_destination": {"uri": EXPORT_GCS_URL}},
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [END howto_operator_export_instance]
 
     # [START howto_operator_import_instance]
     import_instance = CloudMemorystoreImportOperator(
         task_id="import-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
         input_config={"gcs_source": {"uri": EXPORT_GCS_URL}},
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [END howto_operator_import_instance]
 
     # [START howto_operator_delete_instance]
     delete_instance = CloudMemorystoreDeleteInstanceOperator(
         task_id="delete-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [END howto_operator_delete_instance]
+    delete_instance.trigger_rule = TriggerRule.ALL_DONE
 
     delete_instance_2 = CloudMemorystoreDeleteInstanceOperator(
         task_id="delete-instance-2",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [END howto_operator_create_instance_and_import]
     create_instance_and_import = CloudMemorystoreCreateInstanceAndImportOperator(
         task_id="create-instance-and-import",
-        location="europe-north1",
+        location=LOCATION,
         instance_id=MEMORYSTORE_REDIS_INSTANCE_NAME_3,
         instance=FIRST_INSTANCE,
         input_config={"gcs_source": {"uri": EXPORT_GCS_URL}},
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [START howto_operator_create_instance_and_import]
 
     # [START howto_operator_scale_instance]
     scale_instance = CloudMemorystoreScaleInstanceOperator(
         task_id="scale-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance_id=MEMORYSTORE_REDIS_INSTANCE_NAME_3,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         memory_size_gb=3,
     )
     # [END howto_operator_scale_instance]
@@ -232,106 +222,50 @@ with models.DAG(
     # [END howto_operator_export_and_delete_instance]
     export_and_delete_instance = CloudMemorystoreExportAndDeleteInstanceOperator(
         task_id="export-and-delete-instance",
-        location="europe-north1",
+        location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_3,
         output_config={"gcs_destination": {"uri": EXPORT_GCS_URL}},
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
     # [START howto_operator_export_and_delete_instance]
+    export_and_delete_instance.trigger_rule = TriggerRule.ALL_DONE
 
-    create_instance >> get_instance >> get_instance_result
-    create_instance >> update_instance
-    create_instance >> export_instance
-    create_instance_2 >> import_instance
-    create_instance >> list_instances >> list_instances_result
-    list_instances >> delete_instance
-    export_instance >> update_instance
-    update_instance >> delete_instance
-    create_instance >> create_instance_result
-    get_instance >> set_acl_permission >> export_instance
-    get_instance >> list_instances_result
-    export_instance >> import_instance
-    export_instance >> delete_instance
-    failover_instance >> delete_instance_2
-    import_instance >> failover_instance
-
-    export_instance >> create_instance_and_import >> scale_instance >> export_and_delete_instance
-
-
-with models.DAG(
-    "gcp_cloud_memorystore_memcached",
-    schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
-    tags=['example'],
-) as dag_memcache:
-    # [START howto_operator_create_instance_memcached]
-    create_memcached_instance = CloudMemorystoreMemcachedCreateInstanceOperator(
-        task_id="create-instance",
-        location="europe-north1",
-        instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
-        instance=MEMCACHED_INSTANCE,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_create_instance_memcached]
-
-    # [START howto_operator_delete_instance_memcached]
-    delete_memcached_instance = CloudMemorystoreMemcachedDeleteInstanceOperator(
-        task_id="delete-instance",
-        location="europe-north1",
-        instance=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_delete_instance_memcached]
-
-    # [START howto_operator_get_instance_memcached]
-    get_memcached_instance = CloudMemorystoreMemcachedGetInstanceOperator(
-        task_id="get-instance",
-        location="europe-north1",
-        instance=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_get_instance_memcached]
-
-    # [START howto_operator_list_instances_memcached]
-    list_memcached_instances = CloudMemorystoreMemcachedListInstancesOperator(
-        task_id="list-instances", location="-", project_id=GCP_PROJECT_ID
-    )
-    # [END howto_operator_list_instances_memcached]
-
-    # # [START howto_operator_update_instance_memcached]
-    update_memcached_instance = CloudMemorystoreMemcachedUpdateInstanceOperator(
-        task_id="update-instance",
-        location="europe-north1",
-        instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
-        update_mask=FieldMask(paths=["node_count"]),
-        instance={"node_count": 2},
-    )
-    # [END howto_operator_update_instance_memcached]
-
-    # [START howto_operator_update_and_apply_parameters_memcached]
-    update_memcached_parameters = CloudMemorystoreMemcachedUpdateParametersOperator(
-        task_id="update-parameters",
-        location="europe-north1",
-        instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
-        update_mask={"paths": ["params"]},
-        parameters={"params": {"protocol": "ascii", "hash_algorithm": "jenkins"}},
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    apply_memcached_parameters = CloudMemorystoreMemcachedApplyParametersOperator(
-        task_id="apply-parameters",
-        location="europe-north1",
-        instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
-        node_ids=["node-a-1"],
-        apply_all=False,
+    (
+        create_bucket
+        >> create_instance
+        >> create_instance_result
+        >> get_instance
+        >> get_instance_result
+        >> set_acl_permission
+        >> export_instance
+        >> update_instance
+        >> list_instances
+        >> list_instances_result
+        >> create_instance_2
+        >> failover_instance
+        >> import_instance
+        >> delete_instance
+        >> delete_instance_2
+        >> create_instance_and_import
+        >> scale_instance
+        >> export_and_delete_instance
+        >> delete_bucket
     )
 
-    # update_parameters >> apply_parameters
-    # [END howto_operator_update_and_apply_parameters_memcached]
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
 
-    create_memcached_instance >> [list_memcached_instances, get_memcached_instance]
-    create_memcached_instance >> update_memcached_instance >> update_memcached_parameters
-    update_memcached_parameters >> apply_memcached_parameters >> delete_memcached_instance
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
