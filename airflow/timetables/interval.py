@@ -138,8 +138,9 @@ class _CronMixin:
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
         from airflow.serialization.serialized_objects import decode_timezone
-
-        return cls(data["expression"], decode_timezone(data["timezone"]))
+        # We ignore typing on the next line because mypy expects it to return _CronMixin type.
+        # However, this should return Timetable since it should only be called against a timetable subclass
+        return cls(data["expression"], decode_timezone(data["timezone"]))  # type: ignore
 
     def __eq__(self, other: Any) -> bool:
         """Both expression and timezone should match.
