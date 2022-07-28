@@ -151,62 +151,16 @@ class DatabricksSubmitRunOperator(BaseOperator):
     <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
     API endpoint.
 
-    There are two ways to instantiate this operator.
-
-    In the first way, you can take the JSON payload that you typically use
-    to call the ``api/2.1/jobs/runs/submit`` endpoint and pass it directly
-    to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
-    For example ::
-
-        json = {
-          'new_cluster': {
-            'spark_version': '2.1.0-db3-scala2.11',
-            'num_workers': 2
-          },
-          'notebook_task': {
-            'notebook_path': '/Users/airflow@example.com/PrepareData',
-          },
-        }
-        notebook_run = DatabricksSubmitRunOperator(task_id='notebook_run', json=json)
-
-    Another way to accomplish the same thing is to use the named parameters
-    of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-    one named parameter for each top level parameter in the ``runs/submit``
-    endpoint. In this method, your code would look like this: ::
-
-        new_cluster = {
-          'spark_version': '10.1.x-scala2.12',
-          'num_workers': 2
-        }
-        notebook_task = {
-          'notebook_path': '/Users/airflow@example.com/PrepareData',
-        }
-        notebook_run = DatabricksSubmitRunOperator(
-            task_id='notebook_run',
-            new_cluster=new_cluster,
-            notebook_task=notebook_task)
-
-    In the case where both the json parameter **AND** the named parameters
-    are provided, they will be merged together. If there are conflicts during the merge,
-    the named parameters will take precedence and override the top level ``json`` keys.
-
-    Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
-        - ``spark_jar_task``
-        - ``notebook_task``
-        - ``spark_python_task``
-        - ``spark_jar_task``
-        - ``spark_submit_task``
-        - ``pipeline_task``
-        - ``new_cluster``
-        - ``existing_cluster_id``
-        - ``libraries``
-        - ``run_name``
-        - ``timeout_seconds``
+    There are three ways to instantiate this operator.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DatabricksSubmitRunOperator`
 
+    :param tasks: Array of Objects(RunSubmitTaskSettings) <= 100 items.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.1/jobs/runs/submit`` endpoint. The other named parameters
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
