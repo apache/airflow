@@ -23,7 +23,6 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Collection,
     Dict,
@@ -612,20 +611,6 @@ class MappedOperator(AbstractOperator):
     def _get_specified_expand_input(self) -> ExpandInput:
         """Input received from the expand call on the operator."""
         return getattr(self, self._expand_input_attr)
-
-    @property
-    def validate_upstream_return_value(self) -> Callable[[Any], None]:
-        """Validate an upstream's return value satisfies this task's needs.
-
-        This is implemented as a property (instead of a function calling
-        ``validate_xcom``) so the call site in TaskInstance can de-duplicate
-        validation functions. If this is an instance method, each
-        ``validate_upstream_return_value`` would be a different object (due to
-        how Python handles bounded functions), and de-duplication won't work.
-
-        :meta private:
-        """
-        return self._get_specified_expand_input().validate_xcom
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.

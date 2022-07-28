@@ -43,7 +43,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
-    UnmappableXComValuePushed,
     XComForMappingNotPushed,
 )
 from airflow.models import (
@@ -1574,17 +1573,17 @@ class TestTaskInstance:
         failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
         not generated
         """
-        from airflow.example_dags import example_datasets
-        from airflow.example_dags.example_datasets import dag9
+        from tests.dags import test_datasets
+        from tests.dags.test_datasets import dag_with_fail_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_datasets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag9.dag_id, run_id=run_id, run_type='anything')
+        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
-        task = dag9.get_task('fail_task')
+        task = dag_with_fail_task.get_task('fail_task')
         ti = TaskInstance(task, run_id=run_id)
         session.merge(ti)
         session.commit()
@@ -1605,17 +1604,17 @@ class TestTaskInstance:
         is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
         not generated
         """
-        from airflow.example_dags import example_datasets
-        from airflow.example_dags.example_datasets import dag7
+        from tests.dags import test_datasets
+        from tests.dags.test_datasets import dag_with_skip_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_datasets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag7.dag_id, run_id=run_id, run_type='anything')
+        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
-        task = dag7.get_task('skip_task')
+        task = dag_with_skip_task.get_task('skip_task')
         ti = TaskInstance(task, run_id=run_id)
         session.merge(ti)
         session.commit()
@@ -2614,8 +2613,6 @@ class TestTaskInstanceRecordTaskMapXComPush:
         "return_value, exception_type, error_message",
         [
             (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
-            ([123], UnmappableXComTypePushed, "unmappable return type 'list[int]'"),
-            ([{1: 3}], UnmappableXComValuePushed, "unmappable return value [{1: 3}] (dict keys must be str)"),
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
         ],
     )

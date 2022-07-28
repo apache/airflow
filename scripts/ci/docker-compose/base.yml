@@ -33,6 +33,7 @@ services:
       - ANSWER=${ANSWER}
       - BACKEND=${BACKEND}
       - BREEZE=${BREEZE}
+      - BREEZE_INIT_COMMAND=${BREEZE_INIT_COMMAND}
       - CI=${CI}
       - CI_BUILD_ID=${CI_BUILD_ID}
       - CI_JOB_ID=${CI_JOB_ID}

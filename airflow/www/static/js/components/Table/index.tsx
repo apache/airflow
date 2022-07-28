@@ -95,7 +95,7 @@ interface TableProps {
   onRowClicked?: (row: Row<object>, e: any) => void;
 }
 
-const Table = ({
+export const Table = ({
   data,
   columns,
   manualPagination,
@@ -272,4 +272,4 @@ const Table = ({
   );
 };
 
-export default Table;
+export * from './Cells';

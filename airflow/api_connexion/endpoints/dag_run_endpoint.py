@@ -139,15 +139,15 @@ def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session) -> List["
 
     dataset_event_filters = [
         DatasetDagRef.dag_id == dag_run.dag_id,
-        DatasetEvent.created_at <= dag_run.execution_date,
+        DatasetEvent.timestamp <= dag_run.execution_date,
     ]
     if previous_dag_run:
-        dataset_event_filters.append(DatasetEvent.created_at > previous_dag_run.execution_date)
+        dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
     dataset_events = (
         session.query(DatasetEvent)
         .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
         .filter(*dataset_event_filters)
-        .order_by(DatasetEvent.created_at)
+        .order_by(DatasetEvent.timestamp)
         .all()
     )
     return dataset_events

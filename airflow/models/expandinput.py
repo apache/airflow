@@ -28,7 +28,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cache
-from airflow.exceptions import UnmappableXComTypePushed, UnmappableXComValuePushed
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
@@ -72,11 +71,6 @@ class DictOfListsExpandInput(NamedTuple):
 
     value: dict[str, Mappable]
 
-    @staticmethod
-    def validate_xcom(value: Any) -> None:
-        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
-
     def get_unresolved_kwargs(self) -> dict[str, Any]:
         """Get the kwargs dict that can be inferred without resolving."""
         return self.value
@@ -102,7 +96,7 @@ class DictOfListsExpandInput(NamedTuple):
         they will not be present in the dict.
         """
         from airflow.models.taskmap import TaskMap
-        from airflow.models.xcom import XCom
+        from airflow.models.xcom import XCOM_RETURN_KEY, XCom
         from airflow.models.xcom_arg import XComArg
 
         # Populate literal mapped arguments first.
@@ -149,6 +143,7 @@ class DictOfListsExpandInput(NamedTuple):
             .filter(
                 XCom.dag_id == dag_id,
                 XCom.run_id == run_id,
+                XCom.key == XCOM_RETURN_KEY,
                 XCom.task_id.in_(mapped_dep_keys),
                 XCom.map_index >= 0,
             )
@@ -211,18 +206,6 @@ class ListOfDictsExpandInput(NamedTuple):
     """
 
     value: XComArg
-
-    @staticmethod
-    def validate_xcom(value: Any) -> None:
-        if not isinstance(value, collections.abc.Collection):
-            raise UnmappableXComTypePushed(value)
-        if isinstance(value, (str, bytes, collections.abc.Mapping)):
-            raise UnmappableXComTypePushed(value)
-        for item in value:
-            if not isinstance(item, collections.abc.Mapping):
-                raise UnmappableXComTypePushed(value, item)
-            if not all(isinstance(k, str) for k in item):
-                raise UnmappableXComValuePushed(value, reason="dict keys must be str")
 
     def get_unresolved_kwargs(self) -> dict[str, Any]:
         """Get the kwargs dict that can be inferred without resolving.

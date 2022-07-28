@@ -111,7 +111,7 @@ class HiveToMySqlOperator(BaseOperator):
                 mysql = self._call_preoperator()
                 mysql.bulk_load(table=self.mysql_table, tmp_file=tmp_file.name)
         else:
-            hive_results = hive.get_records(self.sql, hive_conf=hive_conf)
+            hive_results = hive.get_records(self.sql, parameters=hive_conf)
             mysql = self._call_preoperator()
             mysql.insert_rows(table=self.mysql_table, rows=hive_results)
 

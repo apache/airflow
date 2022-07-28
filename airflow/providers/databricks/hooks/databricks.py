@@ -126,8 +126,9 @@ class DatabricksHook(BaseDatabricksHook):
         retry_limit: int = 3,
         retry_delay: float = 1.0,
         retry_args: Optional[Dict[Any, Any]] = None,
+        caller: str = "DatabricksHook",
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args)
+        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
     def run_now(self, json: dict) -> int:
         """
