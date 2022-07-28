@@ -257,7 +257,10 @@ class ListOfDictsExpandInput(NamedTuple):
             raise ValueError(f"expand_kwargs() expects a list[dict], not list[{type(mapping).__name__}]")
         for key in mapping:
             if not isinstance(key, str):
-                raise ValueError(f"expand_kwargs() input dict keys must be str, not {type(key).__name__}")
+                raise ValueError(
+                    f"expand_kwargs() input dict keys must all be str, "
+                    f"but {key!r} is of type {type(key).__name__}"
+                )
         return mapping
 
 
