@@ -186,6 +186,15 @@ class BackfillJob(BaseJob):
         self.run_backwards = run_backwards
         super().__init__(*args, **kwargs)
 
+
+def _pop_running_ti(ti_status, reduced_key):
+    try:
+        ti_status.running.pop(reduced_key)
+    except KeyError:
+        # the task is not running tracking dict
+        pass
+
+
     @provide_session
     def _update_counters(self, ti_status, session=None):
         """
@@ -209,27 +218,27 @@ class BackfillJob(BaseJob):
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(reduced_key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                _pop_running_ti(ti_status, reduced_key)
                 continue
             if ti.state == State.SKIPPED:
                 ti_status.skipped.add(reduced_key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                _pop_running_ti(ti_status, reduced_key)
                 continue
             if ti.state == State.FAILED:
                 self.log.error("Task instance %s failed", ti)
                 ti_status.failed.add(reduced_key)
-                ti_status.running.pop(reduced_key)
+                _pop_running_ti(ti_status, reduced_key)
                 continue
             # special case: if the task needs to run again put it back
             if ti.state == State.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
-                ti_status.running.pop(reduced_key)
+                _pop_running_ti(ti_status, reduced_key)
                 ti_status.to_run[ti.key] = ti
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == State.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
-                ti_status.running.pop(reduced_key)
+                _pop_running_ti(ti_status, reduced_key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
@@ -243,11 +252,7 @@ class BackfillJob(BaseJob):
                     ti,
                 )
                 tis_to_be_scheduled.append(ti)
-                try:
-                    ti_status.running.pop(reduced_key)
-                except KeyError:
-                    # the task is not running
-                    pass
+                _pop_running_ti(ti_status, reduced_key)
                 ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances
