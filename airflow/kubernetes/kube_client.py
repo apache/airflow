@@ -30,7 +30,10 @@ try:
     has_kubernetes = True
 
     def _disable_verify_ssl() -> None:
-        configuration = Configuration()
+        if hasattr(Configuration, 'get_default_copy'):
+            configuration = Configuration.get_default_copy()
+        else:
+            configuration = Configuration()
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
 
@@ -100,9 +103,6 @@ def get_kube_client(
     if conf.getboolean('kubernetes', 'enable_tcp_keepalive'):
         _enable_tcp_keepalive()
 
-    if not conf.getboolean('kubernetes', 'verify_ssl'):
-        _disable_verify_ssl()
-
     if in_cluster:
         config.load_incluster_config()
     else:
@@ -111,5 +111,8 @@ def get_kube_client(
         if config_file is None:
             config_file = conf.get('kubernetes', 'config_file', fallback=None)
         config.load_kube_config(config_file=config_file, context=cluster_context)
+
+    if not conf.getboolean('kubernetes', 'verify_ssl'):
+        _disable_verify_ssl()
 
     return client.CoreV1Api()
