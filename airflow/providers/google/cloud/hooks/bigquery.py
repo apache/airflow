@@ -2804,7 +2804,8 @@ class BigQueryCursor(BigQueryBaseCursor):
     def setoutputsize(self, size: Any, column: Any = None) -> None:
         """Does nothing by default"""
 
-    def _get_query_result(self):
+    def _get_query_result(self) -> Dict:
+        """Get job query results like data, schema, job type..."""
         query_results = (
             self.service.jobs()
             .getQueryResults(
@@ -2988,7 +2989,11 @@ def _validate_src_fmt_configs(
     return src_fmt_configs
 
 
-def _format_schema_for_description(schema):
+def _format_schema_for_description(schema: Dict) -> List:
+    """
+    Reformat the schema to match cursor description standard which is a tuple
+    of 7 elemenbts (name, type, display_size, internal_size, precision, scale, null_ok)
+    """
     description = []
     for field in schema["fields"]:
         field_description = (
