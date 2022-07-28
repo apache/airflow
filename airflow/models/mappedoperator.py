@@ -396,6 +396,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
     @property
+    def owner_link(self) -> Dict[str, str]:  # type: ignore[override]
+        return self.partial_kwargs.get("owner_link", {DEFAULT_OWNER: ""})
+
+    @property
     def email(self) -> Union[None, str, Iterable[str]]:
         return self.partial_kwargs.get("email")
 

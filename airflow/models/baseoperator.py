@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for all operators."""
-from __future__ import annotations
-
 import abc
 import collections
 import collections.abc
@@ -195,7 +193,7 @@ def partial(
     task_group: Optional["TaskGroup"] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    owner: str | Dict[str, str] = DEFAULT_OWNER,
+    owner: Union[str, Dict[str, str]] = DEFAULT_OWNER,
     email: Union[None, str, Iterable[str]] = None,
     params: Optional[dict] = None,
     resources: Optional[Dict[str, Any]] = None,
@@ -464,6 +462,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_id: a unique, meaningful id for the task
     :param owner: the owner of the task. Using a meaningful description
         (e.g. user/person/team/role name) to clarify ownership is recommended.
+        You can also provide a dict containing a link that will be clickable in the UI.
+        eg: {"name": "owner1", "link": "https://www.my_team_website.com"}. You can use it as a Slack channel
+        or 'mailto' links for quick emails.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
         comma or semi-colon separated string or by passing a list of strings.
@@ -706,7 +707,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __init__(
         self,
         task_id: str,
-        owner: str = DEFAULT_OWNER,
+        owner: Union[str, Dict[str, str]] = DEFAULT_OWNER,
         email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
         email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
@@ -782,7 +783,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not self.__from_mapped and task_group:
             task_group.add(self)
 
-        self.owner = self.parse_owner(owner)
+        self.owner, self.owner_link = self.parse_owner(owner)
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
@@ -1485,15 +1486,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         except ValueError:
             return False
 
-    def parse_owner(self, owner: str | Dict[str, str]) -> Dict[str, str]:
+    def parse_owner(self, owner) -> Tuple[str, Dict[str, str]]:
         """Receiving the owner from the task, and based on it's type returning an object with a link or not"""
         if isinstance(owner, str):
-            return {owner: ""}
+            return owner, {owner: ""}
         elif isinstance(owner, dict):
             if not self._is_valid_link(owner['link']):
-                raise AirflowException(f"Wrong link format was used for the owner. Use a valid link")
+                raise AirflowException("Wrong link format was used for the owner. Use a valid link")
 
-            return {owner['name']: owner['link']}
+            return owner['name'], {owner['name']: owner['link']}
         else:
             raise AirflowException("Wrong owner structure was passed for owner")
 

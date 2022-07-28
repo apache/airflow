@@ -21,7 +21,7 @@ from typing import Union
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, DagTag, DagOwnerLinks
+from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -59,7 +59,7 @@ __all__ = [
     "DagPickle",
     "DagRun",
     "DagTag",
-    "DagOwnerLinks",
+    "DagOwnerAttributes",
     "Dataset",
     "DbCallbackRequest",
     "ImportError",

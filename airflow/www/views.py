@@ -105,8 +105,17 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors, \
-    DagOwnerLinks
+from airflow.models import (
+    Connection,
+    DagModel,
+    DagOwnerAttributes,
+    DagTag,
+    Log,
+    SlaMiss,
+    TaskFail,
+    XCom,
+    errors,
+)
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
@@ -881,7 +890,7 @@ class Airflow(AirflowBaseView):
             ]
 
             owner_links_dict = {}
-            owner_links = session.query(DagOwnerLinks).all()
+            owner_links = session.query(DagOwnerAttributes).all()
             # The structure we are going for is:
             # {dag1: {owner1: link1, owner2: link2}, dag2: {owner1: link1}}
             for owner_link_pair in owner_links:
@@ -1319,7 +1328,9 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
-        owner_links = session.query(models.DagOwnerLinks).filter(models.DagOwnerLinks.dag_id == dag_id).all()
+        owner_links = (
+            session.query(models.DagOwnerAttributes).filter(models.DagOwnerAttributes.dag_id == dag_id).all()
+        )
 
         attrs_to_avoid = [
             "NUM_DAGS_PER_DAGRUN_QUERY",

@@ -46,7 +46,7 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
 from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
@@ -191,6 +191,7 @@ class TestDag(unittest.TestCase):
 
         assert op1.dag is dag
         assert op1.owner == 'owner1'
+        assert op1.owner_link == {'owner1': ""}
         assert op2.dag is dag2
         assert op2.owner == 'owner2'
 
@@ -699,14 +700,14 @@ class TestDag(unittest.TestCase):
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(4):
+        with assert_queries_count(8):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(4):
+        with assert_queries_count(8):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -725,7 +726,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -744,7 +745,7 @@ class TestDag(unittest.TestCase):
         # Removing all tags
         for dag in dags:
             dag.tags = None
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -1976,6 +1977,42 @@ class TestDag(unittest.TestCase):
             start_date + delta,
             start_date + 2 * delta,
         ]
+
+    def test_dag_owner_links(self):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+        )
+        with dag:
+            EmptyOperator(task_id='task', owner={"name": "owner1", "link": "https://mylink.com"})
+            EmptyOperator(task_id='task2', owner={"name": "owner2", "link": "mailto:someone@yoursite.com"})
+
+        assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        assert set(orm_dag.owners.split(', ')) == {'owner1', 'owner2'}
+
+        expected_owners = [
+            {'dag': {'owner1': 'https://mylink.com'}},
+            {'dag': {'owner2': 'mailto:someone@yoursite.com'}},
+        ]
+        orm_dag_owners = session.query(DagOwnerAttributes).all()
+        for dag_owner in orm_dag_owners:
+            assert dag_owner.as_dict() in expected_owners
+
+        # Test dag owner links are removed
+        dag._remove_task('task')
+        dag._remove_task('task2')
+        dag.sync_to_db(session=session)
+
+        orm_dag_owners = session.query(DagOwnerAttributes).all()
+        assert not orm_dag_owners
+
+        # Check wrong formatted owner link
+        with pytest.raises(AirflowException):
+            EmptyOperator(task_id='task', owner={"name": "owner1", "link": "abcd"}, dag=dag)
 
 
 class TestDagModel:
