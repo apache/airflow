@@ -46,7 +46,7 @@ const Dag = () => {
   const { data: { dagRuns } } = useGridData();
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
-  const operators: Record<string, any> = {};
+  const operators: Record<string, number> = {};
   tasks.forEach((t) => {
     if (t?.classRef?.className) {
       if (!operators[t.classRef.className]) {
