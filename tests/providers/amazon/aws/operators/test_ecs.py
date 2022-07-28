@@ -100,7 +100,12 @@ class TestEcsOperator(unittest.TestCase):
         self.aws_hook_mock.assert_called_once()
 
     def test_template_fields_overrides(self):
-        assert self.ecs.template_fields == ('overrides',)
+        assert self.ecs.template_fields == (
+            'cluster',
+            'task_definition',
+            'overrides',
+            'network_configuration',
+        )
 
     @parameterized.expand(
         [
