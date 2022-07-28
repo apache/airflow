@@ -1699,7 +1699,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1741,7 +1740,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: matrix.platform == 'linux/arm64'
-      - name: "Push CI cache ${{ matrix.python-version }} ${{ matrix.platform }}"
+      - name: "Push CI cache ${{ matrix.platform }}"
         run: >
           breeze build-image
           --builder airflow_cache
@@ -1749,8 +1748,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --run-in-parallel
           --force-build
           --platform ${{ matrix.platform }}
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      - name: "Push CI latest image ${{ matrix.platform }}"
+        run: >
+          breeze build-image --tag-as-latest --push-image --run-in-parallel --platform ${{ matrix.platform }}
+        if: matrix.platform == 'linux/amd64'
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
         if: needs.build-info.outputs.default-branch == 'main'
@@ -1761,9 +1762,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --install-packages-from-context
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
         if: needs.build-info.outputs.default-branch == 'main'
+      - name: "Push PROD latest image ${{ matrix.platform }}"
+        run: >
+          breeze build-prod-image --tag-as-latest
+          --push-image --run-in-parallel --platform ${{ matrix.platform }}
+        if: matrix.platform == 'linux/amd64'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && matrix.platform == 'linux/arm64'
