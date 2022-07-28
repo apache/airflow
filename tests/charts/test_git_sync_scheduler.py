@@ -147,7 +147,7 @@ class GitSyncSchedulerTest(unittest.TestCase):
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert {"name": "git-sync-ssh-key"} not in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
 
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
