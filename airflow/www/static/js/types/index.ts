@@ -75,6 +75,8 @@ interface Task {
   children?: Task[];
   extraLinks?: string[];
   isMapped?: boolean;
+  operator?: string;
+  hasOutletDatasets?: boolean;
 }
 
 type SnakeToCamelCase<S extends string> =

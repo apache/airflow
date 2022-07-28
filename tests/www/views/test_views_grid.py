@@ -22,15 +22,17 @@ import freezegun
 import pendulum
 import pytest
 
+from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import Dataset
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.www.views import dag_to_grid
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 DAG_ID = 'test'
@@ -46,8 +48,10 @@ def examples_dag_bag():
 @pytest.fixture(autouse=True)
 def clean():
     clear_db_runs()
+    clear_db_datasets()
     yield
     clear_db_runs()
+    clear_db_datasets()
 
 
 @pytest.fixture
@@ -92,19 +96,23 @@ def test_no_runs(admin_client, dag_without_runs):
             'children': [
                 {
                     'extra_links': [],
+                    'has_outlet_datasets': False,
                     'id': 'task1',
                     'instances': [],
                     'is_mapped': False,
                     'label': 'task1',
+                    'operator': 'EmptyOperator',
                 },
                 {
                     'children': [
                         {
                             'extra_links': [],
+                            'has_outlet_datasets': False,
                             'id': 'group.mapped',
                             'instances': [],
                             'is_mapped': True,
                             'label': 'mapped',
+                            'operator': 'MockOperator',
                         }
                     ],
                     'id': 'group',
@@ -177,6 +185,7 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
             'children': [
                 {
                     'extra_links': [],
+                    'has_outlet_datasets': False,
                     'id': 'task1',
                     'instances': [
                         {
@@ -198,11 +207,13 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
                     ],
                     'is_mapped': False,
                     'label': 'task1',
+                    'operator': 'EmptyOperator',
                 },
                 {
                     'children': [
                         {
                             'extra_links': [],
+                            'has_outlet_datasets': False,
                             'id': 'group.mapped',
                             'instances': [
                                 {
@@ -224,6 +235,7 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
                             ],
                             'is_mapped': True,
                             'label': 'mapped',
+                            'operator': 'MockOperator',
                         },
                     ],
                     'id': 'group',
@@ -258,3 +270,48 @@ def test_query_count(dag_with_runs, session):
     run1, run2 = dag_with_runs
     with assert_queries_count(1):
         dag_to_grid(run1.dag, (run1, run2), session)
+
+
+def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypatch):
+    with monkeypatch.context() as m:
+        # Remove global operator links for this test
+        m.setattr('airflow.plugins_manager.global_operator_extra_links', [])
+        m.setattr('airflow.plugins_manager.operator_extra_links', [])
+        m.setattr('airflow.plugins_manager.registered_operator_link_classes', {})
+
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
+            lineagefile = File("/tmp/does_not_exist")
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2", outlets=[lineagefile])
+            EmptyOperator(task_id="task3", outlets=[Dataset('foo'), lineagefile])
+            EmptyOperator(task_id="task4", outlets=[Dataset('foo')])
+
+        m.setattr(app, 'dag_bag', dag_maker.dagbag)
+        resp = admin_client.get(f'/object/grid_data?dag_id={DAG_ID}', follow_redirects=True)
+
+    def _expected_task_details(task_id, has_outlet_datasets):
+        return {
+            'extra_links': [],
+            'has_outlet_datasets': has_outlet_datasets,
+            'id': task_id,
+            'instances': [],
+            'is_mapped': False,
+            'label': task_id,
+            'operator': 'EmptyOperator',
+        }
+
+    assert resp.status_code == 200, resp.json
+    assert resp.json == {
+        'dag_runs': [],
+        'groups': {
+            'children': [
+                _expected_task_details('task1', False),
+                _expected_task_details('task2', False),
+                _expected_task_details('task3', True),
+                _expected_task_details('task4', True),
+            ],
+            'id': None,
+            'instances': [],
+            'label': None,
+        },
+    }
