@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
+from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -109,6 +110,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
+    operator_extra_links = (FileDetailsLink(),)
     # [END translate_speech_template_fields]
 
     def __init__(
@@ -172,6 +174,12 @@ class CloudTranslateSpeechOperator(BaseOperator):
                 model=self.model,
             )
             self.log.info('Translated output: %s', translation)
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                uri=self.audio["uri"][5:],
+                project_id=self.project_id or translate_hook.project_id,
+            )
             return translation
         except ValueError as e:
             self.log.error('An error has been thrown from translate speech method:')

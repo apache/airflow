@@ -64,7 +64,8 @@ class TestCloudTranslateSpeech(unittest.TestCase):
             task_id='id',
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        return_value = op.execute(context=None)
+        context = mock.MagicMock()
+        return_value = op.execute(context=context)
 
         mock_speech_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
