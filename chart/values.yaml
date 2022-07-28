@@ -1315,15 +1315,15 @@ statsd:
   priorityClassName: ~
 
   histogramBuckets:
-    - ".005"
-    - ".01"
-    - ".025"
-    - ".05"
-    - ".1"
-    - ".25"
-    - ".5"
-    - "1"
-    - "2.5"
+    - 0.005
+    - 0.01
+    - 0.025
+    - 0.05
+    - 0.1
+    - 0.25
+    - 0.5
+    - 1
+    - 2.5
 
   defaultMappings:
     # Map dot separated stats to labels
@@ -1402,7 +1402,7 @@ statsd:
   # Additional mappings for StatsD exporter.
   extraMappings: []
 
-  dropUnknownMappings: true
+  dropUnknownMappings: false
 
 # PgBouncer settings
 pgbouncer:

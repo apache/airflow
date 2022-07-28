@@ -3755,18 +3755,18 @@
                     "description": "A list of histogram buckets for the StatsD exporter.",
                     "type": "array",
                     "default": [
-                        ".005",
-                        ".01",
-                        ".025",
-                        ".05",
-                        ".1",
-                        ".25",
-                        ".5",
-                        "1",
-                        "2.5"
+                        0.005,
+                        0.01,
+                        0.025,
+                        0.05,
+                        0.1,
+                        0.25,
+                        0.5,
+                        1.0,
+                        2.5
                     ],
                     "items": {
-                        "type": "string"
+                        "type": "number"
                     }
                 },
                 "defaultMappings": {
@@ -3897,6 +3897,7 @@
                     "items": {
                         "type": "object",
                         "description": "Prometheus statsd_exporter mapping configuration",
+                        "additionalProperties": false,
                         "properties": {
                             "match": {
                                 "description": "The statsd metric to match. Either glob of regexp",
@@ -3931,8 +3932,11 @@
                             "labels": {
                                 "description": "The Prometheus metric name.",
                                 "type": "object",
+                                "default": {},
                                 "additionalProperties": {
-                                    "type": "string"
+                                    "description": "Label name and value",
+                                    "type": "string",
+                                    "default": ""
                                 }
                             }
                         },
@@ -3950,7 +3954,7 @@
                 "dropUnknownMappings": {
                     "description": "Enable dropping of unknown mappings in the StatsD exporter.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "securityContext": {
                     "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",

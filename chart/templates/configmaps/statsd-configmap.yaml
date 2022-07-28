@@ -41,7 +41,9 @@ data:
 {{ toYaml .Values.statsd.histogramBuckets | indent 10 }}
     mappings:
 {{ toYaml .Values.statsd.defaultMappings | indent 6 }}
+{{- if .Values.statsd.extraMappings }}
 {{ toYaml .Values.statsd.extraMappings | indent 6 }}
+{{- end }}
 {{- if .Values.statsd.dropUnknownMappings }}
       - match: "."
         match_type: regex
