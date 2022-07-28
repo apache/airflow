@@ -32,8 +32,8 @@ import {
 import { mean } from 'lodash';
 
 import { getDuration, formatDuration } from 'src/datetime_utils';
-import { finalStatesMap, getMetaValue } from 'src/utils';
-import { useTasks, useGridData } from 'src/api';
+import { finalStatesMap, getMetaValue, getTaskSummary } from 'src/utils';
+import { useGridData } from 'src/api';
 import Time from 'src/components/Time';
 import type { TaskState } from 'src/types';
 
@@ -42,21 +42,9 @@ import { SimpleStatus } from '../StatusBox';
 const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
-  const { data: { tasks, totalEntries } } = useTasks();
-  const { data: { dagRuns } } = useGridData();
+  const { data: { dagRuns, groups } } = useGridData();
 
-  // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
-  const operators: Record<string, number> = {};
-  tasks.forEach((t) => {
-    if (t?.classRef?.className) {
-      if (!operators[t.classRef.className]) {
-        operators[t.classRef.className] = 1;
-      } else {
-        operators[t.classRef.className] += 1;
-      }
-    }
-  });
-
+  const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();
   const durations: number[] = [];
   dagRuns.forEach((dagRun) => {
@@ -160,9 +148,15 @@ const Dag = () => {
           </Tr>
           <Tr>
             <Td>Total Tasks</Td>
-            <Td>{totalEntries}</Td>
+            <Td>{taskSummary.taskCount}</Td>
           </Tr>
-          {Object.entries(operators).map(([key, value]) => (
+          {!!taskSummary.groupCount && (
+          <Tr>
+            <Td>Total Task Groups</Td>
+            <Td>{taskSummary.groupCount}</Td>
+          </Tr>
+          )}
+          {Object.entries(taskSummary.operators).map(([key, value]) => (
             <Tr key={key}>
               <Td>
                 {key}
