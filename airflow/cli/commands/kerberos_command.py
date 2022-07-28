@@ -34,7 +34,11 @@ def kerberos(args):
         pid, stdout, stderr, _ = setup_locations(
             "kerberos", args.pid, args.stdout, args.stderr, args.log_file
         )
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with (open(stdout, 'a') as stdout_handle,
+              open(stderr, 'a') as stderr_handle):
+            from airflow.cli.util import truncate_file
+            truncate_file(stdout_handle)
+            truncate_file(stderr_handle)
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 stdout=stdout_handle,

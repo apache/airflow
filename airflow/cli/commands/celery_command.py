@@ -67,7 +67,10 @@ def flower(args):
             stderr=args.stderr,
             log=args.log_file,
         )
-        with open(stdout, "w+") as stdout, open(stderr, "w+") as stderr:
+        with open(stdout, 'a') as stdout, open(stderr, 'a') as stderr:
+            from airflow.cli.util import truncate_file
+            truncate_file(stdout)
+            truncate_file(stderr)
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pidfile, -1),
                 stdout=stdout,
@@ -177,7 +180,11 @@ def worker(args):
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
 
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with (open(stdout, 'a') as stdout_handle,
+              open(stderr, 'a') as stderr_handle):
+            from airflow.cli.util import truncate_file
+            truncate_file(stdout_handle)
+            truncate_file(stderr_handle)
             if args.umask:
                 umask = args.umask
 
