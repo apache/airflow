@@ -115,18 +115,6 @@ def _is_schedule_fixed(expression: str) -> bool:
 
 
 class _CronMixin:
-    """Timetable that schedules data intervals with a cron expression.
-
-    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
-    a five/six-segment representation, or one of ``cron_presets``.
-
-    The implementation extends on croniter to add timezone awareness. This is
-    because croniter works only with naive timestamps, and cannot consider DST
-    when determining the next/previous time.
-
-    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
-    """
-
     def __init__(self, cron: str, timezone: Union[str, Timezone]) -> None:
         self._expression = cron_presets.get(cron, cron)
 
@@ -216,6 +204,17 @@ class _CronMixin:
 
 
 class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimetable):
+    """Timetable that schedules data intervals with a cron expression.
+
+    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
+    a five/six-segment representation, or one of ``cron_presets``.
+
+    The implementation extends on croniter to add timezone awareness. This is
+    because croniter works only with naive timestamps, and cannot consider DST
+    when determining the next/previous time.
+
+    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+    """
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
