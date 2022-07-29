@@ -51,6 +51,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
+from airflow.utils.state import State
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -293,7 +294,7 @@ class SchedulerJob(BaseJob):
         dag_active_tasks_map: DefaultDict[str, int]
         task_concurrency_map: DefaultDict[Tuple[str, str], int]
         dag_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
-            states=list(EXECUTION_STATES), session=session
+            states=list(EXECUTION_STATES).append(State.DEFERRED), session=session
         )
 
         num_tasks_in_executor = 0
