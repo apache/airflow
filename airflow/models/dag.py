@@ -115,7 +115,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Sequence["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, List["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -477,7 +477,7 @@ class DAG(LoggingMixin):
                 DeprecationWarning,
                 stacklevel=2,
             )
-        if timetable is not NOTSET:
+        if timetable is not None:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
@@ -489,8 +489,8 @@ class DAG(LoggingMixin):
         self.dataset_triggers: Optional[List[Dataset]] = None
 
         if schedule:
-            if isinstance(schedule, Sequence):
-                # if Sequence, only support Sequence[Dataset]
+            if isinstance(schedule, List):
+                # if List, only support List[Dataset]
                 if any(isinstance(x, Dataset) for x in schedule):
                     if not all(isinstance(x, Dataset) for x in schedule):
                         raise ValueError(
