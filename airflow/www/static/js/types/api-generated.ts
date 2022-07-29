@@ -1469,6 +1469,36 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
+      downstream_dag_references?: components["schemas"]["DatasetDagRef"][];
+      upstream_task_references?: components["schemas"]["DatasetTaskRef"][];
+    };
+    /**
+     * @description A datasets reference to an upstream task.
+     *
+     * *New in version 2.4.0*
+     */
+    DatasetTaskRef: {
+      /** @description The DAG ID that updates the dataset. */
+      dag_id?: string | null;
+      /** @description The task ID that updates the dataset. */
+      task_id?: string | null;
+      /** @description The dataset creation time */
+      created_at?: string;
+      /** @description The dataset update time */
+      updated_at?: string;
+    };
+    /**
+     * @description A datasets reference to a downstream DAG.
+     *
+     * *New in version 2.4.0*
+     */
+    DatasetDagRef: {
+      /** @description The DAG ID that depends on the dataset. */
+      dag_id?: string | null;
+      /** @description The dataset reference creation time */
+      created_at?: string;
+      /** @description The dataset reference update time */
+      updated_at?: string;
     };
     /**
      * @description A collection of datasets.
@@ -4045,6 +4075,8 @@ export type ActionCollection = SnakeToCamelCaseNested<components['schemas']['Act
 export type Resource = SnakeToCamelCaseNested<components['schemas']['Resource']>;
 export type ActionResource = SnakeToCamelCaseNested<components['schemas']['ActionResource']>;
 export type Dataset = SnakeToCamelCaseNested<components['schemas']['Dataset']>;
+export type DatasetTaskRef = SnakeToCamelCaseNested<components['schemas']['DatasetTaskRef']>;
+export type DatasetDagRef = SnakeToCamelCaseNested<components['schemas']['DatasetDagRef']>;
 export type DatasetCollection = SnakeToCamelCaseNested<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = SnakeToCamelCaseNested<components['schemas']['DatasetEvent']>;
 export type DatasetEventCollection = SnakeToCamelCaseNested<components['schemas']['DatasetEventCollection']>;

@@ -18,7 +18,7 @@
 from typing import Optional
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -40,7 +40,11 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
-    dataset = session.query(Dataset).get(id)
+    dataset = (
+        session.query(Dataset)
+        .options(joinedload(Dataset.downstream_dag_references), joinedload(Dataset.upstream_task_references))
+        .get(id)
+    )
     if not dataset:
         raise NotFound(
             "Dataset not found",
@@ -61,7 +65,14 @@ def get_datasets(
     total_entries = session.query(func.count(Dataset.id)).scalar()
     query = session.query(Dataset)
     query = apply_sorting(query, order_by, {}, allowed_attrs)
-    datasets = query.offset(offset).limit(limit).all()
+    datasets = (
+        query.options(
+            subqueryload(Dataset.downstream_dag_references), subqueryload(Dataset.upstream_task_references)
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
 
 

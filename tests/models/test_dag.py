@@ -848,8 +848,8 @@ class TestDag(unittest.TestCase):
         d2 = stored_datasets[d2.uri]
         d3 = stored_datasets[d3.uri]
         assert stored_datasets[uri1].extra == {"should": "be used"}
-        assert [x.dag_id for x in d1.dag_references] == [dag_id1]
-        assert [(x.task_id, x.dag_id) for x in d1.task_references] == [(task_id, dag_id2)]
+        assert [x.dag_id for x in d1.downstream_dag_references] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in d1.upstream_task_references] == [(task_id, dag_id2)]
         assert set(
             session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id)
             .filter(DatasetTaskRef.dag_id.in_((dag_id1, dag_id2)))
