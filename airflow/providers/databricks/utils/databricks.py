@@ -40,7 +40,7 @@ def deep_string_coerce(content, json_path: str = 'json') -> Union[str, bool, lis
         (
             str,
             bool,
-        )
+        ),
     ):
         return content
     elif isinstance(
