@@ -475,12 +475,14 @@ class DAG(LoggingMixin):
                 "Param `schedule_interval` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
                 DeprecationWarning,
+                stacklevel=2,
             )
         if timetable is not NOTSET:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
                 DeprecationWarning,
+                stacklevel=2,
             )
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
