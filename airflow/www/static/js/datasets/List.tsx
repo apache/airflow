@@ -79,7 +79,7 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    onSelect(row.id);
+    if (row.original.id) onSelect(row.original.id.toString());
   };
 
   return (
