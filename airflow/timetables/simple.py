@@ -103,8 +103,7 @@ class OnceTimetable(_TrivialTimetable):
 class DatasetTriggeredTimetable(NullTimetable):
     """Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG specifies
-    ``schedule_on`` and is triggered by a dataset.
+    This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
 
     :meta private:
     """

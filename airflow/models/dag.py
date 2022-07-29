@@ -115,6 +115,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, List["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -236,11 +237,16 @@ class DAG(LoggingMixin):
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
+    :param schedule: Defines the rules according to which DAG runs are scheduled. Can
+        accept cron string, timedelta object, Timetable, or list of Dataset objects.
+        See also :doc:`/howto/timetable`.
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
-        execution_date to figure out the next schedule
+        execution_date to figure out the next schedule.
+        Note: deprecated in Airflow 2.4; use `schedule` instead.
     :param timetable: Specify which timetable to use (in which case schedule_interval
         must not be set). See :doc:`/howto/timetable` for more information
+        Note: deprecated in Airflow 2.4; use `schedule` instead.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
@@ -313,7 +319,7 @@ class DAG(LoggingMixin):
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :param tags: List of tags to help filtering DAGs in the UI.
-    :param schedule_on: List of upstream datasets if for use in triggering DAG runs.
+    :param schedule: List of upstream datasets if for use in triggering DAG runs.
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
@@ -349,6 +355,7 @@ class DAG(LoggingMixin):
         self,
         dag_id: str,
         description: Optional[str] = None,
+        schedule: ScheduleArg = NOTSET,
         schedule_interval: ScheduleIntervalArg = NOTSET,
         timetable: Optional[Timetable] = None,
         start_date: Optional[datetime] = None,
@@ -376,9 +383,9 @@ class DAG(LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
-        schedule_on: Optional[Sequence["Dataset"]] = None,
         owner_links: Optional[Dict[str, str]] = None,
     ):
+        from airflow.models.dataset import Dataset
         from airflow.utils.task_group import TaskGroup
 
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
@@ -460,18 +467,16 @@ class DAG(LoggingMixin):
             self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
         # sort out DAG's scheduling behavior
-        scheduling_args = [schedule_interval, timetable, schedule_on]
+        scheduling_args = [schedule_interval, timetable, schedule]
         if not at_most_one(*scheduling_args):
-            raise ValueError(
-                "At most one allowed for args 'schedule_interval', 'timetable', and 'schedule_on'."
-            )
-
+            raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
+        dataset_triggers = []
+        if schedule and isinstance(schedule, List) and isinstance(schedule[0], Dataset):
+            dataset_triggers = schedule
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.schedule_on: Optional[List["Dataset"]] = list(schedule_on) if schedule_on else None
-        if schedule_on:
-            if not isinstance(schedule_on, Sequence):
-                raise ValueError("Param `schedule_on` must be Sequence[Dataset]")
+        self.dataset_triggers: Optional[List[Dataset]] = list(dataset_triggers) if dataset_triggers else None
+        if dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
             self.schedule_interval = self.timetable.summary
         elif timetable:
@@ -2625,7 +2630,7 @@ class DAG(LoggingMixin):
         outlet_datasets = set()
         input_datasets = set()
         for dag in dags:
-            for dataset in dag.schedule_on or []:
+            for dataset in dag.dataset_triggers or []:
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
                 input_datasets.add(dataset)
             for task in dag.tasks:
@@ -3221,7 +3226,7 @@ def dag(
     jinja_environment_kwargs: Optional[Dict] = None,
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
-    schedule_on: Optional[Sequence["Dataset"]] = None,
+    schedule: Optional[Sequence["Dataset"]] = None,
     owner_links: Optional[Dict[str, str]] = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
@@ -3273,7 +3278,7 @@ def dag(
                 jinja_environment_kwargs=jinja_environment_kwargs,
                 render_template_as_native_obj=render_template_as_native_obj,
                 tags=tags,
-                schedule_on=schedule_on,
+                schedule=schedule,
                 owner_links=owner_links,
             ) as dag_obj:
                 # Set DAG documentation from function documentation.

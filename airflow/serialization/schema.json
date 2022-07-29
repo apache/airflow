@@ -118,7 +118,7 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
-        "schedule_on":{
+        "dataset_triggers":{
             "anyOf": [
                 { "type": "null" },
                 {

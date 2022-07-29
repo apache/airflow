@@ -824,7 +824,7 @@ class TestDag(unittest.TestCase):
         assert not model.has_import_errors
         session.close()
 
-    def test_bulk_write_to_db_datasets_schedule_on(self):
+    def test_bulk_write_to_db_datasets(self):
         """
         Ensure that datasets referenced in a dag are correctly loaded into the database.
         """
@@ -836,7 +836,7 @@ class TestDag(unittest.TestCase):
         d1 = Dataset(uri1, extra={"not": "used"})
         d2 = Dataset('s3://dataset2')
         d3 = Dataset('s3://dataset3')
-        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule_on=[d1])
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
         EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
@@ -2703,9 +2703,9 @@ def test_get_dataset_triggered_next_run_info(session, reset_dataset):
     dataset1 = Dataset(uri=f"s3://{unique_id}-1")
     dataset2 = Dataset(uri=f"s3://{unique_id}-2")
     dataset3 = Dataset(uri=f"s3://{unique_id}-3")
-    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
+    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule=[dataset2])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule=[dataset1, dataset2, dataset3])
     DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
 
     session.commit()
