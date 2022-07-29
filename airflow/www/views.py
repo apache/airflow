@@ -35,6 +35,7 @@ from operator import itemgetter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
+import configupdater
 import lazy_object_proxy
 import markupsafe
 import nvd3
@@ -3752,17 +3753,12 @@ class ConfigurationView(AirflowBaseView):
         if expose_config.lower() == 'non-sensitive-only':
             from airflow.configuration import SENSITIVE_CONFIG_VALUES
 
-            with open(AIRFLOW_CONFIG) as file:
-                config = file.readlines()
-                for line in config:
-                    for _, key in SENSITIVE_CONFIG_VALUES:
-                        # this masks the keys wherever it's found not
-                        # minding the section
-                        if key in line and not line.startswith('#'):
-                            config[config.index(line)] = key + ' = < hidden >\n'
-                            break
-
-                config = ''.join(config)
+            updater = configupdater.ConfigUpdater()
+            updater.read(AIRFLOW_CONFIG)
+            for sect, key in SENSITIVE_CONFIG_VALUES:
+                if updater.has_option(sect, key):
+                    updater[sect][key].value = '< hidden >'
+            config = str(updater)
 
             table = [
                 (section, key, str(value), source)
