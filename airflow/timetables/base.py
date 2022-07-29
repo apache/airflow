@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, NamedTuple, Optional, runtime_checkable
+from typing import Any, Dict, NamedTuple, Optional
 
 from pendulum import DateTime
 
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import Protocol, runtime_checkable
 
 
 class DataInterval(NamedTuple):
