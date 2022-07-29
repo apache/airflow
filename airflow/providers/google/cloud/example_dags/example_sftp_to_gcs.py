@@ -38,7 +38,7 @@ OBJECT_SRC_3 = "parent-3.txt"
 
 with models.DAG(
     "example_sftp_to_gcs",
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

@@ -189,7 +189,7 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
 
         dag = DAG(
             dag_id,
-            schedule_interval=schedule,
+            schedule=schedule,
             default_args=default_args,
             pendulum.datetime(2021, 9, 13, tz="UTC"),
         )
@@ -422,7 +422,7 @@ upstream task.
         pass
 
 
-    @dag(schedule_interval="@once", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"))
+    @dag(schedule="@once", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"))
     def my_dag():
         a = a_func()
         b = b_func()

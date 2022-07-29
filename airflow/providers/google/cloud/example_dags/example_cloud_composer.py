@@ -55,7 +55,7 @@ UPDATE_MASK = {"paths": ["labels.label1"]}
 
 with models.DAG(
     "composer_dag1",
-    schedule_interval="@once",  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
@@ -118,7 +118,7 @@ with models.DAG(
 
 with models.DAG(
     "composer_dag_deferrable1",
-    schedule_interval="@once",  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

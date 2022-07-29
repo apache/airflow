@@ -34,7 +34,7 @@ FLOW_NAME = "salesforce-campaign"
 
 with DAG(
     "example_appflow",
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2022, 1, 1),
     catchup=False,
     tags=["example"],

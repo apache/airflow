@@ -26,7 +26,7 @@ S3_KEY = os.getenv("S3_KEY", "s3://<bucket>/<prefix>")
 
 with DAG(
     dag_id="example_gcs_to_s3",
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=["example"],
     catchup=False,

@@ -611,7 +611,7 @@ class DAG(LoggingMixin):
             dag1 = DAG("d1", timetable=MyTimetable())
             dag1.schedule_interval = "@once"
 
-            dag2 = DAG("d2", schedule_interval="@once")
+            dag2 = DAG("d2", schedule="@once")
             dag2.timetable = MyTimetable()
 
         Validation is done by creating a timetable and check its summary matches
@@ -3355,7 +3355,7 @@ class DagContext:
         with DAG(
             dag_id="example_dag",
             default_args=default_args,
-            schedule_interval="0 0 * * *",
+            schedule="0 0 * * *",
             dagrun_timeout=timedelta(minutes=60),
         ) as dag:
             ...

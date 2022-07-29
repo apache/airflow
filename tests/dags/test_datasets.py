@@ -35,7 +35,7 @@ dag_with_skip_task = DAG(
     dag_id='dag_with_skip_task',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
+    schedule='@daily',
     tags=['upstream-skipping'],
 )
 PythonOperator(
@@ -66,7 +66,7 @@ dag_with_fail_task = DAG(
     dag_id='dag_with_fail_task',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
+    schedule='@daily',
     tags=['upstream-skipping'],
 )
 PythonOperator(

@@ -231,7 +231,7 @@ class TestDag(unittest.TestCase):
     def test_dag_topological_sort_include_subdag_tasks(self):
         child_dag = DAG(
             'parent_dag.child_dag',
-            schedule_interval='@daily',
+            schedule='@daily',
             start_date=DEFAULT_DATE,
         )
 
@@ -241,7 +241,7 @@ class TestDag(unittest.TestCase):
 
         parent_dag = DAG(
             'parent_dag',
-            schedule_interval='@daily',
+            schedule='@daily',
             start_date=DEFAULT_DATE,
         )
 
@@ -539,7 +539,7 @@ class TestDag(unittest.TestCase):
         utc = timezone.convert_to_utc(start)
         assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
+        dag = DAG('tz_dag', start_date=start, schedule='*/5 * * * *')
         _next = dag.following_schedule(utc)
         next_local = local_tz.convert(_next)
 
@@ -566,7 +566,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+        dag = DAG('tz_dag', start_date=start, schedule='0 3 * * *')
 
         prev = dag.previous_schedule(utc)
         prev_local = local_tz.convert(prev)
@@ -595,7 +595,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+        dag = DAG('tz_dag', start_date=start, schedule='0 3 * * *')
 
         prev = dag.previous_schedule(utc)
         prev_local = local_tz.convert(prev)
@@ -621,7 +621,7 @@ class TestDag(unittest.TestCase):
         """
         dag_id = "test_schedule_dag_relativedelta"
         delta = relativedelta(hours=+1)
-        dag = DAG(dag_id=dag_id, schedule_interval=delta)
+        dag = DAG(dag_id=dag_id, schedule=delta)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
         _next = dag.following_schedule(TEST_DATE)
@@ -634,7 +634,7 @@ class TestDag(unittest.TestCase):
         # Check that we don't get an AttributeError 'name' for self.timezone
 
         start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
-        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        dag = DAG('tz_dag', start_date=start, schedule='@hourly')
         when = dag.previous_schedule(start)
         assert when.isoformat() == "2018-03-25T01:00:00+00:00"
 
@@ -642,7 +642,7 @@ class TestDag(unittest.TestCase):
         # Check that we don't get an AttributeError 'name' for self.timezone
 
         start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
-        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        dag = DAG('tz_dag', start_date=start, schedule='@hourly')
         when = dag.following_schedule(start)
         assert when.isoformat() == "2018-03-25T03:00:00+00:00"
 
@@ -666,7 +666,7 @@ class TestDag(unittest.TestCase):
                 return self.__class__._name
 
         start = datetime.datetime(2018, 3, 25, 10, tzinfo=UTC0530())
-        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        dag = DAG('tz_dag', start_date=start, schedule='@hourly')
         when = dag.following_schedule(start)
         assert when.isoformat() == "2018-03-25T05:30:00+00:00"
 
@@ -1201,7 +1201,7 @@ class TestDag(unittest.TestCase):
         """
         delta = datetime.timedelta(hours=1)
         dag_id = "test_schedule_dag_fake_scheduled_previous"
-        dag = DAG(dag_id=dag_id, schedule_interval=delta, start_date=DEFAULT_DATE)
+        dag = DAG(dag_id=dag_id, schedule=delta, start_date=DEFAULT_DATE)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=DEFAULT_DATE))
 
         dag.create_dagrun(
@@ -1227,7 +1227,7 @@ class TestDag(unittest.TestCase):
         it is called, and not scheduled the second.
         """
         dag_id = "test_schedule_dag_once"
-        dag = DAG(dag_id=dag_id, schedule_interval="@once")
+        dag = DAG(dag_id=dag_id, schedule="@once")
         assert isinstance(dag.timetable, OnceTimetable)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
@@ -1250,7 +1250,7 @@ class TestDag(unittest.TestCase):
         Tests if fractional seconds are stored in the database
         """
         dag_id = "test_fractional_seconds"
-        dag = DAG(dag_id=dag_id, schedule_interval="@once")
+        dag = DAG(dag_id=dag_id, schedule="@once")
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
         start_date = timezone.utcnow()
@@ -1354,7 +1354,7 @@ class TestDag(unittest.TestCase):
     def test_timetable_and_description_from_schedule_interval(
         self, schedule_interval, expected_timetable, interval_description
     ):
-        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+        dag = DAG("test_schedule_interval", schedule=schedule_interval)
         assert dag.timetable == expected_timetable
         assert dag.schedule_interval == schedule_interval
         assert dag.timetable.description == interval_description
@@ -1678,9 +1678,7 @@ class TestDag(unittest.TestCase):
         self._clean_up(dag_id)
 
     def test_next_dagrun_info_once(self):
-        dag = DAG(
-            'test_scheduler_dagrun_once', start_date=timezone.datetime(2015, 1, 1), schedule_interval="@once"
-        )
+        dag = DAG('test_scheduler_dagrun_once', start_date=timezone.datetime(2015, 1, 1), schedule="@once")
 
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2015, 1, 1)
@@ -1698,7 +1696,7 @@ class TestDag(unittest.TestCase):
         start_date = DEFAULT_DATE
         end_date = start_date + (runs - 1) * delta
         dag_id = "test_schedule_dag_start_end_dates"
-        dag = DAG(dag_id=dag_id, start_date=start_date, end_date=end_date, schedule_interval=delta)
+        dag = DAG(dag_id=dag_id, start_date=start_date, end_date=end_date, schedule=delta)
         dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
 
         # Create and schedule the dag runs
@@ -1728,7 +1726,7 @@ class TestDag(unittest.TestCase):
             }
             dag = DAG(
                 dag_id,
-                schedule_interval=schedule_interval,
+                schedule=schedule_interval,
                 start_date=start_date,
                 catchup=catchup,
                 default_args=default_args,
@@ -1750,7 +1748,7 @@ class TestDag(unittest.TestCase):
 
         dag1 = make_dag(
             dag_id='dag_without_catchup_ten_minute',
-            schedule_interval='*/10 * * * *',
+            schedule='*/10 * * * *',
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
@@ -1761,7 +1759,7 @@ class TestDag(unittest.TestCase):
 
         dag2 = make_dag(
             dag_id='dag_without_catchup_hourly',
-            schedule_interval='@hourly',
+            schedule='@hourly',
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
@@ -1774,7 +1772,7 @@ class TestDag(unittest.TestCase):
 
         dag3 = make_dag(
             dag_id='dag_without_catchup_once',
-            schedule_interval='@once',
+            schedule='@once',
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
@@ -1792,7 +1790,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             'test_scheduler_dagrun_once_with_timedelta_and_catchup_false',
             start_date=timezone.datetime(2015, 1, 1),
-            schedule_interval=timedelta(days=1),
+            schedule=timedelta(days=1),
             catchup=False,
         )
 
@@ -1812,7 +1810,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             'test_scheduler_dagrun_once_with_timedelta_and_catchup_true',
             start_date=timezone.datetime(2020, 5, 1),
-            schedule_interval=timedelta(days=1),
+            schedule=timedelta(days=1),
             catchup=True,
         )
 
@@ -1873,7 +1871,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_auto_align_1',
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
-            schedule_interval="4 5 * * *",
+            schedule="4 5 * * *",
         )
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -1883,7 +1881,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_auto_align_2',
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
-            schedule_interval="10 10 * * *",
+            schedule="10 10 * * *",
         )
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -1902,7 +1900,7 @@ class TestDag(unittest.TestCase):
             """
             dag_subdag = DAG(
                 dag_id=f'{parent_dag_name}.{child_dag_name}',
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args=args,
             )
 
@@ -1915,7 +1913,7 @@ class TestDag(unittest.TestCase):
             dag_id='test_subdag_operator',
             start_date=datetime.datetime(2019, 1, 1),
             max_active_runs=1,
-            schedule_interval=timedelta(minutes=1),
+            schedule=timedelta(minutes=1),
         ) as dag:
             section_1 = SubDagOperator(
                 task_id='section-1',
@@ -1951,7 +1949,7 @@ class TestDag(unittest.TestCase):
         assert dag.access_control == updated_permissions
 
     def test_validate_params_on_trigger_dag(self):
-        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag = models.DAG('dummy-dag', schedule=None, params={'param1': Param(type="string")})
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
@@ -1959,7 +1957,7 @@ class TestDag(unittest.TestCase):
                 execution_date=TEST_DATE,
             )
 
-        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag = models.DAG('dummy-dag', schedule=None, params={'param1': Param(type="string")})
         with pytest.raises(
             ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
         ):
@@ -1970,7 +1968,7 @@ class TestDag(unittest.TestCase):
                 conf={"param1": None},
             )
 
-        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag = models.DAG('dummy-dag', schedule=None, params={'param1': Param(type="string")})
         dag.create_dagrun(
             run_id="test_dagrun_missing_param",
             state=State.RUNNING,
@@ -1982,7 +1980,7 @@ class TestDag(unittest.TestCase):
         start_date = TEST_DATE
         delta = timedelta(days=1)
 
-        dag = models.DAG('dummy-dag', schedule_interval=delta)
+        dag = models.DAG('dummy-dag', schedule=delta)
         dag_dates = dag.date_range(start_date=start_date, num=3)
 
         assert dag_dates == [
@@ -2378,7 +2376,7 @@ def test_dag_timetable_match_schedule_interval(timetable):
 
 @pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
 def test_dag_schedule_interval_match_timetable(schedule_interval):
-    dag = DAG("my-dag", schedule_interval=schedule_interval)
+    dag = DAG("my-dag", schedule=schedule_interval)
     assert dag._check_schedule_interval_matches_timetable()
 
 
@@ -2566,7 +2564,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     ids=["in-dag-restriction", "out-of-dag-restriction"],
 )
 def test_iter_dagrun_infos_between(start_date, expected_infos):
-    dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly")
+    dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule="@hourly")
     EmptyOperator(task_id='dummy', dag=dag)
 
     iterator = dag.iter_dagrun_infos_between(
@@ -2636,7 +2634,7 @@ def test_get_next_data_interval(
     data_interval_end,
     expected_data_interval,
 ):
-    dag = DAG(dag_id="test_get_next_data_interval", schedule_interval="@daily")
+    dag = DAG(dag_id="test_get_next_data_interval", schedule="@daily")
     dag_model = DagModel(
         dag_id="test_get_next_data_interval",
         next_dagrun=logical_date,

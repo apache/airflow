@@ -94,7 +94,7 @@ METADATA_IMPORT = MetadataImport(
 
 
 with models.DAG(
-    "example_gcp_dataproc_metastore", start_date=datetime.datetime(2021, 1, 1), schedule_interval="@once"
+    "example_gcp_dataproc_metastore", start_date=datetime.datetime(2021, 1, 1), schedule="@once"
 ) as dag:
     # [START how_to_cloud_dataproc_metastore_create_service_operator]
     create_service = DataprocMetastoreCreateServiceOperator(

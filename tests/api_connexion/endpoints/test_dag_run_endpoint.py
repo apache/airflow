@@ -121,7 +121,7 @@ class TestDagRunEndpoint:
         dag_instance = DagModel(dag_id=dag_id)
         with create_session() as session:
             session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule_interval=None)
+        dag = DAG(dag_id=dag_id, schedule=None)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 

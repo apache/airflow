@@ -227,7 +227,7 @@ def delete_dms_assets():
 
 with DAG(
     dag_id='example_dms',
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

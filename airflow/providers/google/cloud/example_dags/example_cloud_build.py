@@ -116,7 +116,7 @@ create_build_from_repo_body: Dict[str, Any] = {
 
 with models.DAG(
     "example_gcp_cloud_build",
-    schedule_interval='@once',
+    schedule='@once',
     start_date=START_DATE,
     catchup=False,
     tags=["example"],
@@ -205,7 +205,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_cloud_build_trigger",
-    schedule_interval='@once',
+    schedule='@once',
     start_date=START_DATE,
     catchup=False,
     tags=["example"],

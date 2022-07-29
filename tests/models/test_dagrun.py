@@ -853,7 +853,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule=schedule_interval)
         dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:

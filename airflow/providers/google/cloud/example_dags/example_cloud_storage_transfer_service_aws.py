@@ -106,7 +106,7 @@ aws_to_gcs_transfer_body = {
 
 with models.DAG(
     'example_gcp_transfer_aws',
-    schedule_interval=None,  # Override to match your needs
+    schedule=None,  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

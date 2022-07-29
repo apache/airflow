@@ -115,7 +115,7 @@ class Timetable(Protocol):
     """Whether this timetable runs periodically.
 
     This defaults to and should generally be *True*, but some special setups
-    like ``schedule_interval=None`` and ``"@once"`` set it to *False*.
+    like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
     can_run: bool = True

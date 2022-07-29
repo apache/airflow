@@ -68,7 +68,7 @@ JOB_FLOW_OVERRIDES = {
 
 with DAG(
     dag_id='example_emr',
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

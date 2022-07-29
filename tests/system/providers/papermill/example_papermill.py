@@ -34,7 +34,7 @@ DAG_ID = "example_papermill_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=SCHEDULE_INTERVAL,
+    schedule=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
     tags=['example'],

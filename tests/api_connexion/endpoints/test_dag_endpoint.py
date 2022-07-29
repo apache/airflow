@@ -122,7 +122,7 @@ class TestDagEndpoint:
             dag_model = DagModel(
                 dag_id=f"TEST_DAG_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
-                schedule_interval="2 2 * * *",
+                schedule="2 2 * * *",
                 is_active=True,
                 is_paused=False,
             )
@@ -133,7 +133,7 @@ class TestDagEndpoint:
         dag_model = DagModel(
             dag_id="TEST_DAG_DELETED_1",
             fileloc="/tmp/dag_del_1.py",
-            schedule_interval="2 2 * * *",
+            schedule="2 2 * * *",
             is_active=False,
         )
         session.add(dag_model)
@@ -179,7 +179,7 @@ class TestGetDag(TestDagEndpoint):
         dag_model = DagModel(
             dag_id="TEST_DAG_1",
             fileloc="/tmp/dag_1.py",
-            schedule_interval=None,
+            schedule=None,
             is_paused=False,
         )
         session.add(dag_model)
@@ -901,7 +901,7 @@ class TestPatchDag(TestDagEndpoint):
     @provide_session
     def _create_dag_model(self, session=None):
         dag_model = DagModel(
-            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", schedule_interval="2 2 * * *", is_paused=True
+            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", schedule="2 2 * * *", is_paused=True
         )
         session.add(dag_model)
         return dag_model

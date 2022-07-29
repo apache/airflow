@@ -146,7 +146,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
         },
         start_date=pendulum.datetime(2015, 12, 1, tz="UTC"),
         description="A simple tutorial DAG",
-        schedule_interval="@daily",
+        schedule="@daily",
         catchup=False,
     )
 
@@ -253,7 +253,7 @@ Example of a parameterized DAG:
 
     dag = DAG(
         "example_parameterized_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
     )

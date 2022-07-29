@@ -50,7 +50,7 @@ with DAG(
     dag_id='example_dataset_dag1',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_interval='@daily',
+    schedule='@daily',
     tags=['upstream'],
 ) as dag1:
     # [START task_outlet]
@@ -61,7 +61,7 @@ with DAG(
     dag_id='example_dataset_dag2',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_interval=None,
+    schedule=None,
     tags=['upstream'],
 ) as dag2:
     BashOperator(outlets=[dag2_dataset], task_id='upstream_task_2', bash_command="sleep 5")

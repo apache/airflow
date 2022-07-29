@@ -40,7 +40,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example', "gcs"],

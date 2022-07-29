@@ -690,7 +690,7 @@ class TestDagFileProcessorManager:
         dag_code = dedent(
             """
         from airflow import DAG
-        dag = DAG(dag_id='temp_dag', schedule_interval='0 0 * * *')
+        dag = DAG(dag_id='temp_dag', schedule='0 0 * * *')
         """
         )
         with open(filename_to_parse, 'w') as file_to_parse:
