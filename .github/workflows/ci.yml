@@ -1765,7 +1765,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: needs.build-info.outputs.default-branch == 'main'
       - name: "Push PROD latest image ${{ matrix.platform }}"
         run: >
-          breeze build-prod-image --tag-as-latest
+          breeze build-prod-image --tag-as-latest --install-packages-from-context
           --push-image --run-in-parallel --platform ${{ matrix.platform }}
         if: matrix.platform == 'linux/amd64'
       - name: "Stop ARM instance"
