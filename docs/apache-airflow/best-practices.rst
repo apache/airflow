@@ -483,6 +483,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     import pytest
 
+    from airflow import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunType
 
