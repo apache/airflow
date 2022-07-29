@@ -470,13 +470,34 @@ class DAG(LoggingMixin):
         scheduling_args = [schedule_interval, timetable, schedule]
         if not at_most_one(*scheduling_args):
             raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
-        dataset_triggers = []
-        if schedule and isinstance(schedule, List) and isinstance(schedule[0], Dataset):
-            dataset_triggers = schedule
+        if schedule_interval is not NOTSET:
+            warnings.warn(
+                "Param `schedule_interval` is deprecated and will be removed in a future release. "
+                "Please use `schedule` instead. ",
+                DeprecationWarning,
+            )
+        if timetable is not NOTSET:
+            warnings.warn(
+                "Param `timetable` is deprecated and will be removed in a future release. "
+                "Please use `schedule` instead. ",
+                DeprecationWarning,
+            )
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: Optional[List[Dataset]] = list(dataset_triggers) if dataset_triggers else None
-        if dataset_triggers:
+        self.dataset_triggers: Optional[List[Dataset]] = None
+
+        if schedule and isinstance(schedule, Sequence):
+            # if Sequence, only support Sequence[Dataset]
+            if any(isinstance(x, Dataset) for x in schedule):
+                if not all(isinstance(x, Dataset) for x in schedule):
+                    raise ValueError("If scheduling DAG with List[Dataset], all elements must be Dataset.")
+                self.dataset_triggers = list(schedule)
+            else:
+                raise ValueError(
+                    "Use of List object with `schedule` param is only supported for List[Dataset]."
+                )
+
+        if self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
             self.schedule_interval = self.timetable.summary
         elif timetable:
