@@ -23,16 +23,25 @@ from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 
 
-def deep_string_coerce(content, json_path: str = 'json') -> Union[str, list, dict]:
+def deep_string_coerce(content, json_path: str = 'json') -> Union[str, bool, list, dict]:
     """
     Coerces content or all values of content if it is a dict to a string. The
     function will throw if content contains non-string or non-numeric types.
     The reason why we have this function is because the ``self.json`` field must be a
     dict with only string values. This is because ``render_template`` will fail
     for numerical values.
+
+    The only one exception is when we have boolean values, they can not be converted
+    to string type because databricks does not understand 'True' or 'False' values.
     """
     coerce = deep_string_coerce
-    if isinstance(content, str):
+    if isinstance(
+        content,
+        (
+            str,
+            bool,
+        )
+    ):
         return content
     elif isinstance(
         content,

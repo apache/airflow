@@ -32,6 +32,7 @@ RUN_PAGE_URL = 'run-page-url'
 class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
     def test_deep_string_coerce(self):
         test_json = {
+            'test_bool': True,
             'test_int': 1,
             'test_float': 1.0,
             'test_dict': {'key': 'value'},
@@ -40,6 +41,7 @@ class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
         }
 
         expected = {
+            'test_bool': True,
             'test_int': '1',
             'test_float': '1.0',
             'test_dict': {'key': 'value'},
