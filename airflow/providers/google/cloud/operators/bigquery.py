@@ -2229,4 +2229,6 @@ class BigQueryInsertJobOperator(BaseOperator):
                 job_id=self.job_id, project_id=self.project_id, location=self.location
             )
         else:
-            self.log.info(f'Skipping to cancel job: {self.project_id}:{self.location}.{self.job_id}')
+            self.log.info(
+                'Skipping to cancel job: %s:%s.%s', self.project_id, self.location, self.job_id
+            )
