@@ -1242,8 +1242,8 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_description(self, mock_get_service):
         bq_cursor = self.hook.get_cursor()
-        with pytest.raises(NotImplementedError):
-            bq_cursor.description
+        bq_cursor.execute("SELECT CURRENT_TIMESTAMP() as ts")
+        assert bq_cursor.description == ("ts", "STRING", None, None, None, None, True)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_close(self, mock_get_service):
