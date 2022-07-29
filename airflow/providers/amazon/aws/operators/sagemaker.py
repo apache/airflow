@@ -428,6 +428,13 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
         self.action_if_job_exists = action_if_job_exists
+        if action_if_job_exists in ('increment', 'fail'):
+            self.action_if_job_exists = action_if_job_exists
+        else:
+            raise AirflowException(
+                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                Provided value: '{action_if_job_exists}'."
+            )
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
