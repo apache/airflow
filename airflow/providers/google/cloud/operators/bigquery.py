@@ -2228,3 +2228,5 @@ class BigQueryInsertJobOperator(BaseOperator):
             self.hook.cancel_job(  # type: ignore[union-attr]
                 job_id=self.job_id, project_id=self.project_id, location=self.location
             )
+        else:
+            self.log.info(f'Skipping to cancel job: {self.project_id}:{self.location}.{self.job_id}')
