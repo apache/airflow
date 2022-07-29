@@ -273,6 +273,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 .. code-block:: python
 
     from datetime import datetime
+
     from airflow import DAG
     from airflow.decorators import task
     from airflow.exceptions import AirflowException
@@ -479,10 +480,11 @@ This is an example test want to verify the structure of a code-generated DAG aga
 .. code-block:: python
 
     import datetime
-    import pendulum
 
+    import pendulum
     import pytest
 
+    from airflow import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunType
 
