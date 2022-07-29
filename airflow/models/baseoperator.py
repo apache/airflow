@@ -1488,15 +1488,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def parse_owner(self, owner) -> Tuple[str, Dict[str, str]]:
         """Receiving the owner from the task, and based on it's type returning an object with a link or not"""
-        if isinstance(owner, str):
-            return owner, {owner: ""}
-        elif isinstance(owner, dict):
+        if isinstance(owner, dict):
             if not self._is_valid_link(owner['link']):
                 raise AirflowException("Wrong link format was used for the owner. Use a valid link")
-
-            return owner['name'], {owner['name']: owner['link']}
+            return str(owner['name']), {owner['name']: owner['link']}
         else:
-            raise AirflowException("Wrong owner structure was passed for owner")
+            return owner, {str(owner): ""}
 
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""

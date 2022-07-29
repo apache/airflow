@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add dag_owner_attributes table
+"""add dag_owner_attributes table
 
-Revision ID: 38d6c28f9cf9
+Revision ID: 679989279cf4
 Revises: 0038cd0c28b4
-Create Date: 2022-07-20 14:37:20.880672
+Create Date: 2022-07-29 09:45:15.972777
 
 """
 
@@ -29,7 +29,8 @@ from alembic import op
 
 from airflow.models import ID_LEN
 
-revision = '38d6c28f9cf9'
+# revision identifiers, used by Alembic.
+revision = '679989279cf4'
 down_revision = '0038cd0c28b4'
 branch_labels = None
 depends_on = None
