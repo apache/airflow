@@ -3765,7 +3765,7 @@ class ConfigurationView(AirflowBaseView):
                 config = ''.join(config)
 
             table = [
-                (section, key, value, source)
+                (section, key, str(value), source)
                 for section, parameters in conf.as_dict(True, False).items()
                 for key, (value, source) in parameters.items()
             ]
@@ -3774,7 +3774,7 @@ class ConfigurationView(AirflowBaseView):
             with open(AIRFLOW_CONFIG) as file:
                 config = file.read()
             table = [
-                (section, key, value, source)
+                (section, key, str(value), source)
                 for section, parameters in conf.as_dict(True, True).items()
                 for key, (value, source) in parameters.items()
             ]

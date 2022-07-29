@@ -35,9 +35,7 @@ def test_user_can_view_configuration(admin_client):
     resp = admin_client.get('configuration', follow_redirects=True)
     for section, key in SENSITIVE_CONFIG_VALUES:
         value = conf.get(section, key, fallback='')
-        if not value or 'mssql' in value:
-            # TODO: investigate why mssql db can't be found
-            # in response at this point
+        if not value:
             continue
         check_content_in_response(value, resp)
 
