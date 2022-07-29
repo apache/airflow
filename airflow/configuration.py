@@ -926,6 +926,18 @@ class AirflowConfigParser(ConfigParser):
         else:
             self._filter_by_source(config_sources, display_source, self._get_secret_option)
 
+        if not display_sensitive:
+            # This ensures the ones from config file is hidden too
+            # if they are not provided through env, cmd and secret
+            hidden = '< hidden >'
+            for (section, key) in self.sensitive_config_values:
+                if config_sources[section].get(key, None):
+                    if display_source:
+                        source = config_sources[section][key][1]
+                        config_sources[section][key] = (hidden, source)
+                    else:
+                        config_sources[section][key] = hidden
+
         return config_sources
 
     def _include_secrets(
@@ -992,7 +1004,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             if not display_sensitive and env_var != self._env_var_name('core', 'unit_test_mode'):
                 # Don't hide cmd/secret values here
-                if not env_var.lower().endswith('cmd') and not env_var.lower().endswith("cmd"):
+                if not env_var.lower().endswith('cmd') and not env_var.lower().endswith("secret"):
                     opt = '< hidden >'
             elif raw:
                 opt = opt.replace('%', '%%')

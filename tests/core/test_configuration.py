@@ -559,6 +559,15 @@ notacommand = OK
             # the environment variable's echo command
             assert test_cmdenv_conf.get('testcmdenv', 'notacommand') == 'OK'
 
+    @pytest.mark.parametrize('display_sensitive, result', [(True, 'OK'), (False, '< hidden >')])
+    def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
+
+        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf.sensitive_config_values.add(('testcmdenv', 'itsacommand'))
+        with unittest.mock.patch.dict('os.environ'):
+            asdict = test_cmdenv_conf.as_dict(True, display_sensitive)
+            assert asdict['testcmdenv']['itsacommand'] == (result, 'cmd')
+
     def test_parameterized_config_gen(self):
         config = textwrap.dedent(
             """
