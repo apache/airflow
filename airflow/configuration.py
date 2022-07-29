@@ -931,6 +931,8 @@ class AirflowConfigParser(ConfigParser):
             # if they are not provided through env, cmd and secret
             hidden = '< hidden >'
             for (section, key) in self.sensitive_config_values:
+                if not config_sources.get(section):
+                    continue
                 if config_sources[section].get(key, None):
                     if display_source:
                         source = config_sources[section][key][1]

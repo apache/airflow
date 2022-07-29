@@ -260,6 +260,9 @@ sql_alchemy_conn = airflow
         }
 
         assert 'sqlite:////Users/airflow/airflow/airflow.db' == test_conf.get('test', 'sql_alchemy_conn')
+        # Hide sensitive fields
+        asdict = test_conf.as_dict(display_sensitive=False)
+        assert '< hidden >' == asdict['test']['sql_alchemy_conn']
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
