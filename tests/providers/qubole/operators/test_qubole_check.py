@@ -19,19 +19,19 @@
 import unittest
 from datetime import datetime
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from qds_sdk.commands import HiveCommand
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.providers.common.sql.operators.sql import SQLCheckOperator, SQLValueCheckOperator
 from airflow.providers.qubole.hooks.qubole import QuboleHook
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
 from airflow.providers.qubole.operators.qubole_check import (
     QuboleCheckOperator,
     QuboleValueCheckOperator,
-    SQLCheckOperator,
-    SQLValueCheckOperator,
     _QuboleCheckOperatorMixin,
 )
 
@@ -80,7 +80,7 @@ class TestQuboleCheckMixin:
         operator = self.__construct_operator(operator_class=operator_class, **kwargs)
 
         with mock.patch.object(parent_check_operator, 'execute') as mock_execute:
-            operator.execute()
+            operator.execute(context=MagicMock())
             mock_execute.assert_called_once()
 
     @mock.patch('airflow.providers.qubole.operators.qubole_check.handle_airflow_exception')
@@ -89,7 +89,7 @@ class TestQuboleCheckMixin:
 
         with mock.patch.object(parent_check_operator, 'execute') as mock_execute:
             mock_execute.side_effect = AirflowException()
-            operator.execute()
+            operator.execute(context=MagicMock())
             mock_execute.assert_called_once()
             mock_handle_airflow_exception.assert_called_once()
 
@@ -153,7 +153,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
 
         with pytest.raises(AirflowException, match='Qubole Command Id: ' + str(mock_cmd.id)):
-            operator.execute()
+            operator.execute(context=MagicMock())
 
         mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
@@ -173,7 +173,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
 
         with pytest.raises(AirflowException) as ctx:
-            operator.execute()
+            operator.execute(context=MagicMock())
 
         assert 'Qubole Command Id: ' not in str(ctx.value)
         mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
@@ -193,5 +193,5 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         operator = self.__construct_operator(
             'select value from tab1 limit 1;', pass_value, None, results_parser_callable
         )
-        operator.execute()
+        operator.execute(context=MagicMock())
         results_parser_callable.assert_called_once_with([pass_value])

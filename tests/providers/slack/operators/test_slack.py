@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import unittest
 from unittest import mock
+from unittest.mock import MagicMock
 
 from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator
 
@@ -119,7 +119,7 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             slack_conn_id=test_slack_conn_id,
         )
 
-        slack_api_post_operator.execute()
+        slack_api_post_operator.execute(context=MagicMock())
 
         expected_api_params = {
             'channel': "#general",
@@ -195,7 +195,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
             task_id='slack', slack_conn_id=test_slack_conn_id, content='test-content'
         )
 
-        slack_api_post_operator.execute()
+        slack_api_post_operator.execute(context=MagicMock())
 
         expected_api_params = {
             'channels': '#general',
@@ -221,7 +221,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
             task_id='slack', slack_conn_id=test_slack_conn_id, filename=file_path, filetype='csv'
         )
 
-        slack_api_post_operator.execute()
+        slack_api_post_operator.execute(context=MagicMock())
 
         expected_api_params = {
             'channels': '#general',

@@ -149,7 +149,7 @@ class TestSqlToSlackOperator:
         # Test that the Slack hook's execute method gets run once
         slack_webhook_hook.execute.assert_called_once()
 
-    @mock.patch('airflow.operators.sql.BaseHook.get_connection')
+    @mock.patch('airflow.providers.common.sql.operators.sql.BaseHook.get_connection')
     def test_hook_params_building(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id='snowflake_connection', conn_type='snowflake')
         hook_params = {
@@ -172,7 +172,7 @@ class TestSqlToSlackOperator:
 
         assert sql_to_slack_operator.sql_hook_params == hook_params
 
-    @mock.patch('airflow.operators.sql.BaseHook.get_connection')
+    @mock.patch('airflow.providers.common.sql.operators.sql.BaseHook.get_connection')
     def test_hook_params(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id='postgres_test', conn_type='postgres')
         op = SqlToSlackOperator(
@@ -188,7 +188,7 @@ class TestSqlToSlackOperator:
         hook = op._get_hook()
         assert hook.schema == 'public'
 
-    @mock.patch('airflow.operators.sql.BaseHook.get_connection')
+    @mock.patch('airflow.providers.common.sql.operators.sql.BaseHook.get_connection')
     def test_hook_params_snowflake(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id='snowflake_default', conn_type='snowflake')
         op = SqlToSlackOperator(

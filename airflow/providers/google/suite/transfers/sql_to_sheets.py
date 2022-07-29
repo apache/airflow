@@ -22,7 +22,7 @@ import numbers
 from contextlib import closing
 from typing import Any, Iterable, Mapping, Optional, Sequence, Union
 
-from airflow.operators.sql import BaseSQLOperator
+from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 
 
