@@ -18,8 +18,9 @@
 
 """Example DAG demonstrating the usage of the ``@task.branch`` TaskFlow API decorator."""
 
-import random
 from __future__ import annotations
+
+import random
 
 import pendulum
 
