@@ -31,6 +31,7 @@ import {
 } from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
 import type { API } from 'src/types';
+import InfoTooltip from 'src/components/InfoTooltip';
 
 interface Props {
   datasetId: string;
@@ -69,8 +70,11 @@ const Details = ({
       <Time dateTime={createdAt} />
     </Flex>
     {upstreamTaskReferences && !!upstreamTaskReferences.length && (
-    <Box>
-      <Text>Upstream Tasks</Text>
+    <Box mb={2}>
+      <Flex alignItems="center">
+        <Heading size="md" fontWeight="normal">Upstream Tasks</Heading>
+        <InfoTooltip label="Tasks that will update this dataset." size={14} />
+      </Flex>
       {upstreamTaskReferences.map(({ dagId, taskId }) => (
         <Link key={`${dagId}.${taskId}`} color="blue.600" href={`/dags/${dagId}/grid`}>
           {`${dagId}.${taskId}`}
@@ -80,7 +84,10 @@ const Details = ({
     )}
     {downstreamDagReferences && !!downstreamDagReferences.length && (
     <Box>
-      <Text>Downstream DAGs</Text>
+      <Flex alignItems="center">
+        <Heading size="md" fontWeight="normal">Downstream DAGs</Heading>
+        <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
+      </Flex>
       {downstreamDagReferences.map(({ dagId }) => (
         <Link key={dagId} color="blue.600" href={`/dags/${dagId}/grid`}>
           {dagId}
@@ -141,8 +148,10 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
       <Button onClick={onBack}>See all datasets</Button>
       {isLoading && <Spinner display="block" />}
       {!!dataset && (<Details dataset={dataset} />)}
-      <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
-      <Text>Whenever a DAG has updated this dataset.</Text>
+      <Flex alignItems="center">
+        <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
+        <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
+      </Flex>
       <Table
         data={data}
         columns={columns}
