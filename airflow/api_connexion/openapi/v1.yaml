@@ -3505,6 +3505,59 @@ components:
           type: string
           description: The dataset update time
           nullable: false
+        downstream_dag_references:
+            type: array
+            items:
+              $ref: '#/components/schemas/DatasetDagRef'
+        upstream_task_references:
+            type: array
+            items:
+              $ref: '#/components/schemas/DatasetTaskRef'
+
+
+    DatasetTaskRef:
+      description: |
+        A datasets reference to an upstream task.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID that updates the dataset.
+          nullable: true
+        task_id:
+          type: string
+          description: The task ID that updates the dataset.
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset creation time
+          nullable: false
+        updated_at:
+          type: string
+          description: The dataset update time
+          nullable: false
+
+    DatasetDagRef:
+      description: |
+        A datasets reference to a downstream DAG.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID that depends on the dataset.
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset reference creation time
+          nullable: false
+        updated_at:
+          type: string
+          description: The dataset reference update time
+          nullable: false
 
     DatasetCollection:
       description: |
