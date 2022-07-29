@@ -70,7 +70,7 @@
   },
   "apache.druid": {
     "deps": [
-      "apache-airflow-providers-common-sql",
+      "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
       "pydruid>=0.4.1"
     ],
@@ -292,7 +292,7 @@
   "google": {
     "deps": [
       "PyOpenSSL",
-      "apache-airflow-providers-common-sql",
+      "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
       "google-ads>=15.1.1",
       "google-api-core>=2.7.0,<3.0.0",
@@ -576,7 +576,7 @@
   },
   "qubole": {
     "deps": [
-      "apache-airflow-providers-common-sql",
+      "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
       "qds-sdk>=1.10.4"
     ],
@@ -650,7 +650,7 @@
   },
   "snowflake": {
     "deps": [
-      "apache-airflow-providers-common-sql",
+      "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
       "snowflake-connector-python>=2.4.1",
       "snowflake-sqlalchemy>=1.1.0"
