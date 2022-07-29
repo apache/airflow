@@ -464,7 +464,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         (e.g. user/person/team/role name) to clarify ownership is recommended.
         You can also provide a dict containing a link that will be clickable in the UI.
         eg: {"name": "owner1", "link": "https://www.my_team_website.com"}. You can use it as a Slack channel
-        or 'mailto' links for quick emails.
+        or 'email links' for quick emails.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
         comma or semi-colon separated string or by passing a list of strings.
