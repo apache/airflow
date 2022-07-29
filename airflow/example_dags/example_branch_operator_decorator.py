@@ -19,7 +19,7 @@
 """Example DAG demonstrating the usage of the ``@task.branch`` TaskFlow API decorator."""
 
 import random
-from typing import List
+from __future__ import annotations
 
 import pendulum
 
@@ -41,7 +41,7 @@ with DAG(
     options = ['branch_a', 'branch_b', 'branch_c', 'branch_d']
 
     @task.branch(task_id="branching")
-    def random_choice(choices: List[str]) -> str:
+    def random_choice(choices: list[str]) -> str:
         return random.choice(choices)
 
     random_choice_instance = random_choice(choices=options)
