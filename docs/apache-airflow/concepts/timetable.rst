@@ -55,18 +55,6 @@ Built In Timetables
 Airflow comes with several common timetables built in to cover the most common use cases. Additional timetables
 may be available in plugins.
 
-CronDataIntervalTimetable
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Set schedule based on a cron expression. Can be selected by providing a string that is a valid
-cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
-
-.. code-block:: python
-
-    @dag(schedule_interval="0 1 * * 3")  # At 01:00 on Wednesday.
-    def example_dag():
-        pass
-
 CronTriggerTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -98,6 +86,18 @@ Schedules data intervals with a time delta. Can be selected by providing a
 .. code-block:: python
 
     @dag(schedule_interval=datetime.timedelta(minutes=30))
+    def example_dag():
+        pass
+
+CronDataIntervalTimetable
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set schedule based on a cron expression. Can be selected by providing a string that is a valid
+cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
+
+.. code-block:: python
+
+    @dag(schedule_interval="0 1 * * 3")  # At 01:00 on Wednesday.
     def example_dag():
         pass
 

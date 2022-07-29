@@ -249,8 +249,7 @@ class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimetable):
 
 
 class CronTriggerTimetable(_CronMixin, Timetable):
-    """Another timetable which accepts a cron expression. It behaves more
-    compliant with standard cron than ``CronDataIntervalTimetable``.
+    """A cron-compliant timetable.
 
     The main difference from ``CronDataIntervalTimetable`` is that a first
     DAG Run is kicked off at the start of the period like a normal cron,
