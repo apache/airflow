@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
 from freezegun import freeze_time
 
 from airflow.api_connexion.schemas.dataset_schema import (
@@ -31,14 +32,16 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
 
 class TestDatasetSchemaBase:
-    def setup_method(self) -> None:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         clear_db_dags()
         clear_db_datasets()
         self.timestamp = "2022-06-10T12:02:44+00:00"
         self.freezer = freeze_time(self.timestamp)
         self.freezer.start()
 
-    def teardown_method(self) -> None:
+        yield
+
         self.freezer.stop()
         clear_db_dags()
         clear_db_datasets()
@@ -47,6 +50,7 @@ class TestDatasetSchemaBase:
 class TestDatasetSchema(TestDatasetSchemaBase):
     def test_serialize(self, dag_maker, session):
         dataset = Dataset(
+            id=1,
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
@@ -60,7 +64,6 @@ class TestDatasetSchema(TestDatasetSchemaBase):
             EmptyOperator(task_id="task2")
         session.flush()
         serialized_data = dataset_schema.dump(dataset)
-        serialized_data['id'] = 1
         assert serialized_data == {
             "id": 1,
             "uri": "s3://bucket/key",
@@ -90,18 +93,17 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
         datasets = [
             Dataset(
-                uri=f"s3://bucket/key/{i+1}",
+                id=i,
+                uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
             )
-            for i in range(2)
+            for i in [1, 2]
         ]
         session.add_all(datasets)
         session.flush()
         serialized_data = dataset_collection_schema.dump(
             DatasetCollection(datasets=datasets, total_entries=2)
         )
-        serialized_data['datasets'][0]['id'] = 1
-        serialized_data['datasets'][1]['id'] = 2
         assert serialized_data == {
             "datasets": [
                 {

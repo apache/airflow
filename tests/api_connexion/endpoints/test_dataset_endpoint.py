@@ -16,12 +16,12 @@
 # under the License.
 
 import pytest
+from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dataset import Dataset, DatasetEvent
 from airflow.security import permissions
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.asserts import assert_queries_count
@@ -53,12 +53,16 @@ class TestDatasetEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup(self, configured_app):
         self.app = configured_app
         self.client = self.app.test_client()
         clear_db_datasets()
+        self.freezer = freeze_time(self.default_time)
+        self.freezer.start()
 
-    def teardown_method(self) -> None:
+        yield
+
+        self.freezer.stop()
         clear_db_datasets()
 
     def _create_dataset(self, session):
@@ -66,8 +70,6 @@ class TestDatasetEndpoint:
             id=1,
             uri="s3://bucket/key",
             extra={"foo": "bar"},
-            created_at=timezone.parse(self.default_time),
-            updated_at=timezone.parse(self.default_time),
         )
         session.add(dataset_model)
         session.commit()
@@ -116,8 +118,6 @@ class TestGetDatasets(TestDatasetEndpoint):
                 id=i,
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -159,8 +159,6 @@ class TestGetDatasets(TestDatasetEndpoint):
             Dataset(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -181,8 +179,6 @@ class TestGetDatasets(TestDatasetEndpoint):
             Dataset(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -214,8 +210,6 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             Dataset(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, 110)
         ]
@@ -233,8 +227,6 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             Dataset(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, 110)
         ]
@@ -252,8 +244,6 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             Dataset(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, 200)
         ]
@@ -278,7 +268,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
         assert session.query(DatasetEvent).count() == 2
@@ -322,8 +312,6 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 id=i,
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in [1, 2, 3]
         ]
@@ -337,7 +325,6 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
                 source_map_index=i,
-                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2, 3]
         ]
@@ -378,7 +365,6 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id="custom",
                 source_map_index=-1,
-                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -434,7 +420,6 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 10)
         ]
@@ -456,7 +441,6 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 110)
         ]
@@ -478,7 +462,6 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 200)
         ]
