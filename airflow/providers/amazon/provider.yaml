@@ -589,7 +589,7 @@ extra-links:
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
     connection-type: s3
-  - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
+  - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
     connection-type: aws
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
