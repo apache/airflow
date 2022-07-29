@@ -19,7 +19,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Box, Heading, Text, Code, Flex, Spinner, Button,
+  Box, Heading, Text, Code, Flex, Spinner, Button, Link,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
@@ -30,11 +30,66 @@ import {
   Table, TimeCell, CodeCell, TaskInstanceLink,
 } from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
+import type { API } from 'src/types';
 
 interface Props {
   datasetId: string;
   onBack: () => void;
 }
+
+const Details = ({
+  dataset: {
+    createdAt,
+    updatedAt,
+    uri,
+    extra,
+    upstreamTaskReferences,
+    downstreamDagReferences,
+  },
+}: { dataset: API.Dataset }) => (
+  <Box>
+    <Heading my={2} fontWeight="normal">
+      Dataset:
+      {' '}
+      {uri}
+      <ClipboardButton value={uri} iconOnly ml={2} />
+    </Heading>
+    {!!extra && (
+      <Flex>
+        <Text mr={1}>Extra:</Text>
+        <Code>{JSON.stringify(extra)}</Code>
+      </Flex>
+    )}
+    <Flex my={2}>
+      <Text mr={1}>Updated At:</Text>
+      <Time dateTime={updatedAt} />
+    </Flex>
+    <Flex my={2}>
+      <Text mr={1}>Created At:</Text>
+      <Time dateTime={createdAt} />
+    </Flex>
+    {upstreamTaskReferences && !!upstreamTaskReferences.length && (
+    <Box>
+      <Text>Upstream Tasks</Text>
+      {upstreamTaskReferences.map(({ dagId, taskId }) => (
+        <Link key={`${dagId}.${taskId}`} color="blue.600" href={`/dags/${dagId}/grid`}>
+          {`${dagId}.${taskId}`}
+        </Link>
+      ))}
+    </Box>
+    )}
+    {downstreamDagReferences && !!downstreamDagReferences.length && (
+    <Box>
+      <Text>Downstream DAGs</Text>
+      {downstreamDagReferences.map(({ dagId }) => (
+        <Link key={dagId} color="blue.600" href={`/dags/${dagId}/grid`}>
+          {dagId}
+        </Link>
+      ))}
+    </Box>
+    )}
+  </Box>
+);
 
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;
@@ -85,30 +140,7 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
     <Box mt={[6, 3]} maxWidth="1500px">
       <Button onClick={onBack}>See all datasets</Button>
       {isLoading && <Spinner display="block" />}
-      {!!dataset && (
-        <Box>
-          <Heading my={2} fontWeight="normal">
-            Dataset:
-            {' '}
-            {dataset.uri}
-            <ClipboardButton value={dataset.uri} iconOnly ml={2} />
-          </Heading>
-          {!!dataset.extra && (
-            <Flex>
-              <Text mr={1}>Extra:</Text>
-              <Code>{JSON.stringify(dataset.extra)}</Code>
-            </Flex>
-          )}
-          <Flex my={2}>
-            <Text mr={1}>Updated At:</Text>
-            <Time dateTime={dataset.updatedAt} />
-          </Flex>
-          <Flex my={2}>
-            <Text mr={1}>Created At:</Text>
-            <Time dateTime={dataset.createdAt} />
-          </Flex>
-        </Box>
-      )}
+      {!!dataset && (<Details dataset={dataset} />)}
       <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
       <Text>Whenever a DAG has updated this dataset.</Text>
       <Table

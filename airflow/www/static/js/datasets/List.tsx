@@ -60,6 +60,16 @@ const DatasetsList = ({ onSelect }: Props) => {
         Cell: CodeCell,
       },
       {
+        Header: 'Upstream Tasks',
+        accessor: 'upstreamTaskReferences',
+        Cell: ({ cell: { value } }: any) => value.length,
+      },
+      {
+        Header: 'Downstream DAGs',
+        accessor: 'downstreamDagReferences',
+        Cell: ({ cell: { value } }: any) => value.length,
+      },
+      {
         Header: 'Created At',
         accessor: 'createdAt',
         Cell: TimeCell,
