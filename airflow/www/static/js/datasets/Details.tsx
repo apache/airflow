@@ -149,7 +149,7 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
       {isLoading && <Spinner display="block" />}
       {!!dataset && (<Details dataset={dataset} />)}
       <Flex alignItems="center">
-        <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
+        <Heading size="lg" mt={3} mb={2} fontWeight="normal">Events</Heading>
         <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
       </Flex>
       <Table
