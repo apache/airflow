@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, Iterable, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -22,6 +23,15 @@ from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+@dataclass
+class InitializationAction:
+    """Data for initialization action to be run at start of DataProc cluster."""
+
+    uri: str  # Uri of the executable file
+    args: Sequence[str]  # Arguments to the initialization action
+    timeout: int  # Execution timeout
 
 
 class DataprocCreateClusterOperator(BaseOperator):
@@ -69,9 +79,20 @@ class DataprocCreateClusterOperator(BaseOperator):
                                    in percents. 10-100.
                                    By default is not set and default autoscaling strategy is used.
     :param computenode_decommission_timeout: Timeout to gracefully decommission nodes during downscaling.
-                                             In seconds.
+                                             In seconds
+    :param properties: Properties passed to main node software.
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/settings-list
+    :param enable_ui_proxy: Enable UI Proxy feature for forwarding Hadoop components web interfaces
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/ui-proxy
+    :param host_group_ids: Dedicated host groups to place VMs of cluster on.
+                        Docs: https://cloud.yandex.com/docs/compute/concepts/dedicated-host
+    :param security_group_ids: User security groups.
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/network#security-groups
     :param log_group_id: Id of log group to write logs. By default logs will be sent to default log group.
                     To disable cloud log sending set cluster property dataproc:disable_cloud_logging = true
+                    Docs: https://cloud.yandex.com/docs/data-proc/concepts/logs
+    :param initialization_actions: Set of init-actions to run when cluster starts.
+                        Docs: https://cloud.yandex.com/docs/data-proc/concepts/init-action
     """
 
     def __init__(
@@ -106,7 +127,12 @@ class DataprocCreateClusterOperator(BaseOperator):
         computenode_cpu_utilization_target: Optional[int] = None,
         computenode_decommission_timeout: Optional[int] = None,
         connection_id: Optional[str] = None,
+        properties: Optional[Dict[str, str]] = None,
+        enable_ui_proxy: bool = False,
+        host_group_ids: Optional[Iterable[str]] = None,
+        security_group_ids: Optional[Iterable[str]] = None,
         log_group_id: Optional[str] = None,
+        initialization_actions: Optional[Iterable[InitializationAction]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -139,11 +165,16 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.computenode_preemptible = computenode_preemptible
         self.computenode_cpu_utilization_target = computenode_cpu_utilization_target
         self.computenode_decommission_timeout = computenode_decommission_timeout
+        self.properties = properties
+        self.enable_ui_proxy = enable_ui_proxy
+        self.host_group_ids = host_group_ids
+        self.security_group_ids = security_group_ids
         self.log_group_id = log_group_id
+        self.initialization_actions = initialization_actions
 
         self.hook: Optional[DataprocHook] = None
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: 'Context') -> dict:
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
         )
@@ -176,14 +207,35 @@ class DataprocCreateClusterOperator(BaseOperator):
             computenode_preemptible=self.computenode_preemptible,
             computenode_cpu_utilization_target=self.computenode_cpu_utilization_target,
             computenode_decommission_timeout=self.computenode_decommission_timeout,
+            properties=self.properties,
+            enable_ui_proxy=self.enable_ui_proxy,
+            host_group_ids=self.host_group_ids,
+            security_group_ids=self.security_group_ids,
             log_group_id=self.log_group_id,
+            initialization_actions=self.initialization_actions
+            and [
+                self.hook.sdk.wrappers.InitializationAction(
+                    uri=init_action.uri,
+                    args=init_action.args,
+                    timeout=init_action.timeout,
+                )
+                for init_action in self.initialization_actions
+            ],
         )
-        context['task_instance'].xcom_push(key='cluster_id', value=operation_result.response.id)
+        cluster_id = operation_result.response.id
+
+        context['task_instance'].xcom_push(key='cluster_id', value=cluster_id)
+        # Deprecated
         context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.yandex_conn_id)
+        return cluster_id
+
+    @property
+    def cluster_id(self):
+        return self.output
 
 
-class DataprocDeleteClusterOperator(BaseOperator):
-    """Deletes Yandex.Cloud Data Proc cluster.
+class DataprocBaseOperator(BaseOperator):
+    """Base class for DataProc operators working with given cluster.
 
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :param cluster_id: ID of the cluster to remove. (templated)
@@ -192,25 +244,45 @@ class DataprocDeleteClusterOperator(BaseOperator):
     template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
-        self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
+        self, *, yandex_conn_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
-        self.yandex_conn_id = connection_id
         self.cluster_id = cluster_id
-        self.hook: Optional[DataprocHook] = None
+        self.yandex_conn_id = yandex_conn_id
+
+    def _setup(self, context: 'Context') -> DataprocHook:
+        if self.cluster_id is None:
+            self.cluster_id = context['task_instance'].xcom_pull(key='cluster_id')
+        if self.yandex_conn_id is None:
+            xcom_yandex_conn_id = context['task_instance'].xcom_pull(key='yandexcloud_connection_id')
+            if xcom_yandex_conn_id:
+                warnings.warn('Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly')
+                self.yandex_conn_id = xcom_yandex_conn_id
+
+        return DataprocHook(yandex_conn_id=self.yandex_conn_id)
+
+    def execute(self, context: 'Context'):
+        raise NotImplementedError()
+
+
+class DataprocDeleteClusterOperator(DataprocBaseOperator):
+    """Deletes Yandex.Cloud Data Proc cluster.
+
+    :param connection_id: ID of the Yandex.Cloud Airflow connection.
+    :param cluster_id: ID of the cluster to remove. (templated)
+    """
+
+    def __init__(
+        self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
+    ) -> None:
+        super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
 
     def execute(self, context: 'Context') -> None:
-        cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        yandex_conn_id = self.yandex_conn_id or context['task_instance'].xcom_pull(
-            key='yandexcloud_connection_id'
-        )
-        self.hook = DataprocHook(
-            yandex_conn_id=yandex_conn_id,
-        )
-        self.hook.client.delete_cluster(cluster_id)
+        hook = self._setup(context)
+        hook.client.delete_cluster(self.cluster_id)
 
 
-class DataprocCreateHiveJobOperator(BaseOperator):
+class DataprocCreateHiveJobOperator(DataprocBaseOperator):
     """Runs Hive job in Data Proc cluster.
 
     :param query: Hive query.
@@ -223,8 +295,6 @@ class DataprocCreateHiveJobOperator(BaseOperator):
                        Will try to take the ID from Dataproc Hook object if it's specified. (templated)
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     """
-
-    template_fields: Sequence[str] = ('cluster_id',)
 
     def __init__(
         self,
@@ -239,37 +309,28 @@ class DataprocCreateHiveJobOperator(BaseOperator):
         connection_id: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
         self.script_variables = script_variables
         self.continue_on_failure = continue_on_failure
         self.properties = properties
         self.name = name
-        self.cluster_id = cluster_id
-        self.connection_id = connection_id
-        self.hook: Optional[DataprocHook] = None
 
     def execute(self, context: 'Context') -> None:
-        cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
-            key='yandexcloud_connection_id'
-        )
-        self.hook = DataprocHook(
-            yandex_conn_id=yandex_conn_id,
-        )
-        self.hook.client.create_hive_job(
+        hook = self._setup(context)
+        hook.client.create_hive_job(
             query=self.query,
             query_file_uri=self.query_file_uri,
             script_variables=self.script_variables,
             continue_on_failure=self.continue_on_failure,
             properties=self.properties,
             name=self.name,
-            cluster_id=cluster_id,
+            cluster_id=self.cluster_id,
         )
 
 
-class DataprocCreateMapReduceJobOperator(BaseOperator):
+class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
     """Runs Mapreduce job in Data Proc cluster.
 
     :param main_jar_file_uri: URI of jar file with job.
@@ -286,8 +347,6 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     """
 
-    template_fields: Sequence[str] = ('cluster_id',)
-
     def __init__(
         self,
         *,
@@ -303,7 +362,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
         connection_id: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -312,19 +371,10 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
         self.args = args
         self.properties = properties
         self.name = name
-        self.cluster_id = cluster_id
-        self.connection_id = connection_id
-        self.hook: Optional[DataprocHook] = None
 
     def execute(self, context: 'Context') -> None:
-        cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
-            key='yandexcloud_connection_id'
-        )
-        self.hook = DataprocHook(
-            yandex_conn_id=yandex_conn_id,
-        )
-        self.hook.client.create_mapreduce_job(
+        hook = self._setup(context)
+        hook.client.create_mapreduce_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
             jar_file_uris=self.jar_file_uris,
@@ -333,11 +383,11 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
             args=self.args,
             properties=self.properties,
             name=self.name,
-            cluster_id=cluster_id,
+            cluster_id=self.cluster_id,
         )
 
 
-class DataprocCreateSparkJobOperator(BaseOperator):
+class DataprocCreateSparkJobOperator(DataprocBaseOperator):
     """Runs Spark job in Data Proc cluster.
 
     :param main_jar_file_uri: URI of jar file with job. Can be placed in HDFS or S3.
@@ -358,8 +408,6 @@ class DataprocCreateSparkJobOperator(BaseOperator):
                         provided in --packages to avoid dependency conflicts.
     """
 
-    template_fields: Sequence[str] = ('cluster_id',)
-
     def __init__(
         self,
         *,
@@ -378,7 +426,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         exclude_packages: Optional[Iterable[str]] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -387,22 +435,13 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         self.args = args
         self.properties = properties
         self.name = name
-        self.cluster_id = cluster_id
-        self.connection_id = connection_id
         self.packages = packages
         self.repositories = repositories
         self.exclude_packages = exclude_packages
-        self.hook: Optional[DataprocHook] = None
 
     def execute(self, context: 'Context') -> None:
-        cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
-            key='yandexcloud_connection_id'
-        )
-        self.hook = DataprocHook(
-            yandex_conn_id=yandex_conn_id,
-        )
-        self.hook.client.create_spark_job(
+        hook = self._setup(context)
+        hook.client.create_spark_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
             jar_file_uris=self.jar_file_uris,
@@ -414,11 +453,11 @@ class DataprocCreateSparkJobOperator(BaseOperator):
             repositories=self.repositories,
             exclude_packages=self.exclude_packages,
             name=self.name,
-            cluster_id=cluster_id,
+            cluster_id=self.cluster_id,
         )
 
 
-class DataprocCreatePysparkJobOperator(BaseOperator):
+class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
     """Runs Pyspark job in Data Proc cluster.
 
     :param main_python_file_uri: URI of python file with job. Can be placed in HDFS or S3.
@@ -439,8 +478,6 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
                          provided in --packages to avoid dependency conflicts.
     """
 
-    template_fields: Sequence[str] = ('cluster_id',)
-
     def __init__(
         self,
         *,
@@ -459,7 +496,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         exclude_packages: Optional[Iterable[str]] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
         self.jar_file_uris = jar_file_uris
@@ -468,22 +505,13 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         self.args = args
         self.properties = properties
         self.name = name
-        self.cluster_id = cluster_id
-        self.connection_id = connection_id
         self.packages = packages
         self.repositories = repositories
         self.exclude_packages = exclude_packages
-        self.hook: Optional[DataprocHook] = None
 
     def execute(self, context: 'Context') -> None:
-        cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
-            key='yandexcloud_connection_id'
-        )
-        self.hook = DataprocHook(
-            yandex_conn_id=yandex_conn_id,
-        )
-        self.hook.client.create_pyspark_job(
+        hook = self._setup(context)
+        hook.client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,
             python_file_uris=self.python_file_uris,
             jar_file_uris=self.jar_file_uris,
@@ -495,5 +523,5 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
             repositories=self.repositories,
             exclude_packages=self.exclude_packages,
             name=self.name,
-            cluster_id=cluster_id,
+            cluster_id=self.cluster_id,
         )

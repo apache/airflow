@@ -127,6 +127,11 @@ class DataprocClusterCreateOperatorTest(TestCase):
             subnet_id='my_subnet_id',
             zone='ru-central1-c',
             log_group_id=LOG_GROUP_ID,
+            properties=None,
+            enable_ui_proxy=False,
+            host_group_ids=None,
+            security_group_ids=None,
+            initialization_actions=None,
         )
         context['task_instance'].xcom_push.assert_has_calls(
             [

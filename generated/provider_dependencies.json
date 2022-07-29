@@ -721,7 +721,7 @@
   "yandex": {
     "deps": [
       "apache-airflow>=2.2.0",
-      "yandexcloud>=0.146.0"
+      "yandexcloud>=0.173.0"
     ],
     "cross-providers-deps": []
   },
