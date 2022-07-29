@@ -199,6 +199,12 @@ class DictOfListsExpandInput(NamedTuple):
         return {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
 
 
+def _describe_type(value: Any) -> str:
+    if value is None:
+        return "None"
+    return type(value).__name__
+
+
 class ListOfDictsExpandInput(NamedTuple):
     """Storage type of a mapped operator's mapped kwargs.
 
@@ -251,15 +257,15 @@ class ListOfDictsExpandInput(NamedTuple):
             raise RuntimeError("can't resolve task-mapping argument without expanding")
         mappings = self.value.resolve(context, session)
         if not isinstance(mappings, collections.abc.Sequence):
-            raise ValueError(f"expand_kwargs() expects a list[dict], not {type(mappings).__name__}")
+            raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
         mapping = mappings[map_index]
         if not isinstance(mapping, collections.abc.Mapping):
-            raise ValueError(f"expand_kwargs() expects a list[dict], not list[{type(mapping).__name__}]")
+            raise ValueError(f"expand_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]")
         for key in mapping:
             if not isinstance(key, str):
                 raise ValueError(
                     f"expand_kwargs() input dict keys must all be str, "
-                    f"but {key!r} is of type {type(key).__name__}"
+                    f"but {key!r} is of type {_describe_type(key)}"
                 )
         return mapping
 
