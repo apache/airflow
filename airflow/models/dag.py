@@ -486,16 +486,23 @@ class DAG(LoggingMixin):
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Optional[List[Dataset]] = None
 
-        if schedule and isinstance(schedule, Sequence):
-            # if Sequence, only support Sequence[Dataset]
-            if any(isinstance(x, Dataset) for x in schedule):
-                if not all(isinstance(x, Dataset) for x in schedule):
-                    raise ValueError("If scheduling DAG with List[Dataset], all elements must be Dataset.")
-                self.dataset_triggers = list(schedule)
-            else:
-                raise ValueError(
-                    "Use of List object with `schedule` param is only supported for List[Dataset]."
-                )
+        if schedule:
+            if isinstance(schedule, Sequence):
+                # if Sequence, only support Sequence[Dataset]
+                if any(isinstance(x, Dataset) for x in schedule):
+                    if not all(isinstance(x, Dataset) for x in schedule):
+                        raise ValueError(
+                            "If scheduling DAG with List[Dataset], all elements must be Dataset."
+                        )
+                    self.dataset_triggers = list(schedule)
+                else:
+                    raise ValueError(
+                        "Use of List object with `schedule` param is only supported for List[Dataset]."
+                    )
+            elif isinstance(schedule, Timetable):
+                timetable = schedule
+            else:  # assumed to be ScheduleIntervalArg
+                schedule_interval = schedule
 
         if self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()

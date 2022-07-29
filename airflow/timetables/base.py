@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, Dict, NamedTuple, Optional, runtime_checkable
 
 from pendulum import DateTime
 
@@ -100,6 +100,7 @@ class DagRunInfo(NamedTuple):
         return self.data_interval.start
 
 
+@runtime_checkable
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
