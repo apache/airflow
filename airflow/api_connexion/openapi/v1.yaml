@@ -1647,6 +1647,13 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - name: uri_pattern
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            If set, only return datasets with uris matching this pattern.
       responses:
         '200':
           description: Success.

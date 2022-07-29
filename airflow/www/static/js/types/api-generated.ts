@@ -3569,6 +3569,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** If set, only return datasets with uris matching this pattern. */
+        uri_pattern?: string;
       };
     };
     responses: {
