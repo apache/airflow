@@ -128,9 +128,9 @@ def test_xcom_convert_to_kwargs_fails_task(dag_maker, session):
     tis[("pull", 1)].run()
 
     # But the third one fails because the map() result cannot be used as kwargs.
-    with pytest.raises(TypeError) as ctx:
+    with pytest.raises(ValueError) as ctx:
         tis[("pull", 2)].run()
-    assert str(ctx.value) == "'NoneType' object is not iterable"
+    assert str(ctx.value) == "expand_kwargs() expects a list[dict], not list[None]"
 
     assert [tis[("pull", i)].state for i in range(3)] == [
         TaskInstanceState.SUCCESS,
