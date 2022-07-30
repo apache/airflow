@@ -2820,18 +2820,20 @@ class DagTag(Base):
 
 
 class DagOwnerAttributes(Base):
-    """A owner and the associated link to it, used as hyperlink in the DAG view."""
+    """
+    Table defining different owner attributes. For example, a link for an owner that will be passed as
+    a hyperlink to the DAGs view
+    """
 
-    """sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.Column('owner', sa.String(length=100), nullable=False),
-            sa.Column('link', sa.String(length=500), nullable=False),"""
     __tablename__ = "dag_owner_attributes"
     dag_id = Column(
         String(ID_LEN),
-        ForeignKey('dag.dag_id', name='dag_owner_attributes_dag_id_fkey', ondelete='CASCADE'),
+        ForeignKey('dag.dag_id', name='dag.dag_id', ondelete='CASCADE'),
+        nullable=False,
+        primary_key=True,
     )
-    owner = Column(String(100), primary_key=True)
-    link = Column(String(100))
+    owner = Column(String(100), primary_key=True, nullable=False)
+    link = Column(String(500), nullable=False)
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
