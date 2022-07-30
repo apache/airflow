@@ -410,7 +410,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
         'airflow.providers.amazon.aws.operators.appflow.AppflowBaseOperator',
         'airflow.providers.amazon.aws.operators.ecs.EcsBaseOperator',
-        'airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor'
+        'airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor',
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
