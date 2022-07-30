@@ -194,6 +194,38 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         assert_401(response)
 
+    @parameterized.expand(
+        [
+            ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
+            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", 'wasb://some_dataset_bucket_/key'}),
+            (
+                "api/v1/datasets?uri_pattern=dataset",
+                {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
+            ),
+            (
+                "api/v1/datasets?uri_pattern=",
+                {
+                    'gcp://bucket/key',
+                    's3://folder/key',
+                    'somescheme://dataset/key',
+                    "wasb://some_dataset_bucket_/key",
+                },
+            ),
+        ]
+    )
+    @provide_session
+    def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
+        dataset1 = Dataset("s3://folder/key")
+        dataset2 = Dataset("gcp://bucket/key")
+        dataset3 = Dataset("somescheme://dataset/key")
+        dataset4 = Dataset("wasb://some_dataset_bucket_/key")
+        session.add_all([dataset1, dataset2, dataset3, dataset4])
+        session.commit()
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dataset_urls = {dataset['uri'] for dataset in response.json['datasets']}
+        assert expected_datasets == dataset_urls
+
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
     @parameterized.expand(

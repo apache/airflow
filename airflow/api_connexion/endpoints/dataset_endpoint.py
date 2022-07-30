@@ -57,13 +57,20 @@ def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_datasets(
-    *, limit: int, offset: int = 0, order_by: str = "id", session: Session = NEW_SESSION
+    *,
+    limit: int,
+    offset: int = 0,
+    uri_pattern: Optional[str] = None,
+    order_by: str = "id",
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get datasets"""
     allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
     total_entries = session.query(func.count(Dataset.id)).scalar()
     query = session.query(Dataset)
+    if uri_pattern:
+        query = query.filter(Dataset.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = (
         query.options(
