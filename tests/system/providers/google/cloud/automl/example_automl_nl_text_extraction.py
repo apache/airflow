@@ -31,6 +31,10 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLImportDataOperator,
     AutoMLTrainModelOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_automl_text"
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
@@ -57,13 +61,13 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Entities Extraction
 with models.DAG(
-    "example_automl_text",
-    schedule_interval=None,  # Override to match your needs
+    DAG_ID,
+    schedule_interval="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
-    tags=['example'],
-) as example_dag:
+    tags=['example', 'automl'],
+) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
@@ -95,13 +99,27 @@ with models.DAG(
         dataset_id=dataset_id,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    import_dataset_task >> create_model
-    delete_model_task >> delete_datasets_task
+    (
+        # TEST SETUP
+        create_dataset_task
+        # TEST BODY
+        >> import_dataset_task
+        >> create_model
+        >> delete_model_task
+        # TEST TEARDOWN
+        >> delete_datasets_task
+    )
 
-    # Task dependencies created via `XComArgs`:
-    #   create_dataset_task >> import_dataset_task
-    #   create_dataset_task >> create_model
-    #   create_model >> delete_model_task
-    #   create_dataset_task >> delete_datasets_task
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
