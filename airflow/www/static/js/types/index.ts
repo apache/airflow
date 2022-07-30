@@ -45,7 +45,7 @@ interface Dag {
 
 interface DagRun {
   runId: string;
-  runType: 'manual' | 'backfill' | 'scheduled';
+  runType: 'manual' | 'backfill' | 'scheduled' | 'dataset_triggered';
   state: RunState;
   executionDate: string;
   dataIntervalStart: string;
@@ -75,6 +75,8 @@ interface Task {
   children?: Task[];
   extraLinks?: string[];
   isMapped?: boolean;
+  operator?: string;
+  hasOutletDatasets?: boolean;
 }
 
 type SnakeToCamelCase<S extends string> =

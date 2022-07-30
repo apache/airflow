@@ -23,21 +23,29 @@ import { useQuery } from 'react-query';
 import { getMetaValue } from 'src/utils';
 import type { API } from 'src/types';
 
-interface TaskData {
-  tasks: API.Task[];
+interface Props {
+  runId: string;
+}
+
+interface UpstreamEventsData {
+  datasetEvents: API.DatasetEvent[];
   totalEntries: number;
 }
 
-export default function useTasks() {
+export default function useUpstreamDatasetEvents({ runId }: Props) {
   const query = useQuery(
-    'tasks',
+    ['upstreamDatasetEvents', runId],
     () => {
-      const tasksUrl = getMetaValue('tasks_api');
-      return axios.get<AxiosResponse, TaskData>(tasksUrl || '');
+      const dagId = getMetaValue('dag_id');
+      const upstreamEventsUrl = (
+        getMetaValue('upstream_dataset_events_api')
+          || `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
+      ).replace('_DAG_RUN_ID_', runId);
+      return axios.get<AxiosResponse, UpstreamEventsData>(upstreamEventsUrl);
     },
   );
   return {
     ...query,
-    data: query.data || { tasks: [], totalEntries: 0 },
+    data: query.data || { datasetEvents: [], totalEntries: 0 },
   };
 }

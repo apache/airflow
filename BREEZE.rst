@@ -335,6 +335,12 @@ You can also add ``files/airflow-breeze-config/init.sh`` and the script will be 
 when you enter Breeze. For example you can add ``pip install`` commands if you want to install
 custom dependencies - but there are no limits to add your own customizations.
 
+You can override the name of the init script by setting ``INIT_SCRIPT_FILE`` environment variable before
+running the breeze environment.
+
+You can also customize your environment by setting ``BREEZE_INIT_COMMAND`` environment variable. This variable
+will be evaluated at entering the environment.
+
 The ``files`` folder from your local sources is automatically mounted to the container under
 ``/files`` path and you can put there any files you want to make available for the Breeze container.
 
@@ -466,7 +472,7 @@ command takes care about it. This is needed when you want to run webserver insid
 Starting complete Airflow installation
 ======================================
 
-For testing Airflow oyou often want to start multiple components (in multiple terminals). Breeze has
+For testing Airflow you often want to start multiple components (in multiple terminals). Breeze has
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
 

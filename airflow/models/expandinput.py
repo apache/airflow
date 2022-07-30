@@ -22,7 +22,7 @@ import collections
 import collections.abc
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Sequence, Sized, Union
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -96,7 +96,7 @@ class DictOfListsExpandInput(NamedTuple):
         they will not be present in the dict.
         """
         from airflow.models.taskmap import TaskMap
-        from airflow.models.xcom import XCom
+        from airflow.models.xcom import XCOM_RETURN_KEY, XCom
         from airflow.models.xcom_arg import XComArg
 
         # Populate literal mapped arguments first.
@@ -143,6 +143,7 @@ class DictOfListsExpandInput(NamedTuple):
             .filter(
                 XCom.dag_id == dag_id,
                 XCom.run_id == run_id,
+                XCom.key == XCOM_RETURN_KEY,
                 XCom.task_id.in_(mapped_dep_keys),
                 XCom.map_index >= 0,
             )
@@ -194,8 +195,14 @@ class DictOfListsExpandInput(NamedTuple):
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
 
-    def resolve(self, context: Context, session: Session) -> dict[str, Any]:
+    def resolve(self, context: Context, session: Session) -> Mapping[str, Any]:
         return {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
+
+
+def _describe_type(value: Any) -> str:
+    if value is None:
+        return "None"
+    return type(value).__name__
 
 
 class ListOfDictsExpandInput(NamedTuple):
@@ -244,12 +251,23 @@ class ListOfDictsExpandInput(NamedTuple):
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return value
 
-    def resolve(self, context: Context, session: Session) -> dict[str, Any]:
+    def resolve(self, context: Context, session: Session) -> Mapping[str, Any]:
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
-        # Validation should be done when the upstream returns.
-        return self.value.resolve(context, session)[map_index]
+        mappings = self.value.resolve(context, session)
+        if not isinstance(mappings, collections.abc.Sequence):
+            raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
+        mapping = mappings[map_index]
+        if not isinstance(mapping, collections.abc.Mapping):
+            raise ValueError(f"expand_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]")
+        for key in mapping:
+            if not isinstance(key, str):
+                raise ValueError(
+                    f"expand_kwargs() input dict keys must all be str, "
+                    f"but {key!r} is of type {_describe_type(key)}"
+                )
+        return mapping
 
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.

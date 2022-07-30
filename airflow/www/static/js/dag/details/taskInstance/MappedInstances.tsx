@@ -36,7 +36,7 @@ import { getMetaValue } from 'src/utils';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import { useMappedInstances } from 'src/api';
 import { SimpleStatus } from 'src/dag/StatusBox';
-import Table from 'src/components/Table';
+import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
 
 const canEdit = getMetaValue('can_edit') === 'True';
