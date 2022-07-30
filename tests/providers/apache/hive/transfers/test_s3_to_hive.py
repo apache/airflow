@@ -39,79 +39,10 @@ except ImportError:
     mock_s3 = None
 
 
-@pytest.fixture
-def tmp_dir():
-    return mkdtemp(prefix='test_tmps32hive_')
-
-
-@pytest.fixture
-def file_names(tmp_dir):
-    file_names = {}
-
-    def _get_key(ext, header):
-        key = ext + "_" + ('h' if header else 'nh')
-        return key
-
-    # Helper method to create a dictionary of file names and
-    # file types (file extension and header)
-    def _set_fn(fn, ext, header):
-        key = _get_key(ext, header)
-        file_names[key] = fn
-
-    # Helper method to fetch a file of a
-    # certain format (file extension and header)
-    def _get_fn(ext, header):
-        key = _get_key(ext, header)
-        return file_names[key]
-
-    header = b"Sno\tSome,Text \n"
-    line1 = b"1\tAirflow Test\n"
-    line2 = b"2\tS32HiveTransfer\n"
-    # create sample txt, gz and bz2 with and without headers
-    with NamedTemporaryFile(mode='wb+', dir=tmp_dir, delete=False) as f_txt_h:
-        _set_fn(f_txt_h.name, '.txt', True)
-        f_txt_h.writelines([header, line1, line2])
-    fn_gz = _get_fn('.txt', True) + ".gz"
-    with GzipFile(filename=fn_gz, mode="wb") as f_gz_h:
-        _set_fn(fn_gz, '.gz', True)
-        f_gz_h.writelines([header, line1, line2])
-    fn_gz_upper = _get_fn('.txt', True) + ".GZ"
-    with GzipFile(filename=fn_gz_upper, mode="wb") as f_gz_upper_h:
-        _set_fn(fn_gz_upper, '.GZ', True)
-        f_gz_upper_h.writelines([header, line1, line2])
-    fn_bz2 = _get_fn('.txt', True) + '.bz2'
-    with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2_h:
-        _set_fn(fn_bz2, '.bz2', True)
-        f_bz2_h.writelines([header, line1, line2])
-    # create sample txt, bz and bz2 without header
-    with NamedTemporaryFile(mode='wb+', dir=tmp_dir, delete=False) as f_txt_nh:
-        _set_fn(f_txt_nh.name, '.txt', False)
-        f_txt_nh.writelines([line1, line2])
-    fn_gz = _get_fn('.txt', False) + ".gz"
-    with GzipFile(filename=fn_gz, mode="wb") as f_gz_nh:
-        _set_fn(fn_gz, '.gz', False)
-        f_gz_nh.writelines([line1, line2])
-    fn_gz_upper = _get_fn('.txt', False) + ".GZ"
-    with GzipFile(filename=fn_gz_upper, mode="wb") as f_gz_upper_nh:
-        _set_fn(fn_gz_upper, '.GZ', False)
-        f_gz_upper_nh.writelines([line1, line2])
-    fn_bz2 = _get_fn('.txt', False) + '.bz2'
-    with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2_nh:
-        _set_fn(fn_bz2, '.bz2', False)
-        f_bz2_nh.writelines([line1, line2])
-
-    yield file_names
-
-    try:
-        shutil.rmtree(tmp_dir)
-    except OSError as e:
-        # ENOENT - no such file or directory
-        if e.errno != errno.ENOENT:
-            raise e
-
-
 class TestS3ToHiveTransfer:
+    @pytest.fixture(autouse=True)
     def setup(self):
+        self.file_names = {}
         self.task_id = 'S3ToHiveTransferTest'
         self.s3_key = 'S32hive_test_file'
         self.field_dict = OrderedDict([('Sno', 'BIGINT'), ('Some,Text', 'STRING')])
@@ -138,6 +69,68 @@ class TestS3ToHiveTransfer:
             'wildcard_match': self.wildcard_match,
             'input_compressed': self.input_compressed,
         }
+        header = b"Sno\tSome,Text \n"
+        line1 = b"1\tAirflow Test\n"
+        line2 = b"2\tS32HiveTransfer\n"
+        self.tmp_dir = mkdtemp(prefix='test_tmps32hive_')
+        # create sample txt, gz and bz2 with and without headers
+        with NamedTemporaryFile(mode='wb+', dir=self.tmp_dir, delete=False) as f_txt_h:
+            self._set_fn(f_txt_h.name, '.txt', True)
+            f_txt_h.writelines([header, line1, line2])
+        fn_gz = self._get_fn('.txt', True) + ".gz"
+        with GzipFile(filename=fn_gz, mode="wb") as f_gz_h:
+            self._set_fn(fn_gz, '.gz', True)
+            f_gz_h.writelines([header, line1, line2])
+        fn_gz_upper = self._get_fn('.txt', True) + ".GZ"
+        with GzipFile(filename=fn_gz_upper, mode="wb") as f_gz_upper_h:
+            self._set_fn(fn_gz_upper, '.GZ', True)
+            f_gz_upper_h.writelines([header, line1, line2])
+        fn_bz2 = self._get_fn('.txt', True) + '.bz2'
+        with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2_h:
+            self._set_fn(fn_bz2, '.bz2', True)
+            f_bz2_h.writelines([header, line1, line2])
+        # create sample txt, bz and bz2 without header
+        with NamedTemporaryFile(mode='wb+', dir=self.tmp_dir, delete=False) as f_txt_nh:
+            self._set_fn(f_txt_nh.name, '.txt', False)
+            f_txt_nh.writelines([line1, line2])
+        fn_gz = self._get_fn('.txt', False) + ".gz"
+        with GzipFile(filename=fn_gz, mode="wb") as f_gz_nh:
+            self._set_fn(fn_gz, '.gz', False)
+            f_gz_nh.writelines([line1, line2])
+        fn_gz_upper = self._get_fn('.txt', False) + ".GZ"
+        with GzipFile(filename=fn_gz_upper, mode="wb") as f_gz_upper_nh:
+            self._set_fn(fn_gz_upper, '.GZ', False)
+            f_gz_upper_nh.writelines([line1, line2])
+        fn_bz2 = self._get_fn('.txt', False) + '.bz2'
+        with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2_nh:
+            self._set_fn(fn_bz2, '.bz2', False)
+            f_bz2_nh.writelines([line1, line2])
+
+        yield
+
+        try:
+            shutil.rmtree(self.tmp_dir)
+        except OSError as e:
+            # ENOENT - no such file or directory
+            if e.errno != errno.ENOENT:
+                raise e
+
+    # Helper method to create a dictionary of file names and
+    # file types (file extension and header)
+    def _set_fn(self, fn, ext, header):
+        key = self._get_key(ext, header)
+        self.file_names[key] = fn
+
+    # Helper method to fetch a file of a
+    # certain format (file extension and header)
+    def _get_fn(self, ext, header):
+        key = self._get_key(ext, header)
+        return self.file_names[key]
+
+    @staticmethod
+    def _get_key(ext, header):
+        key = ext + "_" + ('h' if header else 'nh')
+        return key
 
     @staticmethod
     def _check_file_equality(fn_1, fn_2, ext):
@@ -166,9 +159,9 @@ class TestS3ToHiveTransfer:
         with pytest.raises(AirflowException, match="To check_headers.*"):
             S3ToHiveOperator(**self.kwargs)
 
-    def test__get_top_row_as_list(self, file_names):
+    def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'
-        fn_txt = file_names['.txt_h']
+        fn_txt = self._get_fn('.txt', True)
         header_list = S3ToHiveOperator(**self.kwargs)._get_top_row_as_list(fn_txt)
         assert header_list == ['Sno', 'Some,Text'], "Top row from file doesn't matched expected value"
 
@@ -190,23 +183,23 @@ class TestS3ToHiveTransfer:
             ['Sno', 'Some,Text', 'ExtraColumn']
         ), "Header row doesn't match expected value"
 
-    def test__delete_top_row_and_compress(self, tmp_dir, file_names):
+    def test__delete_top_row_and_compress(self):
         s32hive = S3ToHiveOperator(**self.kwargs)
         # Testing gz file type
-        fn_txt = file_names['.txt_h']
-        gz_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, '.gz', tmp_dir)
-        fn_gz = file_names['.gz_nh']
+        fn_txt = self._get_fn('.txt', True)
+        gz_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, '.gz', self.tmp_dir)
+        fn_gz = self._get_fn('.gz', False)
         assert self._check_file_equality(gz_txt_nh, fn_gz, '.gz'), "gz Compressed file not as expected"
         # Testing bz2 file type
-        bz2_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, '.bz2', tmp_dir)
-        fn_bz2 = file_names['.bz2_nh']
+        bz2_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, '.bz2', self.tmp_dir)
+        fn_bz2 = self._get_fn('.bz2', False)
         assert self._check_file_equality(bz2_txt_nh, fn_bz2, '.bz2'), "bz2 Compressed file not as expected"
 
     @pytest.mark.skipif(mock is None, reason='mock package not present')
     @pytest.mark.skipif(mock_s3 is None, reason='moto package not present')
     @mock.patch('airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook')
     @mock_s3
-    def test_execute(self, mock_hiveclihook, file_names):
+    def test_execute(self, mock_hiveclihook):
         conn = boto3.client('s3')
         conn.create_bucket(Bucket='bucket')
 
@@ -217,8 +210,8 @@ class TestS3ToHiveTransfer:
             logging.info("Testing %s format %s header", ext, 'with' if has_header else 'without')
             self.kwargs['input_compressed'] = ext.lower() != '.txt'
             self.kwargs['s3_key'] = 's3://bucket/' + self.s3_key + ext
-            ip_fn = file_names[f"{ext}_h" if has_header else f"{ext}_nh"]
-            op_fn = file_names[f"{ext}_nh"]
+            ip_fn = self._get_fn(ext, self.kwargs['headers'])
+            op_fn = self._get_fn(ext, False)
 
             # Upload the file into the Mocked S3 bucket
             conn.upload_file(ip_fn, 'bucket', self.s3_key + ext)
@@ -236,7 +229,7 @@ class TestS3ToHiveTransfer:
     @pytest.mark.skipif(mock_s3 is None, reason='moto package not present')
     @mock.patch('airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook')
     @mock_s3
-    def test_execute_with_select_expression(self, mock_hiveclihook, file_names):
+    def test_execute_with_select_expression(self, mock_hiveclihook):
         conn = boto3.client('s3')
         conn.create_bucket(Bucket='bucket')
 
@@ -256,7 +249,7 @@ class TestS3ToHiveTransfer:
             self.kwargs['select_expression'] = select_expression
             self.kwargs['s3_key'] = f's3://{bucket}/{key}'
 
-            ip_fn = file_names[f"{ext}_h" if has_header else f"{ext}_nh"]
+            ip_fn = self._get_fn(ext, has_header)
 
             # Upload the file into the Mocked S3 bucket
             conn.upload_file(ip_fn, bucket, key)
