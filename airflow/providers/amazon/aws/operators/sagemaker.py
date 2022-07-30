@@ -427,7 +427,6 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
-        self.action_if_job_exists = action_if_job_exists
         if action_if_job_exists in ('increment', 'fail'):
             self.action_if_job_exists = action_if_job_exists
         else:
