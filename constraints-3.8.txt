@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-29T10:52:56Z
+# This constraints file was automatically generated on 2022-07-30T08:00:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -177,9 +177,9 @@ billiard==3.6.4.0
 black==22.6.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.40
+boto3==1.24.41
 boto==2.49.0
-botocore==1.27.40
+botocore==1.27.41
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -190,7 +190,7 @@ celery==5.2.7
 certifi==2022.6.15
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.61.3
+cfn-lint==0.61.4
 cgroupspy==0.2.2
 charset-normalizer==2.0.12
 click-default-group==1.2.2
@@ -234,7 +234,7 @@ eventlet==0.33.1
 execnet==1.9.0
 executing==0.9.1
 facebook-business==14.0.0
-fastavro==1.5.3
+fastavro==1.5.4
 fastjsonschema==2.16.1
 filelock==3.7.1
 fissix==21.11.13
@@ -321,7 +321,7 @@ importlib-metadata==4.12.0
 importlib-resources==5.9.0
 incremental==21.3.0
 inflection==0.5.1
-influxdb-client==1.30.0
+influxdb-client==1.31.0
 iniconfig==1.1.1
 ipdb==0.13.9
 ipython==8.4.0
@@ -395,7 +395,7 @@ openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
 oracledb==1.0.2
-orjson==3.7.8
+orjson==3.7.9
 oscrypto==1.3.0
 oss2==2.16.0
 packaging==21.3
