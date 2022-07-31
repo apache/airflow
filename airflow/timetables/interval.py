@@ -38,7 +38,7 @@ class _DataIntervalTimetable(Timetable):
 
     This kind of timetable classes create periodic data intervals from an
     underlying schedule representation (e.g. a cron expression, or a timedelta
-    instance), and schedule a DagRun at the end of each interval.
+    instance), and schedule a DagRun at the end of each interval by default.
     """
 
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
@@ -65,6 +65,11 @@ class _DataIntervalTimetable(Timetable):
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the last schedule before the current time."""
         raise NotImplementedError()
+
+    @property
+    def _run_after_start(self) -> bool:
+        """Consider to schedule DagRun at start or end of each interval."""
+        return False
 
     def next_dagrun_info(
         self,
@@ -94,7 +99,9 @@ class _DataIntervalTimetable(Timetable):
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
-        return DagRunInfo.interval(start=start, end=end)
+        if not self._run_after_start:
+            return DagRunInfo.interval(start=start, end=end)
+        return DagRunInfo(run_after=start, data_interval=DataInterval(start, end))
 
 
 def _is_schedule_fixed(expression: str) -> bool:
@@ -124,16 +131,21 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     because croniter works only with naive timestamps, and cannot consider DST
     when determining the next/previous time.
 
+    Parameter ``run_at_interval_start`` is responsible for schedule DagRun at interval start date
+    or interval end date (default).
+
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 
-    def __init__(self, cron: str, timezone: Union[str, Timezone]) -> None:
+    def __init__(
+        self, cron: str, timezone: Union[str, Timezone], run_at_interval_start: bool = False
+    ) -> None:
         self._expression = cron_presets.get(cron, cron)
 
         if isinstance(timezone, str):
             timezone = Timezone(timezone)
         self._timezone = timezone
-
+        self._run_at_interval_start = run_at_interval_start
         descriptor = ExpressionDescriptor(
             expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
         )
@@ -151,7 +163,9 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
         from airflow.serialization.serialized_objects import decode_timezone
 
-        return cls(data["expression"], decode_timezone(data["timezone"]))
+        return cls(
+            data["expression"], decode_timezone(data["timezone"]), data.get("run_at_interval_start", False)
+        )
 
     def __eq__(self, other: Any) -> bool:
         """Both expression and timezone should match.
@@ -164,12 +178,18 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
 
     @property
     def summary(self) -> str:
-        return self._expression
+        if not self._run_at_interval_start:
+            return self._expression
+        return f"{self._expression} RaSI"
 
     def serialize(self) -> Dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_timezone
 
-        return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+        return {
+            "expression": self._expression,
+            "timezone": encode_timezone(self._timezone),
+            "run_at_interval_start": self._run_at_interval_start,
+        }
 
     def validate(self) -> None:
         try:
@@ -236,6 +256,10 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         if earliest is None:
             return new_start
         return max(new_start, self._align(earliest))
+
+    @property
+    def _run_after_start(self) -> bool:
+        return self._run_at_interval_start
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is
