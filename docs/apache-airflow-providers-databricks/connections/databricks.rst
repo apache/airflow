@@ -55,11 +55,12 @@ Host (required)
 Login (optional)
     * If authentication with *Databricks login credentials* is used then specify the ``username`` used to login to Databricks.
     * If *authentication with Azure Service Principal* is used then specify the ID of the Azure Service Principal
+    * If authentication with *PAT* is used then leave this field empty
 
 Password (optional)
     * If authentication with *Databricks login credentials*  is used then specify the ``password`` used to login to Databricks.
     * If authentication with *Azure Service Principal* is used then specify the secret of the Azure Service Principal
-    * if authentication with *PAT* is used, then specify PAT and use ``token`` as the login (recommended)
+    * If authentication with *PAT* is used, then specify PAT (recommended)
 
 Extra (optional)
     Specify the extra parameter (as json dictionary) that can be used in the Databricks connection.
