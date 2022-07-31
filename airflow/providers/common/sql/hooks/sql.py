@@ -17,7 +17,7 @@
 import warnings
 from contextlib import closing
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Tuple, Type, Union
 
 import sqlparse
 from packaging.version import Version
@@ -30,13 +30,10 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.module_loading import import_string
 from airflow.version import version
 
-if TYPE_CHECKING:
-    from sqlalchemy.engine import CursorResult
 
-
-def fetch_all_handler(cursor: 'CursorResult') -> Optional[List[Tuple]]:
+def fetch_all_handler(cursor) -> Optional[List[Tuple]]:
     """Handler for DbApiHook.run() to return results"""
-    if cursor.returns_rows:
+    if cursor.description is not None:
         return cursor.fetchall()
     else:
         return None
