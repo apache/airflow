@@ -570,8 +570,7 @@
     ],
     "cross-providers-deps": [
       "common.sql",
-      "google",
-      "slack"
+      "google"
     ]
   },
   "qubole": {
