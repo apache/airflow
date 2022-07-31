@@ -263,7 +263,7 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
-    _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
+    _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
     enums_options = {
         ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
         ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],

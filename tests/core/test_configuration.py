@@ -664,7 +664,7 @@ notacommand = OK
         exception = str(ctx.value)
         message = (
             "`[logging] logging_level` should not be 'XXX'. Possible values: "
-            "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
+            "CRITICAL, FATAL, ERROR, WARNING, INFO, DEBUG."
         )
         assert message == exception
 

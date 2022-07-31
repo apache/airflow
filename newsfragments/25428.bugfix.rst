@@ -1,0 +1,1 @@
+Remove unsupported WARN log level
