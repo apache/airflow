@@ -293,8 +293,10 @@ class SchedulerJob(BaseJob):
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         dag_active_tasks_map: DefaultDict[str, int]
         task_concurrency_map: DefaultDict[Tuple[str, str], int]
+        states_extended=list(EXECUTION_STATES)
+        states_extended.append(State.DEFERRED)
         dag_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
-            states=list(EXECUTION_STATES).append(State.DEFERRED), session=session
+            states=states_extended, session=session
         )
 
         num_tasks_in_executor = 0
