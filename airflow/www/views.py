@@ -3688,28 +3688,38 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         ]
     )
+    def legacy_audit_log(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.audit_log', **request.args))
+
+    @expose('/dags/<string:dag_id>/audit_log')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        ]
+    )
     @provide_session
-    def audit_log(self, session=None):
-        dag_id = request.args.get('dag_id')
+    def audit_log(self, dag_id: str, session=None):
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
 
-        included_events = conf.get('webserver', 'audit_view_included_events', fallback=None)
-        excluded_events = conf.get('webserver', 'audit_view_excluded_events', fallback=None)
+        included_events_raw = conf.get('webserver', 'audit_view_included_events', fallback=None)
+        excluded_events_raw = conf.get('webserver', 'audit_view_excluded_events', fallback=None)
 
         query = session.query(Log).filter(Log.dag_id == dag_id)
-        if included_events:
-            included_events = {event.strip() for event in included_events.split(',')}
+        if included_events_raw:
+            included_events = {event.strip() for event in included_events_raw.split(',')}
             query = query.filter(Log.event.in_(included_events))
-        elif excluded_events:
-            excluded_events = {event.strip() for event in excluded_events.split(',')}
+        elif excluded_events_raw:
+            excluded_events = {event.strip() for event in excluded_events_raw.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
 
         dag_audit_logs = query.all()
-        content = self.render_template(
+        return self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
             dag_model=dag_model,
@@ -3718,7 +3728,6 @@ class Airflow(AirflowBaseView):
             dag_logs=dag_audit_logs,
             page_size=PAGE_SIZE,
         )
-        return content
 
 
 class ConfigurationView(AirflowBaseView):
