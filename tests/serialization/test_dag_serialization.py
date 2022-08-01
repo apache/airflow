@@ -252,8 +252,10 @@ def collect_dags(dag_folder=None):
     else:
         patterns = [
             "airflow/example_dags",
-            "airflow/providers/*/example_dags",
-            "airflow/providers/*/*/example_dags",
+            "airflow/providers/*/example_dags",  # TODO: Remove once AIP-47 is completed
+            "airflow/providers/*/*/example_dags",  # TODO: Remove once AIP-47 is completed
+            "tests/system/providers/*/",
+            "tests/system/providers/*/*/",
         ]
     for pattern in patterns:
         for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
