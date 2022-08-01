@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import html
 
 from airflow.configuration import SENSITIVE_CONFIG_VALUES, conf
 from tests.test_utils.config import conf_vars
@@ -38,7 +39,7 @@ def test_user_can_view_configuration(admin_client):
         value = conf.get(section, key, fallback='')
         if not value:
             continue
-        check_content_in_response(value, resp)
+        check_content_in_response(html.escape(value), resp)
 
 
 @conf_vars({("webserver", "expose_config"): 'non-sensitive-only'})
