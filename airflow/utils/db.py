@@ -1640,7 +1640,8 @@ def drop_airflow_moved_tables(session):
     tables = set(inspect(session.get_bind()).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
     for tbl in to_delete:
-        tbl.drop(settings.engine, checkfirst=True)
+        tbl.drop(settings.engine, checkfirst=False)
+        Base.metadata.remove(tbl)
 
 
 def drop_flask_models(connection):
