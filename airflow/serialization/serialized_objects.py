@@ -43,7 +43,7 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers_manager import ProvidersManager
 from airflow.sensors.external_task import ExternalTaskSensor
@@ -202,11 +202,10 @@ class _XComRef(NamedTuple):
     post-process it in ``deserialize_dag``.
     """
 
-    task_id: str
-    key: str
+    data: dict
 
     def deref(self, dag: DAG) -> XComArg:
-        return XComArg(operator=dag.get_task(self.task_id), key=self.key)
+        return deserialize_xcom_arg(self.data, dag)
 
 
 class _ExpandInputRef(NamedTuple):
@@ -393,7 +392,7 @@ class BaseSerialization:
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
-            return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
+            return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         else:
@@ -440,7 +439,7 @@ class BaseSerialization:
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
-            return cls._deserialize_xcomref(var)
+            return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
         else:
@@ -544,14 +543,6 @@ class BaseSerialization:
                 op_params[k] = Param(v)
 
         return ParamsDict(op_params)
-
-    @classmethod
-    def _serialize_xcomarg(cls, arg: XComArg) -> dict:
-        return {"key": arg.key, "task_id": arg.operator.task_id}
-
-    @classmethod
-    def _deserialize_xcomref(cls, encoded: dict) -> _XComRef:
-        return _XComRef(key=encoded['key'], task_id=encoded['task_id'])
 
 
 class DependencyDetector:

@@ -32,7 +32,7 @@ from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -649,13 +649,16 @@ def test_partial_mapped_decorator() -> None:
 
         product.partial(multiple=2)  # No operator is actually created.
 
+    assert isinstance(doubled, PlainXComArg)
+    assert isinstance(trippled, PlainXComArg)
+    assert isinstance(quadrupled, PlainXComArg)
+
     assert dag.task_dict == {
         "product": quadrupled.operator,
         "product__1": doubled.operator,
         "product__2": trippled.operator,
     }
 
-    assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
     assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput({"number": literal})
     assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
