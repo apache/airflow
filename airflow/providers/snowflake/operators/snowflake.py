@@ -18,8 +18,12 @@
 from typing import Any, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
 
 from airflow.models import BaseOperator
-from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.operators.sql import (
+    SQLCheckOperator,
+    SQLIntervalCheckOperator,
+    SQLValueCheckOperator,
+)
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 

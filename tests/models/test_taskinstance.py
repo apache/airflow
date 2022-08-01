@@ -34,6 +34,7 @@ import pytest
 from freezegun import freeze_time
 
 from airflow import models, settings
+from airflow.decorators import task
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
@@ -1573,17 +1574,17 @@ class TestTaskInstance:
         failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
         not generated
         """
-        from airflow.example_dags import example_datasets
-        from airflow.example_dags.example_datasets import dag9
+        from tests.dags import test_datasets
+        from tests.dags.test_datasets import dag_with_fail_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_datasets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag9.dag_id, run_id=run_id, run_type='anything')
+        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
-        task = dag9.get_task('fail_task')
+        task = dag_with_fail_task.get_task('fail_task')
         ti = TaskInstance(task, run_id=run_id)
         session.merge(ti)
         session.commit()
@@ -1604,17 +1605,17 @@ class TestTaskInstance:
         is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
         not generated
         """
-        from airflow.example_dags import example_datasets
-        from airflow.example_dags.example_datasets import dag7
+        from tests.dags import test_datasets
+        from tests.dags.test_datasets import dag_with_skip_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_datasets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag7.dag_id, run_id=run_id, run_type='anything')
+        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
-        task = dag7.get_task('skip_task')
+        task = dag_with_skip_task.get_task('skip_task')
         ti = TaskInstance(task, run_id=run_id)
         session.merge(ti)
         session.commit()
@@ -2639,6 +2640,41 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert dag_maker.session.query(TaskMap).count() == 0
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "create_upstream",
+        [
+            # The task returns an invalid expand_kwargs() input (a list[int] instead of list[dict]).
+            pytest.param(lambda: task(task_id="push")(lambda: [0])(), id="normal"),
+            # This task returns a list[dict] (correct), but we use map() to transform it to list[int] (wrong).
+            pytest.param(lambda: task(task_id="push")(lambda: [{"v": ""}])().map(lambda _: 0), id="mapped"),
+        ],
+    )
+    def test_expand_kwargs_error_if_received_invalid(self, dag_maker, session, create_upstream):
+        with dag_maker(dag_id="test_expand_kwargs_error_if_received_invalid", session=session):
+            push_task = create_upstream()
+
+            @task()
+            def pull(v):
+                print(v)
+
+            pull.expand_kwargs(push_task)
+
+        dr = dag_maker.create_dagrun()
+
+        # Run "push".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert decision.schedulable_tis
+        for ti in decision.schedulable_tis:
+            ti.run()
+
+        # Run "pull".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert decision.schedulable_tis
+        for ti in decision.schedulable_tis:
+            with pytest.raises(ValueError) as ctx:
+                ti.run()
+            assert str(ctx.value) == "expand_kwargs() expects a list[dict], not list[int]"
 
     @pytest.mark.parametrize(
         "downstream, error_message",

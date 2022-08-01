@@ -34,14 +34,14 @@ import { SimpleStatus } from 'src/dag/StatusBox';
 import Time from 'src/components/Time';
 import { ClipboardText } from 'src/components/Clipboard';
 import type { Task, TaskInstance, TaskState } from 'src/types';
+import DownstreamEvents from './DownstreamEvents';
 
 interface Props {
   instance: TaskInstance;
   group: Task;
-  operator: string;
 }
 
-const Details = ({ instance, group, operator }: Props) => {
+const Details = ({ instance, group }: Props) => {
   const isGroup = !!group.children;
   const summary: React.ReactNode[] = [];
 
@@ -57,6 +57,8 @@ const Details = ({ instance, group, operator }: Props) => {
   const {
     isMapped,
     tooltip,
+    operator,
+    hasOutletDatasets,
   } = group;
 
   const numMap = finalStatesMap();
@@ -167,6 +169,9 @@ const Details = ({ instance, group, operator }: Props) => {
           )}
         </Tbody>
       </Table>
+      {hasOutletDatasets && (
+        <DownstreamEvents taskId={taskId} runId={runId} />
+      )}
     </Flex>
   );
 };

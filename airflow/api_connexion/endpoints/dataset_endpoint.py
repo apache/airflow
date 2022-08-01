@@ -18,7 +18,7 @@
 from typing import Optional
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -40,7 +40,11 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
-    dataset = session.query(Dataset).get(id)
+    dataset = (
+        session.query(Dataset)
+        .options(joinedload(Dataset.downstream_dag_references), joinedload(Dataset.upstream_task_references))
+        .get(id)
+    )
     if not dataset:
         raise NotFound(
             "Dataset not found",
@@ -53,15 +57,29 @@ def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_datasets(
-    *, limit: int, offset: int = 0, order_by: str = "id", session: Session = NEW_SESSION
+    *,
+    limit: int,
+    offset: int = 0,
+    uri_pattern: Optional[str] = None,
+    order_by: str = "id",
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get datasets"""
     allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
     total_entries = session.query(func.count(Dataset.id)).scalar()
     query = session.query(Dataset)
+    if uri_pattern:
+        query = query.filter(Dataset.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
-    datasets = query.offset(offset).limit(limit).all()
+    datasets = (
+        query.options(
+            subqueryload(Dataset.downstream_dag_references), subqueryload(Dataset.upstream_task_references)
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
 
 

@@ -63,6 +63,7 @@ class DatabricksSqlOperator(BaseOperator):
     :param output_format: format of output data if ``output_path` is specified.
         Possible values are ``csv``, ``json``, ``jsonl``. Default is ``csv``.
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
+    :param do_xcom_push: If True, then the result of SQL executed will be pushed to an XCom.
     """
 
     template_fields: Sequence[str] = (

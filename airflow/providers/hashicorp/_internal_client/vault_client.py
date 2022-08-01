@@ -17,6 +17,7 @@
 from typing import List, Optional
 
 import hvac
+from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath, VaultError
 from requests import Response
 
@@ -255,9 +256,11 @@ class _VaultClient(LoggingMixin):
         with open(self.kubernetes_jwt_path) as f:
             jwt = f.read().strip()
             if self.auth_mount_point:
-                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point)
+                Kubernetes(_client.adapter).login(
+                    role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point
+                )
             else:
-                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
+                Kubernetes(_client.adapter).login(role=self.kubernetes_role, jwt=jwt)
 
     def _auth_github(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:

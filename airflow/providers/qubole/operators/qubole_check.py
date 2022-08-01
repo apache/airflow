@@ -19,7 +19,7 @@
 from typing import Callable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.operators.sql import SQLCheckOperator, SQLValueCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLCheckOperator, SQLValueCheckOperator
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 

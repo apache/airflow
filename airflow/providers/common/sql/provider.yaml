@@ -22,7 +22,7 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 versions:
-  - 1.0.0
+  - 1.1.0
 
 dependencies:
   - sqlparse>=0.4.2
