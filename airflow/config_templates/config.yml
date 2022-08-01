@@ -1420,6 +1420,13 @@
       type: string
       example: "dagrun_cleared,failed"
       default: ~
+    - name: dags_tags_filter_condition
+      description: |
+        When filtering based on tags, the type of logical condition to use.
+        There are only two expected values: "AND" and "OR".
+      type: string
+      example: "AND"
+      default: "OR"
 
 - name: email
   description: |

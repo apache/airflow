@@ -764,6 +764,7 @@ class Airflow(AirflowBaseView):
         current_page = request.args.get('page', default=0, type=int)
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
+        arg_tags_condition = request.args.get('tags_condition')
         arg_status_filter = request.args.get('status')
         arg_sorting_key = request.args.get('sorting_key', 'dag_id')
         arg_sorting_direction = request.args.get('sorting_direction', default='asc')
@@ -811,7 +812,14 @@ class Airflow(AirflowBaseView):
                 )
 
             if arg_tags_filter:
-                dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
+                if conf.get('webserver', 'dags_tags_filter_condition') == "AND":
+                    for tag_name in arg_tags_filter:
+                        dags_query = dags_query.filter(DagModel.tags.any(DagTag.name == tag_name))
+                else:
+                    # It would probably be the right idea to show an error message when it's not "AND" or "OR",
+                    # but it's a devtool, don't try to hack it ¯\_(ツ)_/¯
+                    dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
+
 
             dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
