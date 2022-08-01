@@ -1135,7 +1135,7 @@ class DAG(LoggingMixin):
         :return: Comma separated list of owners in DAG tasks
         :rtype: str
         """
-        return ", ".join(t.owner for t in self.tasks)  # type: ignore
+        return ", ".join({t.owner for t in self.tasks})  # type: ignore
 
     @property
     def owner_links(self) -> Dict[str, str]:
