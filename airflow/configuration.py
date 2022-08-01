@@ -891,6 +891,15 @@ class AirflowConfigParser(ConfigParser):
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.
         """
+        if not display_sensitive:
+            # We want to hide the sensitive values at the appropriate methods
+            # since envs from cmds, secrets can be read at _include_envs method
+            if not all([include_env, include_cmds, include_secret]):
+                raise ValueError(
+                    "If display_sensitive is false, then include_env, "
+                    "include_cmds, include_secret must all be set as True"
+                )
+
         config_sources: ConfigSourcesType = {}
         configs = [
             ('default', self.airflow_defaults),
@@ -1008,6 +1017,7 @@ class AirflowConfigParser(ConfigParser):
                 # Don't hide cmd/secret values here
                 if not env_var.lower().endswith('cmd') and not env_var.lower().endswith("secret"):
                     opt = '< hidden >'
+
             elif raw:
                 opt = opt.replace('%', '%%')
             if display_source:

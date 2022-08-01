@@ -260,9 +260,31 @@ sql_alchemy_conn = airflow
         }
 
         assert 'sqlite:////Users/airflow/airflow/airflow.db' == test_conf.get('test', 'sql_alchemy_conn')
+
+    def test_hidding_of_sensitive_config_values(self):
+        test_config = '''[test]
+                         sql_alchemy_conn_secret = sql_alchemy_conn
+                      '''
+        test_config_default = '''[test]
+                                 sql_alchemy_conn = airflow
+                              '''
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        assert 'airflow' == test_conf.get('test', 'sql_alchemy_conn')
         # Hide sensitive fields
         asdict = test_conf.as_dict(display_sensitive=False)
         assert '< hidden >' == asdict['test']['sql_alchemy_conn']
+        # If display_sensitive is false, then include_cmd, include_env,include_secrets must all be True
+        # This ensures that cmd and secrets env are hidden at the appropriate method and no surprises
+        with pytest.raises(ValueError):
+            test_conf.as_dict(display_sensitive=False, include_cmds=False)
+        # Test that one of include_cmds, include_env, include_secret can be false when display_sensitive
+        # is True
+        assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
