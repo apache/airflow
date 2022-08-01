@@ -55,6 +55,16 @@ def test_configuration_redacted(admin_client):
 
 
 @conf_vars({("webserver", "expose_config"): 'non-sensitive-only'})
+def test_configuration_redacted_in_running_configuration(admin_client):
+    resp = admin_client.get('configuration', follow_redirects=True)
+    for section, key in SENSITIVE_CONFIG_VALUES:
+        value = conf.get(section, key, fallback='')
+        if not value or value == 'airflow':
+            continue
+        check_content_not_in_response("<td class='code'>" + html.escape(value) + '</td', resp)
+
+
+@conf_vars({("webserver", "expose_config"): 'non-sensitive-only'})
 @conf_vars({("database", "# sql_alchemy_conn"): 'testconn'})
 @conf_vars({("core", "  # secret_key"): 'core_secret'})
 @conf_vars({("core", "fernet_key"): 'secret_fernet_key'})
