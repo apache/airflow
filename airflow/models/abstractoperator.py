@@ -18,6 +18,7 @@
 
 import datetime
 import inspect
+import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -75,6 +76,9 @@ DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: Optional[datetime.timedelta] = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
+
+
+logger = logging.getLogger("airflow.models.abstractoperator.AbstractOperator")
 
 
 class AbstractOperator(LoggingMixin, DAGNode):
@@ -345,13 +349,22 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self.render_template(
-                value,
-                context,
-                jinja_env,
-                seen_oids,
-            )
-            setattr(parent, attr_name, rendered_content)
+            try:
+                rendered_content = self.render_template(
+                    value,
+                    context,
+                    jinja_env,
+                    seen_oids,
+                )
+            except Exception:
+                logger.exception(
+                    f"Exception rendering Jinja template for in "
+                    f"task '{self.task_id}', field "
+                    f"'{attr_name}'. Template: {value!r}"
+                )
+                raise
+            else:
+                setattr(parent, attr_name, rendered_content)
 
     def render_template(
         self,
@@ -391,8 +404,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 template = jinja_env.from_string(value)
             dag = self.get_dag()
             if dag and dag.render_template_as_native_obj:
-                return render_template_as_native(template, context)
-            return render_template_to_string(template, context)
+                return render_template_as_native(template, context)  # type: ignore[arg-type]
+            return render_template_to_string(template, context)  # type: ignore[arg-type]
 
         if isinstance(value, (DagParam, XComArg)):
             return value.resolve(context)
