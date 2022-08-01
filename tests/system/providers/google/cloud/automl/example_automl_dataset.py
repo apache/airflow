@@ -163,7 +163,6 @@ with models.DAG(
         dataset_id="{{ task_instance.xcom_pull('list_datasets_task', key='dataset_id_list') | list }}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
-        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_delete_dataset]
 
