@@ -186,7 +186,7 @@ class TestCliDags(unittest.TestCase):
                         '--task-regex',
                         'run_this_first',
                         '--dry-run',
-                        '--dag-regex',
+                        '--treat-dag-as-regex',
                         '--start-date',
                         DEFAULT_DATE.isoformat(),
                     ]
