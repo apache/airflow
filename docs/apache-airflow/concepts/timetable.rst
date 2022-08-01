@@ -170,14 +170,14 @@ the value of ``start_date`` is past time).
 
 Here is an example showing how the first DAG run is triggered. Supposes there is a cron expression ``@daily`` or
 ``0 0 * * *``, which is aimed to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
-31st, `CronTriggerTimetable`_ will trigger a new DAG run at 12AM on February 1st. `CronTriggerTimetable`_, on the other
+31st, `CronTriggerTimetable`_ will trigger a new DAG run at 12AM on February 1st. `CronDataIntervalTimetable`_, on the other
 hand, will immediately trigger a new DAG run which is supposed to trigger at 12AM on January 31st if the DAG had been
 enabled beforehand.
 
 This is another example showing the difference in the case of skipping DAG runs. Suppose there are two running DAGs
 using the two timetables with a cron expression ``@daily`` or ``0 0 * * *``. If you pause the DAGs at 3PM on January
 31st and re-enable them at 3PM on February 2nd, `CronTriggerTimetable`_ skips the DAG runs which are supposed to
-trigger on February 1st and 2nd. The next DAG run will be triggered at 12AM on February 3rd. `CronTriggerTimetable`_,
+trigger on February 1st and 2nd. The next DAG run will be triggered at 12AM on February 3rd. `CronDataIntervalTimetable`_,
 on the other hand, skips the DAG runs which are supposed to trigger on February 1st only. A DAG run for February 2nd
 is immediately triggered after you re-enable the DAG.
 
