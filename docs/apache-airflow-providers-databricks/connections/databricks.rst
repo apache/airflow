@@ -55,7 +55,7 @@ Host (required)
 Login (optional)
     * If authentication with *Databricks login credentials* is used then specify the ``username`` used to login to Databricks.
     * If *authentication with Azure Service Principal* is used then specify the ID of the Azure Service Principal
-    * If authentication with *PAT* is used then leave this field empty
+    * If authentication with *PAT* is used then either leave this field empty or use 'token' as login (both work, the only difference is that if login is empty then token will be sent in request header as Bearer token, if login is 'token' then it will be sent using Basic Auth which is allowed by Databricks API, this may be useful if you plan to reuse this connection with e.g. SimpleHttpOperator)
 
 Password (optional)
     * If authentication with *Databricks login credentials*  is used then specify the ``password`` used to login to Databricks.
