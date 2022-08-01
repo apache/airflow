@@ -128,6 +128,26 @@ class StatsdTest(unittest.TestCase):
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
 
+    def test_statsd_securityContexts_are_configurable(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "securityContexts": {
+                        "pod": {"fsGroup": "1000", 'runAsGroup': "1000", 'runAsNonRoot': "true", 'runAsUser': "1000"},
+                        "container": {"allowPrivilegeEscalation": "false", 'readOnlyRootFilesystem': "true"},
+                    }
+                },
+            },
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert "false" == jmespath.search("spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation", docs[0])
+        assert "true" == jmespath.search("spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", docs[0])
+
+        assert "1000" == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        assert "1000" == jmespath.search("spec.template.spec.securityContext.runAsGroup", docs[0])
+        assert "1000" == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[0])
+        assert "true" == jmespath.search("spec.template.spec.securityContext.runAsNonRoot", docs[0])
+
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/statsd/statsd-deployment.yaml"],

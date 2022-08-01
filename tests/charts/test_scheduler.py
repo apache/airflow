@@ -304,6 +304,26 @@ class SchedulerTest(unittest.TestCase):
 
         assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
 
+    def test_scheduler_securityContexts_are_configurable(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "securityContexts": {
+                        "pod": {"fsGroup": "1000", 'runAsGroup': "1000", 'runAsNonRoot': "true", 'runAsUser': "1000"},
+                        "container": {"allowPrivilegeEscalation": "false", 'readOnlyRootFilesystem': "true"},
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "false" == jmespath.search("spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation", docs[0])
+        assert "true" == jmespath.search("spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", docs[0])
+
+        assert "1000" == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        assert "1000" == jmespath.search("spec.template.spec.securityContext.runAsGroup", docs[0])
+        assert "1000" == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[0])
+        assert "true" == jmespath.search("spec.template.spec.securityContext.runAsNonRoot", docs[0])
+
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(
             values={
