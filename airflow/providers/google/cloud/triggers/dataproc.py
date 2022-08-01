@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 class DataprocBaseTrigger(BaseTrigger):
     """
-    Trigger that periodically pollls information from Dataproc API to verify job status.
+    Trigger that periodically polls information from Dataproc API to verify job status.
     Implementation leverages asynchronous transport.
     """
 
@@ -21,7 +21,7 @@ class DataprocBaseTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         delegate_to: Optional[str] = None,
-        pooling_period_seconds: int = 30,
+        polling_interval_seconds: int = 30,
     ):
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
@@ -29,7 +29,7 @@ class DataprocBaseTrigger(BaseTrigger):
         self.job_id = job_id
         self.project_id = project_id
         self.region = region
-        self.pooling_period_seconds = pooling_period_seconds
+        self.polling_interval_seconds = polling_interval_seconds
         self.delegate_to = delegate_to
         self.hook = DataprocAsyncHook(
             delegate_to=self.delegate_to,
@@ -39,7 +39,7 @@ class DataprocBaseTrigger(BaseTrigger):
 
     def serialize(self):
         return (
-            "airflow.providers.google.cloud.operators.dataproc.DataprocBaseTrigger",
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger",
             {
                 "job_id": self.job_id,
                 "project_id": self.project_id,
@@ -47,7 +47,7 @@ class DataprocBaseTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "delegate_to": self.delegate_to,
                 "impersonation_chain": self.impersonation_chain,
-                "pooling_period_seconds": self.pooling_period_seconds,
+                "polling_interval_seconds": self.polling_interval_seconds,
             },
         )
 
@@ -61,9 +61,5 @@ class DataprocBaseTrigger(BaseTrigger):
                     break
                 elif state == JobStatus.State.ERROR:
                     raise AirflowException(f"Dataproc job execution failed {self.job_id}")
-                else:
-                    raise AirflowException(
-                        f"Dataproc job execution finished in uknknown state {state} {self.job_id}"
-                    )
-            await asyncio.sleep(self.pooling_period_seconds)
+            await asyncio.sleep(self.polling_interval_seconds)
         yield TriggerEvent({"job_id": self.job_id, "job_state": state})

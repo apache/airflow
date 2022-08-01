@@ -45,7 +45,7 @@ A cluster configuration can look as followed:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster]
     :end-before: [END how_to_cloud_dataproc_create_cluster]
 
@@ -62,7 +62,7 @@ For create Dataproc cluster in Google Kubernetes Engine you should use this clus
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_in_gke_config]
     :end-before: [END how_to_cloud_dataproc_create_cluster_in_gke_config]
 
@@ -84,7 +84,7 @@ You can generate and use config as followed:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_generator.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
     :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 
@@ -98,7 +98,7 @@ An example of a new cluster config and the updateMask:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
@@ -154,7 +154,7 @@ Example of the configuration for a PySpark Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_pyspark.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_pyspark_config]
     :end-before: [END how_to_cloud_dataproc_pyspark_config]
 
@@ -162,7 +162,7 @@ Example of the configuration for a SparkSQl Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_spark_sql.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_sparksql_config]
     :end-before: [END how_to_cloud_dataproc_sparksql_config]
 
@@ -170,7 +170,7 @@ Example of the configuration for a Spark Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_spark.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_spark_config]
     :end-before: [END how_to_cloud_dataproc_spark_config]
 
@@ -178,7 +178,7 @@ Example of the configuration for a Spark Job running in `deferrable mode <https:
 
 .. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_spark_deferrable.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_spark_deferrable_config]
     :end-before: [END how_to_cloud_dataproc_spark_deferrable_config]
 
@@ -186,7 +186,7 @@ Example of the configuration for a Hive Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_hive_config]
     :end-before: [END how_to_cloud_dataproc_hive_config]
 
@@ -194,7 +194,7 @@ Example of the configuration for a Hadoop Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hadoop.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_hadoop_config]
     :end-before: [END how_to_cloud_dataproc_hadoop_config]
 
@@ -202,7 +202,7 @@ Example of the configuration for a Pig Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_pig.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_pig_config]
     :end-before: [END how_to_cloud_dataproc_pig_config]
 
@@ -211,7 +211,7 @@ Example of the configuration for a SparkR:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_sparkr.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_sparkr_config]
     :end-before: [END how_to_cloud_dataproc_sparkr_config]
 

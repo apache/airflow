@@ -869,6 +869,8 @@ class DataprocJobBaseOperator(BaseOperator):
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
     :param deferrable: Run operator in the deferrable mode
+    :param polling_interval_seconds time in seconds between polling for job completion.
+        The value is considered only when running in deferrable mode. Must be greater than 0.
 
     :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
         This is useful for identifying or linking to the job in the Google Cloud Console
@@ -897,9 +899,12 @@ class DataprocJobBaseOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
@@ -918,6 +923,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.dataproc_job_id = None
         self.asynchronous = asynchronous
         self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def create_job_template(self) -> DataProcJobBuilder:
         """Initialize `self.job_template` with default values"""
@@ -971,7 +977,7 @@ class DataprocJobBaseOperator(BaseOperator):
                         delegate_to=self.delegate_to,
                         gcp_conn_id=self.gcp_conn_id,
                         impersonation_chain=self.impersonation_chain,
-                        pooling_period_seconds=10,
+                        polling_interval_seconds=self.polling_interval_seconds,
                     ),
                     method_name="execute_complete",
                 )
@@ -1803,6 +1809,8 @@ class DataprocSubmitJobOperator(BaseOperator):
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
     :param deferrable: Run operator in the deferrable mode
+    :param polling_interval_seconds time in seconds between polling for job completion.
+        The value is considered only when running in deferrable mode. Must be greater than 0.
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
     """
@@ -1826,11 +1834,14 @@ class DataprocSubmitJobOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
         deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.project_id = project_id
         self.region = region
         self.job = job
@@ -1842,6 +1853,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
         self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
         self.cancel_on_kill = cancel_on_kill
         self.hook: Optional[DataprocHook] = None
         self.job_id: Optional[str] = None
@@ -1875,6 +1887,7 @@ class DataprocSubmitJobOperator(BaseOperator):
                     region=self.region,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
                 ),
                 method_name="execute_complete",
             )
