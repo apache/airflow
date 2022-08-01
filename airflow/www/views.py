@@ -35,6 +35,7 @@ from operator import itemgetter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
+import configupdater
 import lazy_object_proxy
 import markupsafe
 import nvd3
@@ -3752,12 +3753,33 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = AIRFLOW_CONFIG
+
+        expose_config = conf.get('webserver', 'expose_config')
+
         # Don't show config when expose_config variable is False in airflow config
-        if conf.getboolean("webserver", "expose_config"):
+        # Don't show sensitive config values if expose_config variable is 'non-sensitive-only'
+        # in airflow config
+        if expose_config.lower() == 'non-sensitive-only':
+            from airflow.configuration import SENSITIVE_CONFIG_VALUES
+
+            updater = configupdater.ConfigUpdater()
+            updater.read(AIRFLOW_CONFIG)
+            for sect, key in SENSITIVE_CONFIG_VALUES:
+                if updater.has_option(sect, key):
+                    updater[sect][key].value = '< hidden >'
+            config = str(updater)
+
+            table = [
+                (section, key, str(value), source)
+                for section, parameters in conf.as_dict(True, False).items()
+                for key, (value, source) in parameters.items()
+            ]
+        elif expose_config.lower() in ['true', 't', '1']:
+
             with open(AIRFLOW_CONFIG) as file:
                 config = file.read()
             table = [
-                (section, key, value, source)
+                (section, key, str(value), source)
                 for section, parameters in conf.as_dict(True, True).items()
                 for key, (value, source) in parameters.items()
             ]
