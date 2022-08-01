@@ -66,7 +66,7 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagInconsistent, AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
@@ -2788,7 +2788,7 @@ class DagTag(Base):
     __tablename__ = "dag_tag"
     name = Column(String(TAG_MAX_LEN), primary_key=True)
     dag_id = Column(
-        String(ID_LEN),
+        StringID(),
         ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey', ondelete='CASCADE'),
         primary_key=True,
     )
@@ -2804,8 +2804,8 @@ class DagModel(Base):
     """
     These items are stored in the database for state related information
     """
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    root_dag_id = Column(String(ID_LEN))
+    dag_id = Column(StringID(), primary_key=True)
+    root_dag_id = Column(StringID())
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = conf.getboolean('core', 'dags_are_paused_at_creation')

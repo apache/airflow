@@ -20,7 +20,7 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, text
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -134,3 +134,15 @@ class TaskReschedule(Base):
         return TaskReschedule.query_for_task_instance(
             task_instance, session=session, try_number=try_number
         ).all()
+
+
+@event.listens_for(TaskReschedule.__table__, "before_create")
+def add_ondelete_for_mssql(table, conn, **kw):
+    if conn.dialect.name != "mssql":
+        return
+
+    for constraint in table.constraints:
+        if constraint.name != "task_reschedule_dr_fkey":
+            continue
+        constraint.ondelete = 'NO ACTION'
+        return

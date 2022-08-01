@@ -20,7 +20,7 @@ import os
 from typing import Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, and_, not_, text, tuple_
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, and_, not_, text, tuple_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Session, relationship
 
@@ -46,6 +46,14 @@ class RenderedTaskInstanceFields(Base):
     k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     __table_args__ = (
+        PrimaryKeyConstraint(
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            name='rendered_task_instance_fields_pkey',
+            mssql_clustered=True,
+        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
