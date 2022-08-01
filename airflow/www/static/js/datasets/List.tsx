@@ -30,7 +30,7 @@ import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import { Table, TimeCell, CodeCell } from 'src/components/Table';
+import { Table, CodeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { MdOutlineAccountTree } from 'react-icons/md';
 import InfoTooltip from 'src/components/InfoTooltip';
@@ -84,16 +84,6 @@ const DatasetsList = ({ onSelect }: Props) => {
         Header: DownstreamHeader,
         accessor: 'downstreamDagReferences',
         Cell: ({ cell: { value } }: any) => value.length,
-      },
-      {
-        Header: 'Created At',
-        accessor: 'createdAt',
-        Cell: TimeCell,
-      },
-      {
-        Header: 'Updated At',
-        accessor: 'updatedAt',
-        Cell: TimeCell,
       },
     ],
     [],

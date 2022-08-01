@@ -24,7 +24,6 @@ import {
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
-import Time from 'src/components/Time';
 import { useDatasetEvents, useDataset } from 'src/api';
 import {
   Table, TimeCell, CodeCell, TaskInstanceLink,
@@ -40,8 +39,6 @@ interface Props {
 
 const Details = ({
   dataset: {
-    createdAt,
-    updatedAt,
     uri,
     extra,
     upstreamTaskReferences,
@@ -61,14 +58,6 @@ const Details = ({
         <Code>{JSON.stringify(extra)}</Code>
       </Flex>
     )}
-    <Flex my={2}>
-      <Text mr={1}>Updated At:</Text>
-      <Time dateTime={updatedAt} />
-    </Flex>
-    <Flex my={2}>
-      <Text mr={1}>Created At:</Text>
-      <Time dateTime={createdAt} />
-    </Flex>
     {upstreamTaskReferences && !!upstreamTaskReferences.length && (
     <Box mb={2}>
       <Flex alignItems="center">
@@ -76,7 +65,12 @@ const Details = ({
         <InfoTooltip label="Tasks that will update this dataset." size={14} />
       </Flex>
       {upstreamTaskReferences.map(({ dagId, taskId }) => (
-        <Link key={`${dagId}.${taskId}`} color="blue.600" href={`/dags/${dagId}/grid`}>
+        <Link
+          key={`${dagId}.${taskId}`}
+          color="blue.600"
+          href={`/dags/${dagId}/grid`}
+          display="block"
+        >
           {`${dagId}.${taskId}`}
         </Link>
       ))}
@@ -89,7 +83,12 @@ const Details = ({
         <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
       </Flex>
       {downstreamDagReferences.map(({ dagId }) => (
-        <Link key={dagId} color="blue.600" href={`/dags/${dagId}/grid`}>
+        <Link
+          key={dagId}
+          color="blue.600"
+          href={`/dags/${dagId}/grid`}
+          display="block"
+        >
           {dagId}
         </Link>
       ))}
