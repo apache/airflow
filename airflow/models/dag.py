@@ -2827,7 +2827,7 @@ class DagOwnerAttributes(Base):
 
     __tablename__ = "dag_owner_attributes"
     dag_id = Column(
-        String(ID_LEN),
+        StringID(),
         ForeignKey('dag.dag_id', name='dag.dag_id', ondelete='CASCADE'),
         nullable=False,
         primary_key=True,
