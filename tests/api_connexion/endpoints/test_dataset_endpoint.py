@@ -48,22 +48,21 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
+@pytest.fixture(autouse=True)
+def clean_db():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
+
+
 class TestDatasetEndpoint:
-
-    default_time = "2020-06-11T18:00:00+00:00"
-
     @pytest.fixture(autouse=True)
-    def setup(self, configured_app):
+    def setup_attrs(self, configured_app):
         self.app = configured_app
         self.client = self.app.test_client()
-        clear_db_datasets()
-        self.freezer = freeze_time(self.default_time)
-        self.freezer.start()
-
-        yield
-
-        self.freezer.stop()
-        clear_db_datasets()
+        self.default_time = "2020-06-11T18:00:00+00:00"
+        with freeze_time(self.default_time):
+            yield
 
     def _create_dataset(self, session):
         dataset_model = Dataset(

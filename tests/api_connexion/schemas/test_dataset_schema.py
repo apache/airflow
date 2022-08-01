@@ -31,20 +31,21 @@ from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
 
+@pytest.fixture(autouse=True)
+def clean_db():
+    clear_db_dags()
+    clear_db_datasets()
+    yield
+    clear_db_dags()
+    clear_db_datasets()
+
+
 class TestDatasetSchemaBase:
     @pytest.fixture(autouse=True)
-    def setup(self):
-        clear_db_dags()
-        clear_db_datasets()
+    def freeze_time(self):
         self.timestamp = "2022-06-10T12:02:44+00:00"
-        self.freezer = freeze_time(self.timestamp)
-        self.freezer.start()
-
-        yield
-
-        self.freezer.stop()
-        clear_db_dags()
-        clear_db_datasets()
+        with freeze_time(self.timestamp):
+            yield
 
 
 class TestDatasetSchema(TestDatasetSchemaBase):
