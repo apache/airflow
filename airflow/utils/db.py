@@ -661,19 +661,45 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
 
 
-@provide_session
-def initdb(session: Session = NEW_SESSION):
-    """Initialize Airflow database."""
-    upgradedb(session=session)
+def _create_db_from_orm(session):
+    from alembic import command
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
 
-    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
-        create_default_connections(session=session)
+    from airflow.models import Base
+    from airflow.www.fab_security.sqla.models import Model
+    from airflow.www.session import AirflowDatabaseSessionInterface
+
+    def _create_flask_session_tbl():
+        flask_app = Flask(__name__)
+        flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+        db = SQLAlchemy(flask_app)
+        AirflowDatabaseSessionInterface(app=flask_app, db=db, table='session', key_prefix='')
+        db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-
-        from flask_appbuilder.models.sqla import Base
-
         Base.metadata.create_all(settings.engine)
+        Model.metadata.create_all(settings.engine)
+        _create_flask_session_tbl()
+        # stamp the migration head
+        config = _get_alembic_config()
+        command.stamp(config, "head")
+
+
+@provide_session
+def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
+    """Initialize Airflow database."""
+    db_exists = _get_current_revision(session)
+    if db_exists:
+        upgradedb(session=session)
+    else:
+        _create_db_from_orm(session=session)
+    # Load default connections
+    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS') and load_connections:
+        create_default_connections(session=session)
+    # Add default pool & sync log_template
+    add_default_pool_if_not_exists()
+    synchronize_log_template()
 
 
 def _get_alembic_config():
@@ -1487,6 +1513,11 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
+    if not to_revision and not _get_current_revision(session=session):
+        # Don't load default connections
+        # New DB; initialize and exit
+        initdb(session=session, load_connections=False)
+        return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         command.upgrade(config, revision=to_revision or 'heads')
@@ -1699,7 +1730,10 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
 
         if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
             # This is a hack to get around MySQL VARCHAR collation
-            # not being possible to change from utf8_bin to utf8mb3_bin
+            # not being possible to change from utf8_bin to utf8mb3_bin.
+            # We only make sure lengths are the same
+            if inspected_type.length != metadata_type.length:
+                return True
             return False
     return None
 
