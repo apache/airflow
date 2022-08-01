@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-30T07:55:38Z
+# This constraints file was automatically generated on 2022-08-01T13:52:16Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -16,13 +16,13 @@ Deprecated==1.2.13
 Flask-AppBuilder==4.1.3
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==2.0.0
+Flask-Caching==2.0.1
 Flask-JWT-Extended==4.4.3
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
 Flask-WTF==0.15.1
-Flask==2.1.2
+Flask==2.1.3
 GitPython==3.1.27
 HeapDict==1.0.1
 JPype1==1.4.0
@@ -52,7 +52,7 @@ aiosignal==1.2.0
 alabaster==0.7.12
 alembic==1.8.1
 aliyun-python-sdk-core==2.13.36
-aliyun-python-sdk-kms==2.15.0
+aliyun-python-sdk-kms==2.16.0
 amqp==5.1.1
 analytics-python==1.4.0
 ansiwrap==0.8.4
@@ -100,9 +100,9 @@ billiard==3.6.4.0
 black==22.6.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.41
+boto3==1.24.42
 boto==2.49.0
-botocore==1.27.41
+botocore==1.27.42
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -162,7 +162,7 @@ fastjsonschema==2.16.1
 filelock==3.7.1
 fissix==21.11.13
 flake8-colors==0.1.9
-flake8==4.0.1
+flake8==5.0.2
 flake8_implicit_str_concat==0.3.0
 flaky==3.7.0
 flower==1.1.0
@@ -282,7 +282,7 @@ marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.17.0
 matplotlib-inline==0.1.3
-mccabe==0.6.1
+mccabe==0.7.0
 mdit-py-plugins==0.3.0
 mdurl==0.1.1
 mongomock==4.1.2
@@ -317,7 +317,7 @@ openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
 oracledb==1.0.2
-orjson==3.7.9
+orjson==3.7.11
 oscrypto==1.3.0
 oss2==2.16.0
 packaging==21.3
@@ -361,7 +361,7 @@ pyOpenSSL==22.0.0
 pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.8.0
+pycodestyle==2.9.0
 pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.15.0
@@ -371,7 +371,7 @@ pydot==1.4.2
 pydruid==0.6.3
 pyenchant==3.2.2
 pyexasol==0.24.0
-pyflakes==2.4.0
+pyflakes==2.5.0
 pykerberos==1.2.4
 pymongo==3.12.3
 pymssql==2.2.5
@@ -492,7 +492,7 @@ types-PyMySQL==1.0.19
 types-PyYAML==6.0.11
 types-boto==2.49.17
 types-certifi==2021.10.8.3
-types-croniter==1.3.1
+types-croniter==1.3.2
 types-cryptography==3.3.21
 types-docutils==0.19.0
 types-freezegun==1.1.10
@@ -501,14 +501,14 @@ types-protobuf==3.19.22
 types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
 types-pytz==2022.1.2
-types-redis==4.3.11
-types-requests==2.28.5
+types-redis==4.3.13
+types-requests==2.28.6
 types-setuptools==63.2.2
 types-six==1.16.18
 types-tabulate==0.8.11
 types-termcolor==1.1.5
 types-toml==0.10.8
-types-urllib3==1.26.17
+types-urllib3==1.26.19
 typing_extensions==4.3.0
 tzdata==2022.1
 tzlocal==4.2
