@@ -24,7 +24,6 @@ from typing import Optional, Tuple
 
 import click
 
-from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MOUNT_ALL,
@@ -32,6 +31,7 @@ from airflow_breeze.global_constants import (
     github_events,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_answer,
@@ -57,53 +57,13 @@ from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
-CI_COMMANDS = {
-    "name": "CI commands",
-    "commands": [
-        "fix-ownership",
-        "free-space",
-        "resource-check",
-        "selective-check",
-        "find-newer-dependencies",
-    ],
-}
 
-CI_PARAMETERS = {
-    "breeze fix-ownership": [
-        {
-            "name": "Fix ownership flags",
-            "options": [
-                "--use-sudo",
-            ],
-        }
-    ],
-    "breeze selective-check": [
-        {
-            "name": "Selective check flags",
-            "options": [
-                "--commit-ref",
-                "--pr-labels",
-                "--default-branch",
-                "--github-event-name",
-            ],
-        }
-    ],
-    "breeze find-newer-dependencies": [
-        {
-            "name": "Find newer dependencies flags",
-            "options": [
-                "--python",
-                "--timezone",
-                "--constraints-branch",
-                "--updated-on-or-after",
-                "--max-age",
-            ],
-        }
-    ],
-}
+@click.group(cls=BreezeGroup, name='ci', help='Tools that CI workflows use to cleanup/manage CI environment')
+def ci_group():
+    pass
 
 
-@main.command(name="free-space", help="Free space for jobs run in CI.")
+@ci_group.command(name="free-space", help="Free space for jobs run in CI.")
 @option_verbose
 @option_dry_run
 @option_answer
@@ -119,7 +79,7 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
         run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
 
 
-@main.command(name="resource-check", help="Check if available docker resources are enough.")
+@ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
 @option_verbose
 @option_dry_run
 def resource_check(verbose: bool, dry_run: bool):
@@ -168,7 +128,7 @@ def fix_ownership_without_docker(dry_run: bool, verbose: bool):
         fix_ownership_for_path(directory_to_fix, dry_run=dry_run, verbose=verbose)
 
 
-@main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
+@ci_group.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
 @click.option(
     '--use-sudo',
     is_flag=True,
@@ -236,7 +196,9 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
     return changed_files
 
 
-@main.command(name="selective-check", help="Checks what kind of tests should be run for an incoming commit.")
+@ci_group.command(
+    name="selective-check", help="Checks what kind of tests should be run for an incoming commit."
+)
 @click.option(
     '--commit-ref',
     help="Commit-ish reference to the commit that should be checked",
@@ -299,7 +261,7 @@ def selective_check(
     print(str(sc))
 
 
-@main.command(name="find-newer-dependencies", help="Finds which dependencies are being upgraded.")
+@ci_group.command(name="find-newer-dependencies", help="Finds which dependencies are being upgraded.")
 @option_timezone
 @option_airflow_constraints_reference
 @option_python
