@@ -15,7 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, Sequence, Type, Union, overload
+import inspect
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    overload,
+)
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import AbstractOperator
@@ -27,8 +45,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
+    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 
@@ -64,9 +81,6 @@ class XComArg(DependencyMixin):
     :param key: Key used to pull the XCom value. Defaults to *XCOM_RETURN_KEY*,
         i.e. the referenced operator's return value.
     """
-
-    operator: "Operator"
-    key: str
 
     @overload
     def __new__(cls: Type["XComArg"], operator: "Operator", key: str = XCOM_RETURN_KEY) -> "XComArg":
@@ -109,17 +123,18 @@ class XComArg(DependencyMixin):
         sets the relationship to ``op`` on any found.
         """
         for ref in XComArg.iter_xcom_args(arg):
-            op.set_upstream(ref.operator)
+            for operator, _ in ref.iter_references():
+                op.set_upstream(operator)
 
     @property
     def roots(self) -> List[DAGNode]:
         """Required by TaskMixin"""
-        return [self.operator]
+        return [op for op, _ in self.iter_references()]
 
     @property
     def leaves(self) -> List[DAGNode]:
         """Required by TaskMixin"""
-        return [self.operator]
+        return [op for op, _ in self.iter_references()]
 
     def set_upstream(
         self,
@@ -127,7 +142,8 @@ class XComArg(DependencyMixin):
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
-        self.operator.set_upstream(task_or_task_list, edge_modifier)
+        for operator, _ in self.iter_references():
+            operator.set_upstream(task_or_task_list, edge_modifier)
 
     def set_downstream(
         self,
@@ -135,9 +151,51 @@ class XComArg(DependencyMixin):
         edge_modifier: Optional[EdgeModifier] = None,
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
-        self.operator.set_downstream(task_or_task_list, edge_modifier)
+        for operator, _ in self.iter_references():
+            operator.set_downstream(task_or_task_list, edge_modifier)
+
+    def _serialize(self) -> Dict[str, Any]:
+        """Called by DAG serialization.
+
+        The implementation should be the inverse function to ``deserialize``,
+        returning a data dict converted from this XComArg derivative. DAG
+        serialization does not call this directly, but ``serialize_xcom_arg``
+        instead, which adds additional information to dispatch deserialization
+        to the correct class.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def _deserialize(cls, data: Dict[str, Any], dag: "DAG") -> "XComArg":
+        """Called when deserializing a DAG.
+
+        The implementation should be the inverse function to ``serialize``,
+        implementing given a data dict converted from this XComArg derivative,
+        how the original XComArg should be created. DAG serialization relies on
+        additional information added in ``serialize_xcom_arg`` to dispatch data
+        dicts to the correct ``_deserialize`` information, so this function does
+        not need to validate whether the incoming data contains correct keys.
+        """
+        raise NotImplementedError()
+
+    def iter_references(self) -> Iterator[Tuple["Operator", str]]:
+        """Iterate through (operator, key) references."""
+        raise NotImplementedError()
 
     def map(self, f: Callable[[Any], Any]) -> "MapXComArg":
+        return MapXComArg(self, [f])
+
+    def zip(self, *others: "XComArg", fillvalue: Any = NOTSET) -> "ZipXComArg":
+        return ZipXComArg([self, *others], fillvalue=fillvalue)
+
+    def get_task_map_length(self, run_id: str, *, session: "Session") -> Optional[int]:
+        """Inspect length of pushed value for task-mapping.
+
+        This is used to determine how many task instances the scheduler should
+        create for a downstream using this XComArg for task-mapping.
+
+        *None* may be returned if the depended XCom has not been pushed.
+        """
         raise NotImplementedError()
 
     def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
@@ -166,7 +224,7 @@ class PlainXComArg(XComArg):
         self.operator = operator
         self.key = key
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, PlainXComArg):
             return NotImplemented
         return self.operator == other.operator and self.key == other.key
@@ -191,7 +249,12 @@ class PlainXComArg(XComArg):
         """
         raise TypeError("'XComArg' object is not iterable")
 
-    def __str__(self):
+    def __repr__(self) -> str:
+        if self.key == XCOM_RETURN_KEY:
+            return f"XComArg({self.operator!r})"
+        return f"XComArg({self.operator!r}, {self.key!r})"
+
+    def __str__(self) -> str:
         """
         Backward compatibility for old-style jinja used in Airflow Operators
 
@@ -203,20 +266,57 @@ class PlainXComArg(XComArg):
         """
         xcom_pull_kwargs = [
             f"task_ids='{self.operator.task_id}'",
-            f"dag_id='{self.operator.dag.dag_id}'",
+            f"dag_id='{self.operator.dag_id}'",
         ]
         if self.key is not None:
             xcom_pull_kwargs.append(f"key='{self.key}'")
 
-        xcom_pull_kwargs = ", ".join(xcom_pull_kwargs)
+        xcom_pull_str = ", ".join(xcom_pull_kwargs)
         # {{{{ are required for escape {{ in f-string
-        xcom_pull = f"{{{{ task_instance.xcom_pull({xcom_pull_kwargs}) }}}}"
+        xcom_pull = f"{{{{ task_instance.xcom_pull({xcom_pull_str}) }}}}"
         return xcom_pull
+
+    def _serialize(self) -> Dict[str, Any]:
+        return {"task_id": self.operator.task_id, "key": self.key}
+
+    @classmethod
+    def _deserialize(cls, data: Dict[str, Any], dag: "DAG") -> XComArg:
+        return cls(dag.get_task(data["task_id"]), data["key"])
+
+    def iter_references(self) -> Iterator[Tuple["Operator", str]]:
+        yield self.operator, self.key
 
     def map(self, f: Callable[[Any], Any]) -> "MapXComArg":
         if self.key != XCOM_RETURN_KEY:
-            raise ValueError
-        return MapXComArg(self, [f])
+            raise ValueError("cannot map against non-return XCom")
+        return super().map(f)
+
+    def zip(self, *others: "XComArg", fillvalue: Any = NOTSET) -> "ZipXComArg":
+        if self.key != XCOM_RETURN_KEY:
+            raise ValueError("cannot map against non-return XCom")
+        return super().zip(*others, fillvalue=fillvalue)
+
+    def get_task_map_length(self, run_id: str, *, session: "Session") -> Optional[int]:
+        from airflow.models.taskmap import TaskMap
+        from airflow.models.xcom import XCom
+
+        task = self.operator
+        if task.is_mapped:
+            query = session.query(func.count(XCom.map_index)).filter(
+                XCom.dag_id == task.dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id == task.task_id,
+                XCom.map_index >= 0,
+                XCom.key == XCOM_RETURN_KEY,
+            )
+        else:
+            query = session.query(TaskMap.length).filter(
+                TaskMap.dag_id == task.dag_id,
+                TaskMap.run_id == run_id,
+                TaskMap.task_id == task.task_id,
+                TaskMap.map_index < 0,
+            )
+        return query.scalar()
 
     @provide_session
     def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
@@ -257,23 +357,140 @@ class MapXComArg(XComArg):
     convert the pulled XCom value.
     """
 
-    def __init__(self, arg: PlainXComArg, callables: Sequence[Callable[[Any], Any]]) -> None:
+    def __init__(self, arg: XComArg, callables: Sequence[Callable[[Any], Any]]) -> None:
         self.arg = arg
         self.callables = callables
 
-    @property
-    def operator(self) -> "Operator":  # type: ignore[override]
-        return self.arg.operator
+    def __repr__(self) -> str:
+        return f"{self.arg!r}.map([{len(self.callables)} functions])"
 
-    @property
-    def key(self) -> str:  # type: ignore[override]
-        return self.arg.key
+    def _serialize(self) -> Dict[str, Any]:
+        return {
+            "arg": serialize_xcom_arg(self.arg),
+            "callables": [inspect.getsource(c) for c in self.callables],
+        }
+
+    @classmethod
+    def _deserialize(cls, data: Dict[str, Any], dag: "DAG") -> XComArg:
+        # We are deliberately NOT deserializing the callables. These are shown
+        # in the UI, and displaying a function object is useless.
+        return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
+
+    def iter_references(self) -> Iterator[Tuple["Operator", str]]:
+        yield from self.arg.iter_references()
 
     def map(self, f: Callable[[Any], Any]) -> "MapXComArg":
+        # Flatten arg.map(f1).map(f2) into one MapXComArg.
         return MapXComArg(self.arg, [*self.callables, f])
+
+    def get_task_map_length(self, run_id: str, *, session: "Session") -> Optional[int]:
+        return self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
     def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
         value = self.arg.resolve(context, session=session)
-        assert isinstance(value, (Sequence, dict))  # Validation was done when XCom was pushed.
+        if not isinstance(value, (Sequence, dict)):
+            raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
         return _MapResult(value, self.callables)
+
+
+class _ZipResult(Sequence):
+    def __init__(self, values: Sequence[Union[Sequence, dict]], *, fillvalue: Any = NOTSET) -> None:
+        self.values = values
+        self.fillvalue = fillvalue
+
+    @staticmethod
+    def _get_or_fill(container: Union[Sequence, dict], index: Any, fillvalue: Any) -> Any:
+        try:
+            return container[index]
+        except (IndexError, KeyError):
+            return fillvalue
+
+    def __getitem__(self, index: Any) -> Any:
+        if index >= len(self):
+            raise IndexError(index)
+        return tuple(self._get_or_fill(value, index, self.fillvalue) for value in self.values)
+
+    def __len__(self) -> int:
+        lengths = (len(v) for v in self.values)
+        if self.fillvalue is NOTSET:
+            return min(lengths)
+        return max(lengths)
+
+
+class ZipXComArg(XComArg):
+    """An XCom reference with ``zip()`` applied.
+
+    This is constructed from multiple XComArg instances, and presents an
+    iterable that "zips" them together like the built-in ``zip()`` (and
+    ``itertools.zip_longest()`` if ``fillvalue`` is provided).
+    """
+
+    def __init__(self, args: Sequence[XComArg], *, fillvalue: Any = NOTSET) -> None:
+        if not args:
+            raise ValueError("At least one input is required")
+        self.args = args
+        self.fillvalue = fillvalue
+
+    def __repr__(self) -> str:
+        args_iter = iter(self.args)
+        first = repr(next(args_iter))
+        rest = ", ".join(repr(arg) for arg in args_iter)
+        if self.fillvalue is NOTSET:
+            return f"{first}.zip({rest})"
+        return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
+
+    def _serialize(self) -> Dict[str, Any]:
+        args = [serialize_xcom_arg(arg) for arg in self.args]
+        if self.fillvalue is NOTSET:
+            return {"args": args}
+        return {"args": args, "fillvalue": self.fillvalue}
+
+    @classmethod
+    def _deserialize(cls, data: Dict[str, Any], dag: "DAG") -> XComArg:
+        return cls(
+            [deserialize_xcom_arg(arg, dag) for arg in data["args"]],
+            fillvalue=data.get("fillvalue", NOTSET),
+        )
+
+    def iter_references(self) -> Iterator[Tuple["Operator", str]]:
+        for arg in self.args:
+            yield from arg.iter_references()
+
+    def get_task_map_length(self, run_id: str, *, session: "Session") -> Optional[int]:
+        all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
+        ready_lengths = [length for length in all_lengths if length is not None]
+        if len(ready_lengths) != len(self.args):
+            return None  # If any of the referenced XComs is not ready, we are not ready either.
+        if self.fillvalue is NOTSET:
+            return min(ready_lengths)
+        return max(ready_lengths)
+
+    @provide_session
+    def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
+        values = [arg.resolve(context, session=session) for arg in self.args]
+        for value in values:
+            if not isinstance(value, (Sequence, dict)):
+                raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
+        return _ZipResult(values, fillvalue=self.fillvalue)
+
+
+_XCOM_ARG_TYPES: Mapping[str, Type[XComArg]] = {
+    "": PlainXComArg,
+    "map": MapXComArg,
+    "zip": ZipXComArg,
+}
+
+
+def serialize_xcom_arg(value: XComArg) -> Dict[str, Any]:
+    """DAG serialization interface."""
+    key = next(k for k, v in _XCOM_ARG_TYPES.items() if v == type(value))
+    if key:
+        return {"type": key, **value._serialize()}
+    return value._serialize()
+
+
+def deserialize_xcom_arg(data: Dict[str, Any], dag: "DAG") -> XComArg:
+    """DAG serialization interface."""
+    klass = _XCOM_ARG_TYPES[data.get("type", "")]
+    return klass._deserialize(data, dag)

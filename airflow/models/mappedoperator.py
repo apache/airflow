@@ -138,8 +138,9 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
     from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
 
     if isinstance(arg, XComArg):
-        if arg.key != XCOM_RETURN_KEY:
-            raise ValueError(f"cannot map over XCom with custom key {arg.key!r} from {arg.operator}")
+        for operator, key in arg.iter_references():
+            if key != XCOM_RETURN_KEY:
+                raise ValueError(f"cannot map over XCom with custom key {key!r} from {operator}")
     elif not is_container(arg):
         return
     elif isinstance(arg, collections.abc.Mapping):
@@ -704,7 +705,8 @@ class MappedOperator(AbstractOperator):
         from airflow.models.xcom_arg import XComArg
 
         for ref in XComArg.iter_xcom_args(self._get_specified_expand_input()):
-            yield ref.operator
+            for operator, _ in ref.iter_references():
+                yield operator
 
     @cached_property
     def parse_time_mapped_ti_count(self) -> Optional[int]:

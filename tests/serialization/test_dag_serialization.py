@@ -1731,7 +1731,8 @@ def test_operator_expand_serde():
 
 
 def test_operator_expand_xcomarg_serde():
-    from airflow.models.xcom_arg import XComArg
+    from airflow.models.xcom_arg import PlainXComArg, XComArg
+    from airflow.serialization.serialized_objects import _XComRef
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
@@ -1766,20 +1767,21 @@ def test_operator_expand_xcomarg_serde():
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
 
-    arg = op.expand_input.value['arg2']
-    assert arg.task_id == 'op1'
-    assert arg.key == XCOM_RETURN_KEY
+    # The XComArg can't be deserialized before the DAG is.
+    xcom_ref = op.expand_input.value['arg2']
+    assert xcom_ref == _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
     xcom_arg = serialized_dag.task_dict['task_2'].expand_input.value['arg2']
-    assert isinstance(xcom_arg, XComArg)
+    assert isinstance(xcom_arg, PlainXComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
 
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_serde(strict):
-    from airflow.models.xcom_arg import XComArg
+    from airflow.models.xcom_arg import PlainXComArg, XComArg
+    from airflow.serialization.serialized_objects import _XComRef
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
@@ -1812,14 +1814,14 @@ def test_operator_expand_kwargs_serde(strict):
     assert op.deps is MappedOperator.deps_for(BaseOperator)
     assert op._disallow_kwargs_override == strict
 
+    # The XComArg can't be deserialized before the DAG is.
     xcom_ref = op.expand_input.value
-    assert xcom_ref.task_id == 'op1'
-    assert xcom_ref.key == XCOM_RETURN_KEY
+    assert xcom_ref == _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
     xcom_arg = serialized_dag.task_dict['task_2'].expand_input.value
-    assert isinstance(xcom_arg, XComArg)
+    assert isinstance(xcom_arg, PlainXComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
 
 
@@ -1913,7 +1915,7 @@ def test_taskflow_expand_serde():
 
     assert deserialized.op_kwargs_expand_input == _ExpandInputRef(
         key="dict-of-lists",
-        value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef("op1", XCOM_RETURN_KEY)},
+        value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
     )
     assert deserialized.partial_kwargs == {
         "op_args": [],
@@ -1928,7 +1930,7 @@ def test_taskflow_expand_serde():
     pickled = pickle.loads(pickle.dumps(deserialized))
     assert pickled.op_kwargs_expand_input == _ExpandInputRef(
         key="dict-of-lists",
-        value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef("op1", XCOM_RETURN_KEY)},
+        value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
     )
     assert pickled.partial_kwargs == {
         "op_args": [],
@@ -1996,7 +1998,7 @@ def test_taskflow_expand_kwargs_serde(strict):
 
     assert deserialized.op_kwargs_expand_input == _ExpandInputRef(
         key="list-of-dicts",
-        value=_XComRef("op1", XCOM_RETURN_KEY),
+        value=_XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
     )
     assert deserialized.partial_kwargs == {
         "op_args": [],
@@ -2011,7 +2013,7 @@ def test_taskflow_expand_kwargs_serde(strict):
     pickled = pickle.loads(pickle.dumps(deserialized))
     assert pickled.op_kwargs_expand_input == _ExpandInputRef(
         "list-of-dicts",
-        _XComRef("op1", XCOM_RETURN_KEY),
+        _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
     )
     assert pickled.partial_kwargs == {
         "op_args": [],
