@@ -81,6 +81,7 @@ with DAG(
         task_id='sleep',
         depends_on_past=False,
         bash_command='sleep 5',
+        owner={"name": "airflow-with-link", "link": "https://airflow.apache.org/"},
         retries=3,
     )
     # [END basic_task]
