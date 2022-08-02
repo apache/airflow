@@ -41,14 +41,6 @@ class _DataIntervalTimetable(Timetable):
     instance), and schedule a DagRun at the end of each interval.
     """
 
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
-
-        This is called when ``catchup=False``. See docstring of subclasses for
-        exact skipping behaviour of a schedule.
-        """
-        raise NotImplementedError()
-
     def _align(self, current: DateTime) -> DateTime:
         """Align given time to the scheduled.
 
@@ -64,6 +56,14 @@ class _DataIntervalTimetable(Timetable):
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the last schedule before the current time."""
+        raise NotImplementedError()
+
+    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+        """Bound the earliest time a run can be scheduled.
+
+        This is called when ``catchup=False``. See docstring of subclasses for
+        exact skipping behaviour of a schedule.
+        """
         raise NotImplementedError()
 
     def next_dagrun_info(
@@ -114,19 +114,7 @@ def _is_schedule_fixed(expression: str) -> bool:
     return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
-class CronDataIntervalTimetable(_DataIntervalTimetable):
-    """Timetable that schedules data intervals with a cron expression.
-
-    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
-    a five/six-segment representation, or one of ``cron_presets``.
-
-    The implementation extends on croniter to add timezone awareness. This is
-    because croniter works only with naive timestamps, and cannot consider DST
-    when determining the next/previous time.
-
-    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
-    """
-
+class _CronMixin:
     def __init__(self, cron: str, timezone: Union[str, Timezone]) -> None:
         self._expression = cron_presets.get(cron, cron)
 
@@ -151,14 +139,16 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
         from airflow.serialization.serialized_objects import decode_timezone
 
-        return cls(data["expression"], decode_timezone(data["timezone"]))
+        # We ignore typing on the next line because mypy expects it to return _CronMixin type.
+        # However, this should return Timetable since it should only be called against a timetable subclass
+        return cls(data["expression"], decode_timezone(data["timezone"]))  # type: ignore
 
     def __eq__(self, other: Any) -> bool:
         """Both expression and timezone should match.
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, CronDataIntervalTimetable):
+        if not isinstance(other, type(self)):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
 
@@ -214,6 +204,20 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             return next_time
         return current
 
+
+class CronDataIntervalTimetable(_CronMixin, _DataIntervalTimetable):
+    """Timetable that schedules data intervals with a cron expression.
+
+    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
+    a five/six-segment representation, or one of ``cron_presets``.
+
+    The implementation extends on croniter to add timezone awareness. This is
+    because croniter works only with naive timestamps, and cannot consider DST
+    when determining the next/previous time.
+
+    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+    """
+
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
@@ -243,6 +247,48 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         # run at 1am 25th is between 0am 24th and 0am 25th.
         end = self._get_prev(self._align(run_after))
         return DataInterval(start=self._get_prev(end), end=end)
+
+
+class CronTriggerTimetable(_CronMixin, Timetable):
+    """A cron-compliant timetable.
+
+    The main difference from ``CronDataIntervalTimetable`` is that a first
+    DAG Run is kicked off at the start of the period like a normal cron,
+    while a first DAG Run of ``CronDataIntervalTimetable`` starts immediately
+    after the DAG is registered.
+
+    Note that this timetable does not care the idea of *data interval*. It
+    means the value of ``data_interval_start``, ``data_interval_end`` and
+    legacy ``execution_date`` are the same - the time when a DAG run is triggered.
+
+    Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+    """
+
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        return DataInterval.exact(run_after)
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: Optional[DataInterval],
+        restriction: TimeRestriction,
+    ) -> Optional[DagRunInfo]:
+        if restriction.catchup:
+            if last_automated_data_interval is None:
+                if restriction.earliest is None:
+                    return None
+                next_start_time = self._align(restriction.earliest)
+            else:
+                next_start_time = self._get_next(last_automated_data_interval.end)
+        else:
+            current_time = DateTime.utcnow()
+            if restriction.earliest is not None and current_time < restriction.earliest:
+                next_start_time = self._align(restriction.earliest)
+            else:
+                next_start_time = self._align(current_time)
+        if restriction.latest is not None and restriction.latest < next_start_time:
+            return None
+        return DagRunInfo.exact(next_start_time)
 
 
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):
