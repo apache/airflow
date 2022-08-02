@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
@@ -29,10 +28,7 @@ from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSen
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from airflow.compat.functools import cached_property
 
 
 class EmrAddStepsOperator(BaseOperator):

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterable, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException
@@ -25,10 +24,7 @@ from airflow.sensors.base import BaseSensorOperator
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from airflow.compat.functools import cached_property
 
 
 class EmrBaseSensor(BaseSensorOperator):
@@ -127,9 +123,8 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
     :param application_id: application_id to check the state of
     :param job_run_id: job_run_id to check the state of
-    :param target_states: a set of states to wait for, defaults to SUCCESS_STATES
+    :param target_states: a set of states to wait for, defaults to 'SUCCESS'
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :param emr_conn_id: emr connection to use, defaults to 'emr_default'
     """
 
     INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
@@ -149,19 +144,15 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         job_run_id: str,
         target_states: Union[Set, FrozenSet] = frozenset(SUCCESS_STATES),
         aws_conn_id: str = 'aws_default',
-        emr_conn_id: str = 'emr_default',
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
-        self.emr_conn_id = emr_conn_id
         self.target_states = target_states
         self.application_id = application_id
         self.job_run_id = job_run_id
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
-        state = None
-
         try:
             response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
         except Exception:
@@ -178,7 +169,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     @cached_property
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
-        return EmrServerlessHook()
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
     def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
@@ -202,15 +193,13 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         :ref:`howto/sensor:EmrServerlessApplicationSensor`
 
     :param application_id: application_id to check the state of
-    :param target_states: a set of states to wait for, defaults to SUCCESS_STATES
+    :param target_states: a set of states to wait for, defaults to {'CREATED', 'STARTED'}
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-    :param emr_conn_id: emr connection to use, defaults to 'emr_default'
     """
 
     template_fields: Sequence[str] = ('application_id',)
 
     INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
-    # TODO:  Question: Do these states indicate failure?
     FAILURE_STATES = {'STOPPED', 'TERMINATED'}
     SUCCESS_STATES = {'CREATED', 'STARTED'}
 
@@ -220,11 +209,9 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         application_id: str,
         target_states: Union[Set, FrozenSet] = frozenset(SUCCESS_STATES),
         aws_conn_id: str = 'aws_default',
-        emr_conn_id: str = 'emr_default',
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
-        self.emr_conn_id = emr_conn_id
         self.target_states = target_states
         self.application_id = application_id
         super().__init__(**kwargs)
@@ -248,7 +235,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     @cached_property
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
-        return EmrServerlessHook()
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
     def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
