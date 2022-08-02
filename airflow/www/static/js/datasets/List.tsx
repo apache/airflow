@@ -24,18 +24,34 @@ import {
   Flex,
   Button,
   Link,
+  Text,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import { Table, TimeCell, CodeCell } from 'src/components/Table';
+import { Table, CodeCell } from 'src/components/Table';
 import type { API } from 'src/types';
 import { MdOutlineAccountTree } from 'react-icons/md';
+import InfoTooltip from 'src/components/InfoTooltip';
 
 interface Props {
   onSelect: (datasetId: string) => void;
 }
+
+const UpstreamHeader = () => (
+  <Flex>
+    <Text>Producing Tasks</Text>
+    <InfoTooltip size={12} label="Number of tasks that will update this dataset." />
+  </Flex>
+);
+
+const DownstreamHeader = () => (
+  <Flex>
+    <Text>Consuming DAGs</Text>
+    <InfoTooltip size={12} label="Number of DAGs that will run based on updates to this dataset." />
+  </Flex>
+);
 
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
@@ -60,14 +76,14 @@ const DatasetsList = ({ onSelect }: Props) => {
         Cell: CodeCell,
       },
       {
-        Header: 'Created At',
-        accessor: 'createdAt',
-        Cell: TimeCell,
+        Header: UpstreamHeader,
+        accessor: 'upstreamTaskReferences',
+        Cell: ({ cell: { value } }: any) => value.length,
       },
       {
-        Header: 'Updated At',
-        accessor: 'updatedAt',
-        Cell: TimeCell,
+        Header: DownstreamHeader,
+        accessor: 'downstreamDagReferences',
+        Cell: ({ cell: { value } }: any) => value.length,
       },
     ],
     [],

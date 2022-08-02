@@ -81,7 +81,7 @@ const generateAliases = (rootNode, writeText, prefix = '') => {
 
       const types = schemaMemberNames.map((n) => [
         `${n}`,
-        `export type ${n} = SnakeToCamelCaseNested<${prefixPath(prefix, 'components')}['schemas']['${n}']>;`,
+        `export type ${n} = CamelCasedPropertiesDeep<${prefixPath(prefix, 'components')}['schemas']['${n}']>;`,
       ]);
       if (types.length) {
         writeText.push(['comment', `Types for returned data ${prefix}`]);
@@ -172,7 +172,7 @@ function generate(file) {
   writeText.push(['block', license]);
   writeText.push(['comment', 'eslint-disable']);
   // eslint-disable-next-line quotes
-  writeText.push(['block', `import type { SnakeToCamelCaseNested } from '.';`]);
+  writeText.push(['block', `import type { CamelCasedPropertiesDeep } from 'type-fest';`]);
   writeText.push(['block', sourceFile.text]);
   generateAliases(sourceFile, writeText);
 

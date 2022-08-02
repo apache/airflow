@@ -198,7 +198,7 @@ export const Table = ({
               <Th
                 {...column.getHeaderProps(column.getSortByToggleProps())}
               >
-                <>
+                <Flex>
                   {column.render('Header')}
                   {column.isSorted && (
                     column.isSortedDesc ? (
@@ -208,7 +208,7 @@ export const Table = ({
                     )
                   )}
                   {(!column.isSorted && column.canSort) && (<TiArrowUnsorted aria-label="unsorted" style={{ display: 'inline' }} size="1em" />)}
-                </>
+                </Flex>
               </Th>
             ))}
           </Tr>

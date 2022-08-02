@@ -108,6 +108,7 @@
     "react-router-dom": "^6.3.0",
     "react-table": "^7.8.0",
     "redoc": "^2.0.0-rc.72",
+    "type-fest": "^2.17.0",
     "url-search-params-polyfill": "^8.1.0"
   }
 }
