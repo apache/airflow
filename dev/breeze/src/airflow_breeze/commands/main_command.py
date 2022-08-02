@@ -157,15 +157,21 @@ def check_for_rosetta_environment():
             from airflow_breeze.utils.console import get_console
 
             get_console().print(
-                '\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]'
+                '\n\n[error]You are starting breeze in `rosetta 2` emulated environment on Mac[/]\n'
             )
             get_console().print(
-                '[warning]This is very bad and your Python is 10x slower as it is emulated[/]'
+                '[warning]This is very bad and your Python is 10x slower as it is emulated[/]\n'
             )
             get_console().print(
-                '[warning]You likely have wrong architecture-based IDE (PyCharm/VSCode/Intellij) that '
-                'you run it on\n'
-                'You should download the right architecture for your Mac (Apple Silicon or Intel)[/]\n'
+                'You have emulated Python interpreter (Intel rather than ARM). You should check:\n\n'
+                '  * Your IDE (PyCharm/VSCode/Intellij): the "About" window should show `aarch64` '
+                'not `x86_64` in "Runtime version".\n'
+                '  * Your python: run  "python -c '
+                'import platform; print(platform.uname().machine)"). '
+                'It should show `arm64` not `x86_64`.\n'
+                '  * Your `brew`: run "brew config" and it should show `arm` in CPU line not `x86`.\n\n'
+                'If you have mixed Intel/ARM binaries installed you should likely nuke and '
+                'reinstall your development environment (including brew and Python) from scratch!\n\n'
             )
             from inputimeout import inputimeout
 
