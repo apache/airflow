@@ -80,8 +80,8 @@ class OdbcHook(DbApiHook):
         return self._database or self.connection.schema
 
     @property
-    def sqlalchemy_scheme(self) -> Optional[str]:
-        """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
+    def sqlalchemy_scheme(self) -> str:
+        """Sqlalchemy scheme either from constructor, connection extras or default."""
         return (
             self._sqlalchemy_scheme
             or self.connection_extra_lower.get('sqlalchemy_scheme')
