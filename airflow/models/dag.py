@@ -2867,6 +2867,7 @@ class DAG(LoggingMixin):
                 # has_on_*_callback are only stored if the value is True, as the default is False
                 'has_on_success_callback',
                 'has_on_failure_callback',
+                'auto_register',
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - exclusion_list
         return cls.__serialized_fields
