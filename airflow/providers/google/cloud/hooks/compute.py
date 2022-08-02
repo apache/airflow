@@ -21,7 +21,9 @@ from __future__ import annotations
 import time
 from typing import Any, Sequence
 
-from google.cloud.compute_v1 import InstanceTemplatesClient, InstancesClient, InstanceGroupManagersClient
+from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
+from google.cloud.compute_v1.services.instances import InstancesClient
+from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
 from google.cloud.compute_v1.types import InstanceTemplate, Instance, InstanceGroupManager
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
