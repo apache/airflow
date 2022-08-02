@@ -62,7 +62,7 @@ class CommonBuildParams:
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: Optional[str] = None
-    push_image: bool = False
+    push: bool = False
     python: str = "3.7"
     runtime_apt_command: str = ""
     runtime_apt_deps: str = ""

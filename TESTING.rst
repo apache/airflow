@@ -169,37 +169,37 @@ to breeze.
 
 .. code-block:: bash
 
-     breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
+     breeze testing tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    breeze tests --db-reset
+    breeze testing tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    breeze tests --db-reset tests/core/test_core.py::TestCore
+    breeze testing tests --db-reset tests/core/test_core.py::TestCore
 
 You can also limit the tests to execute to specific group of tests
 
 .. code-block:: bash
 
-    breeze tests --test-type Core
+    breeze testing tests --test-type Core
 
 In case of Providers tests, you can run tests for all providers
 
 .. code-block:: bash
 
-    breeze tests --test-type Providers
+    breeze testing tests --test-type Providers
 
 You can also limit the set of providers you would like to run tests of
 
 .. code-block:: bash
 
-    breeze tests --test-type "Providers[airbyte,http]"
+    breeze testing tests --test-type "Providers[airbyte,http]"
 
 
 You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
@@ -208,7 +208,7 @@ after it completes.
 
 .. code-block:: bash
 
-    breeze tests --test-type Core --limit-progress-output
+    breeze testing tests --test-type Core --limit-progress-output
 
 
 Running Tests of a specified type from the Host
@@ -585,7 +585,7 @@ need to run the following steps:
 
 .. code-block:: bash
 
-     breeze prepare-provider-packages [PACKAGE ...]
+     breeze release-management prepare-provider-packages [PACKAGE ...]
 
 If you run this command without packages, you will prepare all packages. However, You can specify
 providers that you would like to build if you just want to build few provider packages.
@@ -596,7 +596,7 @@ before running, so you should run it before generating ``apache-airflow`` packag
 
 .. code-block:: bash
 
-     breeze prepare-airflow-package
+     breeze release-management prepare-airflow-package
 
 This prepares airflow .whl package in the dist folder.
 
@@ -1111,7 +1111,7 @@ example, the below command will build google, postgres and mysql wheel packages:
 
 .. code-block:: bash
 
-  breeze prepare-provider-packages google postgres mysql
+  breeze release-management prepare-provider-packages google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
