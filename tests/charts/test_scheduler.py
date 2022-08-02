@@ -115,6 +115,20 @@ class SchedulerTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
+    def test_scheduler_host_aliases(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
+        assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
     @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
         values = {"scheduler": {}}

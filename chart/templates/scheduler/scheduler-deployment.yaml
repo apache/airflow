@@ -119,6 +119,10 @@ spec:
 {{ toYaml $tolerations | indent 8 }}
       topologySpreadConstraints:
 {{ toYaml $topologySpreadConstraints | indent 8 }}
+{{- if .Values.scheduler.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.scheduler.hostAliases | indent 8 }}
+{{- end }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}

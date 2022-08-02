@@ -1802,6 +1802,28 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "hostAliases": {
+                    "description": "Specify HostAliases for scheduler.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.2",
+                            "hostnames": [
+                                "test.hostname.one"
+                            ]
+                        },
+                        {
+                            "ip": "127.0.0.3",
+                            "hostnames": [
+                                "test.hostname.two"
+                            ]
+                        }
+                    ]
+                },
                 "topologySpreadConstraints": {
                     "description": "Specify topology spread constraints for scheduler pods.",
                     "type": "array",
@@ -3254,6 +3276,28 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
+                },
+                "hostAliases": {
+                    "description": "Specify HostAliases for webserver.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.2",
+                            "hostnames": [
+                                "test.hostname.one"
+                            ]
+                        },
+                        {
+                            "ip": "127.0.0.3",
+                            "hostnames": [
+                                "test.hostname.two"
+                            ]
+                        }
+                    ]
                 },
                 "topologySpreadConstraints": {
                     "description": "Specify topology spread constraints for webserver pods.",
