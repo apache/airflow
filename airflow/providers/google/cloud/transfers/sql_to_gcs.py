@@ -252,7 +252,12 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tmp_file_handle.write(b'\n')
 
             # Stop if the file exceeds the file size limit.
-            if os.stat(tmp_file_handle.name).st_size >= self.approx_max_file_size_bytes:
+            fppos = tmp_file_handle.tell()
+            tmp_file_handle.seek(0, os.SEEK_END)
+            file_size = tmp_file_handle.tell()
+            tmp_file_handle.seek(fppos, os.SEEK_SET)
+
+            if file_size >= self.approx_max_file_size_bytes:
                 file_no += 1
 
                 if self.export_format == 'parquet':
