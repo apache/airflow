@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Callable, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -57,7 +57,7 @@ class JdbcOperator(BaseOperator):
         jdbc_conn_id: str = 'jdbc_default',
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Callable = fetch_all_handler,
+        handler: Callable[[Any], Any] = fetch_all_handler,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
