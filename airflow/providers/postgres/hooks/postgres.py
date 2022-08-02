@@ -174,29 +174,27 @@ class PostgresHook(DbApiHook):
         or Redshift. Port is required. If none is provided, default is used for
         each service
         """
-        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+        try:
+            from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+        except ImportError:
+            from airflow.exceptions import AirflowException
 
-        redshift = conn.extra_dejson.get('redshift', False)
+            raise AirflowException(
+                "apache-airflow-providers-amazon not installed, run: "
+                "pip install 'apache-airflow-providers-postgres[amazon]'."
+            )
+
         aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
-        aws_hook = AwsBaseHook(aws_conn_id, client_type='rds')
         login = conn.login
-        if conn.port is None:
-            port = 5439 if redshift else 5432
-        else:
-            port = conn.port
-        if redshift:
+        if conn.extra_dejson.get('redshift', False):
+            port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
             cluster_identifier = conn.extra_dejson.get('cluster-identifier', conn.host.split('.')[0])
-            session, endpoint_url = aws_hook._get_credentials(region_name=None)
-            client = session.client(
-                "redshift",
-                endpoint_url=endpoint_url,
-                config=aws_hook.config,
-                verify=aws_hook.verify,
-            )
-            cluster_creds = client.get_cluster_credentials(
-                DbUser=conn.login,
+            redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
+            cluster_creds = redshift_client.get_cluster_credentials(
+                DbUser=login,
                 DbName=self.schema or conn.schema,
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
@@ -204,7 +202,10 @@ class PostgresHook(DbApiHook):
             token = cluster_creds['DbPassword']
             login = cluster_creds['DbUser']
         else:
-            token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
+            port = conn.port or 5432
+            rds_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="rds").conn
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.generate_db_auth_token
+            token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
     def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> Optional[List[str]]:

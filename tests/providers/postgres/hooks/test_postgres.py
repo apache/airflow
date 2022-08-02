@@ -26,12 +26,12 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.utils.types import NOTSET
 
 
-class TestPostgresHookConn(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestPostgresHookConn:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         self.connection = Connection(login='login', password='password', host='host', schema='schema')
 
         class UnitTestPostgresHook(PostgresHook):
@@ -63,10 +63,7 @@ class TestPostgresHookConn(unittest.TestCase):
         self.connection.conn_type = 'postgres'
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-
-        self.assertEqual(
-            self.db_hook.get_uri(), "postgresql://login:password@host/schema?client_encoding=utf-8"
-        )
+        assert self.db_hook.get_uri() == "postgresql://login:password@host/schema?client_encoding=utf-8"
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
@@ -106,13 +103,41 @@ class TestPostgresHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
-    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
-    def test_get_conn_rds_iam_postgres(self, mock_client, mock_connect):
-        self.connection.extra = '{"iam":true}'
-        mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook')
+    @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
+    @pytest.mark.parametrize("port", [65432, 5432, None])
+    def test_get_conn_rds_iam_postgres(self, mock_aws_hook_class, mock_connect, aws_conn_id, port):
+        mock_conn_extra = {"iam": True}
+        if aws_conn_id is not NOTSET:
+            mock_conn_extra["aws_conn_id"] = aws_conn_id
+        self.connection.extra = json.dumps(mock_conn_extra)
+        self.connection.port = port
+        mock_db_token = "aws_token"
+
+        # Mock AWS Connection
+        mock_aws_hook_instance = mock_aws_hook_class.return_value
+        mock_client = mock.MagicMock()
+        mock_client.generate_db_auth_token.return_value = mock_db_token
+        type(mock_aws_hook_instance).conn = mock.PropertyMock(return_value=mock_client)
+
         self.db_hook.get_conn()
+        # Check AwsHook initialization
+        mock_aws_hook_class.assert_called_once_with(
+            # If aws_conn_id not set than fallback to aws_default
+            aws_conn_id=aws_conn_id if aws_conn_id is not NOTSET else "aws_default",
+            client_type="rds",
+        )
+        # Check boto3 'rds' client method `generate_db_auth_token` call args
+        mock_client.generate_db_auth_token.assert_called_once_with(
+            self.connection.host, (port or 5432), self.connection.login
+        )
+        # Check expected psycopg2 connection call args
         mock_connect.assert_called_once_with(
-            user='login', password='aws_token', host='host', dbname='schema', port=5432
+            user=self.connection.login,
+            password=mock_db_token,
+            host=self.connection.host,
+            dbname=self.connection.schema,
+            port=(port or 5432),
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
@@ -124,38 +149,80 @@ class TestPostgresHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
-    def test_get_conn_rds_iam_redshift(self, mock_connect):
-        self.connection.extra = '{"iam":true, "redshift":true, "cluster-identifier": "different-identifier"}'
-        self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
-        login = f'IAM:{self.connection.login}'
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook')
+    @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
+    @pytest.mark.parametrize("port", [5432, 5439, None])
+    @pytest.mark.parametrize(
+        "host,conn_cluster_identifier,expected_cluster_identifier",
+        [
+            (
+                'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com',
+                NOTSET,
+                'cluster-identifier',
+            ),
+            (
+                'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com',
+                'different-identifier',
+                'different-identifier',
+            ),
+        ],
+    )
+    def test_get_conn_rds_iam_redshift(
+        self,
+        mock_aws_hook_class,
+        mock_connect,
+        aws_conn_id,
+        port,
+        host,
+        conn_cluster_identifier,
+        expected_cluster_identifier,
+    ):
+        mock_conn_extra = {
+            "iam": True,
+            "redshift": True,
+        }
+        if aws_conn_id is not NOTSET:
+            mock_conn_extra["aws_conn_id"] = aws_conn_id
+        if conn_cluster_identifier is not NOTSET:
+            mock_conn_extra["cluster-identifier"] = conn_cluster_identifier
 
-        mock_session = mock.Mock()
-        mock_get_cluster_credentials = mock_session.client.return_value.get_cluster_credentials
-        mock_get_cluster_credentials.return_value = {'DbPassword': 'aws_token', 'DbUser': login}
+        self.connection.extra = json.dumps(mock_conn_extra)
+        self.connection.host = host
+        self.connection.port = port
+        mock_db_user = f'IAM:{self.connection.login}'
+        mock_db_pass = "aws_token"
 
-        aws_get_credentials_patcher = mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook._get_credentials",
-            return_value=(mock_session, None),
+        # Mock AWS Connection
+        mock_aws_hook_instance = mock_aws_hook_class.return_value
+        mock_client = mock.MagicMock()
+        mock_client.get_cluster_credentials.return_value = {
+            'DbPassword': mock_db_pass,
+            'DbUser': mock_db_user,
+        }
+        type(mock_aws_hook_instance).conn = mock.PropertyMock(return_value=mock_client)
+
+        self.db_hook.get_conn()
+        # Check AwsHook initialization
+        mock_aws_hook_class.assert_called_once_with(
+            # If aws_conn_id not set than fallback to aws_default
+            aws_conn_id=aws_conn_id if aws_conn_id is not NOTSET else "aws_default",
+            client_type="redshift",
         )
-        get_cluster_credentials_call = mock.call(
+        # Check boto3 'redshift' client method `get_cluster_credentials` call args
+        mock_client.get_cluster_credentials.assert_called_once_with(
             DbUser=self.connection.login,
             DbName=self.connection.schema,
-            ClusterIdentifier="different-identifier",
+            ClusterIdentifier=expected_cluster_identifier,
             AutoCreate=False,
         )
-
-        with aws_get_credentials_patcher:
-            self.db_hook.get_conn()
-        assert mock_get_cluster_credentials.mock_calls == [get_cluster_credentials_call]
+        # Check expected psycopg2 connection call args
         mock_connect.assert_called_once_with(
-            user=login, password='aws_token', host=self.connection.host, dbname='schema', port=5439
+            user=mock_db_user,
+            password=mock_db_pass,
+            host=host,
+            dbname=self.connection.schema,
+            port=(port or 5439),
         )
-
-        # Verify that the connection object has not been mutated.
-        mock_get_cluster_credentials.reset_mock()
-        with aws_get_credentials_patcher:
-            self.db_hook.get_conn()
-        assert mock_get_cluster_credentials.mock_calls == [get_cluster_credentials_call]
 
     def test_get_uri_from_connection_without_schema_override(self):
         self.db_hook.get_connection = mock.MagicMock(
