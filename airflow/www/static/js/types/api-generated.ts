@@ -730,6 +730,8 @@ export interface components {
       connection_id?: string;
       /** @description The connection type. */
       conn_type?: string;
+      /** @description The description of the connection. */
+      description?: string | null;
       /** @description Host of the connection. */
       host?: string | null;
       /** @description Login of the connection. */
@@ -1209,6 +1211,12 @@ export interface components {
      */
     VariableCollectionItem: {
       key?: string;
+      /**
+       * @description The description of the variable.
+       *
+       * *New in version 2.4.0*
+       */
+      description?: string | null;
     };
     /**
      * @description Collection of variables.
