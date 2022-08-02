@@ -2631,6 +2631,15 @@ class SimpleTaskInstance:
             return self.__dict__ == other.__dict__
         return NotImplemented
 
+    def as_dict(self):
+        for key in self.__dict__:
+            if key in ['start_date', 'end_date']:
+                val = getattr(self, key)
+                if not val or isinstance(val, str):
+                    continue
+                self.__dict__.update({key: val.isoformat()})
+        return self.__dict__
+
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":
         return cls(

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import copy
 import json
 from typing import TYPE_CHECKING, Optional
 
@@ -74,8 +75,8 @@ class TaskCallbackRequest(CallbackRequest):
         self.is_failure_callback = is_failure_callback
 
     def to_json(self) -> str:
-        dict_obj = self.__dict__.copy()
-        dict_obj["simple_task_instance"] = dict_obj["simple_task_instance"].__dict__
+        dict_obj = copy.deepcopy(self.__dict__)
+        dict_obj["simple_task_instance"] = dict_obj["simple_task_instance"].as_dict()
         return json.dumps(dict_obj)
 
     @classmethod
