@@ -2632,13 +2632,14 @@ class SimpleTaskInstance:
         return NotImplemented
 
     def as_dict(self):
-        for key in self.__dict__:
+        new_dict = dict(self.__dict__)
+        for key in new_dict:
             if key in ['start_date', 'end_date']:
-                val = getattr(self, key)
+                val = new_dict[key]
                 if not val or isinstance(val, str):
                     continue
-                self.__dict__.update({key: val.isoformat()})
-        return self.__dict__
+                new_dict.update({key: val.isoformat()})
+        return new_dict
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":
