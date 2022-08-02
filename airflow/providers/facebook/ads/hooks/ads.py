@@ -92,7 +92,7 @@ class FacebookAdsReportingHook(BaseHook):
         """
         self.log.info("Fetching fb connection: %s", self.facebook_conn_id)
         conn = self.get_connection(self.facebook_conn_id)
-        config = {**conn.extra_dejson, **{"access_token":conn.password}}
+        config = {**conn.extra_dejson, "access_token": conn.password}
         missing_keys = self.client_required_fields - config.keys()
         if missing_keys:
             message = f"{missing_keys} fields are missing"
