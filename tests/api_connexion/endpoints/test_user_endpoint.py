@@ -106,6 +106,90 @@ class TestGetUser(TestUserEndpoint):
             'username': 'TEST_USER1',
         }
 
+    def test_last_names_can_be_empty(self):
+        prince = User(
+            first_name='Prince',
+            last_name='',
+            username='prince',
+            email='prince@example.org',
+            roles=[],
+            created_on=timezone.parse(DEFAULT_TIME),
+            changed_on=timezone.parse(DEFAULT_TIME),
+        )
+        self.session.add_all([prince])
+        self.session.commit()
+        response = self.client.get("/api/v1/users/prince", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        assert response.json == {
+            'active': None,
+            'changed_on': DEFAULT_TIME,
+            'created_on': DEFAULT_TIME,
+            'email': 'prince@example.org',
+            'fail_login_count': None,
+            'first_name': 'Prince',
+            'last_login': None,
+            'last_name': '',
+            'login_count': None,
+            'roles': [],
+            'username': 'prince',
+        }
+
+    def test_first_names_can_be_empty(self):
+        liberace = User(
+            first_name='',
+            last_name='Liberace',
+            username='liberace',
+            email='liberace@example.org',
+            roles=[],
+            created_on=timezone.parse(DEFAULT_TIME),
+            changed_on=timezone.parse(DEFAULT_TIME),
+        )
+        self.session.add_all([liberace])
+        self.session.commit()
+        response = self.client.get("/api/v1/users/liberace", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        assert response.json == {
+            'active': None,
+            'changed_on': DEFAULT_TIME,
+            'created_on': DEFAULT_TIME,
+            'email': 'liberace@example.org',
+            'fail_login_count': None,
+            'first_name': '',
+            'last_login': None,
+            'last_name': 'Liberace',
+            'login_count': None,
+            'roles': [],
+            'username': 'liberace',
+        }
+
+    def test_both_first_and_last_names_can_be_empty(self):
+        nameless = User(
+            first_name='',
+            last_name='',
+            username='nameless',
+            email='nameless@example.org',
+            roles=[],
+            created_on=timezone.parse(DEFAULT_TIME),
+            changed_on=timezone.parse(DEFAULT_TIME),
+        )
+        self.session.add_all([nameless])
+        self.session.commit()
+        response = self.client.get("/api/v1/users/nameless", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        assert response.json == {
+            'active': None,
+            'changed_on': DEFAULT_TIME,
+            'created_on': DEFAULT_TIME,
+            'email': 'nameless@example.org',
+            'fail_login_count': None,
+            'first_name': '',
+            'last_login': None,
+            'last_name': '',
+            'login_count': None,
+            'roles': [],
+            'username': 'nameless',
+        }
+
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/users/invalid-user", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
@@ -308,8 +392,8 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
         "username": autoclean_username,
         "password": "resutsop",
         "email": autoclean_email,
-        "first_name": "Example",
-        "last_name": "User",
+        "first_name": "Tester",
+        "last_name": "",
     }
 
 
@@ -454,14 +538,14 @@ class TestPatchUser(TestUserEndpoint):
         # The first name is changed.
         data = response.json
         assert data["first_name"] == "Changed"
-        assert data["last_name"] == "User"
+        assert data["last_name"] == ""
 
     @pytest.mark.usefixtures("autoclean_admin_user")
-    def test_change_with_update_maek(self, autoclean_username, autoclean_user_payload):
+    def test_change_with_update_mask(self, autoclean_username, autoclean_user_payload):
         autoclean_user_payload["first_name"] = "Changed"
-        autoclean_user_payload["last_name"] = "Overlord"
+        autoclean_user_payload["last_name"] = "McTesterson"
         response = self.client.patch(
-            f"/api/v1/users/{autoclean_username}?update_mask=first_name",
+            f"/api/v1/users/{autoclean_username}?update_mask=last_name",
             json=autoclean_user_payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -469,8 +553,8 @@ class TestPatchUser(TestUserEndpoint):
 
         # The first name is changed, but the last name isn't since we masked it.
         data = response.json
-        assert data["first_name"] == "Changed"
-        assert data["last_name"] == "User"
+        assert data["first_name"] == "Tester"
+        assert data["last_name"] == "McTesterson"
 
     @pytest.mark.parametrize(
         "payload, error_message",

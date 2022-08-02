@@ -654,13 +654,13 @@ export interface components {
       /**
        * @description The user's first name.
        *
-       * *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
+       * *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
        */
       first_name?: string;
       /**
        * @description The user's last name.
        *
-       * *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
+       * *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
        */
       last_name?: string;
       /**
