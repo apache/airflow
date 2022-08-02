@@ -971,7 +971,7 @@ class DataprocJobBaseOperator(BaseOperator):
             if self.deferrable:
                 self.defer(
                     trigger=DataprocBaseTrigger(
-                        job_id=self.job_id,
+                        job_id=job_id,
                         project_id=self.project_id,
                         region=self.region,
                         delegate_to=self.delegate_to,

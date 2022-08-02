@@ -26,21 +26,22 @@ from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
+from google.api_core.operation_async import AsyncOperation
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
     Batch,
-    BatchControllerClient,
     BatchControllerAsyncClient,
+    BatchControllerClient,
     Cluster,
-    ClusterControllerClient,
     ClusterControllerAsyncClient,
+    ClusterControllerClient,
     Job,
-    JobControllerClient,
     JobControllerAsyncClient,
+    JobControllerClient,
     JobStatus,
     WorkflowTemplate,
-    WorkflowTemplateServiceClient,
     WorkflowTemplateServiceAsyncClient,
+    WorkflowTemplateServiceClient,
 )
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -1557,7 +1558,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
-    ) -> Operation:
+    ) -> AsyncOperation:
         """
         Creates a batch workload.
 
