@@ -1240,10 +1240,13 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_description(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    def test_description(self, mock_insert, _):
         bq_cursor = self.hook.get_cursor()
         bq_cursor.execute("SELECT CURRENT_TIMESTAMP() as ts")
-        assert bq_cursor.description == ("ts", "STRING", None, None, None, None, True)
+        assert mock_insert.call_count == 1
+        # Since the service is mocked we can't get the schema
+        assert bq_cursor.description == []
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_close(self, mock_get_service):
