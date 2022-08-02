@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the usage of the BranchPythonOperator."""
+"""Example DAG demonstrating the usage of the ``@task.branch`` TaskFlow API decorator."""
+
+from __future__ import annotations
 
 import random
-from datetime import datetime
+
+import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
@@ -29,38 +32,29 @@ from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
     dag_id='example_branch_python_operator_decorator',
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule_interval="@daily",
     tags=['example', 'example2'],
 ) as dag:
-    run_this_first = EmptyOperator(
-        task_id='run_this_first',
-    )
+    run_this_first = EmptyOperator(task_id='run_this_first')
 
     options = ['branch_a', 'branch_b', 'branch_c', 'branch_d']
 
     @task.branch(task_id="branching")
-    def random_choice():
-        return random.choice(options)
+    def random_choice(choices: list[str]) -> str:
+        return random.choice(choices)
 
-    random_choice_instance = random_choice()
+    random_choice_instance = random_choice(choices=options)
 
     run_this_first >> random_choice_instance
 
-    join = EmptyOperator(
-        task_id='join',
-        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-    )
+    join = EmptyOperator(task_id='join', trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
     for option in options:
-        t = EmptyOperator(
-            task_id=option,
-        )
+        t = EmptyOperator(task_id=option)
 
-        empty_follow = EmptyOperator(
-            task_id='follow_' + option,
-        )
+        empty_follow = EmptyOperator(task_id='follow_' + option)
 
         # Label is optional here, but it can help identify more complex branches
         random_choice_instance >> Label(option) >> t >> empty_follow >> join

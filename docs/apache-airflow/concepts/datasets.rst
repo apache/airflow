@@ -33,6 +33,7 @@ Then reference the dataset as a task outlet:
 
 .. exampleinclude:: /../../airflow/example_dags/example_datasets.py
     :language: python
+    :dedent: 4
     :start-after: [START task_outlet]
     :end-before: [END task_outlet]
 
