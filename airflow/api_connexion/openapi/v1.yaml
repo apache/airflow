@@ -2245,6 +2245,10 @@ components:
         conn_type:
           type: string
           description: The connection type.
+        description:
+          type: string
+          description: The description of the connection.
+          nullable: true
         host:
           type: string
           nullable: true
@@ -3034,6 +3038,13 @@ components:
       properties:
         key:
           type: string
+        description:
+          type: string
+          description: |
+            The description of the variable.
+
+            *New in version 2.4.0*
+          nullable: true
 
     VariableCollection:
       type: object

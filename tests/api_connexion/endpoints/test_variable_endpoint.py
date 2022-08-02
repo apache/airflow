@@ -109,7 +109,7 @@ class TestGetVariable(TestVariableEndpoint):
             "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value}
+        assert response.json == {"key": "TEST_VARIABLE_KEY", "value": expected_value, "description": None}
 
     def test_should_respond_404_if_not_found(self):
         response = self.client.get(
@@ -132,8 +132,8 @@ class TestGetVariables(TestVariableEndpoint):
                 "/api/v1/variables?limit=2&offset=0",
                 {
                     "variables": [
-                        {"key": "var1", "value": "1"},
-                        {"key": "var2", "value": "foo"},
+                        {"key": "var1", "value": "1", "description": "I am a variable"},
+                        {"key": "var2", "value": "foo", "description": "Another variable"},
                     ],
                     "total_entries": 3,
                 },
@@ -142,8 +142,8 @@ class TestGetVariables(TestVariableEndpoint):
                 "/api/v1/variables?limit=2&offset=1",
                 {
                     "variables": [
-                        {"key": "var2", "value": "foo"},
-                        {"key": "var3", "value": "[100, 101]"},
+                        {"key": "var2", "value": "foo", "description": "Another variable"},
+                        {"key": "var3", "value": "[100, 101]", "description": None},
                     ],
                     "total_entries": 3,
                 },
@@ -152,7 +152,7 @@ class TestGetVariables(TestVariableEndpoint):
                 "/api/v1/variables?limit=1&offset=2",
                 {
                     "variables": [
-                        {"key": "var3", "value": "[100, 101]"},
+                        {"key": "var3", "value": "[100, 101]", "description": None},
                     ],
                     "total_entries": 3,
                 },
@@ -160,8 +160,8 @@ class TestGetVariables(TestVariableEndpoint):
         ]
     )
     def test_should_get_list_variables(self, query, expected):
-        Variable.set("var1", 1)
-        Variable.set("var2", "foo")
+        Variable.set("var1", 1, "I am a variable")
+        Variable.set("var2", "foo", "Another variable")
         Variable.set("var3", "[100, 101]")
         response = self.client.get(query, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
@@ -279,6 +279,7 @@ class TestPostVariables(TestVariableEndpoint):
         assert response.json == {
             "key": "var_create",
             "value": "{}",
+            "description": None,
         }
 
     def test_should_reject_invalid_request(self):
