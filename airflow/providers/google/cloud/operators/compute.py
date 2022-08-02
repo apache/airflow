@@ -91,8 +91,9 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: Optional[str]
-    :param resource_id: Name of the Instance.
-    :type resource_id: str
+    :param resource_id: Name of the Instance. If the name of Instance is not specified in body['name'],
+        the name will be taken from 'resource_id' parameter
+    :type resource_id: Optional[str]
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again)
@@ -140,6 +141,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         *,
         body: dict,
         zone: str,
+        resource_id: Optional[str] = None,
         project_id: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -154,7 +156,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"]
+        self.resource_id = self.body["name"] if 'name' in body else resource_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -176,12 +178,6 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         )
 
     def check_body_fields(self) -> None:
-        if 'name' not in self.body:
-            raise AirflowException(
-                f"'{self.body}' should contain at least name for the new operator "
-                f"in the 'name' field. Check (google.cloud.compute_v1.types.Instance) "
-                f"for more details about body fields description."
-            )
         if 'machine_type' not in self.body:
             raise AirflowException(
                 f"The body '{self.body}' should contain at least machine type for the new operator "
@@ -277,7 +273,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: Optional[str]
-    :param resource_id: Name of the Instance.
+    :param resource_id: Name of the Instance. If the name of Instance is not specified in body['name'],
+        the name will be taken from 'resource_id' parameter
     :type resource_id: str
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
@@ -328,6 +325,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         source_instance_template: str,
         body: dict,
         zone: str,
+        resource_id: Optional[str] = None,
         project_id: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -342,7 +340,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        self.resource_id = self.body["name"]
+        self.resource_id = self.body["name"] if 'name' in body else resource_id
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
