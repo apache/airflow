@@ -400,6 +400,11 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the transform job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
+    :param check_if_job_exists: If set to true, then the operator will check whether a transform job
+        already exists for the name in the config.
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
+        (default) and "fail".
+        This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
@@ -411,6 +416,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: Optional[int] = None,
+        check_if_job_exists: bool = True,
+        action_if_job_exists: str = 'increment',
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -419,6 +426,14 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
+        self.check_if_job_exists = check_if_job_exists
+        if action_if_job_exists in ('increment', 'fail'):
+            self.action_if_job_exists = action_if_job_exists
+        else:
+            raise AirflowException(
+                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                Provided value: '{action_if_job_exists}'."
+            )
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -444,6 +459,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.preprocess_config()
         model_config = self.config.get('Model')
         transform_config = self.config.get('Transform', self.config)
+        if self.check_if_job_exists:
+            self._check_if_transform_job_exists()
         if model_config:
             self.log.info('Creating SageMaker Model %s for transform job', model_config['ModelName'])
             self.hook.create_model(model_config)
@@ -461,6 +478,21 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 'Model': self.hook.describe_model(transform_config['ModelName']),
                 'Transform': self.hook.describe_transform_job(transform_config['TransformJobName']),
             }
+
+    def _check_if_transform_job_exists(self) -> None:
+        transform_config = self.config.get('Transform', self.config)
+        transform_job_name = transform_config['TransformJobName']
+        transform_jobs = self.hook.list_transform_jobs(name_contains=transform_job_name)
+        if transform_job_name in [tj['TransformJobName'] for tj in transform_jobs]:
+            if self.action_if_job_exists == 'increment':
+                self.log.info("Found existing transform job with name '%s'.", transform_job_name)
+                new_transform_job_name = f'{transform_job_name}-{(len(transform_jobs) + 1)}'
+                transform_config['TransformJobName'] = new_transform_job_name
+                self.log.info("Incremented transform job name to '%s'.", new_transform_job_name)
+            elif self.action_if_job_exists == 'fail':
+                raise AirflowException(
+                    f'A SageMaker transform job with name {transform_job_name} already exists.'
+                )
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
@@ -605,7 +637,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         already exists for the name in the config.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
-        This is only relevant if check_if
+        This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
