@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import datetime
 
 from parameterized import parameterized
@@ -29,6 +28,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 TI = TaskInstance(
@@ -38,7 +38,7 @@ TI = TaskInstance(
 )
 
 
-class TestCallbackRequest(unittest.TestCase):
+class TestCallbackRequest:
     @parameterized.expand(
         [
             (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
@@ -64,7 +64,20 @@ class TestCallbackRequest(unittest.TestCase):
     )
     def test_from_json(self, input, request_class):
         json_str = input.to_json()
-
         result = request_class.from_json(json_str=json_str)
+        assert result == input
 
-        self.assertEqual(result, input)
+    def test_taskcallback_to_json_with_start_date_and_end_date(self, session, create_task_instance):
+        ti = create_task_instance()
+        ti.start_date = timezone.utcnow()
+        ti.end_date = timezone.utcnow()
+        session.merge(ti)
+        session.flush()
+        input = TaskCallbackRequest(
+            full_filepath="filepath",
+            simple_task_instance=SimpleTaskInstance.from_ti(ti),
+            is_failure_callback=True,
+        )
+        json_str = input.to_json()
+        result = TaskCallbackRequest.from_json(json_str)
+        assert input == result
