@@ -88,7 +88,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         20: 'INTEGER',
         21: 'INTEGER',
         23: 'INTEGER',
-        16: 'BOOLEAN',
+        16: 'BOOL',
         700: 'FLOAT',
         701: 'FLOAT',
         1700: 'FLOAT',
