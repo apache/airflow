@@ -232,7 +232,7 @@ There are several areas of resource usage that you should pay attention to:
   performance. For example there are anecdotal evidences that increasing IOPS (and paying more) for the
   EFS performance, dramatically improves stability and speed of parsing Airflow DAGs when EFS is used.
 * Another solution to FileSystem performance, if it becomes your bottleneck, is to turn to alternative
-  mechanisms of distributing your DAGs. Embedding DAGs in your image and GitSync distribution have both
+  mechanisms of distributing your DAGs. Embedding DAGs in your image and GitSync distribution. Both have
   the property that the files are available locally for Scheduler and it does not have to use a
   distributed filesystem to read the files, the files are available locally for the Scheduler and it is
   usually as fast as it can be, especially if your machines use fast SSD disks for local storage. Those
