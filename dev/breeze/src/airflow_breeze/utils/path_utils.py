@@ -68,7 +68,7 @@ def skip_upgrade_check():
 
 def get_package_setup_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files from the source of installation of Breeze.
+    Retrieves hash of setup files from the source of installation of Breeze.
 
     This is used in order to determine if we need to upgrade Breeze, because some
     setup files changed. Blake2b algorithm will not be flagged by security checkers
@@ -117,7 +117,7 @@ def get_installation_sources_config_metadata_hash() -> str:
 
 def get_used_sources_setup_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files from the currently used sources.
+    Retrieves hash of setup files from the currently used sources.
     """
     return get_sources_setup_metadata_hash(get_used_airflow_sources())
 
