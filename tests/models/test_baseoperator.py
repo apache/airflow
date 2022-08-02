@@ -798,7 +798,7 @@ def test_deepcopy():
             dict(),
             jinja2.TemplateSyntaxError,
             None,
-            "Exception rendering Jinja template for in task 'op1', field 'arg1'. Template: '{{ foo'",
+            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo'",
             None,
         ),
         # Type error
@@ -807,27 +807,28 @@ def test_deepcopy():
             dict(foo="footemplated"),
             TypeError,
             None,
-            "Exception rendering Jinja template for in task 'op1', field 'arg1'. Template: '{{ foo + 1 }}'",
+            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo + 1 }}'",
             None,
         ),
     ],
 )
 def test_render_template_fields_logging(
-    caplog, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
+    caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
     # Trigger templating and verify results
     def _do_render():
         task.render_template_fields(context=context)
 
-    with caplog.at_level(logging.ERROR, "airflow.models.abstractoperator.AbstractOperator"):
-        if expected_exception:
-            with pytest.raises(expected_exception):
-                _do_render()
-        else:
+    logger = logging.getLogger("airflow.task")
+    monkeypatch.setattr(logger, "propagate", True)
+    if expected_exception:
+        with pytest.raises(expected_exception):
             _do_render()
-            for k, v in expected_rendering.items():
-                assert getattr(task, k) == v
+    else:
+        _do_render()
+        for k, v in expected_rendering.items():
+            assert getattr(task, k) == v
     if expected_log:
         assert expected_log in caplog.text
     if not_expected_log:
