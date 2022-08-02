@@ -35,6 +35,7 @@ from operator import itemgetter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
+import configupdater
 import lazy_object_proxy
 import markupsafe
 import nvd3
@@ -3688,28 +3689,38 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         ]
     )
+    def legacy_audit_log(self):
+        """Redirect from url param."""
+        return redirect(url_for('Airflow.audit_log', **request.args))
+
+    @expose('/dags/<string:dag_id>/audit_log')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        ]
+    )
     @provide_session
-    def audit_log(self, session=None):
-        dag_id = request.args.get('dag_id')
+    def audit_log(self, dag_id: str, session=None):
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
 
-        included_events = conf.get('webserver', 'audit_view_included_events', fallback=None)
-        excluded_events = conf.get('webserver', 'audit_view_excluded_events', fallback=None)
+        included_events_raw = conf.get('webserver', 'audit_view_included_events', fallback=None)
+        excluded_events_raw = conf.get('webserver', 'audit_view_excluded_events', fallback=None)
 
         query = session.query(Log).filter(Log.dag_id == dag_id)
-        if included_events:
-            included_events = {event.strip() for event in included_events.split(',')}
+        if included_events_raw:
+            included_events = {event.strip() for event in included_events_raw.split(',')}
             query = query.filter(Log.event.in_(included_events))
-        elif excluded_events:
-            excluded_events = {event.strip() for event in excluded_events.split(',')}
+        elif excluded_events_raw:
+            excluded_events = {event.strip() for event in excluded_events_raw.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
 
         dag_audit_logs = query.all()
-        content = self.render_template(
+        return self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
             dag_model=dag_model,
@@ -3718,7 +3729,6 @@ class Airflow(AirflowBaseView):
             dag_logs=dag_audit_logs,
             page_size=PAGE_SIZE,
         )
-        return content
 
 
 class ConfigurationView(AirflowBaseView):
@@ -3743,12 +3753,33 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = AIRFLOW_CONFIG
+
+        expose_config = conf.get('webserver', 'expose_config')
+
         # Don't show config when expose_config variable is False in airflow config
-        if conf.getboolean("webserver", "expose_config"):
+        # Don't show sensitive config values if expose_config variable is 'non-sensitive-only'
+        # in airflow config
+        if expose_config.lower() == 'non-sensitive-only':
+            from airflow.configuration import SENSITIVE_CONFIG_VALUES
+
+            updater = configupdater.ConfigUpdater()
+            updater.read(AIRFLOW_CONFIG)
+            for sect, key in SENSITIVE_CONFIG_VALUES:
+                if updater.has_option(sect, key):
+                    updater[sect][key].value = '< hidden >'
+            config = str(updater)
+
+            table = [
+                (section, key, str(value), source)
+                for section, parameters in conf.as_dict(True, False).items()
+                for key, (value, source) in parameters.items()
+            ]
+        elif expose_config.lower() in ['true', 't', '1']:
+
             with open(AIRFLOW_CONFIG) as file:
                 config = file.read()
             table = [
-                (section, key, value, source)
+                (section, key, str(value), source)
                 for section, parameters in conf.as_dict(True, True).items()
                 for key, (value, source) in parameters.items()
             ]
