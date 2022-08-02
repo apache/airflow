@@ -2709,29 +2709,6 @@ class Airflow(AirflowBaseView):
         if num_runs is None:
             num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
-        try:
-            base_date = _safe_parse_datetime(request.args["base_date"])
-        except (KeyError, ValueError):
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        dag_runs = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-            .order_by(DagRun.execution_date.desc())
-            .limit(num_runs)
-            .all()
-        )
-        dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-
-        max_date = max(dag_run_dates, default=None)
-
-        form = DateTimeWithNumRunsForm(
-            data={
-                'base_date': max_date or timezone.utcnow(),
-                'num_runs': num_runs,
-            }
-        )
-
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
@@ -2749,9 +2726,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             'airflow/grid.html',
-            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
-            form=form,
             dag=dag,
             doc_md=doc_md,
             num_runs=num_runs,
