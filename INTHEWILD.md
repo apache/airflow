@@ -232,6 +232,7 @@ Currently, **officially** using Airflow:
 1. [Hootsuite](https://github.com/hootsuite)
 1. [Hostnfly](https://www.hostnfly.com/) [[@CyrilLeMat](https://github.com/CyrilLeMat) & [@pierrechopin](https://github.com/pierrechopin) & [@alexisrosuel](https://github.com/alexisrosuel)]
 1. [HotelQuickly](https://github.com/HotelQuickly) [[@zinuzoid](https://github.com/zinuzoid)]
+1. [HP Inc](https://www.hp.com/) [[@hpinc](https://github.com/HPInc)]
 1. [Huq Industries](https://huq.io) [[@huqindustries](https://github.com/huq-industries), [@alepuccetti](https://github.com/alepuccetti), [@turbomerl](https://github.com/turbomerl)]
 1. [Hurb](https://hurb.com/) [[@hurbcom](https://github.com/hurbcom)]
 1. [Iflix](https://piay.iflix.com) [[@ChaturvediSulabh](https://github.com/ChaturvediSulabh)]

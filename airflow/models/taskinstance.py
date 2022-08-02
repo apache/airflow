@@ -59,6 +59,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     and_,
     false,
@@ -428,7 +429,6 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -480,6 +480,9 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
+        PrimaryKeyConstraint(
+            "dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey', mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
@@ -1533,7 +1536,7 @@ class TaskInstance(Base, LoggingMixin):
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
                 self.log.debug("downstream dag ids %s", downstream_dag_ids)
                 session.add(
                     DatasetEvent(

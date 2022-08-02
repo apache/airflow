@@ -455,7 +455,7 @@ class DecoratedMappedOperator(MappedOperator):
         assert self.expand_input is EXPAND_INPUT_EMPTY
         return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         if strict:
             prevent_duplicates(
                 self.partial_kwargs["op_kwargs"],
