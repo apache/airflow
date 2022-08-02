@@ -30,10 +30,14 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_trino_to_gcs"
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
-GCS_BUCKET = os.environ.get("GCP_TRINO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
-DATASET_NAME = os.environ.get("GCP_TRINO_TO_GCS_DATASET_NAME", "test_trino_to_gcs_dataset")
+GCS_BUCKET = f"bucket_{DAG_ID}_{ENV_ID}"
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 
 SOURCE_MULTIPLE_TYPES = "memory.default.test_multiple_types"
 SOURCE_CUSTOMER_TABLE = "tpch.sf1.customer"
@@ -47,17 +51,19 @@ def safe_name(s: str) -> str:
 
 
 with models.DAG(
-    dag_id="example_trino_to_gcs",
+    dag_id=DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "gcs"],
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
+        task_id="delete_dataset",
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_trino_to_gcs_basic]
@@ -179,15 +185,29 @@ with models.DAG(
     )
     # [END howto_operator_trino_to_gcs_csv]
 
-    create_dataset >> trino_to_gcs_basic
-    create_dataset >> trino_to_gcs_multiple_types
-    create_dataset >> trino_to_gcs_many_chunks
-    create_dataset >> trino_to_gcs_csv
+    (
+        # TEST SETUP
+        create_dataset
+        # TEST BODY
+        >> trino_to_gcs_basic
+        >> trino_to_gcs_multiple_types
+        >> trino_to_gcs_many_chunks
+        >> trino_to_gcs_csv
+        >> create_external_table_multiple_types
+        >> create_external_table_many_chunks
+        >> read_data_from_gcs_multiple_types
+        >> read_data_from_gcs_many_chunks
+        # TEST TEARDOWN
+        >> delete_dataset
+    )
 
-    trino_to_gcs_multiple_types >> create_external_table_multiple_types >> read_data_from_gcs_multiple_types
-    trino_to_gcs_many_chunks >> create_external_table_many_chunks >> read_data_from_gcs_many_chunks
+    from tests.system.utils.watcher import watcher
 
-    trino_to_gcs_basic >> delete_dataset
-    trino_to_gcs_csv >> delete_dataset
-    read_data_from_gcs_multiple_types >> delete_dataset
-    read_data_from_gcs_many_chunks >> delete_dataset
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
