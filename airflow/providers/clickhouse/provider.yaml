@@ -20,8 +20,13 @@ package-name: apache-airflow-providers-clickhouse
 name: ClickHouse
 description: |
     `ClickHouse <https://www.clickhouse.com/>`__
+
 versions:
   - 1.0.0
+
+dependencies:
+  - apache-airflow>=2.2.0
+  - clickhouse-driver>=0.2.3
 
 integrations:
   - integration-name: ClickHouse
