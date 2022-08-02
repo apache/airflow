@@ -61,7 +61,7 @@ const Details = ({
     {upstreamTaskReferences && !!upstreamTaskReferences.length && (
     <Box mb={2}>
       <Flex alignItems="center">
-        <Heading size="md" fontWeight="normal">Upstream Tasks</Heading>
+        <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
         <InfoTooltip label="Tasks that will update this dataset." size={14} />
       </Flex>
       {upstreamTaskReferences.map(({ dagId, taskId }) => (
@@ -79,7 +79,7 @@ const Details = ({
     {downstreamDagReferences && !!downstreamDagReferences.length && (
     <Box>
       <Flex alignItems="center">
-        <Heading size="md" fontWeight="normal">Downstream DAGs</Heading>
+        <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
         <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
       </Flex>
       {downstreamDagReferences.map(({ dagId }) => (

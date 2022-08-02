@@ -41,15 +41,15 @@ interface Props {
 
 const UpstreamHeader = () => (
   <Flex>
-    <Text>Upstream Tasks</Text>
+    <Text>Producing Tasks</Text>
     <InfoTooltip size={12} label="Number of tasks that will update this dataset." />
   </Flex>
 );
 
 const DownstreamHeader = () => (
   <Flex>
-    <Text>Downstream DAGs</Text>
-    <InfoTooltip size={12} label="Number of DAGs that will trigger a run based on updates to this dataset." />
+    <Text>Consuming DAGs</Text>
+    <InfoTooltip size={12} label="Number of DAGs that will run based on updates to this dataset." />
   </Flex>
 );
 
