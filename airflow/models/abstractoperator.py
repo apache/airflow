@@ -345,13 +345,23 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self.render_template(
-                value,
-                context,
-                jinja_env,
-                seen_oids,
-            )
-            setattr(parent, attr_name, rendered_content)
+            try:
+                rendered_content = self.render_template(
+                    value,
+                    context,
+                    jinja_env,
+                    seen_oids,
+                )
+            except Exception:
+                self.log.exception(
+                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                    self.task_id,
+                    attr_name,
+                    value,
+                )
+                raise
+            else:
+                setattr(parent, attr_name, rendered_content)
 
     def render_template(
         self,
