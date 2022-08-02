@@ -74,12 +74,12 @@ class ClickHouseHook(BaseHook):
         self.client = ClickHouseClient(conn.host or 'localhost', **connection_kwargs)
         return self.client
 
-    def query(self, query: str, params: Optional[dict] = None, **kwargs) -> Any:
+    def query(self, sql: str, params: Optional[dict] = None, **kwargs) -> Any:
         """
         Function to create a clickhouse session
         and execute the sql query in the session.
 
-        :param query: sql query
+        :param sql: sql query
         :param params: substitution parameters for SELECT queries and data for INSERT queries.
         :param kwargs: additional optional parameters from API
 
@@ -88,14 +88,14 @@ class ClickHouseHook(BaseHook):
         for more, refer - https://clickhouse-driver.readthedocs.io/en/latest/api.html
         """
         try:
-            self.log.info('Running: %s (with parameters %s)', query, params)
-            result = self.client.execute(query, params=params, **kwargs)
+            self.log.info('Running: %s (with parameters %s)', sql, params)
+            result = self.client.execute(sql, params=params, **kwargs)
             return result
         except Exception as error:
             raise AirflowException(f"Failed to execute SQL Query, error: {str(error)}")
 
     def get_records(self, sql: str, parameters: Optional[dict] = None) -> Optional[Tuple]:
-        return self.query(query=sql, params=parameters)
+        return self.query(sql=sql, params=parameters)
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:

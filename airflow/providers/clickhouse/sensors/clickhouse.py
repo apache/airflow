@@ -26,7 +26,7 @@ class ClickHouseSensor(SqlSensor):
     Checks for the existence of a document which
     matches the given query in ClickHouse. Example:
 
-    :param query: The query to poke, or you can provide .sql file having the query
+    :param sql: The query to poke, or you can provide .sql file having the query
     :param parameters: The parameters to render the SQL query with (optional).
     :param database:Optional[str], database to query, if not provided schema from Connection will be used
     :param success: Success criteria for the sensor is a Callable that takes first_cell
@@ -42,7 +42,7 @@ class ClickHouseSensor(SqlSensor):
     ui_color = '#a3985f'
 
     def __init__(self,
-                 query: str,
+                 sql: str,
                  parameters: Optional[Dict[str, Any]] = None,
                  database: Optional[str] = None,
                  success: Optional[Callable[[Any], bool]] = None,
@@ -53,7 +53,7 @@ class ClickHouseSensor(SqlSensor):
                  **kwargs) -> None:
         super().__init__(
             conn_id=clickhouse_conn_id,
-            sql=query,
+            sql=sql,
             parameters=parameters,
             success=success,
             failure=failure,

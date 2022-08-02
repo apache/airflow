@@ -32,7 +32,7 @@ class ClickHouseOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:ClickHouseOperator`
 
-    :param query: the SQL query to be executed. Can receive a str representing a
+    :param sql: the SQL query to be executed. Can receive a str representing a
         SQL statement, or you can provide .sql file having the query
     :param params: substitution parameters for SELECT queries and data for INSERT queries.
     :param database:Optional[str], database to query, if not provided schema from Connection will be used
@@ -41,16 +41,16 @@ class ClickHouseOperator(BaseOperator):
     :param clickhouse_conn_id: Reference to :ref:`ClickHouse connection id <howto/connection:clickhouse>`.
     """
 
-    template_fields: Sequence[str] = ('query',)
+    template_fields: Sequence[str] = ('sql',)
 
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"query": "sql"}
+    template_fields_renderers = {"sql": "sql"}
     ui_color = '#bfb050'
 
     def __init__(
         self,
         *,
-        query: str,
+        sql: str,
         clickhouse_conn_id: str = 'clickhouse_default',
         params: Optional[Dict[str, Any]] = None,
         database: Optional[str] = None,
@@ -59,7 +59,7 @@ class ClickHouseOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.clickhouse_conn_id = clickhouse_conn_id
-        self.query = query
+        self.sql = sql
         self.params = params
         self.database = database
         self.result_processor = result_processor
@@ -67,6 +67,6 @@ class ClickHouseOperator(BaseOperator):
     def execute(self, context: 'Context'):
         hook = ClickHouseHook(clickhouse_conn_id=self.clickhouse_conn_id, database=self.database)
 
-        result = hook.query(query=self.query, params=self.params)
+        result = hook.query(sql=self.sql, params=self.params)
         if self.result_processor:
             self.result_processor(result)
