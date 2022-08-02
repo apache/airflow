@@ -25,5 +25,20 @@ from airflow_breeze.utils.path_utils import (
 find_airflow_sources_root_to_operate_on()
 create_directories_and_files()
 
+from airflow_breeze.commands import developer_commands  # noqa
+from airflow_breeze.commands.ci_commands import ci_group  # noqa
+from airflow_breeze.commands.ci_image_commands import ci_image  # noqa
+from airflow_breeze.commands.production_image_commands import prod_image  # noqa
+from airflow_breeze.commands.release_management_commands import release_management  # noqa
+from airflow_breeze.commands.setup_commands import setup  # noqa
+from airflow_breeze.commands.testing_commands import testing  # noqa
+
+main.add_command(testing)
+main.add_command(ci_group)
+main.add_command(ci_image)
+main.add_command(prod_image)
+main.add_command(setup)
+main.add_command(release_management)
+
 if __name__ == '__main__':
     main()

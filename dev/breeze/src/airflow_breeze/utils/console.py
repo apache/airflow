@@ -79,3 +79,15 @@ def get_console() -> Console:
         theme=get_theme(),
         record=True if recording_file else False,
     )
+
+
+@lru_cache(maxsize=None)
+def get_stderr_console() -> Console:
+    return Console(
+        force_terminal=True,
+        color_system="standard",
+        stderr=True,
+        width=180 if not recording_width else int(recording_width),
+        theme=get_theme(),
+        record=True if recording_file else False,
+    )

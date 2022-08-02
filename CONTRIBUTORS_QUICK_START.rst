@@ -218,7 +218,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ breeze setup-autocomplete
+  $ breeze setup autocomplete
 
 4. Initialize breeze environment with required python version and backend. This may take a while for first time.
 

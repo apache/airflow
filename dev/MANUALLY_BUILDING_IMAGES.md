@@ -83,13 +83,13 @@ docker buildx ls
 Preparing regular images:
 
 ```shell script
-breeze release-prod-images --airflow-version "${VERSION}"
+breeze release-management release-prod-images --airflow-version "${VERSION}"
 ```
 
 Preparing slim images:
 
 ```shell script
-breeze release-prod-images --airflow-version "${VERSION}" --slim-images
+breeze release-management release-prod-images --airflow-version "${VERSION}" --slim-images
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It

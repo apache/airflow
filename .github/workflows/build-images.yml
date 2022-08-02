@@ -157,7 +157,7 @@ jobs:
         env:
           PR_LABELS: "${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}"
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
-        run: breeze selective-check
+        run: breeze ci selective-check
       - name: env
         run: printenv
         env:
@@ -220,7 +220,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: breeze free-space
+        run: breeze ci free-space
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -238,7 +238,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: >-
           Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-        run: breeze build-image --push-image --tag-as-latest --run-in-parallel
+        run: breeze ci-image build --push --tag-as-latest --run-in-parallel
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -246,16 +246,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: breeze build-image --push-image --empty-image --run-in-parallel
+        run: breeze ci-image build --push --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
         run: >
-          breeze find-newer-dependencies --max-age 1
+          breeze ci find-newer-dependencies --max-age 1
           --python "${{ needs.build-info.outputs.default-python-version }}"
       - name: "Fix ownership"
-        run: breeze fix-ownership
+        run: breeze ci fix-ownership
         if: always()
 
   build-prod-images:
@@ -313,7 +313,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: breeze free-space
+        run: breeze ci free-space
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -328,7 +328,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: >
           Pull CI image for PROD build:
           ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze pull-image --tag-as-latest
+        run: breeze ci-image pull --tag-as-latest
         env:
           # Always use default Python version of CI image for preparing packages
           PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
@@ -337,23 +337,25 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: rm -fv ./dist/*  ./docker-context-files/*
       - name: "Prepare providers packages"
         run: >
-          breeze prepare-provider-packages
+          breeze release-management prepare-provider-packages
           --package-list-file ./scripts/ci/installed_providers.txt
           --package-format wheel
           --version-suffix-for-pypi dev0
         if: needs.build-info.outputs.default-branch == 'main'
       - name: "Prepare airflow package"
-        run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
+        run: >
+          breeze release-management prepare-airflow-package
+          --package-format wheel --version-suffix-for-pypi dev0
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
       - name: >-
           Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
-          breeze build-prod-image
+          breeze prod-image build
           --run-in-parallel
           --tag-as-latest
-          --push-image
+          --push
           --install-packages-from-context
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -362,11 +364,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: Push empty PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: breeze build-prod-image --cleanup-context --push-image --empty-image --run-in-parallel
+        run: breeze prod-image build --cleanup-context --push --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Fix ownership"
-        run: breeze fix-ownership
+        run: breeze ci fix-ownership
         if: always()
 
 
@@ -420,14 +422,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ needs.build-info.outputs.default-python-version }}
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: breeze free-space
+        run: breeze ci free-space
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: >
           Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
-          breeze build-image --run-in-parallel --builder airflow_cache --platform "linux/arm64"
+          breeze ci-image build --run-in-parallel --builder airflow_cache --platform "linux/arm64"
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -437,5 +439,5 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()
       - name: "Fix ownership"
-        run: breeze fix-ownership
+        run: breeze ci fix-ownership
         if: always()

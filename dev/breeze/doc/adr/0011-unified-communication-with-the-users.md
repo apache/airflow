@@ -67,7 +67,7 @@ We are using rich and colours to communicate the type of messages:
 * instructions should be printed without style and default rich rendering should be used
 
 By default, we map those styles to those colors, but we can change configuration of Breeze to
-be colour-blind-friendly by disabling colours in communication via `breeze config --no-colour`.
+be colour-blind-friendly by disabling colours in communication via `breeze setup config --no-colour`.
 
 When signalling warning or error The communication should not be confusing and
 should not contain "noise". It should contain simple - usually one-liner -

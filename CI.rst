@@ -693,7 +693,7 @@ In order to add a new version the following operations should be done (example u
 
 .. code-block:: bash
 
-  breeze build-image --python 3.10
+  breeze ci-image build --python 3.10
 
 * Find the 2 new images (prod, ci) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_

@@ -269,7 +269,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Make sure you have the latest CI image
 
     ```shell script
-    breeze build-image --python 3.7
+    breeze ci-image build --python 3.7
     ```
 
 - Tarball the repo
@@ -286,7 +286,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    breeze prepare-airflow-package --package-format both
+    breeze release-management prepare-airflow-package --package-format both
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd
@@ -479,7 +479,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
+    breeze release-management prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -1013,10 +1013,10 @@ the older branches, you should set the "skip" field to true.
 for PYTHON in 3.7 3.8 3.9 3.10
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
-    breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
 docker pull apache/airflow:${VERSION}
-breeze verify-prod-image --image-name apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 

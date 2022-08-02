@@ -43,7 +43,7 @@ def run_pull_in_parallel(
     image_params_list: Union[List[BuildCiParams], List[BuildProdParams]],
     python_version_list: List[str],
     verbose: bool,
-    verify_image: bool,
+    verify: bool,
     tag_as_latest: bool,
     wait_for_image: bool,
     extra_pytest_args: Tuple,
@@ -54,7 +54,7 @@ def run_pull_in_parallel(
     )
     pool = mp.Pool(parallelism)
     poll_time = 10.0
-    if not verify_image:
+    if not verify:
         results = [
             pool.apply_async(
                 run_pull_image,
