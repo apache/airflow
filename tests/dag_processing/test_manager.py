@@ -219,7 +219,7 @@ class TestDagFileProcessorManager:
         file_1 = "file_1.py"
         file_2 = "file_2.py"
         file_3 = "file_3.py"
-        manager._file_path_queue = [file_1, file_2, file_3]
+        manager._std_file_path_queue.extend([file_1, file_2, file_3])
 
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager._processors[file_1] = MagicMock()
@@ -234,7 +234,7 @@ class TestDagFileProcessorManager:
 
         assert file_1 in manager._processors.keys()
         assert file_2 in manager._processors.keys()
-        assert [file_3] == manager._file_path_queue
+        assert [file_3] == list(manager._std_file_path_queue)
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -300,9 +300,10 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == []
-        manager.prepare_file_path_queue()
-        assert manager._file_path_queue == ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
+        assert list(manager._std_file_path_queue) == []
+        manager.populate_std_file_queue_from_dir()
+        assert list(manager._std_file_path_queue) == ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
+        assert manager._outstanding_std_file_paths == {"file_4.py", "file_1.py", "file_3.py", "file_2.py"}
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -327,17 +328,18 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == []
-        manager.prepare_file_path_queue()
+        assert list(manager._std_file_path_queue) == []
+        manager.populate_std_file_queue_from_dir()
 
         expected_order = dag_files
         random.Random(get_hostname()).shuffle(expected_order)
-        assert manager._file_path_queue == expected_order
+        assert list(manager._std_file_path_queue) == expected_order
 
         # Verify running it again produces same order
         manager._file_paths = []
-        manager.prepare_file_path_queue()
-        assert manager._file_path_queue == expected_order
+        manager.populate_std_file_queue_from_dir()
+        assert list(manager._std_file_path_queue) == expected_order
+        assert manager._outstanding_std_file_paths == {'file_4.py', 'file_1.py', 'file_3.py', 'file_2.py'}
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -365,9 +367,10 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        assert manager._file_path_queue == []
-        manager.prepare_file_path_queue()
-        assert manager._file_path_queue == ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
+        assert list(manager._std_file_path_queue) == []
+        manager.populate_std_file_queue_from_dir()
+        assert list(manager._std_file_path_queue) == ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
+        assert manager._outstanding_std_file_paths == {"file_4.py", "file_1.py", "file_3.py", "file_2.py"}
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -394,8 +397,9 @@ class TestDagFileProcessorManager:
         )
 
         manager.set_file_paths(dag_files)
-        manager.prepare_file_path_queue()
-        assert manager._file_path_queue == ["file_2.py", "file_3.py"]
+        manager.populate_std_file_queue_from_dir()
+        assert list(manager._std_file_path_queue) == ["file_2.py", "file_3.py"]
+        assert manager._outstanding_std_file_paths == {"file_2.py", "file_3.py"}
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -432,10 +436,10 @@ class TestDagFileProcessorManager:
         }
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
-            assert manager._file_path_queue == []
+            assert list(manager._std_file_path_queue) == []
             # File Path Queue will be empty as the "modified time" < "last finish time"
-            manager.prepare_file_path_queue()
-            assert manager._file_path_queue == []
+            manager.populate_std_file_queue_from_dir()
+            assert list(manager._std_file_path_queue) == []
 
         # Simulate the DAG modification by using modified_time which is greater
         # than the last_parse_time but still less than now - min_file_process_interval
@@ -443,15 +447,15 @@ class TestDagFileProcessorManager:
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
-            assert manager._file_path_queue == []
+            assert list(manager._std_file_path_queue) == []
             # File Path Queue will be empty as the "modified time" < "last finish time"
             mock_getmtime.side_effect = [file_1_new_mtime_ts]
-            manager.prepare_file_path_queue()
+            manager.populate_std_file_queue_from_dir()
             # Check that file is added to the queue even though file was just recently passed
-            assert manager._file_path_queue == ["file_1.py"]
+            assert list(manager._std_file_path_queue) == ["file_1.py"]
             assert last_finish_time < file_1_new_mtime
             assert (
-                manager._file_process_interval
+                manager._min_file_process_interval
                 > (freezed_base_time - manager.get_last_finish_time("file_1.py")).total_seconds()
             )
 
@@ -995,15 +999,23 @@ class TestDagFileProcessorManager:
             pickle_dags=False,
             async_mode=True,
         )
+        file1_path = "/green_eggs/ham/file1.py"
+        file2_path = "/green_eggs/ham/file2.py"
+        file3_path = "/green_eggs/ham/file4.py"
+        file4_path = "/green_eggs/ham/file4.py"
+        file5_path = "/green_eggs/ham/file5.py"
+        manager._std_file_path_queue.extend([file4_path, file5_path])
+        manager._priority_file_path_queue.extend([file3_path])
 
         dag1_req1 = DagCallbackRequest(
-            full_filepath="/green_eggs/ham/file1.py",
+            full_filepath=file1_path,
             dag_id="dag1",
             run_id="run1",
             is_failure_callback=False,
             processor_subdir=tmpdir,
             msg=None,
         )
+
         dag1_req2 = DagCallbackRequest(
             full_filepath="/green_eggs/ham/file1.py",
             dag_id="dag1",
@@ -1024,7 +1036,7 @@ class TestDagFileProcessorManager:
         )
 
         dag2_req1 = DagCallbackRequest(
-            full_filepath="/green_eggs/ham/file2.py",
+            full_filepath=file2_path,
             dag_id="dag2",
             run_id="run1",
             is_failure_callback=False,
@@ -1034,28 +1046,161 @@ class TestDagFileProcessorManager:
 
         # when
         manager._add_callback_to_queue(dag1_req1)
-        manager._add_callback_to_queue(dag1_sla1)
         manager._add_callback_to_queue(dag2_req1)
 
-        # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
-        assert manager._file_path_queue == [dag2_req1.full_filepath, dag1_req1.full_filepath]
-        assert set(manager._callback_to_execute.keys()) == {dag1_req1.full_filepath, dag2_req1.full_filepath}
-        assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
-        assert manager._callback_to_execute[dag2_req1.full_filepath] == [dag2_req1]
+        # then - requests should be in manager's prio queue, with dag2 behind dag1 (because it was added last)
+        assert list(manager._priority_file_path_queue) == [file3_path, file1_path, file2_path]
+        assert list(manager._std_file_path_queue) == [file4_path, file5_path]
+        assert set(manager._callback_to_execute.keys()) == {file1_path, file2_path}
+        assert manager._callback_to_execute[file1_path] == [dag1_req1]
+        assert manager._callback_to_execute[file2_path] == [dag2_req1]
+
+        # when
+        manager._add_callback_to_queue(dag1_sla1)
+
+        # then - sla requests should be in manager's std queue, at the back
+        assert list(manager._priority_file_path_queue) == [file3_path, file1_path, file2_path]
+        assert list(manager._std_file_path_queue) == [file4_path, file5_path, file1_path]
+        assert set(manager._callback_to_execute.keys()) == {file1_path, file2_path}
+        assert manager._callback_to_execute[file1_path] == [dag1_req1, dag1_sla1]
+        assert manager._callback_to_execute[file2_path] == [dag2_req1]
 
         # when
         manager._add_callback_to_queue(dag1_sla2)
 
-        # then - since sla2 == sla1, should not have brought dag1 to the fore
-        assert manager._file_path_queue == [dag2_req1.full_filepath, dag1_req1.full_filepath]
-        assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
+        # then - dupe sla shouldn't have been re-added
+        assert list(manager._std_file_path_queue) == [file4_path, file5_path, file1_path]
+        assert set(manager._callback_to_execute.keys()) == {file1_path, file2_path}
+        assert manager._callback_to_execute[file1_path] == [dag1_req1, dag1_sla1]
+
+    @conf_vars({('scheduler', 'max_file_process_time'): '120'})
+    def test_is_overdue(self):
+        # given
+        manager = DagFileProcessorManager(
+            dag_directory=TEST_DAG_FOLDER,
+            max_runs=1,
+            processor_timeout=timedelta(days=365),
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file1_path = "/green_eggs/ham/file1.py"
+        file2_path = "/green_eggs/ham/file2.py"
+        file3_path = "/green_eggs/ham/file3.py"
+
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+
+        last_finish_time1 = freezed_base_time - timedelta(seconds=119)
+        last_finish_time2 = freezed_base_time - timedelta(seconds=120)
+        last_finish_time3 = freezed_base_time - timedelta(seconds=121)
+
+        manager._file_stats[file1_path] = DagFileStat(1, 0, last_finish_time1, timedelta(seconds=1.0), 1)
+        manager._file_stats[file2_path] = DagFileStat(1, 0, last_finish_time2, timedelta(seconds=1.0), 1)
+        manager._file_stats[file3_path] = DagFileStat(1, 0, last_finish_time3, timedelta(seconds=1.0), 1)
 
         # when
-        manager._add_callback_to_queue(dag1_req2)
+        assert not manager.is_overdue(file1_path, freezed_base_time)
+        assert not manager.is_overdue(file2_path, freezed_base_time)
+        assert manager.is_overdue(file3_path, freezed_base_time)
 
-        # then - non-sla callback should have brought dag1 to the fore
-        assert manager._file_path_queue == [dag1_req1.full_filepath, dag2_req1.full_filepath]
-        assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1, dag1_req2]
+    @conf_vars(
+        {
+            ('scheduler', 'max_file_process_time'): '120',
+            ('scheduler', 'parsing_processes'): '1',
+            ("scheduler", "file_parsing_sort_mode"): "modified_time",
+        }
+    )
+    def test_pick_overdue_std_queue(self):
+        """If there is a stale std file check that it is picked over other priority and std queue entries"""
+
+        # given
+        manager = DagFileProcessorManager(
+            dag_directory=TEST_DAG_FOLDER,
+            max_runs=1,
+            processor_timeout=timedelta(days=365),
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file1_path = "/green_eggs/ham/file1.py"
+        file2_path = "/green_eggs/ham/file2.py"
+        file3_path = "/green_eggs/ham/file3.py"
+
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+
+        last_finish_time1 = freezed_base_time - timedelta(seconds=121)
+        last_finish_time3 = freezed_base_time - timedelta(seconds=10)
+
+        manager._file_stats[file1_path] = DagFileStat(1, 0, last_finish_time1, timedelta(seconds=1.0), 1)
+        manager._file_stats[file3_path] = DagFileStat(1, 0, last_finish_time3, timedelta(seconds=1.0), 1)
+
+        manager._file_paths.extend([file1_path, file2_path, file3_path])
+        manager._std_file_path_queue.extend([file3_path, file1_path])
+        manager._outstanding_std_file_paths.update([file3_path, file1_path])
+        manager._priority_file_path_queue.append(file2_path)
+
+        # when
+        with freeze_time(freezed_base_time):
+            manager.start_new_processes()
+
+        # then - even though file1 was at the back of the std queue, it was chosen due to its age
+        assert set(manager._processors.keys()) == {file1_path}
+
+    @conf_vars(
+        {
+            ('scheduler', 'max_file_process_time'): '120',
+            ('scheduler', 'parsing_processes'): '1',
+            ("scheduler", "file_parsing_sort_mode"): "modified_time",
+            ('scheduler', 'dag_dir_list_interval'): '300',
+        }
+    )
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_populate_std_queue_even_if_not_empty(self, mock_getmtime, tmpdir):
+        """Test we update the std queue even if there's stuff in it, once the outstanding set is empty"""
+        # given
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta(days=365),
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=False,
+        )
+
+        file1_path = "file1.py"
+        file2_path = "file2.py"
+        file3_path = "file3.py"
+        file4_path = "file4.py"
+
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+
+        paths_with_mtime = {file1_path: 5.0, file2_path: 4.0, file3_path: 3.0, file4_path: 2.0}
+        mock_getmtime.side_effect = list(paths_with_mtime.values())
+
+        manager.last_dag_dir_refresh_time = freezed_base_time - timedelta(seconds=1)
+        manager._file_paths.extend([file1_path, file2_path, file3_path, file4_path])
+        manager._std_file_path_queue.append(file3_path)
+        manager._priority_file_path_queue.append(file2_path)
+
+        # when
+        parent_pipe.send(DagParsingSignal.AGENT_RUN_ONCE)
+        parent_pipe.send(DagParsingSignal.TERMINATE_MANAGER)
+        with freeze_time(freezed_base_time):
+            manager._run_parsing_loop()
+
+        child_pipe.close()
+        parent_pipe.close()
+
+        # then - even though queue not empty, file1 and file4 appended
+        assert list(manager._std_file_path_queue) == [file3_path, file1_path, file4_path]
+        assert manager._outstanding_std_file_paths == {file1_path, file3_path, file4_path}
 
 
 class TestDagFileProcessorAgent:

@@ -1946,6 +1946,21 @@
       type: string
       example: ~
       default: "30"
+    - name: max_file_process_interval
+      description: |
+        Number of seconds since the previous parse time after which a DAG file will be parsed
+        again. This is only useful if your system contains a lot of dags / slas which update
+        exceedingly frequently, as this may prevent the system from scanning the file system
+        for changes to your dag files. This operates on a best efforts basis; if you have
+        many dags, and it takes 10 minutes to scan and parse them all, this will not make
+        it parse any more often.
+        Setting this to <= 0 disables the behaviour, in case it's important to you that those
+        frequently updating dags / slas always take priority at the cost of delaying updates
+        from disk
+      version_added: 2.4.0
+      type: integer
+      example: ~
+      default: "120"
     - name: deactivate_stale_dags_interval
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
