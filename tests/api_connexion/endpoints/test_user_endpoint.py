@@ -108,10 +108,10 @@ class TestGetUser(TestUserEndpoint):
 
     def test_last_names_can_be_empty(self):
         prince = User(
-            first_name=f'Prince',
-            last_name=f'',
-            username=f'prince',
-            email=f'prince@example.org',
+            first_name='Prince',
+            last_name='',
+            username='prince',
+            email='prince@example.org',
             roles=[],
             created_on=timezone.parse(DEFAULT_TIME),
             changed_on=timezone.parse(DEFAULT_TIME),
@@ -136,10 +136,10 @@ class TestGetUser(TestUserEndpoint):
 
     def test_first_names_can_be_empty(self):
         liberace = User(
-            first_name=f'',
-            last_name=f'Liberace',
-            username=f'liberace',
-            email=f'liberace@example.org',
+            first_name='',
+            last_name='Liberace',
+            username='liberace',
+            email='liberace@example.org',
             roles=[],
             created_on=timezone.parse(DEFAULT_TIME),
             changed_on=timezone.parse(DEFAULT_TIME),
@@ -164,10 +164,10 @@ class TestGetUser(TestUserEndpoint):
 
     def test_both_first_and_last_names_can_be_empty(self):
         nameless = User(
-            first_name=f'',
-            last_name=f'',
-            username=f'nameless',
-            email=f'nameless@example.org',
+            first_name='',
+            last_name='',
+            username='nameless',
+            email='nameless@example.org',
             roles=[],
             created_on=timezone.parse(DEFAULT_TIME),
             changed_on=timezone.parse(DEFAULT_TIME),
