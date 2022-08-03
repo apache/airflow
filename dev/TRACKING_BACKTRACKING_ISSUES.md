@@ -130,7 +130,7 @@ the version that was correctly installed before and is stored in the current con
 The process of tracking down which package is the "root cause" looks as follows:
 
 1. Checkout the latest main of Airflow
-2. Build the latest image (with constraints): `breeze build-image --python 3.7`
+2. Build the latest image (with constraints): `breeze ci-image build --python 3.7`
 3. Enter breeze `breeze`
 4. Attempt to run the `pip install` command that was printed in the "Candidates ..." step
 5. The command should succeed (the candidates are pinned to the "working" version)
@@ -192,15 +192,15 @@ You need to install the breeze:
 
 * `pipx install -e ./dev/breeze` if you use pipx install.
 
-Then you can run ``breeze find-newer-dependencies`` with optional flags.
+Then you can run ``breeze ci find-newer-dependencies`` with optional flags.
 For example if you know that the build  was likely broken on a given date and time
 (in your timezone) and you want to check python 3.8 (because this is the only
 failing build) you can run:
 
 ```
-breeze find-newer-dependencies --updated-on-or-after '2022-02-22 10:30:00' --timezone 'CET' --python 3.8
+breeze ci find-newer-dependencies --updated-on-or-after '2022-02-22 10:30:00' --timezone 'CET' --python 3.8
 ```
 
 The full list of options for `find-newer-dependencies` can be seen here
 
-![breeze find-newer-dependencies](../images/breeze/output-find-newer-dependencies.svg)
+![breeze ci find-newer-dependencies](../images/breeze/output-find-newer-dependencies.svg)

@@ -308,11 +308,11 @@ option_prepare_buildx_cache = click.option(
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
 )
-option_push_image = click.option(
-    '--push-image',
+option_push = click.option(
+    '--push',
     help='Push image after building it.',
     is_flag=True,
-    envvar='PUSH_IMAGE',
+    envvar='PUSH',
 )
 option_empty_image = click.option(
     '--empty-image',
@@ -333,11 +333,11 @@ option_tag_as_latest = click.option(
     is_flag=True,
     envvar='TAG_AS_LATEST',
 )
-option_verify_image = click.option(
-    '--verify-image',
+option_verify = click.option(
+    '--verify',
     help='Verify image.',
     is_flag=True,
-    envvar='VERIFY_IMAGE',
+    envvar='VERIFY',
 )
 option_additional_pip_install_flags = click.option(
     '--additional-pip-install-flags',
@@ -459,11 +459,11 @@ option_airflow_constraints_mode_prod = click.option(
     show_default=True,
     help='Mode of constraints for PROD image building',
 )
-option_pull_image = click.option(
-    '--pull-image',
+option_pull = click.option(
+    '--pull',
     help="Pull image is missing before attempting to verify it.",
     is_flag=True,
-    envvar='PULL_IMAGE',
+    envvar='PULL',
 )
 option_python_image = click.option(
     '--python-image',
