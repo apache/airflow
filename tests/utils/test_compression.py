@@ -29,7 +29,7 @@ from airflow.utils import compression
 
 class TestCompression:
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_attrs(self):
         self.file_names = {}
         header = b"Sno\tSome,Text \n"
         line1 = b"1\tAirflow Test\n"

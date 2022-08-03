@@ -41,7 +41,7 @@ except ImportError:
 
 class TestS3ToHiveTransfer:
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup_attrs(self):
         self.file_names = {}
         self.task_id = 'S3ToHiveTransferTest'
         self.s3_key = 'S32hive_test_file'
