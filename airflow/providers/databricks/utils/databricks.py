@@ -35,13 +35,7 @@ def normalise_json_content(content, json_path: str = 'json') -> Union[str, bool,
     to string type because databricks does not understand 'True' or 'False' values.
     """
     normalise = normalise_json_content
-    if isinstance(
-        content,
-        (
-            str,
-            bool,
-        ),
-    ):
+    if isinstance(content, (str, bool)):
         return content
     elif isinstance(
         content,
