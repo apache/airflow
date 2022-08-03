@@ -60,7 +60,11 @@ hooks:
     python-modules:
       - airflow.providers.postgres.hooks.postgres
 
-
 connection-types:
   - hook-class-name: airflow.providers.postgres.hooks.postgres.PostgresHook
     connection-type: postgres
+
+additional-extras:
+  - name: amazon
+    dependencies:
+      - apache-airflow-providers-amazon>=2.6.0

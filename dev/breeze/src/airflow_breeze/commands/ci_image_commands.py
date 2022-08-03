@@ -22,9 +22,9 @@ from typing import List, Optional, Tuple, Union
 
 import click
 
-from airflow_breeze.commands.main_command import main
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
@@ -57,8 +57,8 @@ from airflow_breeze.utils.common_options import (
     option_parallelism,
     option_platform_multiple,
     option_prepare_buildx_cache,
-    option_pull_image,
-    option_push_image,
+    option_pull,
+    option_push,
     option_python,
     option_python_image,
     option_python_versions,
@@ -68,7 +68,7 @@ from airflow_breeze.utils.common_options import (
     option_tag_as_latest,
     option_upgrade_to_newer_dependencies,
     option_verbose,
-    option_verify_image,
+    option_verify,
     option_wait_for_image,
 )
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
@@ -97,104 +97,12 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 
-CI_IMAGE_TOOLS_COMMANDS = {
-    "name": "CI Image tools",
-    "commands": [
-        "build-image",
-        "pull-image",
-        "verify-image",
-    ],
-}
 
-CI_IMAGE_TOOLS_PARAMETERS = {
-    "breeze build-image": [
-        {
-            "name": "Basic usage",
-            "options": [
-                "--python",
-                "--upgrade-to-newer-dependencies",
-                "--debian-version",
-                "--image-tag",
-                "--tag-as-latest",
-                "--docker-cache",
-                "--force-build",
-            ],
-        },
-        {
-            "name": "Building images in parallel",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-            ],
-        },
-        {
-            "name": "Advanced options (for power users)",
-            "options": [
-                "--install-providers-from-sources",
-                "--airflow-constraints-mode",
-                "--airflow-constraints-reference",
-                "--python-image",
-                "--additional-python-deps",
-                "--runtime-apt-deps",
-                "--runtime-apt-command",
-                "--additional-extras",
-                "--additional-runtime-apt-deps",
-                "--additional-runtime-apt-env",
-                "--additional-runtime-apt-command",
-                "--additional-dev-apt-deps",
-                "--additional-dev-apt-env",
-                "--additional-dev-apt-command",
-                "--dev-apt-deps",
-                "--dev-apt-command",
-            ],
-        },
-        {
-            "name": "Preparing cache and push (for maintainers and CI)",
-            "options": [
-                "--github-token",
-                "--github-username",
-                "--platform",
-                "--login-to-github-registry",
-                "--push-image",
-                "--empty-image",
-                "--prepare-buildx-cache",
-            ],
-        },
-    ],
-    "breeze pull-image": [
-        {
-            "name": "Pull image flags",
-            "options": [
-                "--image-tag",
-                "--python",
-                "--github-token",
-                "--verify-image",
-                "--wait-for-image",
-                "--tag-as-latest",
-            ],
-        },
-        {
-            "name": "Parallel running",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-            ],
-        },
-    ],
-    "breeze verify-image": [
-        {
-            "name": "Verify image flags",
-            "options": [
-                "--image-name",
-                "--python",
-                "--image-tag",
-                "--pull-image",
-            ],
-        }
-    ],
-}
+@click.group(
+    cls=BreezeGroup, name='ci-image', help="Tools that developers can use to manually manage CI images"
+)
+def ci_image():
+    pass
 
 
 def check_if_image_building_is_needed(ci_image_params: BuildCiParams, dry_run: bool, verbose: bool) -> bool:
@@ -202,7 +110,7 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, dry_run: b
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
-    if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
+    if ci_image_params.prepare_buildx_cache or ci_image_params.push:
         login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
     return True
 
@@ -235,7 +143,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
     make_sure_builder_configured(parallel=True, params=params, dry_run=dry_run, verbose=verbose)
 
 
-@main.command(name='build-image')
+@ci_image.command(name='build')
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -252,7 +160,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_docker_cache
 @option_image_tag_for_building
 @option_prepare_buildx_cache
-@option_push_image
+@option_push
 @option_empty_image
 @option_install_providers_from_sources
 @option_additional_extras
@@ -275,7 +183,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_airflow_constraints_reference_build
 @option_tag_as_latest
 @option_additional_pip_install_flags
-def build_image(
+def build(
     verbose: bool,
     dry_run: bool,
     run_in_parallel: bool,
@@ -320,7 +228,7 @@ def build_image(
         run_build(ci_image_params=params)
 
 
-@main.command(name='pull-image')
+@ci_image.command(name='pull')
 @option_verbose
 @option_dry_run
 @option_python
@@ -329,12 +237,12 @@ def build_image(
 @option_parallelism
 @option_python_versions
 @option_github_token
-@option_verify_image
+@option_verify
 @option_wait_for_image
 @option_image_tag_for_pulling
 @option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
-def pull_ci_image(
+def pull(
     verbose: bool,
     dry_run: bool,
     python: str,
@@ -346,7 +254,7 @@ def pull_ci_image(
     image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
-    verify_image: bool,
+    verify: bool,
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
@@ -354,7 +262,7 @@ def pull_ci_image(
         get_console().print("[red]You cannot pull latest images because they are not published any more!\n")
         get_console().print(
             "[yellow]You need to specify commit tag to pull and image. If you wish to get"
-            " the latest image, you need to run `breeze build-image` command\n"
+            " the latest image, you need to run `breeze ci-image build` command\n"
         )
         sys.exit(1)
     perform_environment_checks(verbose=verbose)
@@ -375,7 +283,7 @@ def pull_ci_image(
             image_params_list=ci_image_params_list,
             python_version_list=python_version_list,
             verbose=verbose,
-            verify_image=verify_image,
+            verify=verify,
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
             extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
@@ -396,8 +304,8 @@ def pull_ci_image(
             sys.exit(return_code)
 
 
-@main.command(
-    name='verify-image',
+@ci_image.command(
+    name='verify',
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -409,16 +317,16 @@ def pull_ci_image(
 @option_github_repository
 @option_image_tag_for_verifying
 @option_image_name
-@option_pull_image
+@option_pull
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
-def verify_ci_image(
+def verify(
     verbose: bool,
     dry_run: bool,
     python: str,
     github_repository: str,
     image_name: str,
     image_tag: Optional[str],
-    pull_image: bool,
+    pull: bool,
     extra_pytest_args: Tuple,
 ):
     """Verify CI image."""
@@ -426,7 +334,7 @@ def verify_ci_image(
     if image_name is None:
         build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
         image_name = build_params.airflow_image_name_with_tag
-    if pull_image:
+    if pull:
         command_to_run = ["docker", "pull", image_name]
         run_command(command_to_run, verbose=verbose, dry_run=dry_run, check=True)
     get_console().print(f"[info]Verifying CI image: {image_name}[/]")
@@ -526,14 +434,14 @@ def run_build_ci_image(
     """
     if (
         ci_image_params.is_multi_platform()
-        and not ci_image_params.push_image
+        and not ci_image_params.push
         and not ci_image_params.prepare_buildx_cache
     ):
         get_console().print(
-            "\n[red]You cannot use multi-platform build without using --push-image flag or "
+            "\n[red]You cannot use multi-platform build without using --push flag or "
             "preparing buildx cache![/]\n"
         )
-        return 1, "Error: building multi-platform image without --push-image."
+        return 1, "Error: building multi-platform image without --push."
     if verbose or dry_run:
         get_console().print(
             f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
