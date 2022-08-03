@@ -25,7 +25,7 @@ from airflow.providers.databricks.hooks.databricks import RunState
 
 def normalise_json_content(content, json_path: str = 'json') -> Union[str, bool, list, dict]:
     """
-    Normalises content or all values of content if it is a dict to a string. The
+    Normalise content or all values of content if it is a dict to a string. The
     function will throw if content contains non-string or non-numeric non-boolean types.
     The reason why we have this function is because the ``self.json`` field must be a
     dict with only string values. This is because ``render_template`` will fail
