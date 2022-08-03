@@ -347,3 +347,9 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         {'id': 1, 'uri': 's3://bucket/key/1', 'created_at': '2021-09-07T00:00:00+00:00'},
         {'id': 2, 'uri': 's3://bucket/key/2', 'created_at': None},
     ]
+
+
+def test_next_run_datasets_404(admin_client):
+    resp = admin_client.get('/object/next_run_datasets/missingdag', follow_redirects=True)
+    assert resp.status_code == 404, resp.json
+    assert resp.json == {'error': "can't find dag missingdag"}

@@ -3624,7 +3624,7 @@ class Airflow(AirflowBaseView):
         """Returns datasets necessary, and their status, for the next dag run"""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
-            return jsonify({'error': f"can't find dag {dag_id}"}), 404
+            return {'error': f"can't find dag {dag_id}"}, 404
 
         with create_session() as session:
             data = [
