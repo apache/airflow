@@ -21,6 +21,7 @@
 
 import { getMetaValue } from './utils';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
+import openDatasetModal from './openDatasetModal';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -398,4 +399,9 @@ $('#next-run').on('mouseover', () => {
     }
     return newTitle;
   });
+});
+
+$('.next-dataset-triggered').on('click', (e) => {
+  const summary = $(e.target).data('summary');
+  openDatasetModal(dagId, summary || '');
 });
