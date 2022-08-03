@@ -522,7 +522,7 @@ class DAG(LoggingMixin):
         self.has_on_success_callback = self.on_success_callback is not None
         self.has_on_failure_callback = self.on_failure_callback is not None
 
-        self.doc_md = pathlib.Path(doc_md).read_text() if Path(doc_md).is_file() else doc_md
+        self.doc_md = pathlib.Path(doc_md).read_text() if pathlib.Path(str(doc_md or '')).is_file() else doc_md
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
