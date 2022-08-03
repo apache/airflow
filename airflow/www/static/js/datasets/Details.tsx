@@ -19,22 +19,83 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Box, Heading, Text, Code, Flex, Spinner, Button,
+  Box, Heading, Text, Code, Flex, Spinner, Button, Link,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
-import Time from 'src/components/Time';
 import { useDatasetEvents, useDataset } from 'src/api';
 import {
   Table, TimeCell, CodeCell, TaskInstanceLink,
 } from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
+import type { API } from 'src/types';
+import InfoTooltip from 'src/components/InfoTooltip';
 
 interface Props {
   datasetId: string;
   onBack: () => void;
 }
+
+const Details = ({
+  dataset: {
+    uri,
+    extra,
+    upstreamTaskReferences,
+    downstreamDagReferences,
+  },
+}: { dataset: API.Dataset }) => (
+  <Box>
+    <Heading my={2} fontWeight="normal">
+      Dataset:
+      {' '}
+      {uri}
+      <ClipboardButton value={uri} iconOnly ml={2} />
+    </Heading>
+    {!!extra && (
+      <Flex>
+        <Text mr={1}>Extra:</Text>
+        <Code>{JSON.stringify(extra)}</Code>
+      </Flex>
+    )}
+    {upstreamTaskReferences && !!upstreamTaskReferences.length && (
+    <Box mb={2}>
+      <Flex alignItems="center">
+        <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
+        <InfoTooltip label="Tasks that will update this dataset." size={14} />
+      </Flex>
+      {upstreamTaskReferences.map(({ dagId, taskId }) => (
+        <Link
+          key={`${dagId}.${taskId}`}
+          color="blue.600"
+          href={`/dags/${dagId}/grid`}
+          display="block"
+        >
+          {`${dagId}.${taskId}`}
+        </Link>
+      ))}
+    </Box>
+    )}
+    {downstreamDagReferences && !!downstreamDagReferences.length && (
+    <Box>
+      <Flex alignItems="center">
+        <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
+        <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
+      </Flex>
+      {downstreamDagReferences.map(({ dagId }) => (
+        <Link
+          key={dagId}
+          color="blue.600"
+          href={`/dags/${dagId}/grid`}
+          display="block"
+        >
+          {dagId}
+        </Link>
+      ))}
+    </Box>
+    )}
+  </Box>
+);
 
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;
@@ -85,32 +146,11 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
     <Box mt={[6, 3]} maxWidth="1500px">
       <Button onClick={onBack}>See all datasets</Button>
       {isLoading && <Spinner display="block" />}
-      {!!dataset && (
-        <Box>
-          <Heading my={2} fontWeight="normal">
-            Dataset:
-            {' '}
-            {dataset.uri}
-            <ClipboardButton value={dataset.uri} iconOnly ml={2} />
-          </Heading>
-          {!!dataset.extra && (
-            <Flex>
-              <Text mr={1}>Extra:</Text>
-              <Code>{JSON.stringify(dataset.extra)}</Code>
-            </Flex>
-          )}
-          <Flex my={2}>
-            <Text mr={1}>Updated At:</Text>
-            <Time dateTime={dataset.updatedAt} />
-          </Flex>
-          <Flex my={2}>
-            <Text mr={1}>Created At:</Text>
-            <Time dateTime={dataset.createdAt} />
-          </Flex>
-        </Box>
-      )}
-      <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
-      <Text>Whenever a DAG has updated this dataset.</Text>
+      {!!dataset && (<Details dataset={dataset} />)}
+      <Flex alignItems="center">
+        <Heading size="lg" mt={3} mb={2} fontWeight="normal">Events</Heading>
+        <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
+      </Flex>
       <Table
         data={data}
         columns={columns}

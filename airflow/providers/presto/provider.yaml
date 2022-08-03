@@ -58,10 +58,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-presto/operators/transfer/gcs_to_presto.rst
     python-module: airflow.providers.presto.transfers.gcs_to_presto
 
-  - source-integration-name: Presto
-    target-integration-name: Slack
-    how-to-guide: /docs/apache-airflow-providers-presto/operators/transfer/presto_to_slack.rst
-    python-module: airflow.providers.presto.transfers.presto_to_slack
 
 connection-types:
   - hook-class-name: airflow.providers.presto.hooks.presto.PrestoHook
