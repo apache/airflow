@@ -187,6 +187,13 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "scrapbook",
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "markdown"),
+    ("'_app_ctx_stack' is deprecated and will be removed in Flask 2.3.", "flask_sqlalchemy"),
+    ("'_app_ctx_stack' is deprecated and will be removed in Flask 2.3.", "flask_appbuilder"),
+    # Currently (2.2) Flask app builder has the `remoevd` typo in the messages,
+    # and they might want to fix it, so adding both
+    ("'_request_ctx_stack' is deprecated and will be remoevd in Flask 2.3.", 'flask_appbuilder'),
+    ("'_request_ctx_stack' is deprecated and will be removed in Flask 2.3.", 'flask_appbuilder'),
+    ("'_request_ctx_stack' is deprecated and will be removed in Flask 2.3.", 'flask_jwt_extended'),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
