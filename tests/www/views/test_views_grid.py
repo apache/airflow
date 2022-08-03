@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime, timedelta
 from typing import List
 
-import freezegun
 import pendulum
 import pytest
+from dateutil.tz import UTC
 
 from airflow.lineage.entities import File
 from airflow.models import DagBag
@@ -36,7 +36,6 @@ from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 DAG_ID = 'test'
-CURRENT_TIME = pendulum.DateTime(2021, 9, 7)
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -73,18 +72,17 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 
 @pytest.fixture
 def dag_with_runs(dag_without_runs):
-    with freezegun.freeze_time(CURRENT_TIME):
-        date = dag_without_runs.dag.start_date
-        run_1 = dag_without_runs.create_dagrun(
-            run_id='run_1', state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
-        )
-        run_2 = dag_without_runs.create_dagrun(
-            run_id='run_2',
-            run_type=DagRunType.SCHEDULED,
-            execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
-        )
+    date = dag_without_runs.dag.start_date
+    run_1 = dag_without_runs.create_dagrun(
+        run_id='run_1', state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+    )
+    run_2 = dag_without_runs.create_dagrun(
+        run_id='run_2',
+        run_type=DagRunType.SCHEDULED,
+        execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
+    )
 
-        yield run_1, run_2
+    yield run_1, run_2
 
 
 def test_no_runs(admin_client, dag_without_runs):
@@ -155,13 +153,23 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
     session.flush()
 
     resp = admin_client.get(f'/object/grid_data?dag_id={DAG_ID}', follow_redirects=True)
+
     assert resp.status_code == 200, resp.json
-    assert resp.json == {
+
+    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
+    # Unlike real datetime, when FakeDatetime is used, it coerces to
+    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
+    current_date_placeholder = '2022-01-02T00:00:00+00:00'
+    actual_date_in_json = datetime.fromisoformat(resp.json['dag_runs'][0]['end_date'])
+    assert datetime.now(tz=UTC) - actual_date_in_json < timedelta(minutes=5)
+    res = resp.json
+    res['dag_runs'][0]['end_date'] = current_date_placeholder
+    assert res == {
         'dag_runs': [
             {
                 'data_interval_end': '2016-01-02T00:00:00+00:00',
                 'data_interval_start': '2016-01-01T00:00:00+00:00',
-                'end_date': '2021-09-07T00:00:00+00:00',
+                'end_date': current_date_placeholder,
                 'execution_date': '2016-01-01T00:00:00+00:00',
                 'last_scheduling_decision': None,
                 'run_id': 'run_1',
