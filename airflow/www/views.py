@@ -3622,6 +3622,10 @@ class Airflow(AirflowBaseView):
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
     def next_run_datasets(self, dag_id):
         """Returns datasets necessary, and their status, for the next dag run"""
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        if not dag:
+            return jsonify({'error': f"can't find dag {dag_id}"}), 404
+
         with create_session() as session:
             data = [
                 dict(info)
