@@ -3640,6 +3640,7 @@ class Airflow(AirflowBaseView):
                     isouter=True,
                 )
                 .filter(DatasetDagRef.dag_id == dag_id)
+                .order_by(Dataset.id)
                 .all()
             ]
         return (
