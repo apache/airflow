@@ -375,12 +375,8 @@ class DagFileProcessor(LoggingMixin):
             return
 
         qry = (
-            session.query(TI.task_id, func.max(DR.execution_date).label('max_ti'))
-            .join(TI.dag_run)
-            .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
-            .filter(TI.task_id.in_(dag.task_ids))
-            .group_by(TI.task_id)
+            session.query(DR.dag_id, func.max(DR.execution_date).label('max_ti'))
+            .filter(DR.dag_id == dag.dag_id)
             .subquery('sq')
         )
         # get recorded SlaMiss
@@ -394,9 +390,10 @@ class DagFileProcessor(LoggingMixin):
             session.query(TI)
             .join(TI.dag_run)
             .filter(
-                TI.dag_id == dag.dag_id,
-                TI.task_id == qry.c.task_id,
+                DR.dag_id == qry.c.dag_id,
+                DR.dag_id == TI.dag_id,
                 DR.execution_date == qry.c.max_ti,
+                or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED),
             )
         )
 
