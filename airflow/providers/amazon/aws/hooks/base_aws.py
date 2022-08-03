@@ -630,7 +630,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                         "assume_role_method": "assume_role",
                         "assume_role_kwargs": {"RoleSessionName": "airflow"},
                         "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
-                        "host": "http://localhost:4566",
+                        "endpoint_url": "http://localhost:4566",
                     },
                     indent=2,
                 ),
