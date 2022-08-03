@@ -65,8 +65,6 @@ class EmrAddStepsOperator(BaseOperator):
         steps: Optional[Union[List[dict], str]] = None,
         **kwargs,
     ):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
         super().__init__(**kwargs)
@@ -341,8 +339,6 @@ class EmrModifyClusterOperator(BaseOperator):
     def __init__(
         self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = 'aws_default', **kwargs
     ):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.cluster_id = cluster_id

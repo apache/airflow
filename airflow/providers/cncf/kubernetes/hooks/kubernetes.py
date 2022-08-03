@@ -16,7 +16,7 @@
 # under the License.
 import tempfile
 import warnings
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
@@ -281,7 +281,8 @@ class KubernetesHook(BaseHook):
         if self._is_in_cluster is not None:
             return self._is_in_cluster
         self.api_client  # so we can determine if we are in_cluster or not
-        assert self._is_in_cluster is not None
+        if TYPE_CHECKING:
+            assert self._is_in_cluster is not None
         return self._is_in_cluster
 
     @cached_property

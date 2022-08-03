@@ -22,6 +22,10 @@ from typing import Tuple
 from airflow.version import version
 
 
+def trim_none_values(obj: dict):
+    return {key: val for key, val in obj.items() if val is not None}
+
+
 def datetime_to_epoch(date_time: datetime) -> int:
     """Convert a datetime object to an epoch integer (seconds)."""
     return int(date_time.timestamp())

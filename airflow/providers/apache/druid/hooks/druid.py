@@ -24,7 +24,7 @@ from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class DruidHook(BaseHook):

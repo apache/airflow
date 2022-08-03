@@ -87,6 +87,14 @@ The logic implements the following rules:
 * If no Source files are changed - no tests are run and no further rules below are checked.
 * `Image building` is enabled if either test are run, docs are build or kubernetes tests are run. All those
   need `CI` or `PROD` images to be built.
+* In case of `Providers` test in regular PRs, additional check is done in order to determine which
+  providers are affected and the actual selection is made based on that:
+  * if directly provider code is changed (either in the provider, test or system tests) then this provider
+    is selected.
+  * if there are any providers that depend on the affected providers, they are also included in the list
+    of affected providers (but not recursively - only direct dependencies are added)
+  * if there are any changes to "common" provider code not belonging to any provider (usually system tests
+    or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers`). The `Always` test type is added always if any unit tests are run.
   `Providers` tests are removed if current branch is different than `main`

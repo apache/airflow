@@ -26,7 +26,16 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, LargeBinary, String, text
+from sqlalchemy import (
+    Column,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    LargeBinary,
+    PrimaryKeyConstraint,
+    String,
+    text,
+)
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -73,6 +82,9 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
+        PrimaryKeyConstraint(
+            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey", mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -658,7 +670,11 @@ def _get_function_params(function) -> List[str]:
 
 
 def resolve_xcom_backend() -> Type[BaseXCom]:
-    """Resolves custom XCom class"""
+    """Resolves custom XCom class
+
+    Confirms that custom XCom class extends the BaseXCom.
+    Compares the function signature of the custom XCom serialize_value to the base XCom serialize_value.
+    """
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if not clazz:
         return BaseXCom

@@ -200,6 +200,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| tabular             | ``pip install 'apache-airflow[tabular]'``           | Tabular hooks                                       |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
@@ -268,7 +270,7 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
-| core.sql            | ``pip install 'apache-airflow[core.sql]'``          | Core SQL Operators                   |              |
+| common.sql          | ``pip install 'apache-airflow[common.sql]'``        | Core SQL Operators                   |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

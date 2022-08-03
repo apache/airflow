@@ -28,14 +28,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.0
+.....
+
+Latest change: 2022-07-11
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`8dfe7bf5ff <https://github.com/apache/airflow/commit/8dfe7bf5ff090a675353a49da21407dffe2fc15e>`_  2022-07-11   ``Added databricks_conn_id as templated field (#24945)``
+`acaa0635c8 <https://github.com/apache/airflow/commit/acaa0635c8477c98ab78da9f6d86e6f1bad2737d>`_  2022-07-08   ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
+`96b01a8012 <https://github.com/apache/airflow/commit/96b01a8012d164df7c24c460149d3b79ecad3901>`_  2022-07-05   ``Remove "bad characters" from our codebase (#24841)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`ed37c3a0e8 <https://github.com/apache/airflow/commit/ed37c3a0e87f64e6942497c5d4c15078a5e02d16>`_  2022-06-28   ``Add 'test_connection' method to Databricks hook (#24617)``
+`9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+=================================================================================================  ===========  =============================================================================
+
 3.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``

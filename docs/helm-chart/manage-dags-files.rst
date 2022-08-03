@@ -71,12 +71,19 @@ Finally, update the Airflow pods with that image:
 
 If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time.
 
+.. warning::
+
+    Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.
+
 .. code-block:: bash
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78 \
-      --set images.airflow.pullPolicy=Always
+      --set images.airflow.pullPolicy=Always \
+      --set airflowPodAnnotations.random=r$(uuidgen)
+
+The randomly generated pod annotation will ensure that pods are refreshed on helm upgrade.
 
 If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName``:
 

@@ -22,7 +22,7 @@ import numbers
 from contextlib import closing
 from typing import Any, Iterable, Mapping, Optional, Sequence, Union
 
-from airflow.operators.sql import BaseSQLOperator
+from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 
 
@@ -68,7 +68,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         sql: str,
         spreadsheet_id: str,
         sql_conn_id: str,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         database: Optional[str] = None,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",

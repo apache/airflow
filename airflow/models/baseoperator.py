@@ -756,6 +756,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
 
+        kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
@@ -1153,11 +1154,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
 
     def __deepcopy__(self, memo):
-        """
-        Hack sorting double chained task lists by task_id to avoid hitting
-        max_depth on deepcopy operations.
-        """
+        # Hack sorting double chained task lists by task_id to avoid hitting
+        # max_depth on deepcopy operations.
         sys.setrecursionlimit(5000)  # TODO fix this in a better way
+
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -1165,10 +1165,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
         for k, v in self.__dict__.items():
+            if k == "_BaseOperator__instantiated":
+                # Don't set this until the _end_, as it changes behaviour of __setattr__
+                continue
             if k not in shallow_copy:
                 setattr(result, k, copy.deepcopy(v, memo))
             else:
                 setattr(result, k, copy.copy(v))
+        result.__instantiated = self.__instantiated
         return result
 
     def __getstate__(self):
@@ -1506,9 +1510,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def validate_mapped_arguments(cls, **kwargs: Any) -> None:
         """Validate arguments when this operator is being mapped."""
         if cls.mapped_arguments_validated_by_init:
-            cls(**kwargs, _airflow_from_mapped=True)
+            cls(**kwargs, _airflow_from_mapped=True, _airflow_mapped_validation_only=True)
 
-    def unmap(self) -> "BaseOperator":
+    def unmap(self, ctx: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
         return self
 

@@ -23,6 +23,55 @@
 Changelog
 ---------
 
+8.2.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+* ``PubSub assets & system tests migration (AIP-47) (#24867)``
+* ``Add handling state of existing Dataproc batch (#24924)``
+* ``Add links for Google Kubernetes Engine operators (#24786)``
+* ``Add test_connection method to 'GoogleBaseHook' (#24682)``
+* ``Add gcp_conn_id argument to GoogleDriveToLocalOperator (#24622)``
+* ``Add DeprecationWarning for column_transformations parameter in AutoML (#24467)``
+* ``Modify BigQueryCreateExternalTableOperator to use updated hook function (#24363)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Datacatalog assets & system tests migration (AIP-47) (#24600)``
+* ``Upgrade FAB to 4.1.1 (#24399)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``GCSDeleteObjectsOperator empty prefix bug fix (#24353)``
+* ``perf(BigQuery): pass table_id as str type (#23141)``
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Google sheets example to new design AIP-47 (#24975)``
+   * ``Migrate Google ads example to new design AIP-47 (#24941)``
+   * ``Migrate Google example gcs_to_gdrive to new design AIP-47 (#24949)``
+   * ``Migrate Google firestore example to new design AIP-47 (#24830)``
+   * ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+   * ``Migrate Google example sql_to_sheets to new design AIP-47 (#24814)``
+   * ``Remove "bad characters" from our codebase (#24841)``
+   * ``Migrate Google example DAG mssql_to_gcs to new design AIP-47 (#24541)``
+   * ``Align Black and blacken-docs configs (#24785)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Use our yaml util in all providers (#24720)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Migrate Google example DAG s3_to_gcs to new design AIP-47 (#24641)``
+   * ``Migrate Google example DAG bigquery_transfer to new design AIP-47 (#24543)``
+   * ``Migrate Google example DAG oracle_to_gcs to new design AIP-47 (#24542)``
+   * ``Migrate Google example DAG mysql_to_gcs to new design AIP-47 (#24540)``
+   * ``Migrate Google search_ads DAG to new design AIP-47 (#24298)``
+   * ``Migrate Google gcs_to_sheets DAG to new design AIP-47 (#24501)``
+
 8.1.0
 .....
 

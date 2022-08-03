@@ -474,14 +474,12 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             start_index=5,
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
-    def test_run_table_delete(self, mock_client, mock_table):
-        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
-        self.hook.run_table_delete(source_project_dataset_table, ignore_if_missing=False)
-        mock_table.from_string.assert_called_once_with(source_project_dataset_table)
+    def test_run_table_delete(self, mock_client):
+        source_dataset_table = f"{DATASET_ID}.{TABLE_ID}"
+        self.hook.run_table_delete(source_dataset_table, ignore_if_missing=False)
         mock_client.return_value.delete_table.assert_called_once_with(
-            table=mock_table.from_string.return_value, not_found_ok=False
+            table=source_dataset_table, not_found_ok=False
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")

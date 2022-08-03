@@ -314,7 +314,21 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
 
     :return: install requirements of the package
     """
-    install_requires = ALL_DEPENDENCIES[provider_package_id][DEPS]
+
+    def apply_version_suffix(install_clause: str) -> str:
+        if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix != "":
+            # This is workaround for `pip` way of handling `--pre` installation switch. It apparently does
+            # not modify the meaning of `install_requires` to include also pre-releases, so we need to
+            # modify our internal provider and airflow package version references to include all pre-releases
+            # including all development releases. When you specify dependency as >= X.Y.Z, and you
+            # have packages X.Y.Zdev0 or X.Y.Zrc1 in a local file, such package is not considered
+            # as fulfilling the requirement even if `--pre` switch is used.
+            return install_clause + ".*"
+        return install_clause
+
+    install_requires = [
+        apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
+    ]
     prefix = "\n    "
     return prefix + prefix.join(install_requires)
 
@@ -710,10 +724,16 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
         fetch_command.append("--unshallow")
     if verbose:
         console.print(f"Running command: '{' '.join(fetch_command)}'")
-    subprocess.check_call(
-        fetch_command,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        subprocess.check_call(
+            fetch_command,
+        )
+    except subprocess.CalledProcessError as e:
+        console.print(
+            '[yellow]Error when fetching tags from remote. Your tags might not be refreshed. '
+            f'Please refresh the tags manually via {" ".join(fetch_command)}\n'
+        )
+        console.print(f'[yellow]The error was: {e}')
 
 
 def get_git_log_command(

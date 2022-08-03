@@ -141,6 +141,11 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
         "snowflake",
     ),
+    (
+        "You have an incompatible version of 'pyarrow' installed (6.0.1), please install a version that "
+        "adheres to: 'pyarrow<8.1.0,>=8.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
     ("dns.hash module will be removed in future versions. Please use hashlib instead.", "dns"),
     ("PKCS#7 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
     ("PKCS#12 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
@@ -149,7 +154,6 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         " for alternative uses",
         "hdfs",
     ),
-    ("This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.", "salesforce"),
     (
         "You have an incompatible version of 'pyarrow' installed (4.0.1), please install a version that"
         " adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
@@ -211,9 +215,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau_job_status`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     (
@@ -250,6 +252,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
     "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
     "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
 }
 
 

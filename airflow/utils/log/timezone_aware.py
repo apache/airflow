@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,23 +16,34 @@
 # under the License.
 import logging
 
+import pendulum
+
 
 class TimezoneAware(logging.Formatter):
     """
-    Override `default_time_format` and `default_msec_format` to specify utc offset.
-
-    utc offset is the matter, without it,  time conversion could be wrong. With this Formatter, `%(asctime)s`
-    will be formatted containing utc offset. (e.g. 2022-06-12 13:00:00+0000 123ms)
-
-    moments.js couldn't parse milliseconds comes after utc offset, so it would be ideal `%(asctime)s`
-    formatted with millisecond comes before utc offset in th first place. (e.g 2022-06-12 13:00:00.123+0000)
-    But python standard lib doesn't support format like that.
-
-    Omitting milliseconds is possible by assigning `default_msec_format` to `None`. But this requires
-    python3.9 or higher, so we can't omit milliseconds until dropping support 3.8 or under.
-
-    Therefore, to use in moments.js, formatted `%(asctime)s` has to be re-formatted by javascript side.
+    Override `default_time_format`, `default_msec_format` and `formatTime` to specify utc offset.
+    utc offset is the matter, without it, time conversion could be wrong.
+    With this Formatter, `%(asctime)s` will be formatted containing utc offset. (ISO 8601)
+    (e.g. 2022-06-12T13:00:00.123+0000)
     """
 
-    default_time_format = '%Y-%m-%d %H:%M:%S%z'
-    default_msec_format = '%s %03dms'
+    default_time_format = '%Y-%m-%dT%H:%M:%S'
+    default_msec_format = '%s.%03d'
+    default_tz_format = '%z'
+
+    def formatTime(self, record, datefmt=None):
+        """
+        Returns the creation time of the specified LogRecord in ISO 8601 date and time format
+        in the local time zone.
+        """
+        dt = pendulum.from_timestamp(record.created, tz=pendulum.local_timezone())
+        if datefmt:
+            s = dt.strftime(datefmt)
+        else:
+            s = dt.strftime(self.default_time_format)
+
+        if self.default_msec_format:
+            s = self.default_msec_format % (s, record.msecs)
+        if self.default_tz_format:
+            s += dt.strftime(self.default_tz_format)
+        return s

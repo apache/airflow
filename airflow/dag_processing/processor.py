@@ -377,7 +377,6 @@ class DagFileProcessor(LoggingMixin):
         qry = (
             session.query(TI.task_id, func.max(DR.execution_date).label('max_ti'))
             .join(TI.dag_run)
-            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
             .filter(TI.task_id.in_(dag.task_ids))
@@ -435,6 +434,7 @@ class DagFileProcessor(LoggingMixin):
                             timestamp=ts,
                         )
                         sla_misses.append(sla_miss)
+                        Stats.incr('sla_missed')
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()

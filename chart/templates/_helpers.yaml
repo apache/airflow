@@ -551,6 +551,17 @@ Create the name of the triggerer service account to use
 {{- end -}}
 
 {{/*
+Create the name of the dag processor service account to use
+*/}}
+{{- define "dagProcessor.serviceAccountName" -}}
+{{- if .Values.dagProcessor.serviceAccount.create -}}
+    {{ default (printf "%s-dag-processor" (include "airflow.fullname" .)) .Values.dagProcessor.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.dagProcessor.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the pgbouncer service account to use
 */}}
 {{- define "pgbouncer.serviceAccountName" -}}
@@ -653,6 +664,14 @@ Create the name of the cleanup service account to use
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type TriggererJob --hostname $(hostname)
+{{- end }}
+
+{{define "dag_processor_liveness_check_command"}}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --hostname $(hostname)
 {{- end }}
 
 {{ define "registry_docker_config" -}}

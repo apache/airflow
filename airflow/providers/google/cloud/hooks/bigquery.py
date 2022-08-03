@@ -52,7 +52,7 @@ from pandas_gbq.gbq import GbqConnector  # noqa
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake
@@ -1176,7 +1176,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: the project used to perform the request
         """
         self.get_client(project_id=project_id).delete_table(
-            table=Table.from_string(table_id),
+            table=table_id,
             not_found_ok=not_found_ok,
         )
         self.log.info('Deleted table %s', table_id)

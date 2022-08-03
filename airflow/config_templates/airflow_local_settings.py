@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowException
 # settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL: str = conf.get_mandatory_value('logging', 'LOGGING_LEVEL').upper()
 
+
 # Flask appbuilder's info level log is very verbose,
 # so it's set to 'WARN' by default.
 FAB_LOG_LEVEL: str = conf.get_mandatory_value('logging', 'FAB_LOGGING_LEVEL').upper()

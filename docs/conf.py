@@ -338,7 +338,7 @@ if FOR_PRODUCTION:
         {'href': '/ecosystem/', 'text': 'Ecosystem'},
     ]
 
-# A dictionary of values to pass into the template engine’s context for all pages.
+# A dictionary of values to pass into the template engine's context for all pages.
 html_context = {
     # Google Analytics ID.
     # For more information look at:

@@ -33,15 +33,15 @@
         Hostname by providing a path to a callable, which will resolve the hostname.
         The format is "package.function".
 
-        For example, default value "socket.getfqdn" means that result from getfqdn() of "socket"
-        package will be used as hostname.
+        For example, default value "airflow.utils.net.getfqdn" means that result from patched
+        version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254.
 
         No argument should be required in the function specified.
         If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
       version_added: ~
       type: string
       example: ~
-      default: "socket.getfqdn"
+      default: "airflow.utils.net.getfqdn"
     - name: default_timezone
       description: |
         Default timezone in case supplied date times are naive
@@ -405,7 +405,8 @@
       default: "utf-8"
     - name: sql_engine_collation_for_ids
       description: |
-        Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
+        Collation for ``dag_id``, ``task_id``, ``key``, ``external_executor_id`` columns
+        in case they have different encoding.
         By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
         the default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed
         the maximum size of allowed index when collation is set to ``utf8mb4`` variant
@@ -635,7 +636,7 @@
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
     - name: log_formatter_class
       description: ~
-      version_added: 2.3.3
+      version_added: 2.3.4
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"
@@ -2120,12 +2121,6 @@
       type: string
       example: ~
       default: "False"
-    - name: dependency_detector
-      description: DAG dependency detector class to use
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "airflow.serialization.serialized_objects.DependencyDetector"
     - name: trigger_timeout_check_interval
       description: |
         How often to check for expired trigger requests that have not run yet.

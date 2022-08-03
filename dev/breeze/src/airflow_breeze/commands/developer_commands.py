@@ -16,10 +16,11 @@
 # under the License.
 
 import os
+import shutil
 import sys
 from typing import Iterable, Optional, Tuple
 
-import rich_click as click
+import click
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
@@ -74,146 +75,9 @@ from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     filter_out_none,
     run_command,
+    run_compile_www_assets,
 )
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
-
-DEVELOPER_COMMANDS = {
-    "name": "Developer tools",
-    "commands": [
-        "shell",
-        "start-airflow",
-        "exec",
-        "stop",
-        "build-docs",
-        "static-checks",
-    ],
-}
-
-DEVELOPER_PARAMETERS = {
-    "breeze": [
-        {
-            "name": "Basic flags for the default (shell) command",
-            "options": [
-                "--python",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
-                "--db-reset",
-            ],
-        },
-        {
-            "name": "Advanced flags for the default (shell) command",
-            "options": [
-                "--use-airflow-version",
-                "--constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--debian-version",
-            ],
-        },
-    ],
-    "breeze shell": [
-        {
-            "name": "Basic flags",
-            "options": [
-                "--python",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
-                "--db-reset",
-            ],
-        },
-        {
-            "name": "Advanced flag for running",
-            "options": [
-                "--use-airflow-version",
-                "--constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--debian-version",
-            ],
-        },
-    ],
-    "breeze start-airflow": [
-        {
-            "name": "Basic flags",
-            "options": [
-                "--python",
-                "--load-example-dags",
-                "--load-default-connections",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
-                "--db-reset",
-            ],
-        },
-        {
-            "name": "Advanced flag for running",
-            "options": [
-                "--use-airflow-version",
-                "--constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-            ],
-        },
-    ],
-    "breeze exec": [
-        {"name": "Drops in the interactive shell of active airflow container"},
-    ],
-    "breeze stop": [
-        {
-            "name": "Stop flags",
-            "options": [
-                "--preserve-volumes",
-            ],
-        },
-    ],
-    "breeze build-docs": [
-        {
-            "name": "Doc flags",
-            "options": [
-                "--docs-only",
-                "--spellcheck-only",
-                "--for-production",
-                "--package-filter",
-            ],
-        },
-    ],
-    "breeze static-checks": [
-        {
-            "name": "Pre-commit flags",
-            "options": [
-                "--type",
-                "--file",
-                "--all-files",
-                "--show-diff-on-failure",
-                "--last-commit",
-            ],
-        },
-    ],
-}
-
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Make sure that whatever you add here as an option is also
@@ -272,7 +136,7 @@ def shell(
     platform: Optional[str],
     extra_args: Tuple,
 ):
-    """Enter breeze.py environment. this is the default command use when no other is selected."""
+    """Enter breeze environment. this is the default command use when no other is selected."""
     if verbose or dry_run:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
         get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
@@ -354,7 +218,9 @@ def start_airflow(
     platform: Optional[str],
     extra_args: Tuple,
 ):
-    """Enter breeze.py environment and starts all Airflow components in the tmux session."""
+    """Enter breeze environment and starts all Airflow components in the tmux session."""
+    if use_airflow_version is None:
+        run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -391,17 +257,22 @@ def start_airflow(
 @click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
 @click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
-    '-p',
-    '--for-production',
-    help="Builds documentation for official release i.e. all links point to stable version.",
-    is_flag=True,
-)
-@click.option(
-    '-p',
     '--package-filter',
     help="List of packages to consider.",
     type=NotVerifiedBetterChoice(get_available_packages()),
     multiple=True,
+)
+@click.option(
+    '--clean-build',
+    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
+    "before the build - useful for a clean build.",
+    is_flag=True,
+)
+@click.option(
+    '--for-production',
+    help="Builds documentation for official release i.e. all links point to stable version. "
+    "Implies --clean-build",
+    is_flag=True,
 )
 def build_docs(
     verbose: bool,
@@ -410,12 +281,22 @@ def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
     for_production: bool,
+    clean_build: bool,
     package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
+    if for_production and not clean_build:
+        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        clean_build = True
     perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
+    if clean_build:
+        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+        for dir_name in ['_build', "_doctrees", '_inventory_cache', '_api']:
+            for dir in docs_dir.rglob(dir_name):
+                get_console().print(f"[info]Removing {dir}")
+                shutil.rmtree(dir, ignore_errors=True)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
@@ -529,6 +410,29 @@ def static_checks(
     sys.exit(static_checks_result.returncode)
 
 
+@main.command(
+    name="compile-www-assets",
+    help="Compiles www assets.",
+)
+@click.option(
+    "--dev",
+    help="Run development version of assets compilation - it will not quit and automatically "
+    "recompile assets on-the-fly when they are changed.",
+    is_flag=True,
+)
+@option_verbose
+@option_dry_run
+def compile_www_assets(
+    dev: bool,
+    verbose: bool,
+    dry_run: bool,
+):
+    compile_www_assets_result = run_compile_www_assets(dev=dev, verbose=verbose, dry_run=dry_run)
+    if compile_www_assets_result.returncode != 0:
+        get_console().print("[warn]New assets were generated[/]")
+    sys.exit(0)
+
+
 @main.command(name="stop", help="Stop running breeze environment.")
 @option_verbose
 @option_dry_run
@@ -547,7 +451,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
 
-@main.command(name='exec', help='Joins the interactive shell of running airflow container')
+@main.command(name='exec', help='Joins the interactive shell of running airflow container.')
 @option_verbose
 @option_dry_run
 @click.argument('exec_args', nargs=-1, type=click.UNPROCESSED)

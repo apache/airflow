@@ -53,6 +53,7 @@ RESOURCE_USER_STATS_CHART = "User Stats Chart"
 RESOURCE_VARIABLE = "Variables"
 RESOURCE_WEBSITE = "Website"
 RESOURCE_XCOM = "XComs"
+RESOURCE_DATASET = "Datasets"
 
 
 # Action Constants

@@ -67,7 +67,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 4.0.0
+Release: 4.1.0
 
 Provider package
 ----------------
@@ -85,9 +85,9 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-================================  ====================
+================================  ==========================================
 PIP package                       Version required
-================================  ====================
+================================  ==========================================
 ``apache-airflow``                ``>=2.2.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=4.0.0``
@@ -102,7 +102,8 @@ PIP package                       Version required
 ``azure-storage-blob``            ``>=12.7.0,<12.9.0``
 ``azure-storage-common``          ``>=2.1.0``
 ``azure-storage-file``            ``>=2.1.0``
-================================  ====================
+``azure-servicebus``              ``>=7.6.1; platform_machine != "aarch64"``
+================================  ==========================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -131,7 +132,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 4.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-4.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-4.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-4.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 4.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-4.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-4.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-4.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 4.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-4.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-4.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-4.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 4.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-4.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-4.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-4.1.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/microsoft/azure/CHANGELOG.rst

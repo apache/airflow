@@ -20,7 +20,7 @@
 
 import pymssql
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class MsSqlHook(DbApiHook):

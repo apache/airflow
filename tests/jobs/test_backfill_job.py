@@ -991,13 +991,15 @@ class TestBackfillJob:
                         dag_id=dag_id,
                     )
                     dag_maker.create_dagrun(
-                        state=None,
+                        state=State.RUNNING,
                         # Existing dagrun that is not within the backfill range
                         run_id=run_id,
                         execution_date=DEFAULT_DATE + datetime.timedelta(hours=1),
                     )
                     thread_session.commit()
                     cond.notify()
+                except Exception:
+                    logger.exception("Exception when creating DagRun")
                 finally:
                     cond.release()
                     thread_session.close()
@@ -1020,6 +1022,7 @@ class TestBackfillJob:
                 # reached, so it is waiting
                 dag_run_created_cond.wait(timeout=1.5)
                 dagruns = DagRun.find(dag_id=dag_id)
+                logger.info("The dag runs retrieved: %s", dagruns)
                 assert 1 == len(dagruns)
                 dr = dagruns[0]
                 assert dr.run_id == run_id

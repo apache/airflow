@@ -24,6 +24,35 @@
 Changelog
 ---------
 
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* The ``hql`` parameter in ``get_records`` of ``HiveServer2Hook`` has been renamed to sql to match the
+  ``get_records`` DbApiHook signature. If you used it as a positional parameter, this is no change for you,
+  but if you used it as keyword one, you need to rename it.
+* ``hive_conf`` parameter has been renamed to ``parameters`` and it is now second parameter, to match ``get_records``
+  signature from the DbApiHook. You need to rename it if you used it.
+* ``schema`` parameter in ``get_records`` is an optional kwargs extra parameter that you can add, to match
+  the schema of ``get_records`` from DbApiHook.
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix connection extra parameter 'auth_mechanism' in 'HiveMetastoreHook' and 'HiveServer2Hook' (#24713)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

@@ -114,6 +114,22 @@ class AdminClientHook(BaseAzureServiceBusHook):
         with self.get_conn() as service_mgmt_conn:
             service_mgmt_conn.delete_queue(queue_name)
 
+    def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
+        """
+        Delete a topic subscription entities under a ServiceBus Namespace
+
+        :param subscription_name: The subscription name that will own the rule in topic
+        :param topic_name: The topic that will own the subscription rule.
+        """
+        if subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+
+        with self.get_conn() as service_mgmt_conn:
+            self.log.info("Deleting Subscription %s", subscription_name)
+            service_mgmt_conn.delete_subscription(topic_name, subscription_name)
+
 
 class MessageHook(BaseAzureServiceBusHook):
     """
@@ -138,7 +154,8 @@ class MessageHook(BaseAzureServiceBusHook):
 
         :param queue_name: The name of the queue or a QueueProperties with name.
         :param messages: Message which needs to be sent to the queue. It can be string or list of string.
-        :param batch_message_flag: bool flag, can be set to True if message needs to be sent as batch message.
+        :param batch_message_flag: bool flag, can be set to True if message needs to be
+            sent as batch message.
         """
         if queue_name is None:
             raise TypeError("Queue name cannot be None.")
@@ -195,3 +212,39 @@ class MessageHook(BaseAzureServiceBusHook):
                 for msg in received_msgs:
                     self.log.info(msg)
                     receiver.complete_message(msg)
+
+    def receive_subscription_message(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        max_message_count: Optional[int],
+        max_wait_time: Optional[float],
+    ):
+        """
+        Receive a batch of subscription message at once. This approach is optimal if you wish
+        to process multiple messages simultaneously, or perform an ad-hoc receive as a single call.
+
+        :param subscription_name: The subscription name that will own the rule in topic
+        :param topic_name: The topic that will own the subscription rule.
+        :param max_message_count: Maximum number of messages in the batch.
+            Actual number returned will depend on prefetch_count and incoming stream rate.
+            Setting to None will fully depend on the prefetch config. The default value is 1.
+        :param max_wait_time: Maximum time to wait in seconds for the first message to arrive. If no
+            messages arrive, and no timeout is specified, this call will not return until the
+            connection is closed. If specified, an no messages arrive within the timeout period,
+            an empty list will be returned.
+        """
+        if subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+        with self.get_conn() as service_bus_client, service_bus_client.get_subscription_receiver(
+            topic_name, subscription_name
+        ) as subscription_receiver:
+            with subscription_receiver:
+                received_msgs = subscription_receiver.receive_messages(
+                    max_message_count=max_message_count, max_wait_time=max_wait_time
+                )
+                for msg in received_msgs:
+                    self.log.info(msg)
+                    subscription_receiver.complete_message(msg)

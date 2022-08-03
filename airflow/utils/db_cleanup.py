@@ -94,6 +94,7 @@ config_list: List[_TableConfig] = [
         keep_last_filters=[column('external_trigger') == false()],
         keep_last_group_by=['dag_id'],
     ),
+    _TableConfig(table_name='dataset_event', recency_column_name='created_at'),
     _TableConfig(table_name='import_error', recency_column_name='timestamp'),
     _TableConfig(table_name='log', recency_column_name='dttm'),
     _TableConfig(table_name='rendered_task_instance_fields', recency_column_name='execution_date'),

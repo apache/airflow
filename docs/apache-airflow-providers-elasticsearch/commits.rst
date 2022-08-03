@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2022-07-11
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`ef79a0d1c4 <https://github.com/apache/airflow/commit/ef79a0d1c4c0a041d7ebf83b93cbb25aa3778a70>`_  2022-07-11   ``Only assert stuff for mypy when type checking (#24937)``
+`2ddc100405 <https://github.com/apache/airflow/commit/2ddc1004050464c112c18fee81b03f87a7a11610>`_  2022-07-08   ``Adding ElasticserachPythonHook - ES Hook With The Python Client (#24895)``
+`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
+`97948ecae7 <https://github.com/apache/airflow/commit/97948ecae7fcbb7dfdfb169cfe653bd20a108def>`_  2022-07-01   ``Move fallible ti.task.dag assignment back inside try/except block (#24533) (#24592)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+=================================================================================================  ===========  =======================================================================================
+
 4.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``

@@ -29,7 +29,7 @@ Smart Sensors
   efficiency gains. If you are considering writing a new Smart Sensor, you should instead write it
   as a Deferrable Operator.
 
-The smart sensor is a service (run by a builtin DAG) which greatly reduces Airflow’s infrastructure
+The smart sensor is a service (run by a builtin DAG) which greatly reduces Airflow's infrastructure
 cost by consolidating multiple instances of small, light-weight Sensors into a single process.
 
 .. image:: /img/smart_sensor_architecture.png
@@ -45,15 +45,15 @@ In this way, we only need a handful of running processes.
 
 .. image:: /img/smart_sensor_single_task_execute_flow.png
 
-The smart sensor service is supported in a new mode called “smart sensor mode”. In smart sensor mode,
+The smart sensor service is supported in a new mode called "smart sensor mode". In smart sensor mode,
 instead of holding a long running process for each sensor and poking periodically, a sensor will only
-store poke context at sensor_instance table and then exits with a ‘sensing’ state.
+store poke context at sensor_instance table and then exits with a 'sensing' state.
 
 When the smart sensor mode is enabled, a special set of builtin smart sensor DAGs
 (named smart_sensor_group_shard_xxx) is created by the system; These DAGs contain ``SmartSensorOperator``
 task and manage the smart sensor jobs for the Airflow cluster. The SmartSensorOperator task can fetch
-hundreds of ‘sensing’ instances from sensor_instance table and poke on behalf of them in batches.
-Users don’t need to change their existing DAGs.
+hundreds of 'sensing' instances from sensor_instance table and poke on behalf of them in batches.
+Users don't need to change their existing DAGs.
 
 Enable/Disable Smart Sensor
 ---------------------------
@@ -77,13 +77,13 @@ Add the following settings in the ``airflow.cfg``:
 *   ``shards``: This config indicates the number of concurrently running smart sensor jobs for
     the Airflow cluster.
 *   ``sensors_enabled``: This config is a list of sensor class names that will use the smart sensor.
-    The users use the same class names (e.g. HivePartitionSensor) in their DAGs and they don’t have
+    The users use the same class names (e.g. HivePartitionSensor) in their DAGs and they don't have
     the control to use smart sensors or not, unless they exclude their tasks explicitly.
 
 Enabling/disabling the smart sensor service is a system level configuration change.
 It is transparent to the individual users. Existing DAGs don't need to be changed for
 enabling/disabling the smart sensor. Rotating centralized smart sensor tasks will not
-cause any user’s sensor task failure.
+cause any user's sensor task failure.
 
 *   Using callback arguments (``on_success_callback``, ``on_failure_callback``, and ``on_retry_callback``) on a sensor task is not compatible with the smart sensor mode. If any callback arguments are provided, the sensor task will not be executed when the smart sensor mode is enabled.
 

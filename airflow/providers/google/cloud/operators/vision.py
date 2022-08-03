@@ -241,7 +241,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
     :param project_id: (Optional) The project in which the ProductSet should be created. If set to None or
         missing, the default project_id from the Google Cloud connection is used.
     :param update_mask: (Optional) The `FieldMask` that specifies which fields to update. If update_mask
-        isn’t specified, all mutable fields are to be updated. Valid mask path is display_name. If a dict is
+        isn't specified, all mutable fields are to be updated. Valid mask path is display_name. If a dict is
         provided, it must be of the same form as the protobuf message `FieldMask`.
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -612,7 +612,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
     :param project_id: (Optional) The project in which the Product is located. If set to None or
         missing, the default project_id from the Google Cloud connection is used.
     :param update_mask: (Optional) The `FieldMask` that specifies which fields to update. If update_mask
-        isn’t specified, all mutable fields are to be updated. Valid mask paths include product_labels,
+        isn't specified, all mutable fields are to be updated. Valid mask paths include product_labels,
         display_name, and description. If a dict is provided, it must be of the same form as the protobuf
         message `FieldMask`.
     :param retry: (Optional) A retry object used to retry requests. If `None` is
@@ -1034,7 +1034,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
 
     Possible errors:
 
-    - Returns `NOT_FOUND` if the Product or the ProductSet doesn’t exist.
+    - Returns `NOT_FOUND` if the Product or the ProductSet doesn't exist.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

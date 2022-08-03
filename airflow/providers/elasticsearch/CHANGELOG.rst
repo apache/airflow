@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding ElasticserachPythonHook - ES Hook With The Python Client (#24895)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move fallible ti.task.dag assignment back inside try/except block (#24533) (#24592)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Only assert stuff for mypy when type checking (#24937)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 4.0.0
 .....
 

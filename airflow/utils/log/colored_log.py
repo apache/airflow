@@ -43,10 +43,6 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     traceback.
     """
 
-    # copy of airflow.utils.log.timezone_aware.TimezoneAware
-    default_time_format = '%Y-%m-%d %H:%M:%S%z'
-    default_msec_format = '%s %03dms'
-
     def __init__(self, *args, **kwargs):
         kwargs["stream"] = sys.stdout or kwargs.get("stream")
         kwargs["log_colors"] = DEFAULT_COLORS

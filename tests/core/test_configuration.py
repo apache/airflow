@@ -261,6 +261,31 @@ sql_alchemy_conn = airflow
 
         assert 'sqlite:////Users/airflow/airflow/airflow.db' == test_conf.get('test', 'sql_alchemy_conn')
 
+    def test_hidding_of_sensitive_config_values(self):
+        test_config = '''[test]
+                         sql_alchemy_conn_secret = sql_alchemy_conn
+                      '''
+        test_config_default = '''[test]
+                                 sql_alchemy_conn = airflow
+                              '''
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        assert 'airflow' == test_conf.get('test', 'sql_alchemy_conn')
+        # Hide sensitive fields
+        asdict = test_conf.as_dict(display_sensitive=False)
+        assert '< hidden >' == asdict['test']['sql_alchemy_conn']
+        # If display_sensitive is false, then include_cmd, include_env,include_secrets must all be True
+        # This ensures that cmd and secrets env are hidden at the appropriate method and no surprises
+        with pytest.raises(ValueError):
+            test_conf.as_dict(display_sensitive=False, include_cmds=False)
+        # Test that one of include_cmds, include_env, include_secret can be false when display_sensitive
+        # is True
+        assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -558,6 +583,15 @@ notacommand = OK
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environment variable's echo command
             assert test_cmdenv_conf.get('testcmdenv', 'notacommand') == 'OK'
+
+    @pytest.mark.parametrize('display_sensitive, result', [(True, 'OK'), (False, '< hidden >')])
+    def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
+
+        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf.sensitive_config_values.add(('testcmdenv', 'itsacommand'))
+        with unittest.mock.patch.dict('os.environ'):
+            asdict = test_cmdenv_conf.as_dict(True, display_sensitive)
+            assert asdict['testcmdenv']['itsacommand'] == (result, 'cmd')
 
     def test_parameterized_config_gen(self):
         config = textwrap.dedent(
@@ -875,11 +909,11 @@ sql_alchemy_conn=sqlite://test
         test_conf.deprecated_values = {
             'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
         }
-        test_conf.read_dict({'core': {'hostname_callable': 'socket:getfqdn'}})
+        test_conf.read_dict({'core': {'hostname_callable': 'airflow.utils.net:getfqdn'}})
 
         with pytest.warns(FutureWarning):
             test_conf.validate()
-            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+            assert test_conf.get('core', 'hostname_callable') == 'airflow.utils.net.getfqdn'
 
     @pytest.mark.parametrize(
         "old, new",
@@ -930,7 +964,7 @@ sql_alchemy_conn=sqlite://test
         "conf_dict",
         [
             {},  # Even if the section is absent from config file, environ still needs replacing.
-            {'core': {'hostname_callable': 'socket:getfqdn'}},
+            {'core': {'hostname_callable': 'airflow.utils.net.getfqdn'}},
         ],
     )
     def test_deprecated_values_from_environ(self, conf_dict):
@@ -953,9 +987,11 @@ sql_alchemy_conn=sqlite://test
             return test_conf
 
         with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
+            with unittest.mock.patch.dict(
+                'os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='airflow.utils.net:getfqdn'
+            ):
                 test_conf = make_config()
-                assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+                assert test_conf.get('core', 'hostname_callable') == 'airflow.utils.net.getfqdn'
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:

@@ -59,7 +59,7 @@ configure the secret name:
 .. _production-guide:pgbouncer:
 
 .. warning::
-  If you use ``CeleryExecutor``, keep in mind that ``resultBackendSecretName`` expects a url that starts with ``db+postgresql://``, while ``metadataSecretName`` expects ``postgresql://`` and won't work with ``db+postgresql://``. You'll need to create separate secrets with the correct scheme.
+  If you use ``CeleryExecutor`` and Airflow version < ``2.4``, keep in mind that ``resultBackendSecretName`` expects a url that starts with ``db+postgresql://``, while ``metadataSecretName`` expects ``postgresql://`` and won't work with ``db+postgresql://``. You'll need to create separate secrets with the correct scheme. For Airflow version >= ``2.4`` it is possible to omit the result backend secret, as Airflow will use ``sql_alchemy_conn`` (specified in ``metadataSecret``) with a db+ scheme prefix by default.
 
 PgBouncer
 ---------

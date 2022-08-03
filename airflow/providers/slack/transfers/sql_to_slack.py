@@ -14,47 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
+from packaging.version import Version
 from pandas import DataFrame
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 from airflow.version import version
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-def _backported_get_hook(connection, *, hook_params=None):
-    """Return hook based on conn_type
-    For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-    when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-    """
-    hook = ProvidersManager().hooks.get(connection.conn_type, None)
-
-    if hook is None:
-        raise AirflowException(f'Unknown hook type "{connection.conn_type}"')
-    try:
-        hook_class = import_string(hook.hook_class_name)
-    except ImportError:
-        warnings.warn(
-            "Could not import %s when discovering %s %s",
-            hook.hook_class_name,
-            hook.hook_name,
-            hook.package_name,
-        )
-        raise
-    if hook_params is None:
-        hook_params = {}
-    return hook_class(**{hook.connection_id_attribute_name: connection.conn_id}, **hook_params)
 
 
 class SqlToSlackOperator(BaseOperator):
@@ -126,7 +100,7 @@ class SqlToSlackOperator(BaseOperator):
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
-        if version >= '2.3':
+        if Version(version) >= Version('2.3'):
             # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
             hook = conn.get_hook(hook_params=self.sql_hook_params)  # ignore airflow compat check
         else:
