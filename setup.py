@@ -622,12 +622,27 @@ def is_package_excluded(package: str, exclusion_list: List[str]) -> bool:
     return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
 
 
+def remove_provider_limits(package: str) -> str:
+    """
+    Removes the limit for providers in devel_all to account for pre-release and development packages.
+
+    :param package: package name (beginning of it)
+    :return: true if package should be excluded
+    """
+    return (
+        package.split(">=")[0]
+        if package.startswith("apache-airflow-providers") and ">=" in package
+        else package
+    )
+
+
+devel = [remove_provider_limits(package) for package in devel]
 devel_all = [
-    package
+    remove_provider_limits(package)
     for package in devel_all
     if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
 ]
-
+devel_hadoop = [remove_provider_limits(package) for package in devel_hadoop]
 devel_ci = devel_all
 
 

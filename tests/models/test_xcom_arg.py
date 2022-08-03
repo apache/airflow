@@ -19,6 +19,7 @@ import pytest
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -177,3 +178,46 @@ class TestXComArgRuntime:
             )
             op1 >> op2
         dag.run()
+
+
+@pytest.mark.parametrize(
+    "fillvalue, expected_results",
+    [
+        (NOTSET, {("a", 1), ("b", 2), ("c", 3)}),
+        (None, {("a", 1), ("b", 2), ("c", 3), (None, 4)}),
+    ],
+)
+def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
+    results = set()
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2, 3, 4]
+
+        @dag.task
+        def pull(value):
+            results.add(value)
+
+        pull.expand(value=push_letters().zip(push_numbers(), fillvalue=fillvalue))
+
+    dr = dag_maker.create_dagrun()
+
+    # Run "push_letters" and "push_numbers".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis and all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+    session.commit()
+
+    # Run "pull".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis and all(ti.task_id == "pull" for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    assert results == expected_results

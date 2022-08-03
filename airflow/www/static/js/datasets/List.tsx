@@ -21,6 +21,9 @@ import React, { useMemo, useState } from 'react';
 import {
   Box,
   Heading,
+  Flex,
+  Button,
+  Link,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
@@ -28,6 +31,7 @@ import type { Row, SortingRule } from 'react-table';
 import { useDatasets } from 'src/api';
 import { Table, TimeCell, CodeCell } from 'src/components/Table';
 import type { API } from 'src/types';
+import { MdOutlineAccountTree } from 'react-icons/md';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -75,14 +79,25 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    onSelect(row.id);
+    if (row.original.id) onSelect(row.original.id.toString());
   };
 
   return (
     <Box maxWidth="1500px">
-      <Heading mt={3} mb={2} fontWeight="normal">
-        Datasets
-      </Heading>
+      <Flex justifyContent="space-between" alignItems="center">
+        <Heading mt={3} mb={2} fontWeight="normal" title="View Dag-Dataset Dependencies">
+          Datasets
+        </Heading>
+        <Button
+          as={Link}
+          variant="outline"
+          colorScheme="blue"
+          href="/dag-dependencies"
+          leftIcon={<MdOutlineAccountTree />}
+        >
+          Graph
+        </Button>
+      </Flex>
       <Box borderWidth={1}>
         <Table
           data={data}

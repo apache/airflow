@@ -1028,7 +1028,7 @@ OPERATORS = [
         'airflow.contrib.operators.sqoop_operator.SqoopOperator',
     ),
     (
-        'airflow.operators.sql.SQLCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLCheckOperator',
         'airflow.operators.druid_check_operator.DruidCheckOperator',
     ),
     (
@@ -1232,35 +1232,35 @@ OPERATORS = [
         'airflow.operators.papermill_operator.PapermillOperator',
     ),
     (
-        'airflow.operators.sql.SQLCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLCheckOperator',
         'airflow.operators.presto_check_operator.PrestoCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLIntervalCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator',
         'airflow.operators.presto_check_operator.PrestoIntervalCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLValueCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLValueCheckOperator',
         'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLCheckOperator',
         'airflow.operators.check_operator.CheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLIntervalCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator',
         'airflow.operators.check_operator.IntervalCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLValueCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLValueCheckOperator',
         'airflow.operators.check_operator.ValueCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLThresholdCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator',
         'airflow.operators.check_operator.ThresholdCheckOperator',
     ),
     (
-        'airflow.operators.sql.BranchSQLOperator',
+        'airflow.providers.common.sql.operators.sql.BranchSQLOperator',
         'airflow.operators.sql_branch_operator.BranchSqlOperator',
     ),
     (
