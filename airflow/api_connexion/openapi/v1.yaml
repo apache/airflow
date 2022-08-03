@@ -2134,15 +2134,13 @@ components:
           description: |
             The user's first name.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
-          minLength: 1
+            *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
         last_name:
           type: string
           description: |
             The user's last name.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
-          minLength: 1
+            *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
         username:
           type: string
           description: |
@@ -2245,6 +2243,10 @@ components:
         conn_type:
           type: string
           description: The connection type.
+        description:
+          type: string
+          description: The description of the connection.
+          nullable: true
         host:
           type: string
           nullable: true
@@ -3034,6 +3036,13 @@ components:
       properties:
         key:
           type: string
+        description:
+          type: string
+          description: |
+            The description of the variable.
+
+            *New in version 2.4.0*
+          nullable: true
 
     VariableCollection:
       type: object
