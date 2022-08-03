@@ -54,20 +54,39 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
     if operator.wait_for_termination:
         while True:
-            run_state = hook.get_run_state(operator.run_id)
+            run_info = hook.get_run(operator.run_id)
+            run_state = RunState(**run_info['state'])
             if run_state.is_terminal:
                 if run_state.is_successful:
                     log.info('%s completed successfully.', operator.task_id)
                     log.info('View run status, Spark UI, and logs at %s', run_page_url)
                     return
                 else:
-                    run_output = hook.get_run_output(operator.run_id)
-                    notebook_error = run_output['error']
-                    error_message = (
-                        f'{operator.task_id} failed with terminal state: {run_state} '
-                        f'and with the error {notebook_error}'
-                    )
+                    if run_state.result_state == "FAILED":
+                        task_run_id = None
+                        if 'tasks' in run_info:
+                            for task in run_info['tasks']:
+                                if task.get("state", {}).get("result_state", "") == "FAILED":
+                                    task_run_id = task["run_id"]
+                        if task_run_id is not None:
+                            run_output = hook.get_run_output(task_run_id)
+                            if 'error' in run_output:
+                                notebook_error = run_output['error']
+                            else:
+                                notebook_error = run_state.state_message
+                        else:
+                            notebook_error = run_state.state_message
+                        error_message = (
+                            f'{operator.task_id} failed with terminal state: {run_state} '
+                            f'and with the error {notebook_error}'
+                        )
+                    else:
+                        error_message = (
+                            f'{operator.task_id} failed with terminal state: {run_state} '
+                            f'and with the error {run_state.state_message}'
+                        )
                     raise AirflowException(error_message)
+
             else:
                 log.info('%s in run state: %s', operator.task_id, run_state)
                 log.info('View run status, Spark UI, and logs at %s', run_page_url)
