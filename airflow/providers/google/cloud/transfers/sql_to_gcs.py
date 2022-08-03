@@ -198,6 +198,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
+        import os
+
         org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         schema = [column for column in org_schema if column not in self.exclude_columns]
 
@@ -250,7 +252,12 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tmp_file_handle.write(b'\n')
 
             # Stop if the file exceeds the file size limit.
-            if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
+            fppos = tmp_file_handle.tell()
+            tmp_file_handle.seek(0, os.SEEK_END)
+            file_size = tmp_file_handle.tell()
+            tmp_file_handle.seek(fppos, os.SEEK_SET)
+
+            if file_size >= self.approx_max_file_size_bytes:
                 file_no += 1
 
                 if self.export_format == 'parquet':
