@@ -1535,11 +1535,7 @@ class Airflow(AirflowBaseView):
             if not metadata:
                 metadata = {}
         except json.decoder.JSONDecodeError:
-            error_message = "Invalid JSON metadata"
-            response = jsonify({"error": error_message})
-            response.status_code = 400
-
-            return response
+            return {"error": "Invalid JSON metadata"}, 400
 
         # Convert string datetime into actual datetime
         try:
@@ -1549,10 +1545,7 @@ class Airflow(AirflowBaseView):
                 f'Given execution date, {execution_date}, could not be identified as a date. '
                 'Example date format: 2015-11-16T14:34:15+00:00'
             )
-            response = jsonify({'error': error_message})
-            response.status_code = 400
-
-            return response
+            return {'error': error_message}, 400
 
         task_log_reader = TaskLogReader()
         if not task_log_reader.supports_read:
@@ -3521,21 +3514,12 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
-            response = jsonify(
-                {
-                    'url': None,
-                    'error': f"can't find dag {dag} or task_id {task_id}",
-                }
-            )
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': f"can't find dag {dag} or task_id {task_id}"}, 404
 
         task: "AbstractOperator" = dag.get_task(task_id)
         link_name = request.args.get('link_name')
         if link_name is None:
-            response = jsonify({'url': None, 'error': 'Link name not passed'})
-            response.status_code = 400
-            return response
+            return {'url': None, 'error': 'Link name not passed'}, 400
 
         ti = (
             session.query(TaskInstance)
@@ -3544,23 +3528,15 @@ class Airflow(AirflowBaseView):
             .first()
         )
         if not ti:
-            response = jsonify({'url': None, 'error': 'Task Instances not found'})
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': 'Task Instances not found'}, 404
         try:
             url = task.get_extra_links(ti, link_name)
         except ValueError as err:
-            response = jsonify({'url': None, 'error': str(err)})
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': str(err)}, 404
         if url:
-            response = jsonify({'error': None, 'url': url})
-            response.status_code = 200
-            return response
+            return {'error': None, 'url': url}
         else:
-            response = jsonify({'url': None, 'error': f'No URL found for {link_name}'})
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': f'No URL found for {link_name}'}, 404
 
     @expose('/object/task_instances')
     @auth.has_access(
@@ -3579,9 +3555,7 @@ class Airflow(AirflowBaseView):
         if dttm:
             dttm = _safe_parse_datetime(dttm)
         else:
-            response = jsonify({'error': f"Invalid execution_date {dttm}"})
-            response.status_code = 400
-            return response
+            return {'error': f"Invalid execution_date {dttm}"}, 400
 
         with create_session() as session:
             task_instances = {
@@ -3604,9 +3578,7 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not dag:
-            response = jsonify({'error': f"can't find dag {dag_id}"})
-            response.status_code = 404
-            return response
+            return {'error': f"can't find dag {dag_id}"}, 404
 
         root = request.args.get('root')
         if root:
