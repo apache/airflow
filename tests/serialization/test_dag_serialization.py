@@ -134,6 +134,7 @@ serialized_simple_dag_ground_truth = {
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
                 "downstream_task_ids": [],
+                "owner_link": {'airflow': ''},
                 "_inlets": [],
                 "_is_empty": False,
                 "_outlets": [],
