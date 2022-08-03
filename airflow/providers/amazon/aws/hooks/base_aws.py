@@ -586,15 +586,15 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom UI field behaviour for AWS Connection."""
         return {
-            "hidden_fields": ['host', 'schema', 'port'],
+            "hidden_fields": ["host", "schema", "port"],
             "relabeling": {
-                'login': 'AWS Access Key ID',
-                'password': 'AWS Secret Access Key',
+                "login": "AWS Access Key ID",
+                "password": "AWS Secret Access Key",
             },
             "placeholders": {
-                'login': 'AKIAIOSFODNN7EXAMPLE',
-                'password': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-                'extra': json.dumps(
+                "login": "AKIAIOSFODNN7EXAMPLE",
+                "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "extra": json.dumps(
                     {
                         "region_name": "us-east-1",
                         "session_kwargs": {"profile_name": "default"},
