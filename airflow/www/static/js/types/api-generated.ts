@@ -1371,8 +1371,6 @@ export interface components {
      * *New in version 2.1.0*
      */
     PluginCollectionItem: {
-      /** @description The plugin number */
-      number?: string;
       /** @description The name of the plugin */
       name?: string;
       /** @description The plugin hooks */

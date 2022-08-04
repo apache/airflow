@@ -27,7 +27,5 @@ from airflow.security import permissions
 def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
     """Get plugins endpoint"""
     plugins_info = get_plugin_info()
-    total_entries = len(plugins_info)
-    plugins_info = plugins_info[offset:]
-    plugins_info = plugins_info[:limit]
-    return plugin_collection_schema.dump(PluginCollection(plugins=plugins_info, total_entries=total_entries))
+    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
+    return plugin_collection_schema.dump(collection)

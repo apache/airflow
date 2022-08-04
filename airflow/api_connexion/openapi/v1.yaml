@@ -3332,9 +3332,6 @@ components:
 
         *New in version 2.1.0*
       properties:
-        number:
-          type: string
-          description: The plugin number
         name:
           type: string
           description: The name of the plugin
