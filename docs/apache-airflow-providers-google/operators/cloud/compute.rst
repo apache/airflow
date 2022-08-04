@@ -28,7 +28,7 @@ Prerequisite Tasks
 .. _howto/operator:ComputeEngineInsertInstanceOperator:
 
 ComputeEngineInsertInstanceOperator
-----------------------------------
+-----------------------------------
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInsertInstanceOperator`
@@ -73,7 +73,7 @@ See Google Compute Engine API documentation to `insert an instance
 .. _howto/operator:ComputeEngineInsertInstanceFromTemplateOperator:
 
 ComputeEngineInsertInstanceFromTemplateOperator
-----------------------------------
+-----------------------------------------------
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInsertInstanceFromTemplateOperator`
@@ -118,7 +118,7 @@ See Google Compute Engine API documentation to `insert an instance from template
 .. _howto/operator:ComputeEngineDeleteInstanceOperator:
 
 ComputeEngineDeleteInstanceOperator
-----------------------------------
+-----------------------------------
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineDeleteInstanceOperator`
@@ -295,7 +295,7 @@ See Google Compute Engine API documentation to `set the machine type
 .. _howto/operator:ComputeEngineDeleteInstanceTemplateOperator:
 
 ComputeEngineDeleteInstanceTemplateOperator
------------------------------------------
+-------------------------------------------
 
 Use the operator to delete Google Compute Engine instance template.
 
@@ -331,11 +331,10 @@ More information
 See Google Compute Engine API documentation to `delete a template
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates/delete>`_.
 
-
 .. _howto/operator:ComputeEngineInsertInstanceTemplateOperator:
 
 ComputeEngineInsertInstanceTemplateOperator
------------------------------------------
+-------------------------------------------
 
 Use the operator to create Google Compute Engine instance template.
 
@@ -426,7 +425,7 @@ See Google Compute Engine API documentation to `create a new instance with an ex
 .. _howto/operator:ComputeEngineInsertInstanceGroupManagerOperator:
 
 ComputeEngineInsertInstanceGroupManagerOperator
--------------------------------------------------------
+-----------------------------------------------
 
 Use the operator to create a Compute Engine Instance Group Manager.
 
@@ -475,7 +474,7 @@ See Google Compute Engine API documentation to `create a group instance
 .. _howto/operator:ComputeEngineDeleteInstanceGroupManagerOperator:
 
 ComputeEngineDeleteInstanceGroupManagerOperator
--------------------------------------------------------
+-----------------------------------------------
 
 Use the operator to delete a Compute Engine Instance Group Manager.
 

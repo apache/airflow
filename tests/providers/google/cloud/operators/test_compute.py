@@ -20,28 +20,26 @@ from __future__ import annotations
 import ast
 from copy import deepcopy
 from unittest import mock
-import httplib2
-import pytest
 
-from googleapiclient.errors import HttpError
-from google.api_core.retry import Retry
+import pytest
 from google.api_core.exceptions import NotFound
-from google.cloud.compute_v1.types import InstanceTemplate, Instance, InstanceGroupManager
+from google.api_core.retry import Retry
+from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.compute import (
+    ComputeEngineCopyInstanceTemplateOperator,
+    ComputeEngineDeleteInstanceGroupManagerOperator,
+    ComputeEngineDeleteInstanceOperator,
+    ComputeEngineDeleteInstanceTemplateOperator,
+    ComputeEngineInsertInstanceFromTemplateOperator,
+    ComputeEngineInsertInstanceGroupManagerOperator,
     ComputeEngineInsertInstanceOperator,
     ComputeEngineInsertInstanceTemplateOperator,
-    ComputeEngineInsertInstanceGroupManagerOperator,
-    ComputeEngineInsertInstanceFromTemplateOperator,
-    ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
     ComputeEngineSetMachineTypeOperator,
     ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
-    ComputeEngineDeleteInstanceOperator,
-    ComputeEngineDeleteInstanceTemplateOperator,
-    ComputeEngineDeleteInstanceGroupManagerOperator,
 )
 from airflow.utils import timezone
 
@@ -66,10 +64,9 @@ METADATA = [("key", "value")]
 API_VERSION = 'v1'
 
 COMPUTE_ENGINE_HOOK_PATH = "airflow.providers.google.cloud.operators.compute.ComputeEngineHook"
+IGM_PATH = "airflow.providers.google.cloud.operators.compute.InstanceGroupManager"
 
-GCP_INSTANCE_BODY_FROM_TEMPLATE = {
-    "name": "a-instance-from-template"
-}
+GCP_INSTANCE_BODY_FROM_TEMPLATE = {"name": "a-instance-from-template"}
 GCE_INSTANCE_BODY_API_CALL = {
     "name": "instance-name",
     "machine_type": f"zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}",
@@ -80,20 +77,15 @@ GCE_INSTANCE_BODY_API_CALL = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{GCE_ZONE}/diskTypes/pd-balanced",
-                "source_image": GCE_SOURCE_IMAGE
-            }
+                "source_image": GCE_SOURCE_IMAGE,
+            },
         }
     ],
     "network_interfaces": [
         {
-            "access_configs": [
-                {
-                    "name": "External NAT",
-                    "network_tier": "PREMIUM"
-                }
-            ],
+            "access_configs": [{"name": "External NAT", "network_tier": "PREMIUM"}],
             "stack_type": "IPV4_ONLY",
-            "subnetwork": "regions/us-central1/subnetworks/default"
+            "subnetwork": "regions/us-central1/subnetworks/default",
         }
     ],
 }
@@ -106,20 +98,15 @@ GCE_INSTANCE_BODY_WITHOUT_NAME_API_CALL = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{GCE_ZONE}/diskTypes/pd-balanced",
-                "source_image": GCE_SOURCE_IMAGE
-            }
+                "source_image": GCE_SOURCE_IMAGE,
+            },
         }
     ],
     "network_interfaces": [
         {
-            "access_configs": [
-                {
-                    "name": "External NAT",
-                    "network_tier": "PREMIUM"
-                }
-            ],
+            "access_configs": [{"name": "External NAT", "network_tier": "PREMIUM"}],
             "stack_type": "IPV4_ONLY",
-            "subnetwork": "regions/us-central1/subnetworks/default"
+            "subnetwork": "regions/us-central1/subnetworks/default",
         }
     ],
 }
@@ -161,16 +148,22 @@ class TestGceInstanceInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineInsertInstanceOperator(
                 project_id="",
                 body=GCE_INSTANCE_BODY_API_CALL,
                 zone=GCE_ZONE,
                 task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -192,7 +185,7 @@ class TestGceInstanceInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -207,31 +200,51 @@ class TestGceInstanceInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
             op = ComputeEngineInsertInstanceOperator(
-                project_id=GCP_PROJECT_ID,
-                zone="",
+                resource_id=GCE_RESOURCE_ID,
                 body=GCE_INSTANCE_BODY_API_CALL,
+                zone="",
                 task_id=TASK_ID,
+                retry=RETRY,
+                timeout=TIMEOUT,
+                metadata=METADATA,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'zone' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameters 'resource_id' and "
+            r"body\['name'\] are missing\. Please, provide "
+            r"at least one of them",
+        ):
             op = ComputeEngineInsertInstanceOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 body=GCE_INSTANCE_BODY_WITHOUT_NAME_API_CALL,
                 task_id=TASK_ID,
                 resource_id="",
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
 
@@ -256,7 +269,7 @@ class TestGceInstanceInsertFromTemplate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -272,17 +285,23 @@ class TestGceInstanceInsertFromTemplate:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineInsertInstanceFromTemplateOperator(
                 project_id="",
                 source_instance_template=SOURCE_INSTANCE_TEMPLATE,
                 body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
                 zone=GCE_ZONE,
                 task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -304,7 +323,7 @@ class TestGceInstanceInsertFromTemplate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -320,46 +339,65 @@ class TestGceInstanceInsertFromTemplate:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
             op = ComputeEngineInsertInstanceFromTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 zone="",
                 source_instance_template=SOURCE_INSTANCE_TEMPLATE,
                 body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
                 task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'zone' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_insert_instance_from_template_should_throw_ex_when_missing_source_instance_template(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+    def test_insert_instance_from_template_should_throw_ex_when_missing_source_instance_template(
+        self, mock_hook
+    ):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"missing keyword argument 'source_instance_template'"):
             op = ComputeEngineInsertInstanceFromTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
                 zone=GCE_ZONE,
                 task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "missing keyword argument 'source_instance_template'" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_throw_ex_when_missing_body(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"missing keyword argument 'body'"):
             op = ComputeEngineInsertInstanceFromTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 source_instance_template=SOURCE_INSTANCE_TEMPLATE,
                 zone=GCE_ZONE,
                 task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
-            context = mock.MagicMock()
-            op.execute(context=context)
-        err = ctx.value
-        assert "missing keyword argument 'body'" in str(err)
+            op.execute(context=mock.MagicMock())
         mock_hook.assert_not_called()
 
 
@@ -391,7 +429,7 @@ class TestGceInstanceDelete:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_instance_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
             op = ComputeEngineDeleteInstanceOperator(
                 resource_id=GCE_RESOURCE_ID,
                 zone="",
@@ -403,13 +441,11 @@ class TestGceInstanceDelete:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'zone' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_instance_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
             op = ComputeEngineDeleteInstanceOperator(
                 resource_id="",
                 zone=GCE_ZONE,
@@ -421,8 +457,6 @@ class TestGceInstanceDelete:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
 
@@ -431,20 +465,24 @@ class TestGceInstanceStart:
     def test_start_instance_should_execute_successfully(self, mock_hook):
         mock_hook.return_value.start_instance.return_value = True
         op = ComputeEngineStartInstanceOperator(
-            project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id"
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.start_instance.assert_called_once_with(
             zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, project_id=GCP_PROJECT_ID
         )
-        assert result
 
     # Setting all the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
@@ -470,44 +508,59 @@ class TestGceInstanceStart:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_start_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineStartInstanceOperator(
-                project_id="", zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id"
+                project_id="",
+                zone=GCE_ZONE,
+                resource_id=GCE_RESOURCE_ID,
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_start_should_not_throw_ex_when_project_id_none(self, _):
-        op = ComputeEngineStartInstanceOperator(zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id='id')
+        op = ComputeEngineStartInstanceOperator(
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_start_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"he required parameter 'zone' is missing"):
             op = ComputeEngineStartInstanceOperator(
-                project_id=GCP_PROJECT_ID, zone="", resource_id=GCE_RESOURCE_ID, task_id="id"
+                project_id=GCP_PROJECT_ID,
+                zone="",
+                resource_id=GCE_RESOURCE_ID,
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'zone' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_start_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
             op = ComputeEngineStartInstanceOperator(
-                project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id="", task_id="id"
+                project_id=GCP_PROJECT_ID,
+                zone=GCE_ZONE,
+                resource_id="",
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
 
@@ -515,14 +568,19 @@ class TestGceInstanceStop:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_execute_successfully(self, mock_hook):
         op = ComputeEngineStopInstanceOperator(
-            project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id"
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.stop_instance.assert_called_once_with(
             zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, project_id=GCP_PROJECT_ID
@@ -552,21 +610,19 @@ class TestGceInstanceStop:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineStopInstanceOperator(
                 project_id="", zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id"
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = ComputeEngineStopInstanceOperator(zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id='id')
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version="v1",
             gcp_conn_id="google_cloud_default",
@@ -578,26 +634,22 @@ class TestGceInstanceStop:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
             op = ComputeEngineStopInstanceOperator(
                 project_id=GCP_PROJECT_ID, zone="", resource_id=GCE_RESOURCE_ID, task_id="id"
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'zone' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
             op = ComputeEngineStopInstanceOperator(
                 project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id="", task_id="id"
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
 
@@ -610,14 +662,16 @@ class TestGceInstanceSetMachineType:
             zone=GCE_ZONE,
             resource_id=GCE_RESOURCE_ID,
             body=SET_MACHINE_TYPE_BODY,
-            task_id="id",
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.set_machine_type.assert_called_once_with(
             zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=GCP_PROJECT_ID
@@ -648,31 +702,34 @@ class TestGceInstanceSetMachineType:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineSetMachineTypeOperator(
                 project_id="",
                 zone=GCE_ZONE,
                 resource_id=GCE_RESOURCE_ID,
                 body=SET_MACHINE_TYPE_BODY,
-                task_id="id",
+                task_id=TASK_ID,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = ComputeEngineSetMachineTypeOperator(
-            zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, task_id="id"
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            body=SET_MACHINE_TYPE_BODY,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.set_machine_type.assert_called_once_with(
             zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=None
@@ -680,50 +737,52 @@ class TestGceInstanceSetMachineType:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
             op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone="",
                 resource_id=GCE_RESOURCE_ID,
                 body=SET_MACHINE_TYPE_BODY,
-                task_id="id",
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'zone' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
             op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id="",
                 body=SET_MACHINE_TYPE_BODY,
-                task_id="id",
+                task_id=TASK_ID,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
+            op.execute(context=context)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_throw_ex_when_missing_machine_type(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required body field 'machineType' is missing"):
             op = ComputeEngineSetMachineTypeOperator(
-                project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, body={}, task_id="id"
+                project_id=GCP_PROJECT_ID,
+                zone=GCE_ZONE,
+                resource_id=GCE_RESOURCE_ID,
+                body={},
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
-        assert "The required body field 'machineType' is missing. Please add it." in str(err)
+            op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     MOCK_OP_RESPONSE = (
@@ -762,52 +821,43 @@ class TestGceInstanceSetMachineType:
         get_conn.return_value = {}
         _execute_set_machine_type.return_value = {"name": "test-operation"}
         _check_zone_operation_status.return_value = ast.literal_eval(self.MOCK_OP_RESPONSE)
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"400 BAD REQUEST: {.+UNSUPPORTED_OPERATION"):
             op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id=GCE_RESOURCE_ID,
                 body=SET_MACHINE_TYPE_BODY,
-                task_id="id",
+                task_id=TASK_ID,
             )
             context = mock.MagicMock()
-            result = op.execute(context=context)
-        err = ctx.value
+            op.execute(context=context)
         _check_zone_operation_status.assert_called_once_with(
             {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE, mock.ANY
         )
         _execute_set_machine_type.assert_called_once_with(
             GCE_ZONE, GCE_RESOURCE_ID, SET_MACHINE_TYPE_BODY, GCP_PROJECT_ID
         )
-        # Checking the full message was sometimes failing due to different order
-        # of keys in the serialized JSON
-        assert "400 BAD REQUEST: {" in str(err)  # checking the square bracket trim
-        assert "UNSUPPORTED_OPERATION" in str(err)
 
 
-GCE_INSTANCE_TEMPLATE_NAME = "instance-template-test"
+GCE_INSTANCE_TEMPLATE_NAME_API_CALL = "instance-template-test-api"
 GCE_INSTANCE_TEMPLATE_BODY_API_CALL = {
-    "name": GCE_INSTANCE_TEMPLATE_NAME,
+    "name": GCE_INSTANCE_TEMPLATE_NAME_API_CALL,
     "properties": {
         "machine_type": GCE_SHORT_MACHINE_TYPE_NAME,
         "disks": [
             {
                 "auto_delete": True,
                 "boot": True,
-                "device_name": GCE_INSTANCE_TEMPLATE_NAME,
+                "device_name": GCE_INSTANCE_TEMPLATE_NAME_API_CALL,
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": GCE_SOURCE_IMAGE
-                }
+                    "source_image": GCE_SOURCE_IMAGE,
+                },
             }
         ],
-        "network_interfaces": [
-            {
-                "network": "/global/networks/default"
-            }
-        ]
-    }
+        "network_interfaces": [{"network": "/global/networks/default"}],
+    },
 }
 
 
@@ -830,7 +880,7 @@ class TestGceTemplateInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -844,7 +894,13 @@ class TestGceTemplateInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_template_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
+        mock_hook.return_value.get_instance_template.side_effect = [
+            NotFound("Error message"),
+            get_template_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineInsertInstanceTemplateOperator(
                 project_id="",
                 body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
@@ -855,8 +911,6 @@ class TestGceTemplateInsert:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -876,7 +930,7 @@ class TestGceTemplateInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -890,7 +944,13 @@ class TestGceTemplateInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_template_should_throw_ex_when_missing_body(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
+        mock_hook.return_value.get_instance_template.side_effect = [
+            NotFound("Error message"),
+            get_template_obj_mock,
+        ]
+        with pytest.raises(AirflowException, match=r"missing keyword argument 'body'"):
             op = ComputeEngineInsertInstanceTemplateOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT_ID,
@@ -899,10 +959,7 @@ class TestGceTemplateInsert:
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-            context = mock.MagicMock()
-            op.execute(context=context)
-        err = ctx.value
-        assert "missing keyword argument 'body'" in str(err)
+            op.execute(context=mock.MagicMock())
         mock_hook.assert_not_called()
 
 
@@ -933,7 +990,7 @@ class TestGceTemplateDelete:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_template_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineDeleteInstanceTemplateOperator(
                 project_id="",
                 resource_id=GCE_RESOURCE_ID,
@@ -945,8 +1002,6 @@ class TestGceTemplateDelete:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -974,7 +1029,7 @@ class TestGceTemplateDelete:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_template_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
             op = ComputeEngineDeleteInstanceTemplateOperator(
                 resource_id="",
                 project_id=GCP_PROJECT_ID,
@@ -986,27 +1041,26 @@ class TestGceTemplateDelete:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
 
+GCE_INSTANCE_TEMPLATE_NAME = "instance-template-test"
 GCE_INSTANCE_TEMPLATE_NEW_NAME = "instance-template-test-new"
 GCE_INSTANCE_TEMPLATE_REQUEST_ID = "e12d5b48-4826-4ba9-ada6-0cff1e0b36a6"
 GCE_INSTANCE_TEMPLATE_BODY_GET = {
     "kind": "compute#instanceTemplate",
     "id": "6950321349997439715",
-    "creationTimestamp": "2018-10-15T06:20:12.777-07:00",
+    "creation_timestamp": "2018-10-15T06:20:12.777-07:00",
     "name": GCE_INSTANCE_TEMPLATE_NAME,
     "description": "",
     "properties": {
-        "machineType": "n1-standard-1",
-        "networkInterfaces": [
+        "machine_type": "n1-standard-1",
+        "network_interfaces": [
             {
                 "kind": "compute#networkInterface",
                 "network": "https://www.googleapis.com/compute/v1/"
-                           "projects/project/global/networks/default",
-                "accessConfigs": [
+                "projects/project/global/networks/default",
+                "access_configs": [
                     {
                         "kind": "compute#accessConfig",
                         "type": "ONE_TO_ONE_NAT",
@@ -1015,8 +1069,8 @@ GCE_INSTANCE_TEMPLATE_BODY_GET = {
             },
             {
                 "network": "https://www.googleapis.com/compute/v1/"
-                           "projects/project/global/networks/default",
-                "accessConfigs": [{"kind": "compute#accessConfig", "networkTier": "PREMIUM"}],
+                "projects/project/global/networks/default",
+                "access_configs": [{"kind": "compute#accessConfig", "networkTier": "PREMIUM"}],
             },
         ],
         "disks": [
@@ -1028,39 +1082,12 @@ GCE_INSTANCE_TEMPLATE_BODY_GET = {
                 ],
             }
         ],
-        "metadata": {"kind": "compute#metadata", "fingerprint": "GDPUYxlwHe4="},
     },
-    "selfLink": "https://www.googleapis.com/compute/v1/projects/project"
-                "/global/instanceTemplates/instance-template-test",
+    "self_link": "https://www.googleapis.com/compute/v1/projects/project"
+    "/global/instanceTemplates/instance-template-test",
 }
 GCE_INSTANCE_TEMPLATE_BODY_INSERT = {
     "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
-    "description": "",
-    "properties": {
-        "machineType": "n1-standard-1",
-        "networkInterfaces": [
-            {
-                "network": "https://www.googleapis.com/compute/v1/"
-                           "projects/project/global/networks/default",
-                "accessConfigs": [
-                    {
-                        "type": "ONE_TO_ONE_NAT",
-                    }
-                ],
-            },
-            {
-                "network": "https://www.googleapis.com/compute/v1/"
-                           "projects/project/global/networks/default",
-                "accessConfigs": [{"networkTier": "PREMIUM"}],
-            },
-        ],
-        "disks": [
-            {
-                "type": "PERSISTENT",
-            }
-        ],
-        "metadata": {"fingerprint": "GDPUYxlwHe4="},
-    },
 }
 GCE_INSTANCE_TEMPLATE_BODY_GET_NEW = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_GET)
 GCE_INSTANCE_TEMPLATE_BODY_GET_NEW["name"] = GCE_INSTANCE_TEMPLATE_NEW_NAME
@@ -1069,120 +1096,140 @@ GCE_INSTANCE_TEMPLATE_BODY_GET_NEW["name"] = GCE_INSTANCE_TEMPLATE_NEW_NAME
 class TestGceInstanceTemplateCopy:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
-            body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
+            task_id=TASK_ID,
+            body_patch=GCE_INSTANCE_TEMPLATE_BODY_INSERT,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=GCP_PROJECT_ID, body=GCE_INSTANCE_TEMPLATE_BODY_INSERT, request_id=None
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_should_not_throw_ex_when_missing_project_id(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
-            body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
+            task_id=TASK_ID,
+            body_patch=GCE_INSTANCE_TEMPLATE_BODY_INSERT,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=None, body=GCE_INSTANCE_TEMPLATE_BODY_INSERT, request_id=None
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_idempotent_copy_template_when_already_copied_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_template.side_effect = [GCE_INSTANCE_TEMPLATE_BODY_GET_NEW]
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
+        mock_hook.return_value.get_instance_template.side_effect = [
+            get_template_obj_mock,
+            get_template_obj_mock,
+            get_template_obj_mock,
+        ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.insert_instance_template.assert_not_called()
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_with_request_id_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
-            task_id="id",
-            body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
+            task_id=TASK_ID,
+            body_patch=GCE_INSTANCE_TEMPLATE_BODY_INSERT,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             body=GCE_INSTANCE_TEMPLATE_BODY_INSERT,
             request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_with_description_fields_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
-            task_id="id",
+            task_id=TASK_ID,
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME, "description": "New description"},
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
@@ -1192,130 +1239,94 @@ class TestGceInstanceTemplateCopy:
             body=body_insert,
             request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_with_some_validation_warnings_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             body_patch={
                 "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
                 "some_wrong_field": "test",
                 "properties": {"some_other_wrong_field": "test"},
             },
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
         body_insert["some_wrong_field"] = "test"
+        body_insert["properties"] = {}
         body_insert["properties"]["some_other_wrong_field"] = "test"
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             body=body_insert,
             request_id=None,
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_with_updated_nested_fields_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             body_patch={
                 "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
                 "properties": {
-                    "machineType": "n1-standard-2",
+                    "machine_type": "n1-standard-2",
                 },
             },
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
-        body_insert["properties"]["machineType"] = "n1-standard-2"
+        body_insert["properties"] = {}
+        body_insert["properties"]["machine_type"] = "n1-standard-2"
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=GCP_PROJECT_ID, body=body_insert, request_id=None
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
-
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_copy_template_with_smaller_array_fields_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
-        ]
-        op = ComputeEngineCopyInstanceTemplateOperator(
-            project_id=GCP_PROJECT_ID,
-            resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
-            body_patch={
-                "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
-                "properties": {
-                    "machineType": "n1-standard-1",
-                    "networkInterfaces": [
-                        {
-                            "network": "https://www.googleapis.com/compute/v1/"
-                            "projects/project/global/networks/default",
-                            "accessConfigs": [{"type": "ONE_TO_ONE_NAT", "natIP": "8.8.8.8"}],
-                        }
-                    ],
-                },
-            },
-        )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
-        mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
-        )
-        body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
-        body_insert["properties"]["networkInterfaces"] = [
-            {
-                "network": "https://www.googleapis.com/compute/v1/"
-                "projects/project/global/networks/default",
-                "accessConfigs": [{"type": "ONE_TO_ONE_NAT", "natIP": "8.8.8.8"}],
-            }
-        ]
-        mock_hook.return_value.insert_instance_template.assert_called_once_with(
-            project_id=GCP_PROJECT_ID, body=body_insert, request_id=None
-        )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_with_bigger_array_fields_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
         op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             body_patch={
                 "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
                 "properties": {
@@ -1337,16 +1348,18 @@ class TestGceInstanceTemplateCopy:
                     ],
                 },
             },
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        result = op.execute(context=context)
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
+        body_insert["properties"] = {}
         body_insert["properties"]["disks"] = [
             {
                 "kind": "compute#attachedDisk",
@@ -1368,26 +1381,30 @@ class TestGceInstanceTemplateCopy:
             body=body_insert,
             request_id=None,
         )
-        assert GCE_INSTANCE_TEMPLATE_BODY_GET_NEW == result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_copy_template_with_missing_name_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
-            HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT),
-            GCE_INSTANCE_TEMPLATE_BODY_GET,
-            GCE_INSTANCE_TEMPLATE_BODY_GET_NEW,
+            NotFound("Error message"),
+            get_template_obj_mock,
+            get_template_obj_mock,
         ]
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(
+            AirflowException,
+            match=r"should contain at least name for the new operator in the 'name' field",
+        ):
             op = ComputeEngineCopyInstanceTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 resource_id=GCE_INSTANCE_TEMPLATE_NAME,
                 request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
-                task_id="id",
+                task_id=TASK_ID,
                 body_patch={"description": "New description"},
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(None)
-        err = ctx.value
-        assert "should contain at least name for the new operator in the 'name' field" in str(err)
         mock_hook.assert_not_called()
 
 
@@ -1448,6 +1465,14 @@ GCE_INSTANCE_GROUP_MANAGER_GET = {
     "serviceAccount": "198907790164@cloudservices.gserviceaccount.com",
 }
 
+GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY = {
+    "type": "OPPORTUNISTIC",
+    "minimalAction": "RESTART",
+    "maxSurge": {"fixed": 1},
+    "maxUnavailable": {"percent": 10},
+    "minReadySec": 1800,
+}
+
 GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH = {
     "instanceTemplate": GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
     "versions": [
@@ -1461,17 +1486,10 @@ GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH = {
             "instanceTemplate": GCE_INSTANCE_TEMPLATE_OTHER_URL,
         },
     ],
+    "updatePolicy": GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
 }
 
 GCE_INSTANCE_GROUP_MANAGER_REQUEST_ID = "e12d5b48-4826-4ba9-ada6-0cff1e0b36a6"
-
-GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY = {
-    "type": "OPPORTUNISTIC",
-    "minimalAction": "RESTART",
-    "maxSurge": {"fixed": 1},
-    "maxUnavailable": {"percent": 10},
-    "minReadySec": 1800,
-}
 
 GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL = {
     "name": GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1501,7 +1519,7 @@ class TestGceInstanceGroupManagerInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1516,7 +1534,7 @@ class TestGceInstanceGroupManagerInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineInsertInstanceGroupManagerOperator(
                 project_id="",
                 body=GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
@@ -1527,9 +1545,9 @@ class TestGceInstanceGroupManagerInsert:
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-            op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
+            get_instance_group_manager_obj_mock = mock.MagicMock()
+            get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+            op.execute(context=get_instance_group_manager_obj_mock)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -1550,7 +1568,7 @@ class TestGceInstanceGroupManagerInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1565,7 +1583,7 @@ class TestGceInstanceGroupManagerInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_throw_ex_when_missing_body(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"missing keyword argument 'body'"):
             op = ComputeEngineInsertInstanceGroupManagerOperator(
                 zone=GCE_ZONE,
                 task_id=TASK_ID,
@@ -1575,10 +1593,9 @@ class TestGceInstanceGroupManagerInsert:
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-            context = mock.MagicMock()
-            op.execute(context=context)
-        err = ctx.value
-        assert "missing keyword argument 'body'" in str(err)
+            get_instance_group_manager_obj_mock = mock.MagicMock()
+            get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+            op.execute(context=get_instance_group_manager_obj_mock)
         mock_hook.assert_not_called()
 
 
@@ -1611,7 +1628,7 @@ class TestGceInstanceGroupManagerDelete:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_igm_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
             op = ComputeEngineDeleteInstanceGroupManagerOperator(
                 project_id="",
                 resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1624,8 +1641,6 @@ class TestGceInstanceGroupManagerDelete:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -1655,7 +1670,7 @@ class TestGceInstanceGroupManagerDelete:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_igm_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
             op = ComputeEngineDeleteInstanceGroupManagerOperator(
                 resource_id="",
                 zone=GCE_ZONE,
@@ -1667,31 +1682,36 @@ class TestGceInstanceGroupManagerDelete:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
             op.execute(context=mock.MagicMock())
-        err = ctx.value
-        assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
 
 
 class TestGceInstanceGroupManagerUpdate:
+    @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_group_manager.return_value = deepcopy(
-            GCE_INSTANCE_GROUP_MANAGER_GET
-        )
+    def test_update_igm_should_execute_successfully(self, mock_hook, igm):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            get_instance_group_manager_obj_mock,
+        ]
+        igm.to_dict.return_value = GCE_INSTANCE_GROUP_MANAGER_GET
+
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+            update_policy=GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
@@ -1702,24 +1722,30 @@ class TestGceInstanceGroupManagerUpdate:
         )
         assert result
 
+    @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_missing_project_id_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_group_manager.return_value = deepcopy(
-            GCE_INSTANCE_GROUP_MANAGER_GET
-        )
+    def test_update_instance_group_missing_project_id_should_execute_successfully(self, mock_hook, igm):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            get_instance_group_manager_obj_mock,
+        ]
+        igm.to_dict.return_value = GCE_INSTANCE_GROUP_MANAGER_GET
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+            update_policy=GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=None,
@@ -1730,25 +1756,35 @@ class TestGceInstanceGroupManagerUpdate:
         )
         assert result
 
+    @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_no_instance_template_field_should_execute_successfully(self, mock_hook):
+    def test_update_instance_group_no_instance_template_field_should_execute_successfully(
+        self, mock_hook, igm
+    ):
         instance_group_manager_no_template = deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
         del instance_group_manager_no_template["instanceTemplate"]
-        mock_hook.return_value.get_instance_group_manager.return_value = instance_group_manager_no_template
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            get_instance_group_manager_obj_mock,
+        ]
+        igm.to_dict.return_value = instance_group_manager_no_template
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+            update_policy=GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         expected_patch_no_instance_template = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         del expected_patch_no_instance_template["instanceTemplate"]
@@ -1761,25 +1797,33 @@ class TestGceInstanceGroupManagerUpdate:
         )
         assert result
 
+    @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_no_versions_field_should_execute_successfully(self, mock_hook):
+    def test_update_instance_group_no_versions_field_should_execute_successfully(self, mock_hook, igm):
         instance_group_manager_no_versions = deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
         del instance_group_manager_no_versions["versions"]
-        mock_hook.return_value.get_instance_group_manager.return_value = instance_group_manager_no_versions
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            get_instance_group_manager_obj_mock,
+        ]
+        igm.to_dict.return_value = instance_group_manager_no_versions
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+            update_policy=GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         expected_patch_no_versions = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         del expected_patch_no_versions["versions"]
@@ -1792,58 +1836,32 @@ class TestGceInstanceGroupManagerUpdate:
         )
         assert result
 
+    @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_with_policy_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_group_manager.return_value = deepcopy(
-            GCE_INSTANCE_GROUP_MANAGER_GET
-        )
+    def test_update_instance_group_with_request_id_should_execute_successfully(self, mock_hook, igm):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            get_instance_group_manager_obj_mock,
+        ]
+        igm.to_dict.return_value = GCE_INSTANCE_GROUP_MANAGER_GET
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
-            update_policy=GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
-            source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
-            destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
-        )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
-        mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
-        )
-        expected_patch_with_update_policy = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
-        expected_patch_with_update_policy["updatePolicy"] = GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY
-        mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
-            project_id=GCP_PROJECT_ID,
-            zone=GCE_ZONE,
-            resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            body=expected_patch_with_update_policy,
-            request_id=None,
-        )
-        assert result
-
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_with_request_id_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_group_manager.return_value = deepcopy(
-            GCE_INSTANCE_GROUP_MANAGER_GET
-        )
-        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-            project_id=GCP_PROJECT_ID,
-            zone=GCE_ZONE,
-            resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             request_id=GCE_INSTANCE_GROUP_MANAGER_REQUEST_ID,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+            update_policy=GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
@@ -1855,39 +1873,44 @@ class TestGceInstanceGroupManagerUpdate:
         assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_try_to_use_api_v1_should_execute_successfully(self, _):
-        with pytest.raises(AirflowException) as ctx:
+    def test_update_instance_group_try_to_use_api_v1_should_throw_ex(self, _):
+        with pytest.raises(AirflowException, match=r"Use beta api version or above"):
             ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-                task_id="id",
-                api_version="v1",
+                task_id=TASK_ID,
+                api_version='v1',
                 source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
                 destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
             )
-        err = ctx.value
-        assert "Use beta api version or above" in str(err)
 
+    @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_try_to_use_non_existing_template_should_execute_successfully(self, mock_hook):
-        mock_hook.return_value.get_instance_group_manager.return_value = deepcopy(
-            GCE_INSTANCE_GROUP_MANAGER_GET
-        )
+    def test_update_instance_group_try_to_use_non_existing_template_should_not_call_patch(
+        self, mock_hook, igm
+    ):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            get_instance_group_manager_obj_mock,
+        ]
+        igm.to_dict.return_value = GCE_INSTANCE_GROUP_MANAGER_GET
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            task_id="id",
+            task_id=TASK_ID,
             source_template=GCE_INSTANCE_TEMPLATE_NON_EXISTING_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        context = mock.MagicMock()
-        result = op.execute(context=context)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version="beta",
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_not_called()
         assert result

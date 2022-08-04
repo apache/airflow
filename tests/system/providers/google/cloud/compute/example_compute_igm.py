@@ -22,7 +22,6 @@ Example Airflow DAG that:
 * updates existing template in Instance Group Manager
 
 """
-
 import os
 from datetime import datetime
 
@@ -30,12 +29,12 @@ from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.compute import (
-    ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineCopyInstanceTemplateOperator,
+    ComputeEngineDeleteInstanceGroupManagerOperator,
     ComputeEngineDeleteInstanceTemplateOperator,
     ComputeEngineInsertInstanceGroupManagerOperator,
+    ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
-    ComputeEngineDeleteInstanceGroupManagerOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -63,16 +62,12 @@ INSTANCE_TEMPLATE_BODY = {
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
-                }
+                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                },
             }
         ],
-        "network_interfaces": [
-            {
-                "network": "global/networks/default"
-            }
-        ]
-    }
+        "network_interfaces": [{"network": "global/networks/default"}],
+    },
 }
 
 NEW_DESCRIPTION = 'Test new description'
@@ -88,25 +83,20 @@ INSTANCE_GROUP_MANAGER_NAME = 'instance-group-test'
 INSTANCE_GROUP_MANAGER_BODY = {
     "name": INSTANCE_GROUP_MANAGER_NAME,
     "base_instance_name": INSTANCE_GROUP_MANAGER_NAME,
-    "instance_template": f'global/instanceTemplates/{NEW_TEMPLATE_NAME}',
+    "instance_template": f'global/instanceTemplates/{TEMPLATE_NAME}',
     "target_size": 1,
 }
 
-SOURCE_TEMPLATE_URL = os.environ.get(
-    'SOURCE_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/"
-    + PROJECT_ID
-    + "/global/instanceTemplates/"
-    + TEMPLATE_NAME,
-    )
+SOURCE_TEMPLATE_URL = (
+    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/"
+    f"global/instanceTemplates/{TEMPLATE_NAME}"
+)
 
-DESTINATION_TEMPLATE_URL = os.environ.get(
-    'DESTINATION_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/"
-    + PROJECT_ID
-    + "/global/instanceTemplates/"
-    + NEW_TEMPLATE_NAME,
-    )
+
+DESTINATION_TEMPLATE_URL = (
+    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/"
+    f"global/instanceTemplates/{NEW_TEMPLATE_NAME}"
+)
 
 UPDATE_POLICY = {
     "type": "OPPORTUNISTIC",
@@ -119,7 +109,7 @@ UPDATE_POLICY = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',  # Override to match your needs
+    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
@@ -176,10 +166,7 @@ with models.DAG(
     )
     # [END howto_operator_gce_insert_igm_no_project_id]
 
-    bash_wait_operator = BashOperator(
-        task_id="delay_bash_task",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator = BashOperator(task_id="delay_bash_task", bash_command="sleep 3m")
 
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
@@ -203,6 +190,8 @@ with models.DAG(
         destination_template=DESTINATION_TEMPLATE_URL,
     )
     # [END howto_operator_gce_igm_update_template_no_project_id]
+
+    bash_wait_operator1 = BashOperator(task_id="delay_bash_task_1", bash_command="sleep 3m")
 
     # [START howto_operator_gce_delete_old_template_no_project_id]
     gce_instance_template_old_delete = ComputeEngineDeleteInstanceTemplateOperator(
@@ -229,10 +218,7 @@ with models.DAG(
     # [END howto_operator_gce_delete_igm_no_project_id]
     gce_igm_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    bash_wait_operator2 = BashOperator(
-        task_id="delay_bash_task_2",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator2 = BashOperator(task_id="delay_bash_task_2", bash_command="sleep 3m")
 
     chain(
         gce_instance_template_insert,
@@ -244,9 +230,10 @@ with models.DAG(
         bash_wait_operator,
         gce_instance_group_manager_update_template,
         gce_instance_group_manager_update_template2,
+        bash_wait_operator1,
+        gce_igm_delete,
         gce_instance_template_old_delete,
         gce_instance_template_new_delete,
-        gce_igm_delete,
         bash_wait_operator2,
     )
 

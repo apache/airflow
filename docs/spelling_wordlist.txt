@@ -257,6 +257,8 @@ colours
 CommandType
 comparator
 compat
+compute
+Compute
 Computenodes
 ComputeNodeState
 concat

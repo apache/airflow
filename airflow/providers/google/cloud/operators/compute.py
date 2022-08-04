@@ -20,22 +20,21 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
-from google.api_core.retry import Retry
 from google.api_core import exceptions
-
-from googleapiclient.errors import HttpError
+from google.api_core.retry import Retry
+from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 from json_merge_patch import merge
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
+from airflow.providers.google.cloud.links.compute import (
+    ComputeInstanceDetailsLink,
+    ComputeInstanceGroupManagerDetailsLink,
+    ComputeInstanceTemplateDetailsLink,
+)
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-
-from airflow.providers.google.cloud.links.compute import (ComputeInstanceDetailsLink,
-                                                          ComputeInstanceTemplateDetailsLink,
-                                                          ComputeInstanceGroupManagerDetailsLink)
-from google.cloud.compute_v1.types import InstanceTemplate, Instance, InstanceGroupManager
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -69,8 +68,6 @@ class ComputeEngineBaseOperator(BaseOperator):
             raise AirflowException("The required parameter 'project_id' is missing")
         if not self.zone:
             raise AirflowException("The required parameter 'zone' is missing")
-        if not self.resource_id:
-            raise AirflowException("The required parameter 'resource_id' is missing")
 
     def execute(self, context: Context):
         pass
@@ -80,6 +77,10 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
     """
     Creates an Instance in Google Compute Engine based on specified parameters.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineInsertInstanceOperator`
+
     :param body: Instance representation as an object. Should at least include 'name', 'machine_type',
         'disks' and 'network_interfaces' fields but doesn't include 'zone' field, as it will be specified
         in 'zone' parameter.
@@ -87,24 +88,17 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         1. "machine_type": "projects/your-project-name/zones/your-zone/machineTypes/your-machine-type"
         2. "disk_type": "projects/your-project-name/zones/your-zone/diskTypes/your-disk-type"
         3. "subnetwork": "projects/your-project-name/regions/your-region/subnetworks/your-subnetwork"
-    :type body: Union[google.cloud.compute_v1.types.Instance, dict].
     :param zone: Google Cloud zone where the Instance exists
-    :type zone: str
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param resource_id: Name of the Instance. If the name of Instance is not specified in body['name'],
         the name will be taken from 'resource_id' parameter
-    :type resource_id: Optional[str]
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -113,15 +107,11 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     operator_extra_links = (ComputeInstanceDetailsLink(),)
@@ -143,16 +133,16 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         *,
         body: dict,
         zone: str,
-        resource_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        resource_id: str | None = None,
+        project_id: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.body = body
@@ -180,39 +170,30 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         )
 
     def check_body_fields(self) -> None:
-        if 'machine_type' not in self.body:
+        required_params = ["machine_type", "disks", "network_interfaces"]
+        for param in required_params:
+            if param in self.body:
+                continue
+            readable_param = param.replace("_", " ")
             raise AirflowException(
-                f"The body '{self.body}' should contain at least machine type for the new operator "
-                f"in the 'machine_type' field. Check (google.cloud.compute_v1.types.Instance) "
+                f"The body '{self.body}' should contain at least {readable_param} for the new operator "
+                f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
                 f"for more details about body fields description."
             )
-        if 'disks' not in self.body:
+
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id and "name" not in self.body:
             raise AirflowException(
-                f"The body '{self.body}' should contain at least disks for the new operator "
-                f"in the 'disks' field. Check (google.cloud.compute_v1.types.Instance) "
-                f"for more details about body fields description."
-            )
-        if 'network_interfaces' not in self.body:
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least network interfaces for the new operator "
-                f"in the 'network_interfaces' field. Check (google.cloud.compute_v1.types.Instance) "
-                f"for more details about body fields description. "
+                "The required parameters 'resource_id' and body['name'] are missing. "
+                "Please, provide at least one of them."
             )
 
     def _validate_all_body_fields(self) -> None:
         if self._field_validator:
             self._field_validator.validate(self.body)
 
-    def _validate_inputs(self) -> None:
-        if self.project_id == '':
-            raise AirflowException("The required parameter 'project_id' is missing")
-        if not self.zone:
-            raise AirflowException("The required parameter 'zone' is missing")
-        if not self.resource_id and "name" not in self.body:
-            raise AirflowException("The required parameters 'resource_id' and  body['name'] are missing. "
-                                   "Please, provide at least one of them.")
-
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -230,18 +211,20 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
                 project_id=self.project_id,
                 zone=self.zone,
             )
-            self.log.info("The %s Instance already exists", self.resource_id)
-            ComputeInstanceDetailsLink.persist(
-                context=context,
-                task_instance=self,
-                project_id=self.project_id or hook.project_id,
-            )
-            return Instance.to_dict(existing_instance)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the should not yet exist
             if not e.code == 404:
                 raise e
-
+        else:
+            self.log.info("The %s Instance already exists", self.resource_id)
+            ComputeInstanceDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location_id=self.zone,
+                resource_id=self.resource_id,
+                project_id=self.project_id or hook.project_id,
+            )
+            return Instance.to_dict(existing_instance)
         self._field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance with specified body: %s", self.body)
         hook.insert_instance(
@@ -259,6 +242,8 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         ComputeInstanceDetailsLink.persist(
             context=context,
             task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(new_instance)
@@ -268,35 +253,32 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
     """
     Creates an Instance in Google Compute Engine based on specified parameters from existing Template.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineInsertInstanceFromTemplateOperator`
+
     :param body: Instance representation as object. For this Operator only 'name' parameter is required for
         creating new Instance since all other parameters will be passed through the Template.
-    :type body: Union[google.cloud.compute_v1.types.Instance, dict].
     :param source_instance_template: Existing Instance Template that will be used as a base while creating
         new Instance. When specified, only name of new Instance should be provided as input arguments in
         'body' parameter when creating new Instance. All other parameters, such as 'machine_type', 'disks'
         and 'network_interfaces' will be passed to Instance as they are specified in the Instance Template.
         Full or partial URL and can be represented as examples below:
-        1. https://www.googleapis.com/compute/v1/projects/your-project-name/global/instanceTemplates/your-instanceTemplate-name
-        2. projects/your-project-name/global/instanceTemplates/your-instanceTemplate-name
-        3. global/instanceTemplates/your-instanceTemplate-name
-    :type source_instance_template: str
+        1. "https://www.googleapis.com/compute/v1/projects/your-project-name/global/
+           instanceTemplates/your-instanceTemplate-name"
+        2. "projects/your-project-name/global/instanceTemplates/your-instanceTemplate-name"
+        3. "global/instanceTemplates/your-instanceTemplate-name"
     :param zone: Google Cloud zone where the instance exists.
-    :type zone: str
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param resource_id: Name of the Instance. If the name of Instance is not specified in body['name'],
         the name will be taken from 'resource_id' parameter
-    :type resource_id: str
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -305,15 +287,11 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     operator_extra_links = (ComputeInstanceDetailsLink(),)
@@ -337,16 +315,16 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         source_instance_template: str,
         body: dict,
         zone: str,
-        resource_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        resource_id: str | None = None,
+        project_id: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.source_instance_template = source_instance_template
@@ -379,15 +357,14 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             self._field_validator.validate(self.body)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
-            raise AirflowException("The required parameter 'project_id' is missing")
-        if not self.zone:
-            raise AirflowException("The required parameter 'zone' is missing")
+        super()._validate_inputs()
         if not self.resource_id and "name" not in self.body:
-            raise AirflowException("The required parameters 'resource_id' and  body['name'] are missing. "
-                                   "Please, provide at least one of them.")
+            raise AirflowException(
+                "The required parameters 'resource_id' and body['name'] are missing. "
+                "Please, provide at least one of them."
+            )
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -404,19 +381,21 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
                 project_id=self.project_id,
                 zone=self.zone,
             )
-            self.log.info("The %s Instance already exists", self.resource_id)
-            ComputeInstanceDetailsLink.persist(
-                context=context,
-                task_instance=self,
-                project_id=self.project_id or hook.project_id,
-            )
-            return Instance.to_dict(existing_instance)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
             if not e.code == 404:
                 raise e
-
+        else:
+            self.log.info("The %s Instance already exists", self.resource_id)
+            ComputeInstanceDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location_id=self.zone,
+                resource_id=self.resource_id,
+                project_id=self.project_id or hook.project_id,
+            )
+            return Instance.to_dict(existing_instance)
         self._field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance with specified body: %s", self.body)
         hook.insert_instance(
@@ -435,6 +414,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         ComputeInstanceDetailsLink.persist(
             context=context,
             task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         return Instance.to_dict(new_instance_from_template)
@@ -444,22 +425,20 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
     """
     Deletes an Instance in Google Compute Engine.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineDeleteInstanceOperator`
+
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param zone: Google Cloud zone where the instance exists.
-    :type zone: str
     :param resource_id: Name of the Instance.
-    :type resource_id: str
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -468,15 +447,11 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     # [START gce_instance_delete_template_fields]
@@ -496,15 +471,15 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         *,
         resource_id: str,
         zone: str,
-        request_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        request_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.zone = zone
@@ -530,7 +505,12 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
-    def execute(self, context: 'Context') -> None:
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing. ")
+
+    def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -598,6 +578,11 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_start_template_fields]
 
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing. ")
+
     def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -607,9 +592,11 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         ComputeInstanceDetailsLink.persist(
             context=context,
             task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
-        return hook.start_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
+        hook.start_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
 
 
 class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
@@ -652,6 +639,11 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_stop_template_fields]
 
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing. ")
+
     def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -661,6 +653,8 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         ComputeInstanceDetailsLink.persist(
             context=context,
             task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
         hook.stop_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
@@ -750,6 +744,11 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body)
 
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing. ")
+
     def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -760,9 +759,11 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         ComputeInstanceDetailsLink.persist(
             context=context,
             task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
-        return hook.set_machine_type(
+        hook.set_machine_type(
             zone=self.zone, resource_id=self.resource_id, body=self.body, project_id=self.project_id
         )
 
@@ -829,22 +830,21 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
     Creates an Instance Template using specified fields.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineInsertInstanceTemplateOperator`
+
     :param body: Instance template representation as object.
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param resource_id: Name of the Instance Template. If the name of Instance Template is not specified in
         body['name'], the name will be taken from 'resource_id' parameter
-    :type resource_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -853,15 +853,11 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     operator_extra_links = (ComputeInstanceTemplateDetailsLink(),)
@@ -917,23 +913,15 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         )
 
     def check_body_fields(self) -> None:
-        if 'machine_type' not in self.body["properties"]:
+        required_params = ["machine_type", "disks", "network_interfaces"]
+        for param in required_params:
+            if param in self.body["properties"]:
+                continue
+            readable_param = param.replace("_", " ")
             raise AirflowException(
-                f"The body '{self.body}' should contain at least machine type for the new operator "
-                f"in the 'machine_type' field. Check (google.cloud.compute_v1.types.InstanceTemplate) "
+                f"The body '{self.body}' should contain at least {readable_param} for the new operator "
+                f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
                 f"for more details about body fields description."
-            )
-        if 'disks' not in self.body["properties"]:
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least disks for the new operator "
-                f"in the 'disks' field. Check (google.cloud.compute_v1.types.InstanceTemplate) "
-                f"for more details about body fields description."
-            )
-        if 'network_interfaces' not in self.body["properties"]:
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least network interfaces for the new operator "
-                f"in the 'network_interfaces' field. Check (google.cloud.compute_v1.types.InstanceTemplate) "
-                f"for more details about body fields description. "
             )
 
     def _validate_all_body_fields(self) -> None:
@@ -941,15 +929,14 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
             self._field_validator.validate(self.body)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
-            raise AirflowException("The required parameter 'project_id' is missing")
-        if not self.zone:
-            raise AirflowException("The required parameter 'zone' is missing")
+        super()._validate_inputs()
         if not self.resource_id and "name" not in self.body:
-            raise AirflowException("The required parameters 'resource_id' and  body['name'] are missing. "
-                                   "Please, provide at least one of them.")
+            raise AirflowException(
+                "The required parameters 'resource_id' and body['name'] are missing. "
+                "Please, provide at least one of them."
+            )
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -966,9 +953,14 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
             # that we cannot delete template if it is already used in some Instance
             # Group Manager. We assume success if the template is simply present
             existing_template = hook.get_instance_template(
-                resource_id=self.resource_id,
-                project_id=self.project_id
+                resource_id=self.resource_id, project_id=self.project_id
             )
+        except exceptions.NotFound as e:
+            # We actually expect to get 404 / Not Found here as the template should
+            # not yet exist
+            if not e.code == 404:
+                raise e
+        else:
             self.log.info("The %s Template already exists.", existing_template)
             ComputeInstanceTemplateDetailsLink.persist(
                 context=context,
@@ -977,12 +969,6 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
                 project_id=self.project_id or hook.project_id,
             )
             return InstanceTemplate.to_dict(existing_template)
-        except exceptions.NotFound as e:
-            # We actually expect to get 404 / Not Found here as the template should
-            # not yet exist
-            if not e.code == 404:
-                raise e
-
         self._field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance Template with specified body: %s", self.body)
         hook.insert_instance_template(
@@ -1008,20 +994,19 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
     Deletes an Instance Template in Google Compute Engine.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineDeleteInstanceTemplateOperator`
+
     :param resource_id: Name of the Instance Template.
-    :type resource_id: str
     :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1030,15 +1015,11 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     # [START gce_instance_template_delete_fields]
@@ -1056,15 +1037,15 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
         self,
         *,
         resource_id: str,
-        request_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        request_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.request_id = request_id
@@ -1089,7 +1070,12 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
-    def execute(self, context: 'Context') -> None:
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing.")
+
+    def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -1207,6 +1193,11 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body_patch)
 
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing.")
+
     def execute(self, context: Context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1226,6 +1217,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
                 resource_id=self.body_patch["name"],
                 project_id=self.project_id,
             )
+        except exceptions.NotFound as e:
+            # We actually expect to get 404 / Not Found here as the template should
+            # not yet exist
+            if not e.code == 404:
+                raise e
+        else:
             self.log.info(
                 "The %s template already exists. It was likely created by previous run of the operator. "
                 "Assuming success.",
@@ -1238,12 +1235,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
                 project_id=self.project_id or hook.project_id,
             )
             return InstanceTemplate.to_dict(existing_template)
-        except exceptions.NotFound as e:
-            # We actually expect to get 404 / Not Found here as the template should
-            # not yet exist
-            if not e.code == 404:
-                raise e
-
         old_body = InstanceTemplate.to_dict(
             hook.get_instance_template(
                 resource_id=self.resource_id,
@@ -1251,12 +1242,13 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             )
         )
         new_body = deepcopy(old_body)
-        new_body_new = {key: int(value) for (key, value) in new_body.items() if isinstance(value, int)}
-        self._field_sanitizer.sanitize(new_body_new)
+        self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
         hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
-        instance_template = hook.get_instance_template(resource_id=self.body_patch['name'], project_id=self.project_id)
+        instance_template = hook.get_instance_template(
+            resource_id=self.body_patch['name'], project_id=self.project_id
+        )
         ComputeInstanceTemplateDetailsLink.persist(
             context=context,
             task_instance=self,
@@ -1354,6 +1346,11 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             **kwargs,
         )
 
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing. ")
+
     def _possibly_replace_template(self, dictionary: dict) -> None:
         if dictionary.get("instanceTemplate") == self.source_template:
             dictionary["instanceTemplate"] = self.destination_template
@@ -1413,23 +1410,21 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
     Creates an Instance Group Managers using the body specified.
     After the group is created, instances in the group are created using the specified Instance Template.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineInsertInstanceGroupManagerOperator`
+
     :param body: Instance Group Managers representation as object.
-    :type body: Union[google.cloud.compute_v1.types.InstanceGroupManager, dict].
     :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new Instance Group Managers again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param resource_id: Name of the Instance Group Managers. If the name of Instance Group Managers is
         not specified in body['name'], the name will be taken from 'resource_id' parameter.
-    :type resource_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1438,15 +1433,11 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     operator_extra_links = (ComputeInstanceGroupManagerDetailsLink(),)
@@ -1461,22 +1452,22 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         'api_version',
         'impersonation_chain',
     )
-    # [END gce_igm_template_fields]
+    # [END gce_igm_insert_fields]
 
     def __init__(
         self,
         *,
         body: dict,
         zone: str,
-        project_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        request_id: Optional[str] = None,
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        request_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version='v1',
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
         validate_body: bool = True,
         **kwargs,
     ) -> None:
@@ -1504,25 +1495,15 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         )
 
     def check_body_fields(self) -> None:
-        if 'base_instance_name' not in self.body:
+        required_params = ["base_instance_name", "target_size", "instance_template"]
+        for param in required_params:
+            if param in self.body:
+                continue
+            readable_param = param.replace("_", " ")
             raise AirflowException(
-                f"The body '{self.body}' should contain at least base instance name for the new operator "
-                f"in the 'base_instance_name' field. "
-                f"Check (google.cloud.compute_v1.types.InstanceGroupManager) "
+                f"The body '{self.body}' should contain at least {readable_param} for the new operator "
+                f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
                 f"for more details about body fields description."
-            )
-        if 'target_size' not in self.body:
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least target size for the new operator "
-                f"in the 'target_size' field. Check (google.cloud.compute_v1.types.InstanceGroupManager) "
-                f"for more details about body fields description."
-            )
-        if 'instance_template' not in self.body:
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least instance template for the new operator "
-                f"in the 'instance_template' field. "
-                f"Check (google.cloud.compute_v1.types.InstanceGroupManager) "
-                f"for more details about body fields description. "
             )
 
     def _validate_all_body_fields(self) -> None:
@@ -1530,15 +1511,14 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             self._field_validator.validate(self.body)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
-            raise AirflowException("The required parameter 'project_id' is missing")
-        if not self.zone:
-            raise AirflowException("The required parameter 'zone' is missing")
+        super()._validate_inputs()
         if not self.resource_id and "name" not in self.body:
-            raise AirflowException("The required parameters 'resource_id' and  body['name'] are missing. "
-                                   "Please, provide at least one of them.")
+            raise AirflowException(
+                "The required parameters 'resource_id' and body['name'] are missing. "
+                "Please, provide at least one of them."
+            )
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -1554,6 +1534,12 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
                 project_id=self.project_id,
                 zone=self.zone,
             )
+        except exceptions.NotFound as e:
+            # We actually expect to get 404 / Not Found here as the Instance Group Manager should
+            # not yet exist
+            if not e.code == 404:
+                raise e
+        else:
             self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)
             ComputeInstanceGroupManagerDetailsLink.persist(
                 context=context,
@@ -1563,12 +1549,6 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
                 location_id=self.zone,
             )
             return InstanceGroupManager.to_dict(existing_instance_group_manager)
-        except exceptions.NotFound as e:
-            # We actually expect to get 404 / Not Found here as the Instance Group Manager should
-            # not yet exist
-            if not e.code == 404:
-                raise e
-
         self._field_sanitizer.sanitize(self.body)
         self.log.info("Creating Instance Group Manager with specified body: %s", self.body)
         hook.insert_instance_group_manager(
@@ -1598,20 +1578,19 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
     Deletes an Instance Group Managers.
     Deleting an Instance Group Manager is permanent and cannot be undone.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ComputeEngineDeleteInstanceGroupManagerOperator`
+
     :param resource_id: Name of the Instance Group Managers.
-    :type resource_id: str
     :param project_id: Google Cloud project ID where the Compute Engine Instance Group Managers exists.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :type project_id: Optional[str]
     :param request_id: Unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new Instance Group Managers again)
         It should be in UUID format as defined in RFC 4122
-    :type request_id: Optional[str]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud. Defaults to 'google_cloud_default'.
-    :type gcp_conn_id: Optional[str]
     :param api_version: API version used (for example v1 - or beta). Defaults to v1.
-    :type api_version: Optional[str]
     :param impersonation_chain: Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1620,15 +1599,11 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param retry: A retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
-    :type retry: Optional[google.api_core.retry.Retry]
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
-    :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     # [START gce_igm_delete_fields]
@@ -1648,14 +1623,14 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         *,
         resource_id: str,
         zone: str,
-        project_id: Optional[str] = None,
-        request_id: Optional[str] = None,
+        project_id: str | None = None,
+        request_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version='v1',
-        retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | None = None,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
         validate_body: bool = True,
         **kwargs,
     ) -> None:
@@ -1681,7 +1656,12 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             **kwargs,
         )
 
-    def execute(self, context: 'Context'):
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.resource_id:
+            raise AirflowException("The required parameter 'resource_id' is missing. ")
+
+    def execute(self, context: Context):
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
