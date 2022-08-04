@@ -22,6 +22,9 @@ Check things about newsfragments:
 """
 
 import sys
+from pathlib import Path
+
+VALID_CHANGE_TYPES = {"significant", "feature", "improvement", "bugfix", "doc", "misc"}
 
 files = sys.argv[1:]
 
@@ -31,20 +34,32 @@ for filename in files:
         lines = [line.strip() for line in f.readlines()]
     num_lines = len(lines)
 
-    if "significant" not in filename:
+    name_parts = Path(filename).name.split('.')
+    if len(name_parts) != 3:
+        print(f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst.")
+        failed = True
+        continue
+
+    change_type = name_parts[1]
+    if change_type not in VALID_CHANGE_TYPES:
+        print(f"Newsfragment {filename} has an unexpected type. Should be one of {VALID_CHANGE_TYPES}.")
+        failed = True
+        continue
+
+    if change_type != "significant":
         if num_lines != 1:
-            print(f"Newsfragement {filename} can only have a single line.")
+            print(f"Newsfragment {filename} can only have a single line.")
             failed = True
     else:
         # significant newsfragment
         if num_lines == 1:
             continue
         if num_lines == 2:
-            print(f"Newsfragement {filename} can have 1, or 3+ lines.")
+            print(f"Newsfragment {filename} can have 1, or 3+ lines.")
             failed = True
             continue
         if lines[1] != "":
-            print(f"Newsfragement {filename} must have an empty second line.")
+            print(f"Newsfragment {filename} must have an empty second line.")
             failed = True
             continue
 
