@@ -23,8 +23,6 @@ from typing import Any, Dict, Optional, Sequence, Union, Tuple
 from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
 from google.cloud.compute_v1.services.instances import InstancesClient
 from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
-from google.cloud.compute_v1.types import InstanceTemplate, Instance, InstanceGroupManager
-from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 
 from googleapiclient.discovery import build
@@ -244,11 +242,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: Instance Template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
-        :rtype: dict
+        :rtype: object
         """
 
         client = self.get_compute_instance_template_client()
-        result = client.get(
+        instance_template_obj = client.get(
             # Calling method get() on client to get the specified Instance Template.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.GetInstanceTemplateRequest, dict] to construct a request
@@ -266,7 +264,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return InstanceTemplate.to_dict(result)
+        return instance_template_obj
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance(
@@ -383,11 +381,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: Instance representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instances
-        :rtype: dict
+        :rtype: object
         """
 
         client = self.get_compute_instance_client()
-        result = client.get(
+        instance_obj = client.get(
             # Calling method get() on client to get the specified Instance.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.GetInstanceRequest, dict] to construct a request
@@ -408,7 +406,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return Instance.to_dict(result)
+        return instance_obj
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
@@ -651,11 +649,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: Instance Group Managers representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers
-        :rtype: dict
+        :rtype: object
         """
 
         client = self.get_compute_instance_group_managers_client()
-        result = client.get(
+        instance_group_manager_obj = client.get(
             # Calling method get() on client to get the specified Instance Group Manager.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.GetInstanceGroupManagerRequest, dict] to construct a
@@ -676,7 +674,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return InstanceGroupManager.to_dict(result)
+        return instance_group_manager_obj
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance_group_manager(
