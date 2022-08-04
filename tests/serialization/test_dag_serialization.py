@@ -1377,7 +1377,7 @@ class TestStringifiedDAGs:
     )
     def test_custom_dep_detector(self):
         """
-        Prior to deprecation of custom dependency detector, the return type as Optional[DagDependency].
+        Prior to deprecation of custom dependency detector, the return type was Optional[DagDependency].
         This class verifies that custom dependency detector classes which assume that return type will still
         work until support for them is removed in 3.0.
 
