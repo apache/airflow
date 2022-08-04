@@ -1415,7 +1415,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location: Optional[str] = None,
     ) -> None:
         """
-        Cancels a job an wait for cancellation to complete
+        Cancel a job and wait for cancellation to complete
 
         :param job_id: id of the job.
         :param project_id: Google Cloud Project where the job is running
