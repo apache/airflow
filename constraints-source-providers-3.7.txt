@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-08-04T17:44:02Z
+# This constraints file was automatically generated on 2022-08-04T19:50:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -74,7 +74,7 @@ aws-sam-translator==1.48.0
 aws-xray-sdk==2.10.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.24.2
+azure-core==1.25.0
 azure-cosmos==4.3.0
 azure-datalake-store==0.0.52
 azure-identity==1.10.0
@@ -180,7 +180,7 @@ google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.2
 google-auth==2.9.1
-google-cloud-aiplatform==1.16.0
+google-cloud-aiplatform==1.16.1
 google-cloud-appengine-logging==1.1.3
 google-cloud-audit-log==0.2.3
 google-cloud-automl==2.8.0
