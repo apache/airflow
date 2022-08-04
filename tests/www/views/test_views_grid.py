@@ -25,7 +25,7 @@ from dateutil.tz import UTC
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import Dataset
+from airflow.models.dataset import Dataset, DatasetDagRunQueue
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -323,3 +323,35 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             'label': None,
         },
     }
+
+
+def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
+    with monkeypatch.context() as m:
+        datasets = [Dataset(id=i, uri=f's3://bucket/key/{i}') for i in [1, 2]]
+        session.add_all(datasets)
+        session.commit()
+
+        with dag_maker(dag_id=DAG_ID, schedule_on=datasets, serialized=True, session=session):
+            EmptyOperator(task_id='task1')
+
+        m.setattr(app, 'dag_bag', dag_maker.dagbag)
+
+        ddrq = DatasetDagRunQueue(
+            target_dag_id=DAG_ID, dataset_id=1, created_at=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)
+        )
+        session.add(ddrq)
+        session.commit()
+
+        resp = admin_client.get(f'/object/next_run_datasets/{DAG_ID}', follow_redirects=True)
+
+    assert resp.status_code == 200, resp.json
+    assert resp.json == [
+        {'id': 1, 'uri': 's3://bucket/key/1', 'created_at': "2022-08-01T00:00:00+00:00"},
+        {'id': 2, 'uri': 's3://bucket/key/2', 'created_at': None},
+    ]
+
+
+def test_next_run_datasets_404(admin_client):
+    resp = admin_client.get('/object/next_run_datasets/missingdag', follow_redirects=True)
+    assert resp.status_code == 404, resp.json
+    assert resp.json == {'error': "can't find dag missingdag"}
