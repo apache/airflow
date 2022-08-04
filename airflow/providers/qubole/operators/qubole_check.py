@@ -86,18 +86,14 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         :ref:`howto/operator:QuboleCheckOperator`
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
+    :param results_parser_callable: This is an optional parameter to extend the flexibility of parsing the
+        results of Qubole command to the users. This is a Python callable which can hold the logic to parse
+        list of rows returned by Qubole command. By default, only the values on first row are used for
+        performing checks. This callable should return a list of records on which the checks have to be
+        performed.
 
     kwargs:
-
         Arguments specific to Qubole command can be referred from QuboleOperator docs.
-
-        :results_parser_callable: This is an optional parameter to
-            extend the flexibility of parsing the results of Qubole
-            command to the users. This is a python callable which
-            can hold the logic to parse list of rows returned by Qubole command.
-            By default, only the values on first row are used for performing checks.
-            This callable should return a list of records on
-            which the checks have to be performed.
 
     .. note:: All fields in common with template fields of
         QuboleOperator and SQLCheckOperator are template-supported.
@@ -138,27 +134,18 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
     is not within the permissible limit of expected value.
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
-
     :param pass_value: Expected value of the query results.
-
-    :param tolerance: Defines the permissible pass_value range, for example if
-        tolerance is 2, the Qubole command output can be anything between
-        -2*pass_value and 2*pass_value, without the operator erring out.
-
-
+    :param tolerance: Defines the permissible pass_value range, for example if tolerance is 2, the Qubole
+        command output can be anything between -2*pass_value and 2*pass_value, without the operator erring
+        out.
+    :param results_parser_callable: This is an optional parameter to extend the flexibility of parsing the
+        results of Qubole command to the users. This is a Python callable which can hold the logic to parse
+        list of rows returned by Qubole command. By default, only the values on first row are used for
+        performing checks. This callable should return a list of records on which the checks have to be
+        performed.
 
     kwargs:
-
         Arguments specific to Qubole command can be referred from QuboleOperator docs.
-
-        :results_parser_callable: This is an optional parameter to
-            extend the flexibility of parsing the results of Qubole
-            command to the users. This is a python callable which
-            can hold the logic to parse list of rows returned by Qubole command.
-            By default, only the values on first row are used for performing checks.
-            This callable should return a list of records on
-            which the checks have to be performed.
-
 
     .. note:: All fields in common with template fields of
             QuboleOperator and SQLValueCheckOperator are template-supported.
