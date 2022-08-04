@@ -17,59 +17,73 @@
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.arangodb.operators.arangodb import AQLOperator
-from airflow.providers.arangodb.sensors.arangodb import AQLSensor
+from airflow.providers.clickhouse.operators.clickhouse import ClickHouseOperator
+from airflow.providers.clickhouse.sensors.clickhouse import ClickHouseSensor
 
 dag = DAG(
-    'example_arangodb_operator',
+    'example_clickhouse_operator',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
 )
 
-# [START howto_aql_sensor_arangodb]
+# [START howto_sensor_clickhouse]
 
-sensor = AQLSensor(
-    task_id="aql_sensor",
-    query="FOR doc IN students FILTER doc.name == 'judy' RETURN doc",
+sensor = ClickHouseSensor(
+    task_id="clickhouse_sensor",
+    sql="SELECT * FROM gettingstarted.clickstream where customer_id='customer1'",
     timeout=60,
     poke_interval=10,
     dag=dag,
 )
 
-# [END howto_aql_sensor_arangodb]
+# [END howto_sensor_clickhouse]
 
-# [START howto_aql_sensor_template_file_arangodb]
+# [START howto_sensor_template_file_clickhouse]
 
-sensor = AQLSensor(
-    task_id="aql_sensor_template_file",
-    query="search_one.sql",
+sensor_tf = ClickHouseSensor(
+    task_id="clickhouse_sensor_template",
+    sql="search_one.sql",
     timeout=60,
     poke_interval=10,
     dag=dag,
 )
 
-# [END howto_aql_sensor_template_file_arangodb]
+
+# [END howto_sensor_template_file_clickhouse]
 
 
-# [START howto_aql_operator_arangodb]
+# [START howto_operator_clickhouse]
 
-operator = AQLOperator(
-    task_id='aql_operator',
-    query="FOR doc IN students RETURN doc",
+operator = ClickHouseOperator(
+    task_id='clickhouse_operator',
+    sql="SELECT * FROM gettingstarted.clickstream",
     dag=dag,
-    result_processor=lambda cursor: print([document["name"] for document in cursor]),
+    result_processor=lambda cursor: print(cursor)
 )
 
-# [END howto_aql_operator_arangodb]
+# [END howto_operator_clickhouse]
 
-# [START howto_aql_operator_template_file_arangodb]
+# [START howto_operator_clickhouse_with_database]
 
-operator = AQLOperator(
-    task_id='aql_operator_template_file',
+operator_with_database = ClickHouseOperator(
+    task_id='clickhouse_operator_with_db',
+    sql="SELECT * FROM clickstream",
+    database='gettingstarted',
     dag=dag,
-    result_processor=lambda cursor: print([document["name"] for document in cursor]),
-    query="search_all.sql",
+    result_processor=lambda cursor: print(cursor)
 )
 
-# [END howto_aql_operator_template_file_arangodb]
+# [END howto_operator_clickhouse_with_database]
+
+# [START howto_operator_template_file_clickhouse]
+
+operator_tf = ClickHouseOperator(
+    task_id='clickhouse_operator_tf',
+    sql="search_all.sql",
+    dag=dag,
+    result_processor=lambda cursor: print(cursor)
+)
+
+# [END howto_operator_template_file_clickhouse]
+

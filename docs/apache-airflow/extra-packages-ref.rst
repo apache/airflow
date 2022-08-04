@@ -222,6 +222,8 @@ These are extras that add dependencies needed for integration with other softwar
 +=====================+=====================================================+===========================================+
 | arangodb            | ``pip install 'apache-airflow[arangodb]'``          | ArangoDB operators, sensors and hook      |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
+| clickhouse          | ``pip install 'apache-airflow[clickhouse]'``        | ClickHouse operators, sensors and hook    |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler       |
