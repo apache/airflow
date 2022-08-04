@@ -2663,11 +2663,16 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.job_id = None  # type: Optional[str]
         self.buffer = []  # type: list
         self.all_pages_loaded = False  # type: bool
+        self._description = []  # type: List
 
     @property
-    def description(self) -> None:
-        """The schema description method is not currently implemented"""
-        raise NotImplementedError
+    def description(self) -> List:
+        """Return the cursor description"""
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        self._description = value
 
     def close(self) -> None:
         """By default, do nothing"""
@@ -2687,6 +2692,10 @@ class BigQueryCursor(BigQueryBaseCursor):
         sql = _bind_parameters(operation, parameters) if parameters else operation
         self.flush_results()
         self.job_id = self.hook.run_query(sql)
+
+        query_results = self._get_query_result()
+        description = _format_schema_for_description(query_results["schema"])
+        self.description = description
 
     def executemany(self, operation: str, seq_of_parameters: list) -> None:
         """
@@ -2723,17 +2732,7 @@ class BigQueryCursor(BigQueryBaseCursor):
             if self.all_pages_loaded:
                 return None
 
-            query_results = (
-                self.service.jobs()
-                .getQueryResults(
-                    projectId=self.project_id,
-                    jobId=self.job_id,
-                    location=self.location,
-                    pageToken=self.page_token,
-                )
-                .execute(num_retries=self.num_retries)
-            )
-
+            query_results = self._get_query_result()
             if 'rows' in query_results and query_results['rows']:
                 self.page_token = query_results.get('pageToken')
                 fields = query_results['schema']['fields']
@@ -2804,6 +2803,21 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def setoutputsize(self, size: Any, column: Any = None) -> None:
         """Does nothing by default"""
+
+    def _get_query_result(self) -> Dict:
+        """Get job query results like data, schema, job type..."""
+        query_results = (
+            self.service.jobs()
+            .getQueryResults(
+                projectId=self.project_id,
+                jobId=self.job_id,
+                location=self.location,
+                pageToken=self.page_token,
+            )
+            .execute(num_retries=self.num_retries)
+        )
+
+        return query_results
 
 
 def _bind_parameters(operation: str, parameters: dict) -> str:
@@ -2973,3 +2987,23 @@ def _validate_src_fmt_configs(
             raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
     return src_fmt_configs
+
+
+def _format_schema_for_description(schema: Dict) -> List:
+    """
+    Reformat the schema to match cursor description standard which is a tuple
+    of 7 elemenbts (name, type, display_size, internal_size, precision, scale, null_ok)
+    """
+    description = []
+    for field in schema["fields"]:
+        field_description = (
+            field["name"],
+            field["type"],
+            None,
+            None,
+            None,
+            None,
+            field["mode"] == "NULLABLE",
+        )
+        description.append(field_description)
+    return description
