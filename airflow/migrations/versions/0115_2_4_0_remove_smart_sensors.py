@@ -27,6 +27,7 @@ Create Date: 2022-08-03 11:33:44.777945
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
+from sqlalchemy.sql import column, table
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
@@ -41,6 +42,10 @@ airflow_version = '2.4.0'
 def upgrade():
     """Apply Remove smart sensors"""
     op.drop_table('sensor_instance')
+
+    """Minimal model definition for migrations"""
+    task_instance = table('task_instance', column('state', sa.String))
+    op.execute(task_instance.update().where(task_instance.c.state == 'sensing').values({'state': 'failed'}))
 
 
 def downgrade():
