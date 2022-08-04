@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import * as API from './api-generated';
+
 type RunState = 'success' | 'running' | 'queued' | 'failed';
 
 type TaskState = RunState
@@ -28,7 +30,6 @@ type TaskState = RunState
 | 'up_for_reschedule'
 | 'upstream_failed'
 | 'skipped'
-| 'sensing'
 | 'deferred'
 | null;
 
@@ -43,7 +44,7 @@ interface Dag {
 
 interface DagRun {
   runId: string;
-  runType: 'manual' | 'backfill' | 'scheduled';
+  runType: 'manual' | 'backfill' | 'scheduled' | 'dataset_triggered';
   state: RunState;
   executionDate: string;
   dataIntervalStart: string;
@@ -73,6 +74,8 @@ interface Task {
   children?: Task[];
   extraLinks?: string[];
   isMapped?: boolean;
+  operator?: string;
+  hasOutletDatasets?: boolean;
 }
 
 export type {
@@ -82,4 +85,5 @@ export type {
   TaskState,
   TaskInstance,
   Task,
+  API,
 };

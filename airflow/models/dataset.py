@@ -17,12 +17,14 @@
 # under the License.
 from urllib.parse import urlparse
 
+import sqlalchemy_jsonfield
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import ID_LEN, Base, StringID
+from airflow.settings import json
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class Dataset(Base):
@@ -46,12 +48,12 @@ class Dataset(Base):
         ),
         nullable=False,
     )
-    extra = Column(ExtendedJSON, nullable=True)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dag_references = relationship("DatasetDagRef", back_populates="dataset")
-    task_references = relationship("DatasetTaskRef", back_populates="dataset")
+    downstream_dag_references = relationship("DatasetDagRef", back_populates="dataset")
+    upstream_task_references = relationship("DatasetTaskRef", back_populates="dataset")
 
     __tablename__ = "dataset"
     __table_args__ = (
@@ -128,7 +130,7 @@ class DatasetTaskRef(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("Dataset", back_populates="task_references")
+    dataset = relationship("Dataset")
 
     __tablename__ = "dataset_task_ref"
     __table_args__ = (
@@ -207,10 +209,11 @@ class DatasetEvent(Base):
 
     :param dataset_id: reference to Dataset record
     :param extra: JSON field for arbitrary extra info
-    :param task_id: the task_id of the TI which updated the dataset
-    :param dag_id: the dag_id of the TI which updated the dataset
-    :param run_id: the run_id of the TI which updated the dataset
-    :param map_index: the map_index of the TI which updated the dataset
+    :param source_task_id: the task_id of the TI which updated the dataset
+    :param source_dag_id: the dag_id of the TI which updated the dataset
+    :param source_run_id: the run_id of the TI which updated the dataset
+    :param source_map_index: the map_index of the TI which updated the dataset
+    :param timestamp: the time the event was logged
 
     We use relationships instead of foreign keys so that dataset events are not deleted even
     if the foreign key object is.
@@ -218,26 +221,26 @@ class DatasetEvent(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, nullable=False)
-    extra = Column(ExtendedJSON, nullable=True)
-    task_id = Column(StringID(), nullable=True)
-    dag_id = Column(StringID(), nullable=True)
-    run_id = Column(StringID(), nullable=True)
-    map_index = Column(Integer, nullable=True, server_default=text("-1"))
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    source_task_id = Column(StringID(), nullable=True)
+    source_dag_id = Column(StringID(), nullable=True)
+    source_run_id = Column(StringID(), nullable=True)
+    source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset_event"
     __table_args__ = (
-        Index('idx_dataset_id_created_at', dataset_id, created_at),
+        Index('idx_dataset_id_timestamp', dataset_id, timestamp),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
     source_task_instance = relationship(
         "TaskInstance",
         primaryjoin="""and_(
-            DatasetEvent.dag_id == foreign(TaskInstance.dag_id),
-            DatasetEvent.run_id == foreign(TaskInstance.run_id),
-            DatasetEvent.task_id == foreign(TaskInstance.task_id),
-            DatasetEvent.map_index == foreign(TaskInstance.map_index),
+            DatasetEvent.source_dag_id == foreign(TaskInstance.dag_id),
+            DatasetEvent.source_run_id == foreign(TaskInstance.run_id),
+            DatasetEvent.source_task_id == foreign(TaskInstance.task_id),
+            DatasetEvent.source_map_index == foreign(TaskInstance.map_index),
         )""",
         viewonly=True,
         lazy="select",
@@ -246,8 +249,8 @@ class DatasetEvent(Base):
     source_dag_run = relationship(
         "DagRun",
         primaryjoin="""and_(
-            DatasetEvent.dag_id == foreign(DagRun.dag_id),
-            DatasetEvent.run_id == foreign(DagRun.run_id),
+            DatasetEvent.source_dag_id == foreign(DagRun.dag_id),
+            DatasetEvent.source_run_id == foreign(DagRun.run_id),
         )""",
         viewonly=True,
         lazy="select",
@@ -261,9 +264,13 @@ class DatasetEvent(Base):
         uselist=False,
     )
 
+    @property
+    def uri(self):
+        return self.dataset.uri
+
     def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.created_at == other.created_at
+            return self.dataset_id == other.dataset_id and self.timestamp == other.timestamp
         else:
             return NotImplemented
 
@@ -276,10 +283,10 @@ class DatasetEvent(Base):
             'id',
             'dataset_id',
             'extra',
-            'task_id',
-            'dag_id',
-            'run_id',
-            'map_index',
+            'source_task_id',
+            'source_dag_id',
+            'source_run_id',
+            'source_map_index',
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"

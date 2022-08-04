@@ -39,7 +39,6 @@ from typing import (
     Iterable,
     List,
     NamedTuple,
-    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -59,6 +58,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     and_,
     false,
@@ -86,12 +86,12 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
-    AirflowSmartSensorException,
     AirflowTaskTimeout,
     DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
+    UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
@@ -427,7 +427,6 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -479,6 +478,9 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
+        PrimaryKeyConstraint(
+            "dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey', mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
@@ -619,7 +621,6 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        # TODO: whether we need sensing here or not (in sensor and task_instance state machine)
         if self.state in State.running:
             return self._try_number
         return self._try_number + 1
@@ -1461,9 +1462,6 @@ class TaskInstance(Base, LoggingMixin):
                 session.merge(self)
                 session.commit()
             return
-        except AirflowSmartSensorException as e:
-            self.log.info(e)
-            return
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1518,7 +1516,8 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-            self._create_dataset_dag_run_queue_records(session=session)
+            if self.state == TaskInstanceState.SUCCESS:
+                self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
@@ -1531,15 +1530,15 @@ class TaskInstance(Base, LoggingMixin):
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
                 self.log.debug("downstream dag ids %s", downstream_dag_ids)
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
-                        task_id=self.task_id,
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        map_index=self.map_index,
+                        source_task_id=self.task_id,
+                        source_dag_id=self.dag_id,
+                        source_run_id=self.run_id,
+                        source_map_index=self.map_index,
                     )
                 )
                 for dag_id in downstream_dag_ids:
@@ -1600,22 +1599,6 @@ class TaskInstance(Base, LoggingMixin):
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
 
-            if self.task.is_smart_sensor_compatible():
-                # Try to register it in the smart sensor service.
-                registered = False
-                try:
-                    registered = self.task.register_in_sensor_service(self, context)
-                except Exception:
-                    self.log.warning(
-                        "Failed to register in sensor service."
-                        " Continue to run task in non smart sensor mode.",
-                        exc_info=True,
-                    )
-
-                if registered:
-                    # Will raise AirflowSmartSensorException to avoid long running execution.
-                    self._update_ti_state_for_sensing()
-
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
@@ -1625,16 +1608,6 @@ class TaskInstance(Base, LoggingMixin):
 
         Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
-
-    @provide_session
-    def _update_ti_state_for_sensing(self, session: Session = NEW_SESSION) -> NoReturn:
-        self.log.info('Submitting %s to sensor service', self)
-        self.state = State.SENSING
-        self.start_date = timezone.utcnow()
-        session.merge(self)
-        session.commit()
-        # Raise exception for sensing state
-        raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
     def _run_finished_callback(
         self, callback: Optional["TaskStateChangeCallback"], context: Context, callback_type: str
@@ -2236,7 +2209,6 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
-        # Reuse it for smart sensor to send default email alert
         if task is None:
             task = getattr(self, 'task')
         use_default = task is None
@@ -2296,8 +2268,13 @@ class TaskInstance(Base, LoggingMixin):
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
                     path = conf.get_mandatory_value('email', key)
-                    with open(path) as f:
-                        content = f.read()
+                    try:
+                        with open(path) as f:
+                            content = f.read()
+                    except FileNotFoundError:
+                        self.log.warning(f"Could not find email template file '{path!r}'. Using defaults...")
+                    except OSError:
+                        self.log.exception(f"Error while using email template '{path!r}'. Using defaults...")
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)
 
             subject = render('subject_template', default_subject)
@@ -2324,20 +2301,22 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
-        validators = {m.validate_upstream_return_value for m in task.iter_mapped_dependants()}
-        if not validators:  # No mapped dependants, no need to validate.
+        if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
             return
-        if value is None:
-            raise XComForMappingNotPushed()
         # TODO: We don't push TaskMap for mapped task instances because it's not
         # currently possible for a downstream to depend on one individual mapped
         # task instance. This will change when we implement task group mapping,
         # and we'll need to further analyze the mapped task case.
         if task.is_mapped:
             return
-        for validator in validators:
-            validator(value)
-        assert isinstance(value, collections.abc.Collection)  # The validators type-guard this.
+        if value is None:
+            raise XComForMappingNotPushed()
+        if not isinstance(value, (collections.abc.Sequence, dict)):
+            raise UnmappableXComTypePushed(value)
+        if isinstance(value, (bytes, str)):
+            raise UnmappableXComTypePushed(value)
+        if TYPE_CHECKING:  # The isinstance() checks above guard this.
+            assert isinstance(value, collections.abc.Collection)
         task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:
@@ -2618,6 +2597,16 @@ class SimpleTaskInstance:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
+
+    def as_dict(self):
+        new_dict = dict(self.__dict__)
+        for key in new_dict:
+            if key in ['start_date', 'end_date']:
+                val = new_dict[key]
+                if not val or isinstance(val, str):
+                    continue
+                new_dict.update({key: val.isoformat()})
+        return new_dict
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":

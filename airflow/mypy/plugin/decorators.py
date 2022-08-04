@@ -68,7 +68,10 @@ def _change_decorator_function_type(
     # Mark provided arguments as optional
     decorator.arg_types = copy.copy(decorated.arg_types)
     for argument in provided_arguments:
-        index = decorated.arg_names.index(argument)
+        try:
+            index = decorated.arg_names.index(argument)
+        except ValueError:
+            continue
         decorated_type = decorated.arg_types[index]
         decorator.arg_types[index] = UnionType.make_union([decorated_type, NoneType()])
         decorated.arg_kinds[index] = ARG_NAMED_OPT

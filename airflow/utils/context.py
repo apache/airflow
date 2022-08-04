@@ -23,12 +23,12 @@ import copy
 import functools
 import warnings
 from typing import (
-    AbstractSet,
     Any,
     Container,
     Dict,
     ItemsView,
     Iterator,
+    KeysView,
     List,
     Mapping,
     MutableMapping,
@@ -175,7 +175,7 @@ class Context(MutableMapping[str, Any]):
     }
 
     def __init__(self, context: Optional[MutableMapping[str, Any]] = None, **kwargs: Any) -> None:
-        self._context = context or {}
+        self._context: MutableMapping[str, Any] = context or {}
         if kwargs:
             self._context.update(kwargs)
         self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
@@ -231,7 +231,7 @@ class Context(MutableMapping[str, Any]):
             return NotImplemented
         return self._context != other._context
 
-    def keys(self) -> AbstractSet[str]:
+    def keys(self) -> KeysView[str]:
         return self._context.keys()
 
     def items(self):

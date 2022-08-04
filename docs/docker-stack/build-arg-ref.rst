@@ -45,7 +45,11 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.2.2``                               |  PIP version used.                          |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
+|                                          |                                          | installation commands (except when          |
+|                                          |                                          | reinstalling ``pip`` itself)                |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -208,16 +212,6 @@ You can see some examples of those in:
 |                                    |                                          | "/opt/airflow" when you install Airflow  |
 |                                    |                                          | from local sources.                      |
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_FROM``       | ``Dockerfile``                           | Sources of Airflow WWW files used for    |
-|                                    |                                          | asset compilation. Set it to             |
-|                                    |                                          | "./airflow/www" when                     |
-|                                    |                                          | you install Airflow from local sources   |
-+------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_TO``         | ``/Dockerfile``                          | Target for Airflow files used for        |
-|                                    |                                          | asset compilation. Set it to             |
-|                                    |                                          | "/opt/airflow/airflow/www" when          |
-|                                    |                                          | you install Airflow from local sources.  |
-+------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_VERSION_SPECIFICATION``  |                                          | Optional - might be used for using limit |
 |                                    |                                          | for Airflow version installation - for   |
 |                                    |                                          | example ``<2.0.2`` for automated builds. |
@@ -251,11 +245,6 @@ You can see some examples of those in:
 |                                    |                                          | from locally built/downloaded            |
 |                                    |                                          | .whl and .tar.gz files placed in the     |
 |                                    |                                          | ``docker-context-files``.                |
-+------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_IS_IN_CONTEXT``          | ``false``                                | If set to true, it means that Airflow    |
-|                                    |                                          | and providers are available in context   |
-|                                    |                                          | and the image will not attempt to        |
-|                                    |                                          | install Airflow from PyPI or sources.    |
 +------------------------------------+------------------------------------------+------------------------------------------+
 
 Pre-caching PIP dependencies

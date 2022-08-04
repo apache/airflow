@@ -20,6 +20,7 @@
 import datetime
 import enum
 import logging
+import warnings
 import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
@@ -42,7 +43,7 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers_manager import ProvidersManager
 from airflow.sensors.external_task import ExternalTaskSensor
@@ -201,11 +202,10 @@ class _XComRef(NamedTuple):
     post-process it in ``deserialize_dag``.
     """
 
-    task_id: str
-    key: str
+    data: dict
 
     def deref(self, dag: DAG) -> XComArg:
-        return XComArg(operator=dag.get_task(self.task_id), key=self.key)
+        return deserialize_xcom_arg(self.data, dag)
 
 
 class _ExpandInputRef(NamedTuple):
@@ -392,7 +392,7 @@ class BaseSerialization:
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
-            return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
+            return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         else:
@@ -439,7 +439,7 @@ class BaseSerialization:
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
-            return cls._deserialize_xcomref(var)
+            return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
         else:
@@ -544,37 +544,63 @@ class BaseSerialization:
 
         return ParamsDict(op_params)
 
-    @classmethod
-    def _serialize_xcomarg(cls, arg: XComArg) -> dict:
-        return {"key": arg.key, "task_id": arg.operator.task_id}
-
-    @classmethod
-    def _deserialize_xcomref(cls, encoded: dict) -> _XComRef:
-        return _XComRef(key=encoded['key'], task_id=encoded['task_id'])
-
 
 class DependencyDetector:
-    """Detects dependencies between DAGs."""
+    """
+    Detects dependencies between DAGs.
+
+    :meta private:
+    """
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> Optional['DagDependency']:
+    def detect_task_dependencies(task: Operator) -> List['DagDependency']:
         """Detects dependencies caused by tasks"""
+        deps = []
         if isinstance(task, TriggerDagRunOperator):
-            return DagDependency(
-                source=task.dag_id,
-                target=getattr(task, "trigger_dag_id"),
-                dependency_type="trigger",
-                dependency_id=task.task_id,
+            deps.append(
+                DagDependency(
+                    source=task.dag_id,
+                    target=getattr(task, "trigger_dag_id"),
+                    dependency_type="trigger",
+                    dependency_id=task.task_id,
+                )
             )
         elif isinstance(task, ExternalTaskSensor):
-            return DagDependency(
-                source=getattr(task, "external_dag_id"),
-                target=task.dag_id,
-                dependency_type="sensor",
-                dependency_id=task.task_id,
+            deps.append(
+                DagDependency(
+                    source=getattr(task, "external_dag_id"),
+                    target=task.dag_id,
+                    dependency_type="sensor",
+                    dependency_id=task.task_id,
+                )
             )
+        for obj in getattr(task, '_outlets', []):
+            if isinstance(obj, Dataset):
+                deps.append(
+                    DagDependency(
+                        source=task.dag_id,
+                        target='dataset',
+                        dependency_type='dataset',
+                        dependency_id=obj.uri,
+                    )
+                )
+        return deps
 
-        return None
+    @staticmethod
+    def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
+        """Detects dependencies set directly on the DAG object."""
+        if dag and dag.schedule_on:
+            return [
+                DagDependency(
+                    source="dataset",
+                    target=dag.dag_id,
+                    dependency_type="dataset",
+                    dependency_id=x.uri,
+                )
+                for x in dag.schedule_on
+            ]
+        else:
+            return []
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -591,8 +617,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
-
-    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -837,9 +861,23 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return op
 
     @classmethod
-    def detect_dependencies(cls, op: Operator) -> Optional['DagDependency']:
+    def detect_dependencies(cls, op: Operator) -> Set['DagDependency']:
         """Detects between DAG dependencies for the operator."""
-        return cls.dependency_detector.detect_task_dependencies(op)
+        dependency_detector = DependencyDetector()
+        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
+        deps = set()
+        if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
+            warnings.warn(
+                "Use of a custom dependency detector is deprecated. "
+                "Support will be removed in a future release.",
+                DeprecationWarning,
+            )
+            dep = custom_dependency_detector.detect_task_dependencies(op)
+            if type(dep) is DagDependency:
+                deps.add(dep)
+        deps.update(dependency_detector.detect_task_dependencies(op))
+        deps.update(dependency_detector.detect_dag_dependencies(op.dag))
+        return deps
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: "DAGNode"):
@@ -1010,11 +1048,14 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            serialized_dag["dag_dependencies"] = [
-                vars(t)
-                for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
+            dag_deps = [
+                t.__dict__
+                for task in dag.task_dict.values()
+                for t in SerializedBaseOperator.detect_dependencies(task)
                 if t is not None
             ]
+
+            serialized_dag["dag_dependencies"] = dag_deps
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1208,12 +1249,20 @@ class DagDependency:
     source: str
     target: str
     dependency_type: str
-    dependency_id: str
+    dependency_id: Optional[str] = None
 
     @property
     def node_id(self):
         """Node ID for graph rendering"""
-        return f"{self.dependency_type}:{self.source}:{self.target}:{self.dependency_id}"
+        val = f"{self.dependency_type}"
+        if not self.dependency_type == 'dataset':
+            val += f":{self.source}:{self.target}"
+        if self.dependency_id:
+            val += f":{self.dependency_id}"
+        return val
+
+    def __hash__(self):
+        return hash((self.source, self.target, self.dependency_type, self.dependency_id))
 
 
 def _has_kubernetes() -> bool:

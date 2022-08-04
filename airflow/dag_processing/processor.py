@@ -137,7 +137,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         set_context(log, file_path)
         setproctitle(f"airflow scheduler - DagFileProcessor {file_path}")
-
         try:
             # redirect stdout/stderr to log
             with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
@@ -377,7 +376,6 @@ class DagFileProcessor(LoggingMixin):
         qry = (
             session.query(TI.task_id, func.max(DR.execution_date).label('max_ti'))
             .join(TI.dag_run)
-            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
             .filter(TI.task_id.in_(dag.task_ids))
@@ -435,6 +433,7 @@ class DagFileProcessor(LoggingMixin):
                             timestamp=ts,
                         )
                         sla_misses.append(sla_miss)
+                        Stats.incr('sla_missed')
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
@@ -692,7 +691,7 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = DagBag(file_path, include_examples=False, include_smart_sensor=False)
+            dagbag = DagBag(file_path, include_examples=False)
         except Exception:
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)

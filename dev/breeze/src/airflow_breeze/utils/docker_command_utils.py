@@ -433,7 +433,7 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
                 "--builder",
                 image_params.builder,
                 "--progress=tty",
-                "--push" if image_params.push_image else "--load",
+                "--push" if image_params.push else "--load",
             ]
         )
     else:
@@ -550,6 +550,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
     set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
+    set_value_to_default_if_not_set(env, 'BREEZE_INIT_COMMAND', "")
     set_value_to_default_if_not_set(env, 'CI', "false")
     set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
     set_value_to_default_if_not_set(env, 'CI_EVENT_TYPE', "pull_request")
@@ -687,7 +688,7 @@ def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_r
     get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
     warm_up_image_param = deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
-    warm_up_image_param.push_image = False
+    warm_up_image_param.push = False
     build_command = prepare_base_build_command(image_params=warm_up_image_param, verbose=verbose)
     warm_up_command = []
     warm_up_command.extend(["docker"])

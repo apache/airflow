@@ -22,11 +22,12 @@ import time
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import deep_string_coerce, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -53,20 +54,39 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
     if operator.wait_for_termination:
         while True:
-            run_state = hook.get_run_state(operator.run_id)
+            run_info = hook.get_run(operator.run_id)
+            run_state = RunState(**run_info['state'])
             if run_state.is_terminal:
                 if run_state.is_successful:
                     log.info('%s completed successfully.', operator.task_id)
                     log.info('View run status, Spark UI, and logs at %s', run_page_url)
                     return
                 else:
-                    run_output = hook.get_run_output(operator.run_id)
-                    notebook_error = run_output['error']
-                    error_message = (
-                        f'{operator.task_id} failed with terminal state: {run_state} '
-                        f'and with the error {notebook_error}'
-                    )
+                    if run_state.result_state == "FAILED":
+                        task_run_id = None
+                        if 'tasks' in run_info:
+                            for task in run_info['tasks']:
+                                if task.get("state", {}).get("result_state", "") == "FAILED":
+                                    task_run_id = task["run_id"]
+                        if task_run_id is not None:
+                            run_output = hook.get_run_output(task_run_id)
+                            if 'error' in run_output:
+                                notebook_error = run_output['error']
+                            else:
+                                notebook_error = run_state.state_message
+                        else:
+                            notebook_error = run_state.state_message
+                        error_message = (
+                            f'{operator.task_id} failed with terminal state: {run_state} '
+                            f'and with the error {notebook_error}'
+                        )
+                    else:
+                        error_message = (
+                            f'{operator.task_id} failed with terminal state: {run_state} '
+                            f'and with the error {run_state.state_message}'
+                        )
                     raise AirflowException(error_message)
+
             else:
                 log.info('%s in run state: %s', operator.task_id, run_state)
                 log.info('View run status, Spark UI, and logs at %s', run_page_url)
@@ -150,62 +170,16 @@ class DatabricksSubmitRunOperator(BaseOperator):
     <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
     API endpoint.
 
-    There are two ways to instantiate this operator.
-
-    In the first way, you can take the JSON payload that you typically use
-    to call the ``api/2.1/jobs/runs/submit`` endpoint and pass it directly
-    to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
-    For example ::
-
-        json = {
-          'new_cluster': {
-            'spark_version': '2.1.0-db3-scala2.11',
-            'num_workers': 2
-          },
-          'notebook_task': {
-            'notebook_path': '/Users/airflow@example.com/PrepareData',
-          },
-        }
-        notebook_run = DatabricksSubmitRunOperator(task_id='notebook_run', json=json)
-
-    Another way to accomplish the same thing is to use the named parameters
-    of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-    one named parameter for each top level parameter in the ``runs/submit``
-    endpoint. In this method, your code would look like this: ::
-
-        new_cluster = {
-          'spark_version': '10.1.x-scala2.12',
-          'num_workers': 2
-        }
-        notebook_task = {
-          'notebook_path': '/Users/airflow@example.com/PrepareData',
-        }
-        notebook_run = DatabricksSubmitRunOperator(
-            task_id='notebook_run',
-            new_cluster=new_cluster,
-            notebook_task=notebook_task)
-
-    In the case where both the json parameter **AND** the named parameters
-    are provided, they will be merged together. If there are conflicts during the merge,
-    the named parameters will take precedence and override the top level ``json`` keys.
-
-    Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
-        - ``spark_jar_task``
-        - ``notebook_task``
-        - ``spark_python_task``
-        - ``spark_jar_task``
-        - ``spark_submit_task``
-        - ``pipeline_task``
-        - ``new_cluster``
-        - ``existing_cluster_id``
-        - ``libraries``
-        - ``run_name``
-        - ``timeout_seconds``
+    There are three ways to instantiate this operator.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DatabricksSubmitRunOperator`
 
+    :param tasks: Array of Objects(RunSubmitTaskSettings) <= 100 items.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.1/jobs/runs/submit`` endpoint. The other named parameters
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
@@ -378,28 +352,31 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if git_source is not None:
             self.json['git_source'] = git_source
 
-        self.json = deep_string_coerce(self.json)
+        self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
-    def _get_hook(self) -> DatabricksHook:
+    @cached_property
+    def _hook(self):
+        return self._get_hook(caller="DatabricksSubmitRunOperator")
+
+    def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
+            caller=caller,
         )
 
     def execute(self, context: 'Context'):
-        hook = self._get_hook()
-        self.run_id = hook.submit_run(self.json)
-        _handle_databricks_operator_execution(self, hook, self.log, context)
+        self.run_id = self._hook.submit_run(self.json)
+        _handle_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self):
         if self.run_id:
-            hook = self._get_hook()
-            hook.cancel_run(self.run_id)
+            self._hook.cancel_run(self.run_id)
             self.log.info(
                 'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
             )
@@ -411,7 +388,7 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
     """Deferrable version of ``DatabricksSubmitRunOperator``"""
 
     def execute(self, context):
-        hook = self._get_hook()
+        hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
         self.run_id = hook.submit_run(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
@@ -526,8 +503,8 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
-    :param python_named_parameters: A list of parameters for jobs with python wheel tasks,
-        e.g. "python_named_parameters": {"name": "john doe", "age":  "35"}.
+    :param python_named_params: A list of named parameters for jobs with python wheel tasks,
+        e.g. "python_named_params": {"name": "john doe", "age":  "35"}.
         If specified upon run-now, it would overwrite the parameters specified in job setting.
         This field will be templated.
 
@@ -562,7 +539,7 @@ class DatabricksRunNowOperator(BaseOperator):
         token based authentication, provide the key ``token`` in the extra field for the
         connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param polling_period_seconds: Controls the rate which we poll for the result of
-        this run. By default the operator will poll every 30 seconds.
+        this run. By default, the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :param databricks_retry_delay: Number of seconds to wait between retries (it
@@ -590,7 +567,7 @@ class DatabricksRunNowOperator(BaseOperator):
         python_params: Optional[List[str]] = None,
         jar_params: Optional[List[str]] = None,
         spark_submit_params: Optional[List[str]] = None,
-        python_named_parameters: Optional[Dict[str, str]] = None,
+        python_named_params: Optional[Dict[str, str]] = None,
         idempotency_token: Optional[str] = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
@@ -621,8 +598,8 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
             self.json['python_params'] = python_params
-        if python_named_parameters is not None:
-            self.json['python_named_parameters'] = python_named_parameters
+        if python_named_params is not None:
+            self.json['python_named_params'] = python_named_params
         if jar_params is not None:
             self.json['jar_params'] = jar_params
         if spark_submit_params is not None:
@@ -630,21 +607,26 @@ class DatabricksRunNowOperator(BaseOperator):
         if idempotency_token is not None:
             self.json['idempotency_token'] = idempotency_token
 
-        self.json = deep_string_coerce(self.json)
+        self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
 
-    def _get_hook(self) -> DatabricksHook:
+    @cached_property
+    def _hook(self):
+        return self._get_hook(caller="DatabricksRunNowOperator")
+
+    def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
+            caller=caller,
         )
 
     def execute(self, context: 'Context'):
-        hook = self._get_hook()
+        hook = self._hook
         if 'job_name' in self.json:
             job_id = hook.find_job_id_by_name(self.json['job_name'])
             if job_id is None:
@@ -656,8 +638,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def on_kill(self):
         if self.run_id:
-            hook = self._get_hook()
-            hook.cancel_run(self.run_id)
+            self._hook.cancel_run(self.run_id)
             self.log.info(
                 'Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id
             )
@@ -669,7 +650,7 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
     """Deferrable version of ``DatabricksRunNowOperator``"""
 
     def execute(self, context):
-        hook = self._get_hook()
+        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
         self.run_id = hook.run_now(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 

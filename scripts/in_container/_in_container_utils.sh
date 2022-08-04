@@ -127,23 +127,21 @@ function in_container_fix_ownership() {
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
-            "/root/.aws"
-            "/root/.azure"
-            "/root/.config/gcloud"
-            "/root/.docker"
             "/opt/airflow/logs"
             "/opt/airflow/docs"
             "/opt/airflow/dags"
-            "${AIRFLOW_SOURCES}"
+            "/opt/airflow/airflow/"
         )
-        echo
-        echo "${COLOR_BLUE}Fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
-        echo "${COLOR_BLUE}Directories: ${DIRECTORIES_TO_FIX[*]}${COLOR_RESET}"
-        echo
-        find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
-            xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-        echo "${COLOR_BLUE}Fixed ownership of generated files."
-        echo
+        count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
+        if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
+            echo
+            echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
+            echo
+            find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
+                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+            echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
+            echo
+        fi
      else
         echo
         echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"

@@ -98,3 +98,19 @@ class OnceTimetable(_TrivialTimetable):
         if restriction.latest is not None and run_after > restriction.latest:
             return None
         return DagRunInfo.exact(run_after)
+
+
+class DatasetTriggeredTimetable(NullTimetable):
+    """Timetable that never schedules anything.
+
+    This should not be directly used anywhere, but only set if a DAG specifies
+    ``schedule_on`` and is triggered by a dataset.
+
+    :meta private:
+    """
+
+    description: str = "Triggered by datasets"
+
+    @property
+    def summary(self) -> str:
+        return "Dataset"

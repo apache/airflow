@@ -203,7 +203,7 @@
           </th>
           <th style="width:180px;">{{ sortable_column("Next Run", "next_dagrun") }}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
-                  title="Expected Date/Time of the next Dag Run.">info</span>
+                  title="Expected date/time of the next DAG Run, or for dataset triggered DAGs, how many datasets have been updated since the last DAG Run.">info</span>
           </th>
           <th>Recent Tasks
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
@@ -289,6 +289,9 @@
                   </span>
             </td>
             <td class="text-nowrap">
+              {% if dag.dag_id in dataset_triggered_next_run_info %}
+                {{ dataset_triggered_next_run_info[dag.dag_id] }}
+              {% endif %}
               {% if dag.next_dagrun is not none %}
                 <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
               {% endif %}
