@@ -2217,16 +2217,17 @@ class TestDagDecorator:
         assert dag.dag_id, 'test'
         assert dag.doc_md.strip(), "Regular DAG documentation"
 
-
     def test_resolve_documentation_template_file_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
-       
+
         with NamedTemporaryFile(suffix='.md') as f:
-            f.write(b"""
+            f.write(
+                b"""
             {% if True %}
                External Markdown DAG documentation
             {% endif %}
-            """)
+            """
+            )
             f.flush()
             template_file = os.path.basename(f.name)
 
@@ -2249,7 +2250,6 @@ class TestDagDecorator:
             assert isinstance(dag, DAG)
             assert dag.dag_id, 'test'
             assert dag.doc_md.strip(), "External Markdown DAG documentation"
-
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""

@@ -545,13 +545,11 @@ class DAG(LoggingMixin):
         else:
             # template = env.loader.get_source(env, doc_md)[0]
             template = env.get_template(doc_md)
-            
-        return template.render()
-        
-        
-        return template.render()
-        #return pathlib.Path(doc_md).read_text() if pathlib.Path(str(doc_md or '')).is_file() else doc_md
 
+        return template.render()
+
+        return template.render()
+        # return pathlib.Path(doc_md).read_text() if pathlib.Path(str(doc_md or '')).is_file() else doc_md
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
         """Check ``schedule_interval`` and ``timetable`` match.
