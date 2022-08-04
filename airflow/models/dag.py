@@ -535,12 +535,21 @@ class DAG(LoggingMixin):
         self.validate_schedule_and_params()
 
     def get_doc_md(self, doc_md: str) -> str:
-        if doc_md is None or not doc_md.endswith('.md'):
+        if doc_md is None:
             return doc_md
 
         env = self.get_template_env(force_sandboxed=False)
+
+        if not doc_md.endswith('.md'):
+            template = jinja2.Template(doc_md)
+        else:
+            # template = env.loader.get_source(env, doc_md)[0]
+            template = env.get_template(doc_md)
+            
+        return template.render()
         
-        return env.loader.get_source(env, doc_md)[0]
+        
+        return template.render()
         #return pathlib.Path(doc_md).read_text() if pathlib.Path(str(doc_md or '')).is_file() else doc_md
 
 
