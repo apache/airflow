@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-08-01T13:57:32Z
+# This constraints file was automatically generated on 2022-08-04T07:29:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -12,6 +12,7 @@
 APScheduler==3.6.3
 Authlib==0.15.5
 Babel==2.10.3
+ConfigUpdater==3.1.1
 Deprecated==1.2.13
 Flask-AppBuilder==4.1.3
 Flask-Babel==2.0.0
@@ -22,7 +23,7 @@ Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
 Flask-WTF==0.15.1
-Flask==2.1.3
+Flask==2.2.1
 GitPython==3.1.27
 HeapDict==1.0.1
 JPype1==1.4.0
@@ -176,9 +177,9 @@ billiard==3.6.4.0
 black==22.6.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.42
+boto3==1.24.45
 boto==2.49.0
-botocore==1.27.42
+botocore==1.27.45
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -238,12 +239,12 @@ fastjsonschema==2.16.1
 filelock==3.7.1
 fissix==21.11.13
 flake8-colors==0.1.9
-flake8==5.0.2
+flake8==5.0.4
 flake8_implicit_str_concat==0.3.0
 flaky==3.7.0
 flower==1.1.0
 freezegun==1.2.1
-frozenlist==1.3.0
+frozenlist==1.3.1
 fsspec==2022.7.1
 future==0.18.2
 gcsfs==2022.7.1
@@ -300,8 +301,8 @@ graphviz==0.20.1
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
-grpcio-status==1.48.0
-grpcio==1.48.0
+grpcio-status==1.47.0
+grpcio==1.47.0
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
@@ -312,7 +313,7 @@ httplib2==0.20.4
 httpx==0.23.0
 humanize==4.2.3
 hvac==0.11.2
-identify==2.5.2
+identify==2.5.3
 idna==3.3
 ijson==3.1.4
 imagesize==1.4.1
@@ -336,7 +337,7 @@ jsonpatch==1.32
 jsonpath-ng==1.5.3
 jsonpickle==2.2.0
 jsonpointer==2.3
-jsonschema==4.9.0
+jsonschema==4.9.1
 junit-xml==1.9
 jupyter-client==7.3.4
 jupyter-core==4.11.1
@@ -392,7 +393,7 @@ oauthlib==3.2.0
 openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
-oracledb==1.0.2
+oracledb==1.0.3
 orjson==3.7.11
 oscrypto==1.3.0
 oss2==2.16.0
@@ -437,7 +438,7 @@ pyOpenSSL==22.0.0
 pyarrow==6.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.9.0
+pycodestyle==2.9.1
 pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.15.0
@@ -494,7 +495,7 @@ requests-toolbelt==0.9.1
 requests==2.28.0
 responses==0.21.0
 rfc3986==1.5.0
-rich-click==1.5.1
+rich-click==1.5.2
 rich==12.5.1
 rsa==4.9
 s3transfer==0.6.0
@@ -516,7 +517,7 @@ snakebite-py3==3.0.5
 sniffio==1.2.0
 snowballstemmer==2.2.0
 snowflake-connector-python==2.7.11
-snowflake-sqlalchemy==1.4.0
+snowflake-sqlalchemy==1.3.4
 sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
 sphinx-airflow-theme==0.0.10
@@ -579,13 +580,13 @@ types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
 types-pytz==2022.1.2
 types-redis==4.3.13
-types-requests==2.28.6
-types-setuptools==63.2.2
+types-requests==2.28.7
+types-setuptools==63.2.3
 types-six==1.16.18
 types-tabulate==0.8.11
 types-termcolor==1.1.5
 types-toml==0.10.8
-types-urllib3==1.26.19
+types-urllib3==1.26.21
 typing_extensions==4.3.0
 tzdata==2022.1
 tzlocal==4.2
@@ -607,7 +608,7 @@ wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.27.1
 yandexcloud==0.176.0
-yarl==1.7.2
+yarl==1.8.1
 zeep==4.1.0
 zenpy==2.0.24
 zict==2.2.0
