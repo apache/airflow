@@ -184,6 +184,7 @@ LOAD_DEFAULT_CONNECTIONS = False
 PRESERVE_VOLUMES = False
 CLEANUP_CONTEXT = False
 INIT_SCRIPT_FILE = ""
+BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
 SQLITE_URL = "sqlite:////root/airflow/airflow.db"
@@ -225,18 +226,12 @@ FILES_FOR_REBUILD_CHECK = [
     'setup.cfg',
     'Dockerfile.ci',
     '.dockerignore',
-    'scripts/docker/compile_www_assets.sh',
     'scripts/docker/common.sh',
     'scripts/docker/install_additional_dependencies.sh',
     'scripts/docker/install_airflow.sh',
     'scripts/docker/install_airflow_dependencies_from_branch_tip.sh',
     'scripts/docker/install_from_docker_context_files.sh',
     'scripts/docker/install_mysql.sh',
-    'airflow/www/package.json',
-    'airflow/www/yarn.lock',
-    'airflow/www/webpack.config.js',
-    'airflow/ui/package.json',
-    'airflow/ui/yarn.lock',
 ]
 
 ENABLED_SYSTEMS = ""
@@ -265,8 +260,6 @@ MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
-AIRFLOW_SOURCES_WWW_FROM = "./airflow/www"
-AIRFLOW_SOURCES_WWW_TO = "/opt/airflow/airflow/www"
 
 DEFAULT_EXTRAS = [
     # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT

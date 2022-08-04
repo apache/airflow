@@ -34,7 +34,7 @@ from tests.system.providers.amazon.aws.utils import set_env_id
 ENV_ID = set_env_id()
 DAG_ID = 'example_athena'
 
-S3_BUCKET = f'{ENV_ID.lower()}-athena-bucket'
+S3_BUCKET = f'{ENV_ID}-athena-bucket'
 ATHENA_TABLE = f'{ENV_ID}_test_table'
 ATHENA_DATABASE = f'{ENV_ID}_default'
 

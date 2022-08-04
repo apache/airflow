@@ -27,11 +27,11 @@ from typing import Dict, List, Optional, Tuple
 
 import click
 
-from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_backend,
     option_db_reset,
@@ -56,49 +56,13 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 
-TESTING_COMMANDS = {
-    "name": "Testing",
-    "commands": ["docker-compose-tests", "tests"],
-}
 
-TESTING_PARAMETERS = {
-    "breeze docker-compose-tests": [
-        {
-            "name": "Docker-compose tests flag",
-            "options": [
-                "--image-name",
-                "--image-tag",
-                "--python",
-            ],
-        }
-    ],
-    "breeze tests": [
-        {
-            "name": "Basic flag for tests command",
-            "options": [
-                "--integration",
-                "--test-type",
-                "--db-reset",
-                "--backend",
-                "--python",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-            ],
-        },
-        {
-            "name": "Advanced flag for tests command",
-            "options": [
-                "--limit-progress-output",
-                "--image-tag",
-                "--mount-sources",
-            ],
-        },
-    ],
-}
+@click.group(cls=BreezeGroup, name='testing', help='Tools that developers can use to run tests')
+def testing():
+    pass
 
 
-@main.command(
+@testing.command(
     name='docker-compose-tests',
     context_settings=dict(
         ignore_unknown_options=True,
@@ -197,9 +161,9 @@ def run_with_progress(
 ) -> RunCommandResult:
     title = f"Running tests: {test_type}, Python: {python}, Backend: {backend}:{version}"
     try:
-        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as tf:
             get_console().print(f"[info]Starting test = {title}[/]")
-            thread = MonitoringThread(title=title, file_name=f.name)
+            thread = MonitoringThread(title=title, file_name=tf.name)
             thread.start()
             try:
                 result = run_command(
@@ -208,21 +172,21 @@ def run_with_progress(
                     dry_run=dry_run,
                     env=env_variables,
                     check=False,
-                    stdout=f,
+                    stdout=tf,
                     stderr=subprocess.STDOUT,
                 )
             finally:
                 thread.stop()
                 thread.join()
         with ci_group(f"Result of {title}", message_type=message_type_from_return_code(result.returncode)):
-            with open(f.name) as f:
+            with open(tf.name) as f:
                 shutil.copyfileobj(f, sys.stdout)
     finally:
         os.unlink(f.name)
     return result
 
 
-@main.command(
+@testing.command(
     name='tests',
     help="Run the specified unit test targets. Multiple targets may be specified separated by spaces.",
     context_settings=dict(

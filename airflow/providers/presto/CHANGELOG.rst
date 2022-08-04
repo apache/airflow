@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Deprecated ``hql`` parameter has been removed in ``get_records``, ``get_first``, ``get_pandas_df`` and ``run``
+methods of the ``PrestoHook``.
+
+Remove ``PrestoToSlackOperator`` in favor of Slack provider ``SqlToSlackOperator``.
+
 3.1.0
 .....
 

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -42,6 +42,7 @@ class GlueCrawlerOperator(BaseOperator):
     :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
     """
 
+    template_fields: Sequence[str] = ('config',)
     ui_color = '#ededed'
 
     def __init__(

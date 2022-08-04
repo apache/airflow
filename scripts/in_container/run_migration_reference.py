@@ -102,6 +102,7 @@ def revision_suffix(rev: "Script"):
 
 def ensure_airflow_version(revisions: Iterable["Script"]):
     for rev in revisions:
+        assert rev.module.__file__ is not None  # For Mypy.
         file = Path(rev.module.__file__)
         content = file.read_text()
         if not has_version(content):

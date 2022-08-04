@@ -85,13 +85,13 @@ You can build the CI image using current sources this command:
 
 .. code-block:: bash
 
-  breeze build-image
+  breeze ci-image build
 
 You can build the PROD image using current sources with this command:
 
 .. code-block:: bash
 
-  breeze build-prod-image
+  breeze prod-image build
 
 By adding ``--python <PYTHON_MAJOR_MINOR_VERSION>`` parameter you can build the
 image version for the chosen Python version.
@@ -104,13 +104,13 @@ For example if you want to build Python 3.7 version of production image with
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --extras "all"
+  breeze prod-image build --python 3.7 --extras "all"
 
 If you just want to add new extras you can add them like that:
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras "all"
+  breeze prod-image build --python 3.7 --additional-extras "all"
 
 The command that builds the CI image is optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -128,7 +128,7 @@ parameter to Breeze:
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=trino --install-airflow-version=2.0.0
+  breeze prod-image build --python 3.7 --additional-extras=trino --install-airflow-version=2.0.0
 
 This will build the image using command similar to:
 
@@ -165,8 +165,7 @@ You can also skip installing airflow and install it from locally provided files 
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=trino \
-     --airflow-is-in-context-pypi --install-packages-from-context
+  breeze prod-image build --python 3.7 --additional-extras=trino --install-packages-from-context
 
 In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
 
@@ -193,21 +192,21 @@ or ``disabled`` flags when you run Breeze commands. For example:
 
 .. code-block:: bash
 
-  breeze build-image --python 3.7 --docker-cache local
+  breeze ci-image build --python 3.7 --docker-cache local
 
 Will build the CI image using local build cache (note that it will take quite a long time the first
 time you run it).
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --docker-cache registry
+  breeze prod-image build --python 3.7 --docker-cache registry
 
 Will build the production image with cache used from registry.
 
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --docker-cache disabled
+  breeze prod-image build --python 3.7 --docker-cache disabled
 
 Will build the production image from the scratch.
 
@@ -328,7 +327,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
+  breeze prod-image build --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
@@ -375,6 +374,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``DEPENDENCIES_EPOCH_NUMBER``            | ``2``                                    | increasing this number will reinstall    |
 |                                          |                                          | all apt dependencies                     |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the   |
+|                                          |                                          | installation commands (except when       |
+|                                          |                                          | reinstalling ``pip`` itself)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_NO_CACHE_DIR``                     | ``true``                                 | if true, then no pip cache will be       |
 |                                          |                                          | stored                                   |
@@ -474,7 +477,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.2.2``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+

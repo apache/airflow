@@ -25,7 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.operators.batch import BatchOperator
+from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -96,12 +96,15 @@ class TestBatchOperator(unittest.TestCase):
         assert self.batch.hook.aws_conn_id == "airflow_test"
         assert self.batch.hook.client == self.client_mock
         assert self.batch.tags == {}
+        assert self.batch.wait_for_completion is True
 
         self.get_client_type_mock.assert_called_once_with(region_name="eu-west-1")
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
             "job_name",
+            "job_queue",
+            "job_definition",
             "overrides",
             "parameters",
         )
@@ -163,7 +166,42 @@ class TestBatchOperator(unittest.TestCase):
         mock_waiters.wait_for_job.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)
 
+    @mock.patch.object(BatchClientHook, "check_job_success")
+    def test_do_not_wait_job_complete(self, check_mock):
+        self.batch.wait_for_completion = False
+
+        self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
+        self.batch.execute(self.mock_context)
+
+        check_mock.assert_not_called()
+
     def test_kill_job(self):
         self.client_mock.terminate_job.return_value = {}
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
+
+
+class TestBatchCreateComputeEnvironmentOperator(unittest.TestCase):
+    @mock.patch.object(BatchClientHook, 'client')
+    def test_execute(self, mock_conn):
+        environment_name = 'environment_name'
+        environment_type = 'environment_type'
+        environment_state = 'environment_state'
+        compute_resources = {}
+        tags = {}
+        operator = BatchCreateComputeEnvironmentOperator(
+            task_id='task',
+            compute_environment_name=environment_name,
+            environment_type=environment_type,
+            state=environment_state,
+            compute_resources=compute_resources,
+            tags=tags,
+        )
+        operator.execute(None)
+        mock_conn.create_compute_environment.assert_called_once_with(
+            computeEnvironmentName=environment_name,
+            type=environment_type,
+            state=environment_state,
+            computeResources=compute_resources,
+            tags=tags,
+        )

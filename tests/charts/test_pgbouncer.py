@@ -96,6 +96,24 @@ class PgbouncerTest(unittest.TestCase):
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {
+            "pgbouncer": {
+                "enabled": True,
+            }
+        }
+        if revision_history_limit:
+            values['pgbouncer']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={

@@ -24,6 +24,7 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
@@ -43,6 +44,9 @@ spec:
   serviceName: {{ .Release.Name }}-worker
 {{- end }}
   replicas: {{ .Values.workers.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
