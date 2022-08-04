@@ -187,7 +187,7 @@ def assert_pre_commit_installed(verbose: bool):
     else:
         get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
         get_console().print(command_result.stderr)
-        get_console().print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\nMake sure to run:\n      breeze setup self-upgrade\n\n")
         sys.exit(1)
 
 
@@ -215,7 +215,8 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
     get_console().print(
-        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
+        f"\n[info]Please run at the earliest "
+        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 
@@ -351,7 +352,7 @@ def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
         image=airflow_image,
         verbose=verbose,
         dry_run=dry_run,
-        instruction=f"breeze build-image --python {python_version}",
+        instruction=f"breeze ci-image build --python {python_version}",
     )
     return airflow_image
 

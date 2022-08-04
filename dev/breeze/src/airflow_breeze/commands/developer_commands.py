@@ -20,7 +20,7 @@ import shutil
 import sys
 from typing import Iterable, Optional, Tuple
 
-import rich_click as click
+import click
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
@@ -79,154 +79,6 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
-DEVELOPER_COMMANDS = {
-    "name": "Developer tools",
-    "commands": [
-        "shell",
-        "start-airflow",
-        "compile-www-assets",
-        "exec",
-        "stop",
-        "build-docs",
-        "static-checks",
-    ],
-}
-
-DEVELOPER_PARAMETERS = {
-    "breeze": [
-        {
-            "name": "Basic flags for the default (shell) command",
-            "options": [
-                "--python",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
-                "--db-reset",
-            ],
-        },
-        {
-            "name": "Advanced flags for the default (shell) command",
-            "options": [
-                "--use-airflow-version",
-                "--constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--debian-version",
-            ],
-        },
-    ],
-    "breeze shell": [
-        {
-            "name": "Basic flags",
-            "options": [
-                "--python",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
-                "--db-reset",
-            ],
-        },
-        {
-            "name": "Advanced flag for running",
-            "options": [
-                "--use-airflow-version",
-                "--constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--debian-version",
-            ],
-        },
-    ],
-    "breeze compile-www-assets": [
-        {
-            "name": "Compile www assets flag",
-            "options": [
-                "--dev",
-            ],
-        }
-    ],
-    "breeze start-airflow": [
-        {
-            "name": "Basic flags",
-            "options": [
-                "--python",
-                "--load-example-dags",
-                "--load-default-connections",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
-                "--db-reset",
-            ],
-        },
-        {
-            "name": "Advanced flag for running",
-            "options": [
-                "--use-airflow-version",
-                "--constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-            ],
-        },
-    ],
-    "breeze exec": [
-        {"name": "Drops in the interactive shell of active airflow container"},
-    ],
-    "breeze stop": [
-        {
-            "name": "Stop flags",
-            "options": [
-                "--preserve-volumes",
-            ],
-        },
-    ],
-    "breeze build-docs": [
-        {
-            "name": "Doc flags",
-            "options": [
-                "--docs-only",
-                "--spellcheck-only",
-                "--clean-build",
-                "--for-production",
-                "--package-filter",
-            ],
-        },
-    ],
-    "breeze static-checks": [
-        {
-            "name": "Pre-commit flags",
-            "options": [
-                "--type",
-                "--file",
-                "--all-files",
-                "--show-diff-on-failure",
-                "--last-commit",
-            ],
-        },
-    ],
-}
-
-
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Make sure that whatever you add here as an option is also
 # Added in the "main" command in breeze.py. The min command above
@@ -284,7 +136,7 @@ def shell(
     platform: Optional[str],
     extra_args: Tuple,
 ):
-    """Enter breeze.py environment. this is the default command use when no other is selected."""
+    """Enter breeze environment. this is the default command use when no other is selected."""
     if verbose or dry_run:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
         get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
@@ -366,7 +218,7 @@ def start_airflow(
     platform: Optional[str],
     extra_args: Tuple,
 ):
-    """Enter breeze.py environment and starts all Airflow components in the tmux session."""
+    """Enter breeze environment and starts all Airflow components in the tmux session."""
     if use_airflow_version is None:
         run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     enter_shell(
@@ -599,7 +451,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
 
-@main.command(name='exec', help='Joins the interactive shell of running airflow container')
+@main.command(name='exec', help='Joins the interactive shell of running airflow container.')
 @option_verbose
 @option_dry_run
 @click.argument('exec_args', nargs=-1, type=click.UNPROCESSED)

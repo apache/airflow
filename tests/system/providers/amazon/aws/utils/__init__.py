@@ -17,6 +17,7 @@
 
 import inspect
 import json
+import logging
 import os
 from os.path import basename, splitext
 from typing import List, Optional, Tuple
@@ -46,6 +47,8 @@ LOWERCASE_ENV_ID_MSG: str = (
     'will be converted to lowercase for the AWS System Tests.'
 )
 NO_VALUE_MSG: str = 'No Value Found: Variable {key} could not be found and no default value was provided.'
+
+log = logging.getLogger(__name__)
 
 
 def _get_test_name() -> str:
@@ -93,15 +96,12 @@ def _fetch_from_ssm(key: str, test_name: Optional[str] = None) -> str:
     try:
         value = json.loads(ssm_client.get_parameter(Name=_test_name)['Parameter']['Value'])[key]
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
-    except NoCredentialsError:
-        # No boto credentials found.
-        pass
-    except ssm_client.exceptions.ParameterNotFound:
-        # SSM does not contain any values for this test.
-        pass
-    except KeyError:
-        # SSM contains values for this test, but not the requested value.
-        pass
+    except NoCredentialsError as e:
+        log.info("No boto credentials found: %s", e)
+    except ssm_client.exceptions.ParameterNotFound as e:
+        log.info("SSM does not contain any parameter for this test: %s", e)
+    except KeyError as e:
+        log.info("SSM contains one parameter for this test, but not the requested value: %s", e)
     return value
 
 

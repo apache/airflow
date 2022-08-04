@@ -59,6 +59,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     and_,
     false,
@@ -428,7 +429,6 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -480,6 +480,9 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
+        PrimaryKeyConstraint(
+            "dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey', mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
@@ -2627,6 +2630,16 @@ class SimpleTaskInstance:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
+
+    def as_dict(self):
+        new_dict = dict(self.__dict__)
+        for key in new_dict:
+            if key in ['start_date', 'end_date']:
+                val = new_dict[key]
+                if not val or isinstance(val, str):
+                    continue
+                new_dict.update({key: val.isoformat()})
+        return new_dict
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":
