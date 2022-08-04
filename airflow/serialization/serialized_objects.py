@@ -1059,7 +1059,9 @@ class SerializedDAG(DAG, BaseSerialization):
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
             dag_deps = {
-                dep for task in dag.task_dict.values() for dep in SerializedBaseOperator.detect_dependencies(task)
+                dep
+                for task in dag.task_dict.values()
+                for dep in SerializedBaseOperator.detect_dependencies(task)
             }
             dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
