@@ -173,6 +173,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+{{- if .Values.dagProcessor.env }}
+{{ tpl (toYaml .Values.dagProcessor.env) $ | indent 12 }}
+{{- end }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.dagProcessor.livenessProbe.timeoutSeconds }}
