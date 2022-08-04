@@ -1499,10 +1499,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def is_smart_sensor_compatible(self):
-        """Return if this operator can use smart service. Default False."""
-        return False
-
     is_mapped: ClassVar[bool] = False
 
     @property
