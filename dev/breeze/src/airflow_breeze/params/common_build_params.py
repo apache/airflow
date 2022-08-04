@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
@@ -43,6 +43,9 @@ class CommonBuildParams:
     additional_runtime_apt_env: str = ""
     additional_pip_install_flags: str = ""
     airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
+    default_constraints_branch: str = os.environ.get(
+        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    )
     airflow_constraints_location: str = ""
     answer: Optional[str] = None
     build_id: int = 0

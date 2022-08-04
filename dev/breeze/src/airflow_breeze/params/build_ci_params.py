@@ -14,12 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
@@ -32,9 +30,6 @@ class BuildCiParams(CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints-source-providers"
-    default_constraints_branch: str = os.environ.get(
-        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
     airflow_constraints_reference: str = ""
     airflow_extras: str = "devel_ci"
     airflow_pre_cached_pip_packages: bool = True

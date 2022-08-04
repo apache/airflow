@@ -49,8 +49,10 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    airflow_branch: str = AIRFLOW_BRANCH
-    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
+    default_constraints_branch: str = os.environ.get(
+        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    )
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = ""
     answer: Optional[str] = None
