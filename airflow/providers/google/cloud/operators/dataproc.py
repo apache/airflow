@@ -869,7 +869,7 @@ class DataprocJobBaseOperator(BaseOperator):
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
     :param deferrable: Run operator in the deferrable mode
-    :param polling_interval_seconds time in seconds between polling for job completion.
+    :param polling_interval_seconds: time in seconds between polling for job completion.
         The value is considered only when running in deferrable mode. Must be greater than 0.
 
     :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
