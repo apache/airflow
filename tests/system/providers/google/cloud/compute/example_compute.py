@@ -27,10 +27,15 @@ from datetime import datetime
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.compute import (
+    ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineSetMachineTypeOperator,
+    ComputeEngineInsertInstanceOperator,
+    ComputeEngineInsertInstanceFromTemplateOperator,
     ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
+    ComputeEngineDeleteInstanceOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -38,15 +43,68 @@ from airflow.utils.trigger_rule import TriggerRule
 # [START howto_operator_gce_args_common]
 ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
 PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
-
-# todo: add operator create instance and template
-GCE_INSTANCE = 'instance-1'
-SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
-
 DAG_ID = 'cloud_compute'
-LOCATION = 'europe-west1-b'
-# [END howto_operator_gce_args_common]
 
+LOCATION = 'europe-west1-b'
+REGION = 'europe-west1'
+GCE_INSTANCE_NAME = 'instance-1'
+SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
+TEMPLATE_NAME = 'instance-template'
+
+INSTANCE_TEMPLATE_BODY = {
+    "name": TEMPLATE_NAME,
+    "properties": {
+        "machine_type": SHORT_MACHINE_TYPE_NAME,
+        "disks": [
+            {
+                "auto_delete": True,
+                "boot": True,
+                "device_name": TEMPLATE_NAME,
+                "initialize_params": {
+                    "disk_size_gb": "10",
+                    "disk_type": "pd-balanced",
+                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
+                }
+            }
+        ],
+        "network_interfaces": [
+            {
+                "network": "global/networks/default"
+            }
+        ]
+    }
+}
+GCE_INSTANCE_BODY = {
+    "name": GCE_INSTANCE_NAME,
+    "machine_type": f'zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}',
+    "disks": [
+        {
+            "boot": True,
+            "device_name": GCE_INSTANCE_NAME,
+            "initialize_params": {
+                "disk_size_gb": "10",
+                "disk_type": f'zones/{LOCATION}/diskTypes/pd-balanced',
+                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
+            }
+        }
+    ],
+    "network_interfaces": [
+        {
+            "access_configs": [
+                {
+                    "name": "External NAT",
+                    "network_tier": "PREMIUM"
+                }
+            ],
+            "stack_type": "IPV4_ONLY",
+            "subnetwork": f'regions/{REGION}/subnetworks/default'
+        }
+    ],
+}
+GCE_INSTANCE_FROM_TEMPLATE_BODY = {
+    "name": GCE_INSTANCE_NAME,
+}
+# [END howto_operator_gce_args_common]
 
 with models.DAG(
     DAG_ID,
@@ -55,12 +113,66 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_operator_gce_start]
-    gce_instance_start = ComputeEngineStartInstanceOperator(
+    # [START howto_operator_gce_insert]
+    gce_instance_insert = ComputeEngineInsertInstanceOperator(
+        task_id='gcp_compute_create_instance_task',
         project_id=PROJECT_ID,
         zone=LOCATION,
-        resource_id=GCE_INSTANCE,
-        task_id='gcp_compute_start_task'
+        body=GCE_INSTANCE_BODY,
+    )
+    # [END howto_operator_gce_insert]
+
+    # Duplicate start for idempotence testing
+    # [START howto_operator_gce_insert_no_project_id]
+    gce_instance_insert2 = ComputeEngineInsertInstanceOperator(
+        task_id='gcp_compute_create_instance_task_2',
+        zone=LOCATION,
+        body=GCE_INSTANCE_BODY,
+    )
+    # [END howto_operator_gce_insert_no_project_id]
+
+    # [START howto_operator_gce_igm_insert_template]
+    gce_instance_template_insert = ComputeEngineInsertInstanceTemplateOperator(
+        task_id='gcp_compute_create_template_task',
+        project_id=PROJECT_ID,
+        body=INSTANCE_TEMPLATE_BODY,
+    )
+    # [END howto_operator_gce_igm_insert_template]
+
+    # Added to check for idempotence
+    # [START howto_operator_gce_igm_insert_template_no_project_id]
+    gce_instance_template_insert2 = ComputeEngineInsertInstanceTemplateOperator(
+        task_id='gcp_compute_create_template_task_2',
+        body=INSTANCE_TEMPLATE_BODY,
+    )
+    # [END howto_operator_gce_igm_insert_template_no_project_id]
+
+    # [START howto_operator_gce_insert_from_template]
+    gce_instance_insert_from_template = ComputeEngineInsertInstanceFromTemplateOperator(
+        task_id='gcp_compute_create_instance_from_template_task',
+        project_id=PROJECT_ID,
+        zone=LOCATION,
+        body=GCE_INSTANCE_FROM_TEMPLATE_BODY,
+        source_instance_template=f'global/instanceTemplates/{TEMPLATE_NAME}',
+    )
+    # [END howto_operator_gce_insert_from_template]
+
+    # Duplicate start for idempotence testing
+    # [START howto_operator_gce_insert_from_template_no_project_id]
+    gce_instance_insert_from_template2 = ComputeEngineInsertInstanceFromTemplateOperator(
+        task_id='gcp_compute_create_instance_from_template_task_2',
+        zone=LOCATION,
+        body=GCE_INSTANCE_FROM_TEMPLATE_BODY,
+        source_instance_template=f'global/instanceTemplates/{TEMPLATE_NAME}',
+    )
+    # [END howto_operator_gce_insert_from_template_no_project_id]
+
+    # [START howto_operator_gce_start]
+    gce_instance_start = ComputeEngineStartInstanceOperator(
+        task_id='gcp_compute_start_task',
+        project_id=PROJECT_ID,
+        zone=LOCATION,
+        resource_id=GCE_INSTANCE_NAME,
     )
     # [END howto_operator_gce_start]
 
@@ -69,7 +181,7 @@ with models.DAG(
     gce_instance_start2 = ComputeEngineStartInstanceOperator(
         task_id='gcp_compute_start_task2',
         zone=LOCATION,
-        resource_id=GCE_INSTANCE,
+        resource_id=GCE_INSTANCE_NAME,
     )
     # [END howto_operator_gce_start_no_project_id]
 
@@ -78,7 +190,7 @@ with models.DAG(
         task_id='gcp_compute_stop_task',
         project_id=PROJECT_ID,
         zone=LOCATION,
-        resource_id=GCE_INSTANCE,
+        resource_id=GCE_INSTANCE_NAME,
     )
     # [END howto_operator_gce_stop]
     gce_instance_stop.trigger_rule = TriggerRule.ALL_DONE
@@ -88,7 +200,7 @@ with models.DAG(
     gce_instance_stop2 = ComputeEngineStopInstanceOperator(
         task_id='gcp_compute_stop_task2',
         zone=LOCATION,
-        resource_id=GCE_INSTANCE,
+        resource_id=GCE_INSTANCE_NAME,
     )
     # [END howto_operator_gce_stop_no_project_id]
     gce_instance_stop2.trigger_rule = TriggerRule.ALL_DONE
@@ -98,7 +210,7 @@ with models.DAG(
         task_id='gcp_compute_set_machine_type',
         project_id=PROJECT_ID,
         zone=LOCATION,
-        resource_id=GCE_INSTANCE,
+        resource_id=GCE_INSTANCE_NAME,
         body={'machineType': f'zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}'},
     )
     # [END howto_operator_gce_set_machine_type]
@@ -107,19 +219,63 @@ with models.DAG(
     # [START howto_operator_gce_set_machine_type_no_project_id]
     gce_set_machine_type2 = ComputeEngineSetMachineTypeOperator(
         zone=LOCATION,
-        resource_id=GCE_INSTANCE,
+        resource_id=GCE_INSTANCE_NAME,
         body={'machineType': f'zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}'},
         task_id='gcp_compute_set_machine_type2',
     )
     # [END howto_operator_gce_set_machine_type_no_project_id]
 
+    # [START howto_operator_gce_delete_no_project_id]
+    gce_instance_delete = ComputeEngineDeleteInstanceOperator(
+        task_id='gcp_compute_delete_instance_task',
+        zone=LOCATION,
+        resource_id=GCE_INSTANCE_NAME,
+    )
+    # [END howto_operator_gce_delete_no_project_id]
+    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
+
+    # [START howto_operator_gce_delete_no_project_id]
+    gce_instance_delete2 = ComputeEngineDeleteInstanceOperator(
+        task_id='gcp_compute_delete_instance_task_2',
+        zone=LOCATION,
+        resource_id=GCE_INSTANCE_NAME,
+    )
+    # [END howto_operator_gce_delete_no_project_id]
+    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
+
+    bash_wait_operator = BashOperator(
+        task_id="delay_bash_task",
+        bash_command="sleep 3m"
+    )
+
+    bash_wait_operator2 = BashOperator(
+        task_id="delay_bash_task2",
+        bash_command="sleep 3m"
+    )
+
+    bash_wait_operator3 = BashOperator(
+        task_id="delay_bash_task3",
+        bash_command="sleep 3m"
+    )
+
     chain(
+        gce_instance_insert,
+        gce_instance_insert2,
+        bash_wait_operator,
+        gce_instance_delete,
+        gce_instance_template_insert,
+        gce_instance_template_insert2,
+        bash_wait_operator2,
+        gce_instance_insert_from_template,
+        gce_instance_insert_from_template2,
         gce_instance_start,
         gce_instance_start2,
         gce_instance_stop,
         gce_instance_stop2,
         gce_set_machine_type,
         gce_set_machine_type2,
+        gce_instance_delete2,
+        bash_wait_operator3,
     )
 
     # ### Everything below this line is not part of example ###

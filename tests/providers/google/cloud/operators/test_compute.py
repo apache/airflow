@@ -26,6 +26,7 @@ import pytest
 from googleapiclient.errors import HttpError
 from google.api_core.retry import Retry
 from google.api_core.exceptions import NotFound
+from google.cloud.compute_v1.types import InstanceTemplate, Instance, InstanceGroupManager
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.compute import (
@@ -127,10 +128,11 @@ GCE_INSTANCE_BODY_WITHOUT_NAME_API_CALL = {
 class TestGceInstanceInsert:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_execute_successfully(self, mock_hook):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
         mock_hook.return_value.get_instance.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_BODY_API_CALL,
-            GCE_INSTANCE_BODY_API_CALL,
+            get_instance_obj_mock,
         ]
         op = ComputeEngineInsertInstanceOperator(
             project_id=GCP_PROJECT_ID,
@@ -144,7 +146,7 @@ class TestGceInstanceInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(context=mock.MagicMock())
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -156,7 +158,6 @@ class TestGceInstanceInsert:
             zone=GCE_ZONE,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_throw_ex_when_missing_project_id(self, mock_hook):
@@ -174,10 +175,11 @@ class TestGceInstanceInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_not_throw_ex_when_project_id_none(self, mock_hook):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
         mock_hook.return_value.get_instance.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_BODY_API_CALL,
-            GCE_INSTANCE_BODY_API_CALL,
+            get_instance_obj_mock,
         ]
         op = ComputeEngineInsertInstanceOperator(
             resource_id=GCE_RESOURCE_ID,
@@ -202,7 +204,6 @@ class TestGceInstanceInsert:
             request_id=None,
             project_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_throw_ex_when_missing_zone(self, mock_hook):
@@ -237,10 +238,11 @@ class TestGceInstanceInsert:
 class TestGceInstanceInsertFromTemplate:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_execute_successfully(self, mock_hook):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
         mock_hook.return_value.get_instance.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_BODY_API_CALL,
-            GCE_INSTANCE_BODY_API_CALL,
+            get_instance_obj_mock,
         ]
         op = ComputeEngineInsertInstanceFromTemplateOperator(
             project_id=GCP_PROJECT_ID,
@@ -267,7 +269,6 @@ class TestGceInstanceInsertFromTemplate:
             source_instance_template=SOURCE_INSTANCE_TEMPLATE,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_throw_ex_when_missing_project_id(self, mock_hook):
@@ -286,10 +287,11 @@ class TestGceInstanceInsertFromTemplate:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_not_throw_ex_when_project_id_none(self, mock_hook):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
         mock_hook.return_value.get_instance.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_BODY_API_CALL,
-            GCE_INSTANCE_BODY_API_CALL,
+            get_instance_obj_mock,
         ]
         op = ComputeEngineInsertInstanceFromTemplateOperator(
             source_instance_template=SOURCE_INSTANCE_TEMPLATE,
@@ -315,7 +317,6 @@ class TestGceInstanceInsertFromTemplate:
             source_instance_template=SOURCE_INSTANCE_TEMPLATE,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_throw_ex_when_missing_zone(self, mock_hook):
@@ -812,11 +813,12 @@ GCE_INSTANCE_TEMPLATE_BODY_API_CALL = {
 
 class TestGceTemplateInsert:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_insert_should_execute_successfully(self, mock_hook):
+    def test_insert_template_should_execute_successfully(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
-            GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
+            get_template_obj_mock,
         ]
         op = ComputeEngineInsertInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
@@ -839,10 +841,9 @@ class TestGceTemplateInsert:
             body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_insert_should_throw_ex_when_missing_project_id(self, mock_hook):
+    def test_insert_template_should_throw_ex_when_missing_project_id(self, mock_hook):
         with pytest.raises(AirflowException) as ctx:
             op = ComputeEngineInsertInstanceTemplateOperator(
                 project_id="",
@@ -859,11 +860,12 @@ class TestGceTemplateInsert:
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_insert_should_not_throw_ex_when_project_id_none(self, mock_hook):
+    def test_insert_template_should_not_throw_ex_when_project_id_none(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
         mock_hook.return_value.get_instance_template.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
-            GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
+            get_template_obj_mock,
         ]
         op = ComputeEngineInsertInstanceTemplateOperator(
             body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
@@ -885,10 +887,9 @@ class TestGceTemplateInsert:
             body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_insert_should_throw_ex_when_missing_body(self, mock_hook):
+    def test_insert_template_should_throw_ex_when_missing_body(self, mock_hook):
         with pytest.raises(AirflowException) as ctx:
             op = ComputeEngineInsertInstanceTemplateOperator(
                 task_id=TASK_ID,
@@ -907,7 +908,7 @@ class TestGceTemplateInsert:
 
 class TestGceTemplateDelete:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_delete_should_execute_successfully(self, mock_hook):
+    def test_delete_template_should_execute_successfully(self, mock_hook):
         op = ComputeEngineDeleteInstanceTemplateOperator(
             resource_id=GCE_RESOURCE_ID,
             project_id=GCP_PROJECT_ID,
@@ -931,7 +932,7 @@ class TestGceTemplateDelete:
         )
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_delete_should_throw_ex_when_missing_project_id(self, mock_hook):
+    def test_delete_template_should_throw_ex_when_missing_project_id(self, mock_hook):
         with pytest.raises(AirflowException) as ctx:
             op = ComputeEngineDeleteInstanceTemplateOperator(
                 project_id="",
@@ -949,7 +950,7 @@ class TestGceTemplateDelete:
         mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_template_delete_should_not_throw_ex_when_project_id_none(self, mock_hook):
+    def test_delete_template_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = ComputeEngineDeleteInstanceTemplateOperator(
             resource_id=GCE_RESOURCE_ID,
             task_id=TASK_ID,
@@ -1483,10 +1484,11 @@ GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL = {
 class TestGceInstanceGroupManagerInsert:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_execute_successfully(self, mock_hook):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
         mock_hook.return_value.get_instance_group_manager.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
-            GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
+            get_instance_group_manager_obj_mock,
         ]
         op = ComputeEngineInsertInstanceGroupManagerOperator(
             project_id=GCP_PROJECT_ID,
@@ -1511,7 +1513,6 @@ class TestGceInstanceGroupManagerInsert:
             body=GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_throw_ex_when_missing_project_id(self, mock_hook):
@@ -1533,10 +1534,11 @@ class TestGceInstanceGroupManagerInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_not_throw_ex_when_project_id_none(self, mock_hook):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
         mock_hook.return_value.get_instance_group_manager.side_effect = [
             NotFound("Error message"),
-            GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
-            GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
+            get_instance_group_manager_obj_mock,
         ]
         op = ComputeEngineInsertInstanceGroupManagerOperator(
             body=GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
@@ -1560,7 +1562,6 @@ class TestGceInstanceGroupManagerInsert:
             body=GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
             request_id=None,
         )
-        assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_throw_ex_when_missing_body(self, mock_hook):
@@ -1653,7 +1654,7 @@ class TestGceInstanceGroupManagerDelete:
         )
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_igm_delete_should_throw_ex_when_missing_resource_id(self, mock_hook):
+    def test_delete_igm_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with pytest.raises(AirflowException) as ctx:
             op = ComputeEngineDeleteInstanceGroupManagerOperator(
                 resource_id="",

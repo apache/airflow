@@ -28,33 +28,69 @@ from datetime import datetime
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.compute import (
+    ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineCopyInstanceTemplateOperator,
+    ComputeEngineDeleteInstanceTemplateOperator,
+    ComputeEngineInsertInstanceGroupManagerOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
+    ComputeEngineDeleteInstanceGroupManagerOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
 PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
 
 LOCATION = 'europe-west1-b'
+REGION = 'europe-west1'
+SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
 DAG_ID = 'cloud_compute_igm'
 
 # [START howto_operator_compute_template_copy_args]
-# todo: add operator create template
-TEMPLATE_NAME = 'instance-template-compute-igm-test'
+TEMPLATE_NAME = 'instance-template-igm-test'
 NEW_TEMPLATE_NAME = 'instance-template-test-new'
+
+INSTANCE_TEMPLATE_BODY = {
+    "name": TEMPLATE_NAME,
+    "properties": {
+        "machine_type": SHORT_MACHINE_TYPE_NAME,
+        "disks": [
+            {
+                "auto_delete": True,
+                "boot": True,
+                "device_name": TEMPLATE_NAME,
+                "initialize_params": {
+                    "disk_size_gb": "10",
+                    "disk_type": "pd-balanced",
+                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
+                }
+            }
+        ],
+        "network_interfaces": [
+            {
+                "network": "global/networks/default"
+            }
+        ]
+    }
+}
 
 NEW_DESCRIPTION = 'Test new description'
 INSTANCE_TEMPLATE_BODY_UPDATE = {
     "name": NEW_TEMPLATE_NAME,
     "description": NEW_DESCRIPTION,
-    "properties": {"machineType": "n1-standard-2"},
+    "properties": {"machine_type": "n1-standard-2"},
 }
 # [END howto_operator_compute_template_copy_args]
 
 # [START howto_operator_compute_igm_update_template_args]
-# todo: requires operator to create instance group manager
 INSTANCE_GROUP_MANAGER_NAME = 'instance-group-test'
+INSTANCE_GROUP_MANAGER_BODY = {
+    "name": INSTANCE_GROUP_MANAGER_NAME,
+    "base_instance_name": INSTANCE_GROUP_MANAGER_NAME,
+    "instance_template": f'global/instanceTemplates/{NEW_TEMPLATE_NAME}',
+    "target_size": 1,
+}
 
 SOURCE_TEMPLATE_URL = os.environ.get(
     'SOURCE_TEMPLATE_URL',
@@ -88,6 +124,22 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+    # [START howto_operator_gce_igm_insert_template]
+    gce_instance_template_insert = ComputeEngineInsertInstanceTemplateOperator(
+        task_id='gcp_compute_create_template_task',
+        project_id=PROJECT_ID,
+        body=INSTANCE_TEMPLATE_BODY,
+    )
+    # [END howto_operator_gce_igm_insert_template]
+
+    # Added to check for idempotence
+    # [START howto_operator_gce_igm_insert_template_no_project_id]
+    gce_instance_template_insert2 = ComputeEngineInsertInstanceTemplateOperator(
+        task_id='gcp_compute_create_template_task_2',
+        body=INSTANCE_TEMPLATE_BODY,
+    )
+    # [END howto_operator_gce_igm_insert_template_no_project_id]
+
     # [START howto_operator_gce_igm_copy_template]
     gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
         task_id='gcp_compute_igm_copy_template_task',
@@ -105,6 +157,29 @@ with models.DAG(
         body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
     )
     # [END howto_operator_gce_igm_copy_template_no_project_id]
+
+    # [START howto_operator_gce_insert_igm]
+    gce_igm_insert = ComputeEngineInsertInstanceGroupManagerOperator(
+        task_id='gcp_compute_create_group_task',
+        zone=LOCATION,
+        body=INSTANCE_GROUP_MANAGER_BODY,
+        project_id=PROJECT_ID,
+    )
+    # [END howto_operator_gce_insert_igm]
+
+    # Added to check for idempotence
+    # [START howto_operator_gce_insert_igm_no_project_id]
+    gce_igm_insert2 = ComputeEngineInsertInstanceGroupManagerOperator(
+        task_id='gcp_compute_create_group_task_2',
+        zone=LOCATION,
+        body=INSTANCE_GROUP_MANAGER_BODY,
+    )
+    # [END howto_operator_gce_insert_igm_no_project_id]
+
+    bash_wait_operator = BashOperator(
+        task_id="delay_bash_task",
+        bash_command="sleep 3m"
+    )
 
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
@@ -129,11 +204,50 @@ with models.DAG(
     )
     # [END howto_operator_gce_igm_update_template_no_project_id]
 
+    # [START howto_operator_gce_delete_old_template_no_project_id]
+    gce_instance_template_old_delete = ComputeEngineDeleteInstanceTemplateOperator(
+        task_id='gcp_compute_delete_old_template_task',
+        resource_id=TEMPLATE_NAME,
+    )
+    # [END howto_operator_gce_delete_old_template_no_project_id]
+    gce_instance_template_old_delete.trigger_rule = TriggerRule.ALL_DONE
+
+    # [START howto_operator_gce_delete_new_template_no_project_id]
+    gce_instance_template_new_delete = ComputeEngineDeleteInstanceTemplateOperator(
+        task_id='gcp_compute_delete_new_template_task',
+        resource_id=NEW_TEMPLATE_NAME,
+    )
+    # [END howto_operator_gce_delete_new_template_no_project_id]
+    gce_instance_template_new_delete.trigger_rule = TriggerRule.ALL_DONE
+
+    # [START howto_operator_gce_delete_igm_no_project_id]
+    gce_igm_delete = ComputeEngineDeleteInstanceGroupManagerOperator(
+        task_id='gcp_compute_delete_group_task',
+        resource_id=INSTANCE_GROUP_MANAGER_NAME,
+        zone=LOCATION,
+    )
+    # [END howto_operator_gce_delete_igm_no_project_id]
+    gce_igm_delete.trigger_rule = TriggerRule.ALL_DONE
+
+    bash_wait_operator2 = BashOperator(
+        task_id="delay_bash_task_2",
+        bash_command="sleep 3m"
+    )
+
     chain(
+        gce_instance_template_insert,
+        gce_instance_template_insert2,
         gce_instance_template_copy,
         gce_instance_template_copy2,
+        gce_igm_insert,
+        gce_igm_insert2,
+        bash_wait_operator,
         gce_instance_group_manager_update_template,
         gce_instance_group_manager_update_template2,
+        gce_instance_template_old_delete,
+        gce_instance_template_new_delete,
+        gce_igm_delete,
+        bash_wait_operator2,
     )
 
     # ### Everything below this line is not part of example ###

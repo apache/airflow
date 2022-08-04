@@ -25,17 +25,51 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.providers.google.cloud.operators.compute import (
+    ComputeEngineInsertInstanceOperator,
+    ComputeEngineDeleteInstanceOperator,
+)
+from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_operator_gce_args_common]
 ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
 PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
 
-GCE_INSTANCE = 'compute-ssh-test'
-
 DAG_ID = 'cloud_compute_ssh'
-LOCATION = 'europe-west2-a'
+LOCATION = 'europe-west1-b'
+REGION = 'europe-west1'
+GCE_INSTANCE_NAME = 'instance-1'
+SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
+GCE_INSTANCE_BODY = {
+    "name": GCE_INSTANCE_NAME,
+    "machine_type": f'zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}',
+    "disks": [
+        {
+            "boot": True,
+            "device_name": GCE_INSTANCE_NAME,
+            "initialize_params": {
+                "disk_size_gb": "10",
+                "disk_type": f'zones/{LOCATION}/diskTypes/pd-balanced',
+                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
+            }
+        }
+    ],
+    "network_interfaces": [
+        {
+            "access_configs": [
+                {
+                    "name": "External NAT",
+                    "network_tier": "PREMIUM"
+                }
+            ],
+            "stack_type": "IPV4_ONLY",
+            "subnetwork": f'regions/{REGION}/subnetworks/default'
+        }
+    ],
+}
 # [END howto_operator_gce_args_common]
 
 with models.DAG(
@@ -45,62 +79,43 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_execute_command_on_remote1]
-    # todo: witch credentials can i use
-    # todo: error SSH operator error: Authentication failed. in airflow/providers/ssh/operators/ssh.py
-    os_login_without_iap_tunnel = SSHOperator(
-        task_id="os_login_without_iap_tunnel",
+    # [START howto_operator_gce_insert]
+    gce_instance_insert = ComputeEngineInsertInstanceOperator(
+        task_id='gcp_compute_create_instance_task',
+        project_id=PROJECT_ID,
+        zone=LOCATION,
+        body=GCE_INSTANCE_BODY,
+    )
+    # [END howto_operator_gce_insert]
+
+    # [START howto_execute_command_on_remote]
+    metadata_without_iap_tunnel = SSHOperator(
+        task_id="metadata_without_iap_tunnel",
         ssh_hook=ComputeEngineSSHHook(
-            instance_name=GCE_INSTANCE,
+            user="username",
+            instance_name=GCE_INSTANCE_NAME,
             zone=LOCATION,
-            project_id=PROJECT_ID,
-            use_oslogin=True,
+            use_oslogin=False,
             use_iap_tunnel=False,
         ),
-        command="echo os_login_without_iap_tunnel",
+        command="echo metadata_without_iap_tunnel",
     )
-    # [END howto_execute_command_on_remote1]
+    # [END howto_execute_command_on_remote]
 
-    # # [START howto_execute_command_on_remote2]
-    # metadata_without_iap_tunnel = SSHOperator(
-    #     task_id="metadata_without_iap_tunnel",
-    #     ssh_hook=ComputeEngineSSHHook(
-    #         instance_name=GCE_INSTANCE,
-    #         zone=LOCATION,
-    #         use_oslogin=False,
-    #         use_iap_tunnel=False,
-    #     ),
-    #     command="echo metadata_without_iap_tunnel",
-    # )
-    # # [END howto_execute_command_on_remote2]
-    #
-    # os_login_with_iap_tunnel = SSHOperator(
-    #     task_id="os_login_with_iap_tunnel",
-    #     ssh_hook=ComputeEngineSSHHook(
-    #         instance_name=GCE_INSTANCE,
-    #         zone=LOCATION,
-    #         use_oslogin=True,
-    #         use_iap_tunnel=True,
-    #     ),
-    #     command="echo os_login_with_iap_tunnel",
-    # )
-    #
-    # metadata_with_iap_tunnel = SSHOperator(
-    #     task_id="metadata_with_iap_tunnel",
-    #     ssh_hook=ComputeEngineSSHHook(
-    #         instance_name=GCE_INSTANCE,
-    #         zone=LOCATION,
-    #         use_oslogin=False,
-    #         use_iap_tunnel=True,
-    #     ),
-    #     command="echo metadata_with_iap_tunnel",
-    # )
+    # [START howto_operator_gce_delete_no_project_id]
+    gce_instance_delete = ComputeEngineDeleteInstanceOperator(
+        task_id='gcp_compute_delete_instance_task',
+        zone=LOCATION,
+        resource_id=GCE_INSTANCE_NAME,
+    )
+    # [END howto_operator_gce_delete_no_project_id]
+    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    os_login_without_iap_tunnel
-    # os_login_with_iap_tunnel >> os_login_without_iap_tunnel
-    # metadata_with_iap_tunnel >> metadata_without_iap_tunnel
-
-    # os_login_without_iap_tunnel >> metadata_with_iap_tunnel
+    chain(
+        gce_instance_insert,
+        metadata_without_iap_tunnel,
+        gce_instance_delete,
+    )
 
     # ### Everything below this line is not part of example ###
     # ### Just for system tests purpose ###
