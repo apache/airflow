@@ -314,7 +314,7 @@ class DAG(LoggingMixin):
     :param tags: List of tags to help filtering DAGs in the UI.
     :param schedule_on: List of upstream datasets if for use in triggering DAG runs.
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
-        Can be used as an HTTP link (for example the link to your Slack channel), or an email link.
+        Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     """
 
