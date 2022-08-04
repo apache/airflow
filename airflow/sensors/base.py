@@ -20,7 +20,6 @@ import datetime
 import functools
 import hashlib
 import time
-import warnings
 from datetime import timedelta
 from typing import Any, Callable, Iterable, Optional, Union
 
@@ -33,7 +32,6 @@ from airflow.exceptions import (
     AirflowSkipException,
 )
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.sensorinstance import SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -44,7 +42,6 @@ from airflow.utils.context import Context
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
-from airflow.utils.docs import get_docs_url
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
@@ -104,22 +101,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     ui_color = '#e6f1f2'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
-    # As the poke context in smart sensor defines the poking job signature only,
-    # The execution_fields defines other execution details
-    # for this tasks such as the customer defined timeout, the email and the alert
-    # setup. Smart sensor serialize these attributes into a different DB column so
-    # that smart sensor service is able to handle corresponding execution details
-    # without breaking the sensor poking logic with dedup.
-    execution_fields = (
-        'poke_interval',
-        'retries',
-        'execution_timeout',
-        'timeout',
-        'email',
-        'email_on_retry',
-        'email_on_failure',
-    )
-
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
     deps = BaseOperator.deps | {ReadyToRescheduleDep()}
@@ -141,10 +122,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self._validate_input_values()
-        self.sensor_service_enabled = conf.getboolean('smart_sensor', 'use_smart_sensor')
-        self.sensors_support_sensor_service = set(
-            map(lambda l: l.strip(), conf.get_mandatory_value('smart_sensor', 'sensors_enabled').split(','))
-        )
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
@@ -174,72 +151,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         override.
         """
         raise AirflowException('Override me.')
-
-    def is_smart_sensor_compatible(self):
-        check_list = [
-            not self.sensor_service_enabled,
-            self.on_success_callback,
-            self.on_retry_callback,
-            self.on_failure_callback,
-        ]
-        if any(check_list):
-            return False
-
-        operator = self.__class__.__name__
-        return operator in self.sensors_support_sensor_service
-
-    def register_in_sensor_service(self, ti, context):
-        """
-        Register ti in smart sensor service
-
-        :param ti: Task instance object.
-        :param context: TaskInstance template context from the ti.
-        :return: boolean
-        """
-        docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
-        warnings.warn(
-            'Your sensor is using Smart Sensors, which are deprecated.'
-            f' Please use Deferrable Operators instead. See {docs_url} for more info.',
-            DeprecationWarning,
-        )
-        poke_context = self.get_poke_context(context)
-        execution_context = self.get_execution_context(context)
-
-        return SensorInstance.register(ti, poke_context, execution_context)
-
-    def get_poke_context(self, context):
-        """
-        Return a dictionary with all attributes in poke_context_fields. The
-        poke_context with operator class can be used to identify a unique
-        sensor job.
-
-        :param context: TaskInstance template context.
-        :return: A dictionary with key in poke_context_fields.
-        """
-        if not context:
-            self.log.info("Function get_poke_context doesn't have a context input.")
-
-        poke_context_fields = getattr(self.__class__, "poke_context_fields", None)
-        result = {key: getattr(self, key, None) for key in poke_context_fields}
-        return result
-
-    def get_execution_context(self, context):
-        """
-        Return a dictionary with all attributes in execution_fields. The
-        execution_context include execution requirement for each sensor task
-        such as timeout setup, email_alert setup.
-
-        :param context: TaskInstance template context.
-        :return: A dictionary with key in execution_fields.
-        """
-        if not context:
-            self.log.info("Function get_execution_context doesn't have a context input.")
-        execution_fields = self.__class__.execution_fields
-
-        result = {key: getattr(self, key, None) for key in execution_fields}
-        if result['execution_timeout'] and isinstance(result['execution_timeout'], datetime.timedelta):
-            result['execution_timeout'] = result['execution_timeout'].total_seconds()
-        return result
 
     def execute(self, context: Context) -> Any:
         started_at: Union[datetime.datetime, float]

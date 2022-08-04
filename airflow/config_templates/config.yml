@@ -2463,36 +2463,3 @@
       type: float
       example: ~
       default: "604800"
-- name: smart_sensor
-  description: ~
-  options:
-    - name: use_smart_sensor
-      description: |
-        When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
-        smart sensor task.
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
-    - name: shard_code_upper_limit
-      description: |
-        `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
-        by `hashcode % shard_code_upper_limit`.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "10000"
-    - name: shards
-      description: |
-        The number of running smart sensor processes for each service.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "5"
-    - name: sensors_enabled
-      description: |
-        comma separated sensor classes support in smart_sensor.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "NamedHivePartitionSensor"

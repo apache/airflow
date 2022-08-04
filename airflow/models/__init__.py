@@ -35,7 +35,6 @@ from airflow.models.operator import Operator
 from airflow.models.param import Param
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
-from airflow.models.sensorinstance import SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
@@ -68,7 +67,6 @@ __all__ = [
     "Param",
     "Pool",
     "RenderedTaskInstanceFields",
-    "SensorInstance",
     "SkipMixin",
     "SlaMiss",
     "TaskFail",

@@ -83,7 +83,6 @@ The possible states for a Task Instance are:
 * ``upstream_failed``: An upstream task failed and the :ref:`Trigger Rule <concepts:trigger-rules>` says we needed it
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
-* ``sensing``: The task is a :doc:`Smart Sensor <smart-sensors>`
 * ``deferred``: The task has been :doc:`deferred to a trigger <deferring>`
 * ``removed``: The task has vanished from the DAG since the run started
 

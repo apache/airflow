@@ -53,7 +53,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'elasticsearch_configs',
     'kubernetes',
     'sensors',
-    'smart_sensor',
 ]
 
 DEFAULT_TEST_SECTIONS = [

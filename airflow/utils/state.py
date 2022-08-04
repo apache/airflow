@@ -49,7 +49,6 @@ class TaskInstanceState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
     UPSTREAM_FAILED = "upstream_failed"  # One or more upstream deps failed
     SKIPPED = "skipped"  # Skipped by branching or some other mechanism
-    SENSING = "sensing"  # Smart sensor offloaded to the sensor DAG
     DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
     def __str__(self) -> str:
@@ -97,7 +96,6 @@ class State:
     UP_FOR_RESCHEDULE = TaskInstanceState.UP_FOR_RESCHEDULE
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
     SKIPPED = TaskInstanceState.SKIPPED
-    SENSING = TaskInstanceState.SENSING
     DEFERRED = TaskInstanceState.DEFERRED
 
     task_states: Tuple[Optional[TaskInstanceState], ...] = (None,) + tuple(TaskInstanceState)
@@ -125,7 +123,6 @@ class State:
         TaskInstanceState.SCHEDULED: 'tan',
         TaskInstanceState.DEFERRED: 'mediumpurple',
     }
-    state_color[TaskInstanceState.SENSING] = state_color[TaskInstanceState.DEFERRED]
     state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
@@ -141,9 +138,7 @@ class State:
             return 'white'
         return 'black'
 
-    running: FrozenSet[TaskInstanceState] = frozenset(
-        [TaskInstanceState.RUNNING, TaskInstanceState.SENSING, TaskInstanceState.DEFERRED]
-    )
+    running: FrozenSet[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
     """
     A list of states indicating that a task is being executed.
     """
@@ -172,7 +167,6 @@ class State:
             TaskInstanceState.SCHEDULED,
             TaskInstanceState.QUEUED,
             TaskInstanceState.RUNNING,
-            TaskInstanceState.SENSING,
             TaskInstanceState.SHUTDOWN,
             TaskInstanceState.RESTARTING,
             TaskInstanceState.UP_FOR_RETRY,
@@ -203,11 +197,3 @@ class State:
     """
     A list of states indicating that a task has been terminated.
     """
-
-
-class PokeState:
-    """Static class with poke states constants used in smart operator."""
-
-    LANDED = 'landed'
-    NOT_LANDED = 'not_landed'
-    POKE_EXCEPTION = 'poke_exception'

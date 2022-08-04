@@ -84,7 +84,6 @@ priority = [
     TaskInstanceState.QUEUED,
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
-    TaskInstanceState.SENSING,
     TaskInstanceState.RUNNING,
     TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,

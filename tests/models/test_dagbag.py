@@ -963,7 +963,7 @@ class TestDagBag:
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -983,7 +983,7 @@ class TestDagBag:
         TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name('dags_corrupted')
         dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -1002,7 +1002,7 @@ class TestDagBag:
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_with_non_default_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert {"test_with_non_default_owner"} == set(dagbag.dag_ids)
 
         assert {} == dagbag.import_errors
@@ -1011,6 +1011,6 @@ class TestDagBag:
     def test_dag_cluster_policy_obeyed(self):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_with_no_tags.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert len(dagbag.dag_ids) == 0
         assert "has no tags" in dagbag.import_errors[dag_file]

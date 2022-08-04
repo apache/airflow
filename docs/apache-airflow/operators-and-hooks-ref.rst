@@ -106,9 +106,6 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.sensors.python`
      -
 
-   * - :mod:`airflow.sensors.smart_sensor`
-     - :doc:`concepts/smart-sensors`
-
    * - :mod:`airflow.sensors.time_delta`
      -
 

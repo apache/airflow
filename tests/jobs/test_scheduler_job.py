@@ -34,7 +34,6 @@ from freezegun import freeze_time
 from sqlalchemy import func
 
 import airflow.example_dags
-import airflow.smart_sensor_dags
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -2783,20 +2782,6 @@ class TestSchedulerJob:
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=True):
-            detected_files.add(file_path)
-        assert detected_files == expected_files
-
-        smart_sensor_dag_folder = airflow.smart_sensor_dags.__path__[0]
-        for root, _, files in os.walk(smart_sensor_dag_folder):
-            for file_name in files:
-                if (file_name.endswith('.py') or file_name.endswith('.zip')) and file_name not in [
-                    '__init__.py'
-                ]:
-                    expected_files.add(os.path.join(root, file_name))
-        detected_files.clear()
-        for file_path in list_py_file_paths(
-            TEST_DAG_FOLDER, include_examples=True, include_smart_sensor=True
-        ):
             detected_files.add(file_path)
         assert detected_files == expected_files
 

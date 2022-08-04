@@ -30,7 +30,6 @@ type TaskState = RunState
 | 'up_for_reschedule'
 | 'upstream_failed'
 | 'skipped'
-| 'sensing'
 | 'deferred'
 | null;
 
