@@ -147,13 +147,12 @@ class EmrServerlessHook(AwsBaseHook):
                 raise AirflowException(f'{object_type.title()} reached failure state {state}.')
             if countdown >= check_interval_seconds:
                 countdown -= check_interval_seconds
-                print(f'Waiting for {object_type.lower()} to be {action.lower()}.')
+                self.log.info('Waiting for %s to be %s.', object_type.lower(), action.lower())
                 sleep(check_interval_seconds)
                 state = self.get_state(get_state_callable(**get_state_args), parse_response)
             else:
                 message = f'{object_type.title()} still not {action.lower()} after the allocated time limit.'
-                # self.log.error(message)
-                print(message)
+                self.log.error(message)
                 raise RuntimeError(message)
 
     def get_state(self, response, keys) -> str:

@@ -30,6 +30,7 @@ Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
+
 Operators
 ---------
 .. _howto/operator:EmrServerlessCreateApplicationOperator:
