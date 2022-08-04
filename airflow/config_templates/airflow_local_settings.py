@@ -44,7 +44,9 @@ COLORED_LOG: bool = conf.getboolean('logging', 'COLORED_CONSOLE_LOG')
 
 COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value('logging', 'COLORED_FORMATTER_CLASS')
 
-SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT: bool = conf.getboolean('logging', 'SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT')
+SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT: bool = conf.getboolean(
+    'logging', 'SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT'
+)
 
 BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'BASE_LOG_FOLDER')
 

@@ -156,7 +156,9 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             result_channel.send(result)
 
         try:
-            SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT: bool = conf.get('logging', 'SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT')
+            SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT: bool = conf.get(
+                'logging', 'SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT'
+            )
             if SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT:
                 with Stats.timer() as timer:
                     _handle_dag_file_processing()
