@@ -27,11 +27,11 @@ from datetime import datetime
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
-from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.google.cloud.operators.compute import (
-    ComputeEngineInsertInstanceOperator,
     ComputeEngineDeleteInstanceOperator,
+    ComputeEngineInsertInstanceOperator,
 )
+from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_operator_gce_args_common]
@@ -53,20 +53,15 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f'zones/{LOCATION}/diskTypes/pd-balanced',
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
-            }
+                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+            },
         }
     ],
     "network_interfaces": [
         {
-            "access_configs": [
-                {
-                    "name": "External NAT",
-                    "network_tier": "PREMIUM"
-                }
-            ],
+            "access_configs": [{"name": "External NAT", "network_tier": "PREMIUM"}],
             "stack_type": "IPV4_ONLY",
-            "subnetwork": f'regions/{REGION}/subnetworks/default'
+            "subnetwork": f'regions/{REGION}/subnetworks/default',
         }
     ],
 }

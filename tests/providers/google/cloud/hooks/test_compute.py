@@ -17,14 +17,14 @@
 # under the License.
 
 import unittest
-from unittest import mock, TestCase
+from unittest import TestCase, mock
 from unittest.mock import PropertyMock
 
 import pytest
+from google.api_core.retry import Retry
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook, GceOperationStatus
-from google.api_core.retry import Retry
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
@@ -312,7 +312,9 @@ class TestGcpComputeHookApiCall(TestCase):
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
     def test_insert_instance_group_manager_should_execute_successfully(self, mock_client):
         self.hook.insert_instance_group_manager(
             body=BODY,
@@ -334,7 +336,9 @@ class TestGcpComputeHookApiCall(TestCase):
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
     def test_insert_instance_group_manager_should_not_throw_ex_when_project_id_none(self, mock_client):
         self.hook.insert_instance_group_manager(
             body=BODY,
@@ -355,7 +359,9 @@ class TestGcpComputeHookApiCall(TestCase):
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
     def test_get_instance_group_manager_should_execute_successfully(self, mock_client):
         self.hook.get_instance_group_manager(
             resource_id=RESOURCE_ID,
@@ -376,7 +382,9 @@ class TestGcpComputeHookApiCall(TestCase):
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
     def test_get_instance_group_manager_should_not_throw_ex_when_project_id_none(self, mock_client):
         self.hook.get_instance_group_manager(
             resource_id=RESOURCE_ID,
@@ -396,7 +404,9 @@ class TestGcpComputeHookApiCall(TestCase):
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
     def test_delete_instance_group_manager_should_execute_successfully(self, mock_client):
         self.hook.delete_instance_group_manager(
             resource_id=RESOURCE_ID,
@@ -418,7 +428,9 @@ class TestGcpComputeHookApiCall(TestCase):
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+    )
     def test_delete_instance_group_manager_should_not_throw_ex_when_project_id_none(self, mock_client):
         self.hook.delete_instance_group_manager(
             resource_id=RESOURCE_ID,

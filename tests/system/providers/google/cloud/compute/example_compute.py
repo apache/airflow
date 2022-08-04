@@ -29,16 +29,15 @@ from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.compute import (
+    ComputeEngineDeleteInstanceOperator,
+    ComputeEngineInsertInstanceFromTemplateOperator,
+    ComputeEngineInsertInstanceOperator,
     ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineSetMachineTypeOperator,
-    ComputeEngineInsertInstanceOperator,
-    ComputeEngineInsertInstanceFromTemplateOperator,
     ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
-    ComputeEngineDeleteInstanceOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
 
 # [START howto_operator_gce_args_common]
 ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
@@ -63,16 +62,12 @@ INSTANCE_TEMPLATE_BODY = {
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
-                }
+                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                },
             }
         ],
-        "network_interfaces": [
-            {
-                "network": "global/networks/default"
-            }
-        ]
-    }
+        "network_interfaces": [{"network": "global/networks/default"}],
+    },
 }
 GCE_INSTANCE_BODY = {
     "name": GCE_INSTANCE_NAME,
@@ -84,20 +79,15 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f'zones/{LOCATION}/diskTypes/pd-balanced',
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
-            }
+                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+            },
         }
     ],
     "network_interfaces": [
         {
-            "access_configs": [
-                {
-                    "name": "External NAT",
-                    "network_tier": "PREMIUM"
-                }
-            ],
+            "access_configs": [{"name": "External NAT", "network_tier": "PREMIUM"}],
             "stack_type": "IPV4_ONLY",
-            "subnetwork": f'regions/{REGION}/subnetworks/default'
+            "subnetwork": f'regions/{REGION}/subnetworks/default',
         }
     ],
 }
@@ -243,20 +233,11 @@ with models.DAG(
     # [END howto_operator_gce_delete_no_project_id]
     gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    bash_wait_operator = BashOperator(
-        task_id="delay_bash_task",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator = BashOperator(task_id="delay_bash_task", bash_command="sleep 3m")
 
-    bash_wait_operator2 = BashOperator(
-        task_id="delay_bash_task2",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator2 = BashOperator(task_id="delay_bash_task2", bash_command="sleep 3m")
 
-    bash_wait_operator3 = BashOperator(
-        task_id="delay_bash_task3",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator3 = BashOperator(task_id="delay_bash_task3", bash_command="sleep 3m")
 
     chain(
         gce_instance_insert,
@@ -291,7 +272,3 @@ from tests.system.utils import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
-
-
-
-

@@ -30,12 +30,12 @@ from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.compute import (
-    ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineCopyInstanceTemplateOperator,
+    ComputeEngineDeleteInstanceGroupManagerOperator,
     ComputeEngineDeleteInstanceTemplateOperator,
     ComputeEngineInsertInstanceGroupManagerOperator,
+    ComputeEngineInsertInstanceTemplateOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
-    ComputeEngineDeleteInstanceGroupManagerOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -63,16 +63,12 @@ INSTANCE_TEMPLATE_BODY = {
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621"
-                }
+                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                },
             }
         ],
-        "network_interfaces": [
-            {
-                "network": "global/networks/default"
-            }
-        ]
-    }
+        "network_interfaces": [{"network": "global/networks/default"}],
+    },
 }
 
 NEW_DESCRIPTION = 'Test new description'
@@ -94,19 +90,13 @@ INSTANCE_GROUP_MANAGER_BODY = {
 
 SOURCE_TEMPLATE_URL = os.environ.get(
     'SOURCE_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/"
-    + PROJECT_ID
-    + "/global/instanceTemplates/"
-    + TEMPLATE_NAME,
-    )
+    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/global/instanceTemplates/{TEMPLATE_NAME}",
+)
 
 DESTINATION_TEMPLATE_URL = os.environ.get(
     'DESTINATION_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/"
-    + PROJECT_ID
-    + "/global/instanceTemplates/"
-    + NEW_TEMPLATE_NAME,
-    )
+    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/global/instanceTemplates/{TEMPLATE_NAME}",
+)
 
 UPDATE_POLICY = {
     "type": "OPPORTUNISTIC",
@@ -176,10 +166,7 @@ with models.DAG(
     )
     # [END howto_operator_gce_insert_igm_no_project_id]
 
-    bash_wait_operator = BashOperator(
-        task_id="delay_bash_task",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator = BashOperator(task_id="delay_bash_task", bash_command="sleep 3m")
 
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
@@ -229,10 +216,7 @@ with models.DAG(
     # [END howto_operator_gce_delete_igm_no_project_id]
     gce_igm_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    bash_wait_operator2 = BashOperator(
-        task_id="delay_bash_task_2",
-        bash_command="sleep 3m"
-    )
+    bash_wait_operator2 = BashOperator(task_id="delay_bash_task_2", bash_command="sleep 3m")
 
     chain(
         gce_instance_template_insert,

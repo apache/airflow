@@ -25,11 +25,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 COMPUTE_BASE_LINK = "https://console.cloud.google.com/compute"
-COMPUTE_LINK = COMPUTE_BASE_LINK + "/instancesDetail/zones/{location_id}/instances/" \
-                                   "{resource_id}?project={project_id}"
+COMPUTE_LINK = (
+    COMPUTE_BASE_LINK + "/instancesDetail/zones/{location_id}/instances/{resource_id}?project={project_id}"
+)
 COMPUTE_TEMPLATE_LINK = COMPUTE_BASE_LINK + "/instanceTemplates/details/{resource_id}?project={project_id}"
-COMPUTE_GROUP_MANAGER_LINK = COMPUTE_BASE_LINK + "/instanceGroups/details/{location_id}/" \
-                                                 "{resource_id}?project={project_id}"
+COMPUTE_GROUP_MANAGER_LINK = (
+    COMPUTE_BASE_LINK + "/instanceGroups/details/{location_id}/{resource_id}?project={project_id}"
+)
 
 
 class ComputeInstanceDetailsLink(BaseGoogleLink):
@@ -43,14 +45,16 @@ class ComputeInstanceDetailsLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance: BaseOperator,
-        project_id: str,
+        location_id: str,
+        resource_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
             key=ComputeInstanceDetailsLink.key,
             value={
-                "location_id": task_instance.zone,
-                "resource_id": task_instance.resource_id,
+                "location_id": location_id,
+                "resource_id": resource_id,
                 "project_id": project_id,
             },
         )
@@ -68,7 +72,7 @@ class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
         context: "Context",
         task_instance: BaseOperator,
         resource_id: str,
-        project_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
@@ -93,7 +97,7 @@ class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
         task_instance: BaseOperator,
         location_id: str,
         resource_id: str,
-        project_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
@@ -104,4 +108,3 @@ class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
                 "project_id": project_id,
             },
         )
-
