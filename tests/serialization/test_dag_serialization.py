@@ -1452,6 +1452,12 @@ class TestStringifiedDAGs:
                     'source': 'test',
                     'target': 'dataset',
                     'dependency_type': 'dataset',
+                    'dependency_id': 'd3',
+                },
+                {
+                    'source': 'test',
+                    'target': 'dataset',
+                    'dependency_type': 'dataset',
                     'dependency_id': 'd2',
                 },
                 {
