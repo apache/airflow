@@ -128,8 +128,8 @@ class S3Hook(AwsBaseHook):
         kwargs['client_type'] = 's3'
         kwargs['aws_conn_id'] = aws_conn_id
 
-        if extra_args and not isinstance(extra_args, dict):
-            raise ValueError(f"transfer_config_args '{extra_args!r}' must be of type {dict}")
+        if transfer_config_args and not isinstance(transfer_config_args, dict):
+            raise ValueError(f"transfer_config_args '{transfer_config_args!r}' must be of type {dict}")
         self.transfer_config = TransferConfig(**transfer_config_args or {})
 
         if extra_args and not isinstance(extra_args, dict):
