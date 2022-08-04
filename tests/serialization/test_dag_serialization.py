@@ -1383,18 +1383,15 @@ class TestStringifiedDAGs:
 
         TODO: remove in Airflow 3.0
         """
-        from airflow.operators.empty import EmptyOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date) as dag:
-            task1 = ExternalTaskSensor(
+            ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            task2 = EmptyOperator(task_id="task2")
-            task1 >> task2
             CustomDepOperator(task_id='hello', bash_command='hi')
             dag = SerializedDAG.to_dict(dag)
             assert sorted(dag['dag']['dag_dependencies'], key=lambda x: tuple(x.values())) == sorted(
@@ -1419,22 +1416,19 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with datasets.
         """
-        from airflow.operators.empty import EmptyOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         d1 = Dataset('d1')
         d2 = Dataset('d2')
-        d3 = Dataset('d2')
+        d3 = Dataset('d3')
         d4 = Dataset('d4')
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule_on=[d1]) as dag:
-            task1 = ExternalTaskSensor(
+            ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            task2 = EmptyOperator(task_id="task2")
-            task1 >> task2
             BashOperator(task_id='dataset_writer', bash_command="echo hello", outlets=[d2, d3])
             BashOperator(task_id='other_dataset_writer', bash_command="echo hello", outlets=[d4])
 
