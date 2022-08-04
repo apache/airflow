@@ -194,6 +194,30 @@ class TestSessionFactory:
         expected = botocore_config or conn_botocore_config
         assert sf.config == expected
 
+    @pytest.mark.parametrize("region_name", ["eu-central-1", None])
+    @mock.patch("boto3.session.Session", new_callable=mock.PropertyMock, return_value=MOCK_BOTO3_SESSION)
+    def test_create_session_boto3_credential_strategy(self, mock_boto3_session, region_name, caplog):
+        sf = BaseSessionFactory(conn=AwsConnectionWrapper(conn=None), region_name=region_name, config=None)
+        session = sf.create_session()
+        mock_boto3_session.assert_called_once_with(region_name=region_name)
+        assert session == MOCK_BOTO3_SESSION
+        logging_message = "No connection ID provided. Fallback on boto3 credential strategy"
+        assert any(logging_message in log_text for log_text in caplog.messages)
+
+    @pytest.mark.parametrize("region_name", ["eu-central-1", None])
+    @mock.patch("boto3.session.Session", new_callable=mock.PropertyMock, return_value=MOCK_BOTO3_SESSION)
+    def test_create_session_from_credentials(self, mock_boto3_session, region_name):
+        mock_conn = AwsConnectionWrapper(conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID))
+        sf = BaseSessionFactory(conn=mock_conn, region_name=region_name, config=None)
+        session = sf.create_session()
+        mock_boto3_session.assert_called_once_with(
+            aws_access_key_id=mock_conn.aws_access_key_id,
+            aws_secret_access_key=mock_conn.aws_secret_access_key,
+            aws_session_token=mock_conn.aws_session_token,
+            region_name=region_name,
+        )
+        assert session == MOCK_BOTO3_SESSION
+
 
 class TestAwsBaseHook:
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
@@ -721,19 +745,29 @@ class TestAwsBaseHook:
         assert hook.client_type == "s3"  # Same client_type which defined during initialisation
 
     @mock.patch.dict(os.environ, {f"AIRFLOW_CONN_{MOCK_AWS_CONN_ID.upper()}": "aws://"})
-    def test_conn_config(self):
-        """Tests retrieve connection config: conn_id exists, empty or not exists"""
+    def test_conn_config_conn_id_exists(self):
+        """Test retrieve connection config if aws_conn_id exists."""
         hook = AwsBaseHook(aws_conn_id=MOCK_AWS_CONN_ID)
         conn_config_exist = hook.conn_config
         assert conn_config_exist is hook.conn_config, "Expected cached Connection Config"
         assert isinstance(conn_config_exist, AwsConnectionWrapper)
         assert conn_config_exist
 
-        conn_config_empty = AwsBaseHook(aws_conn_id=None).conn_config
+    @pytest.mark.parametrize("aws_conn_id", ["", None], ids=["empty", "None"])
+    def test_conn_config_conn_id_empty(self, aws_conn_id):
+        """Test retrieve connection config if aws_conn_id empty or None."""
+        conn_config_empty = AwsBaseHook(aws_conn_id=aws_conn_id).conn_config
         assert isinstance(conn_config_empty, AwsConnectionWrapper)
         assert not conn_config_empty
 
-        conn_config_fallback_not_exists = AwsBaseHook(aws_conn_id=None).conn_config
+    def test_conn_config_conn_id_not_exists(self):
+        """Test fallback connection config if aws_conn_id not exists."""
+        warning_message = (
+            r"Unable to find AWS Connection ID '.*', switching to empty\. "
+            r"This behaviour is deprecated and will be removed in a future releases"
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            conn_config_fallback_not_exists = AwsBaseHook(aws_conn_id="aws-conn-not-exists").conn_config
         assert isinstance(conn_config_fallback_not_exists, AwsConnectionWrapper)
         assert not conn_config_fallback_not_exists
 

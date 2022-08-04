@@ -111,8 +111,15 @@ class BaseSessionFactory(LoggingMixin):
         return self.conn.role_arn
 
     def create_session(self) -> boto3.session.Session:
-        """Create AWS session."""
-        if not self.role_arn:
+        """Create boto3 Session from connection config."""
+        if not self.conn:
+            self.log.info(
+                "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
+                "See: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
+                self.region_name,
+            )
+            return boto3.session.Session(region_name=self.region_name)
+        elif not self.role_arn:
             return self.basic_session
         return self._create_session_with_assume_role(session_kwargs=self.conn.session_kwargs)
 
@@ -397,16 +404,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if self.aws_conn_id:
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except AirflowNotFoundException as ex:
-                self.log.warning(
-                    "Unable to use Airflow Connection for credentials. Error: '%s.' "
-                    "Fallback on boto3 credential strategy. See: "
-                    "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
-                    ex,
+            except AirflowNotFoundException:
+                warnings.warn(
+                    f"Unable to find AWS Connection ID '{self.aws_conn_id}', switching to empty. "
+                    "This behaviour is deprecated and will be removed in a future releases. "
+                    "Please provide existed AWS connection ID or if required boto3 credential strategy "
+                    "explicit set AWS Connection ID to None.",
+                    DeprecationWarning,
+                    stacklevel=2,
                 )
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config
+            conn=connection or Connection(conn_id=None, conn_type="aws"),
+            region_name=self._region_name,
+            botocore_config=self._config,
         )
 
     @property
