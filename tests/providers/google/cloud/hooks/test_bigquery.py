@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryHook,
     _api_resource_configs_duplication_check,
     _cleanse_time_partitioning,
+    _format_schema_for_description,
     _validate_src_fmt_configs,
     _validate_value,
     split_tablename,
@@ -1239,11 +1240,33 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
             ]
         )
 
+    def test_format_schema_for_description(self):
+        test_query_result = {
+            "schema": {
+                "fields": [
+                    {"name": "field_1", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+        }
+        description = _format_schema_for_description(test_query_result["schema"])
+        assert description == [('field_1', 'STRING', None, None, None, None, True)]
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_description(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    def test_description(self, mock_insert, mock_get_service):
+        mock_get_query_results = mock_get_service.return_value.jobs.return_value.getQueryResults
+        mock_execute = mock_get_query_results.return_value.execute
+        mock_execute.return_value = {
+            "schema": {
+                "fields": [
+                    {"name": "ts", "type": "TIMESTAMP", "mode": "NULLABLE"},
+                ]
+            },
+        }
+
         bq_cursor = self.hook.get_cursor()
-        with pytest.raises(NotImplementedError):
-            bq_cursor.description
+        bq_cursor.execute("SELECT CURRENT_TIMESTAMP() as ts")
+        assert bq_cursor.description == [("ts", "TIMESTAMP", None, None, None, None, True)]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_close(self, mock_get_service):
