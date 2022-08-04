@@ -582,6 +582,34 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         return retry_decorator
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict[str, Any]:
+        """Returns custom UI field behaviour for AWS Connection."""
+        return {
+            "hidden_fields": ["host", "schema", "port"],
+            "relabeling": {
+                "login": "AWS Access Key ID",
+                "password": "AWS Secret Access Key",
+            },
+            "placeholders": {
+                "login": "AKIAIOSFODNN7EXAMPLE",
+                "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "extra": json.dumps(
+                    {
+                        "region_name": "us-east-1",
+                        "session_kwargs": {"profile_name": "default"},
+                        "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+                        "role_arn": "arn:aws:iam::123456789098:role/role-name",
+                        "assume_role_method": "assume_role",
+                        "assume_role_kwargs": {"RoleSessionName": "airflow"},
+                        "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+                        "host": "http://localhost:4566",
+                    },
+                    indent=2,
+                ),
+            },
+        }
+
     def test_connection(self):
         """
         Tests the AWS connection by call AWS STS (Security Token Service) GetCallerIdentity API.

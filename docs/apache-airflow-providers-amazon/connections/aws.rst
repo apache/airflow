@@ -28,8 +28,8 @@ Authenticating to AWS
 
 Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
-To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified, or
-``aws://``).
+To use IAM instance profile, create an "empty" connection (i.e. one with no AWS Access Key ID or AWS Secret Access Key
+specified, or ``aws://``).
 
 
 Default Connection IDs
@@ -49,13 +49,13 @@ Configuring the Connection
 --------------------------
 
 
-Login (optional)
+AWS Access Key ID (optional)
     Specify the AWS access key ID used for the initial connection.
     If you do an `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__
     by specifying a ``role_arn`` in the **Extra** field,
     then temporary credentials will be used for subsequent calls to AWS.
 
-Password (optional)
+AWS Secret Access Key (optional)
     Specify the AWS secret access key used for the initial connection.
     If you do an `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__
     by specifying a ``role_arn`` in the **Extra** field,
@@ -104,6 +104,34 @@ If you are configuring the connection via a URI, ensure that all components of t
 Examples
 --------
 
+**Snippet for create Connection as URI**:
+  .. code-block:: python
+
+    import os
+    from airflow.models.connection import Connection
+
+
+    conn = Connection(
+        conn_id="sample_aws_connection",
+        conn_type="aws",
+        login="AKIAIOSFODNN7EXAMPLE",  # Reference to AWS Access Key ID
+        password="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",  # Reference to AWS Secret Access Key
+        extra={
+            # Specify extra parameters here
+            "region_name": "eu-central-1",
+        },
+    )
+
+    # Generate Environment Variable Name and Connection URI
+    env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+    conn_uri = conn.get_uri()
+    print(f"{env_key}={conn_uri}")
+    # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?region_name=eu-central-1
+
+    # Test connection
+    os.environ[env_key] = conn_uri
+    print(conn.test_connection())
+
 **Using instance profile**:
   .. code-block:: bash
 
@@ -125,7 +153,7 @@ Examples for the **Extra** field
 
 1. Using *~/.aws/credentials* and *~/.aws/config* file, with a profile.
 
-This assumes all other Connection fields eg **Login** are empty.
+This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secret Access Key**  are empty.
 
 .. code-block:: json
 
