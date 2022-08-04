@@ -16,6 +16,7 @@
 # under the License.
 """Base executor - this is the base class for all the implemented executors."""
 import sys
+import warnings
 from collections import OrderedDict
 from typing import Any, Counter, Dict, List, Optional, Sequence, Set, Tuple, Union
 
@@ -333,9 +334,42 @@ class BaseExecutor(LoggingMixin):
 
     @staticmethod
     def validate_command(command: List[str]) -> None:
-        """Check if the command to execute is airflow command"""
+        """
+        Back-compat method to Check if the command to execute is airflow command
+
+        :param command: command to check
+        :return: None
+        """
+        warnings.warn(
+            """
+            The `validate_command` method is deprecated. Please use ``validate_airflow_tasks_run_command``
+            """,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        BaseExecutor.validate_airflow_tasks_run_command(command)
+
+    @staticmethod
+    def validate_airflow_tasks_run_command(command: List[str]) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Check if the command to execute is airflow command
+
+        Returns tuple (dag_id,task_id) retrieved from the command (replaced with None values if missing)
+        """
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+        if len(command) > 3 and "--help" not in command:
+            dag_id: Optional[str] = None
+            task_id: Optional[str] = None
+            for arg in command[4:]:
+                if not arg.startswith("--"):
+                    if dag_id is None:
+                        dag_id = arg
+                    else:
+                        task_id = arg
+                        break
+            return dag_id, task_id
+        return None, None
 
     def debug_dump(self):
         """Called in response to SIGUSR2 by the scheduler"""

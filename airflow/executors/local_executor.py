@@ -368,7 +368,7 @@ class LocalExecutor(BaseExecutor):
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        self.validate_command(command)
+        self.validate_airflow_tasks_run_command(command)
 
         self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
