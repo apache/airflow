@@ -659,7 +659,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         assert exc_info.value.args[0].endswith(" Exception: Something went wrong...")
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
