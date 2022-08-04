@@ -232,7 +232,7 @@ class TestStandardTaskRunner:
                     time.sleep(0.01)
             logging.info("Task started. Give the task some time to settle")
             time.sleep(3)
-            logging.info(f"Terminating processes {processes} belonging to {runner_pgid} group")
+            logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
             runner.terminate()
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
 
