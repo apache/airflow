@@ -74,7 +74,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.put_secret_value(**param)
 
         conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
-        assert conn.user == 'is url encoded'
+        assert conn.login == 'is url encoded'
         assert conn.password == 'not url encoded'
         assert conn.host == 'not%20idempotent'
 
@@ -82,7 +82,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.secret_values_are_urlencoded = False
 
         conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
-        assert conn.user == 'is%20url%20encoded'
+        assert conn.login == 'is%20url%20encoded'
         assert conn.password == 'not url encoded'
         assert conn.host == 'not%2520idempotent'
 
@@ -116,7 +116,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.extra_dejson['foo'] == 'bar'
 
     @mock_secretsmanager
-    def test_get_connection_broken_field_mode(self):
+    def test_get_conn_uri_broken_field_mode(self):
         secret_id = 'airflow/connections/test_postgres'
         create_param = {
             'Name': secret_id,
@@ -125,7 +125,7 @@ class TestSecretsManagerBackend(TestCase):
         param = {
             'SecretId': secret_id,
             'SecretString': '{"user": "airflow", "pass": "airflow", "host": "host", '
-            '"port": 5432, "schema": "airflow", "engine": "postgresql",}',
+            '"port": 5432, "schema": "airflow", "engine": "postgresql"}',
         }
 
         secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
@@ -145,7 +145,7 @@ class TestSecretsManagerBackend(TestCase):
         param = {
             'SecretId': secret_id,
             'SecretString': '{"usuario": "airflow", "pass": "airflow", "host": "host", '
-            '"port": 5432, "schema": "airflow", "engine": "postgresql",}',
+            '"port": 5432, "schema": "airflow", "engine": "postgresql"}',
         }
 
         secrets_manager_backend = SecretsManagerBackend(

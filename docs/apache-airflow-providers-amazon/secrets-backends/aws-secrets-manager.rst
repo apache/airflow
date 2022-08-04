@@ -91,7 +91,6 @@ This behavior is now deprecated, and will be removed at a future date.
 
 In most cases, you should not have any issues migrating your secrets to not being URL-encoded in advance of the deprecation.
 Simply decoding your secret values will work, and no further changes are required.
-Once your secrets are decoded, you should no longer see any ``DeprecationWarning``s.
 
 In rare circumstances, when URL-encoding is not idempotent, the ``DeprecationWarning`` will tell you to add a new parameter to your ``backend_kwargs``.
 Setting ``secret_values_are_urlencoded`` to ``false`` will force the ``SecretsManagerBackend`` to stop treating secret values as being URL-encoded.
