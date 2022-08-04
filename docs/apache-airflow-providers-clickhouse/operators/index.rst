@@ -20,7 +20,7 @@
 .. _howto/operator:ClickHouseOperator:
 
 Operators
-=======================
+==========
 You can build your own Operator hook in :class:`~airflow.providers.clickhouse.hooks.ClickHouseHook`,
 
 

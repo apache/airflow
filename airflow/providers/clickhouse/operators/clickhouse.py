@@ -35,10 +35,10 @@ class ClickHouseOperator(BaseOperator):
     :param sql: the SQL query to be executed. Can receive a str representing a
         SQL statement, or you can provide .sql file having the query
     :param params: substitution parameters for SELECT queries and data for INSERT queries.
-    :param database:Optional[str], database to query, if not provided schema from Connection will be used
-
+    :param database: database to query, if not provided schema from Connection will be used (optional)
     :param result_processor: function to further process the Result from ClickHouse
-    :param clickhouse_conn_id: Reference to :ref:`ClickHouse connection id <howto/connection:clickhouse>`.
+    :param clickhouse_conn_id: Reference to
+        :ref:`ClickHouse connection id<howto/connection:clickhouse>`.
     """
 
     template_fields: Sequence[str] = ('sql',)

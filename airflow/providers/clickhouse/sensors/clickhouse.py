@@ -28,14 +28,13 @@ class ClickHouseSensor(SqlSensor):
 
     :param sql: The query to poke, or you can provide .sql file having the query
     :param parameters: The parameters to render the SQL query with (optional).
-    :param database:Optional[str], database to query, if not provided schema from Connection will be used
+    :param database: Database to query, if not provided schema from Connection will be used (optional).
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
     :param failure: Failure criteria for the sensor is a Callable that takes first_cell
         as the only argument and return a boolean (optional).
     :param fail_on_empty: Explicitly fail on no rows returned.
-
-    :param clickhouse_conn_id: The :ref:`ClickHouse connection id <howto/connection:clickhouse>` to use
+    :param clickhouse_conn_id: The :ref:`ClickHouse connection id<howto/connection:clickhouse>` to use
         when connecting to ClickHouse.
     """
 

@@ -17,7 +17,7 @@
     under the License.
 
 ``apache-airflow-providers-clickhouse``
-=====================================
+=======================================
 
 Content
 -------

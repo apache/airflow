@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:arangodb:
+.. _howto/connection:clickhouse:
 
 ClickHouse Connection
-====================
+=====================
 The ClickHouse connection provides credentials for accessing the ClickHouse.
 
 Configuring the Connection

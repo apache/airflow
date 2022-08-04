@@ -28,12 +28,11 @@ from airflow.hooks.base import BaseHook
 class ClickHouseHook(BaseHook):
     """
     Interact with ClickHouse.
-
     Performs a connection to ClickHouse and retrieves client.
 
-    :param clickhouse_conn_id: Reference to :ref:`ClickHouse connection id <howto/connection:clickhouse>`.
-    :param database:Optional[str], database for the hook, if not provided schema from Connection will be
-    used`.
+    :param clickhouse_conn_id: Reference to
+        :ref:`ClickHouse connection id<howto/connection:clickhouse>`.
+    :param database: database for the hook, if not provided schema from Connection will be used (optional).
     """
 
     conn_name_attr = 'clickhouse_conn_id'
@@ -83,9 +82,8 @@ class ClickHouseHook(BaseHook):
         :param params: substitution parameters for SELECT queries and data for INSERT queries.
         :param kwargs: additional optional parameters from API
 
-        :return: output of method Client(*args).execute(params)
-
-        for more, refer - https://clickhouse-driver.readthedocs.io/en/latest/api.html
+        :return: output of method `Client(*args).execute(params)`
+            for more, refer - https://clickhouse-driver.readthedocs.io/en/latest/api.html
         """
         try:
             self.log.info('Running: %s (with parameters %s)', sql, params)
@@ -100,7 +98,6 @@ class ClickHouseHook(BaseHook):
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
         import json
-        #  TODO: check why this is not working.
         return {
             "relabeling": {
                 'host': 'ClickHouse Host',
