@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-arangodb/2.0.0/airflow/providers/arangodb/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-arangodb/2.0.0/tests/system/providers/arangodb/example_arangodb.py>
 
 .. toctree::
     :maxdepth: 1
@@ -47,6 +47,12 @@ Content
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-arangodb/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/arangodb/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
