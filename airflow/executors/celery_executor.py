@@ -50,6 +50,7 @@ from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType, TaskTuple
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -82,18 +83,18 @@ app = Celery(conf.get('celery', 'CELERY_APP_NAME'), config_source=celery_configu
 @app.task
 def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
-    BaseExecutor.validate_command(command_to_exec)
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
     celery_task_id = app.current_task.request.id
     log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
-
-    try:
-        if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-            _execute_in_subprocess(command_to_exec, celery_task_id)
-        else:
-            _execute_in_fork(command_to_exec, celery_task_id)
-    except Exception:
-        Stats.incr("celery.execute_command.failure")
-        raise
+    with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
+        try:
+            if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+                _execute_in_subprocess(command_to_exec, celery_task_id)
+            else:
+                _execute_in_fork(command_to_exec, celery_task_id)
+        except Exception:
+            Stats.incr("celery.execute_command.failure")
+            raise
 
 
 def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
@@ -124,7 +125,6 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str]
             args.external_executor_id = celery_task_id
 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
-
         args.func(args)
         ret = 0
     except Exception as e:

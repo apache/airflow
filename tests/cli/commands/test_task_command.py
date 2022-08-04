@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import io
 import json
 import logging
@@ -24,6 +23,7 @@ import re
 import unittest
 from argparse import ArgumentParser
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -710,3 +710,32 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 assert captured.output == ["WARNING:foo.bar:not redirected"]
 
         settings.DONOT_MODIFY_HANDLERS = old_value
+
+
+def test_context_with_run():
+    dag_id = "test_parsing_context"
+    task_id = "task1"
+    run_id = "test_run"
+    dag_path = os.path.join(ROOT_FOLDER, "dags", "test_parsing_context.py")
+    reset(dag_id)
+    execution_date = timezone.datetime(2017, 1, 1)
+    execution_date_str = execution_date.isoformat()
+    task_args = ['tasks', 'run', dag_id, task_id, '--local', execution_date_str]
+    parser = cli_parser.get_parser()
+
+    DagBag().get_dag(dag_id).create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+        run_type=DagRunType.MANUAL,
+    )
+    with conf_vars({('core', 'dags_folder'): dag_path}):
+        task_command.task_run(parser.parse_args(task_args))
+
+    context_file = Path("/tmp/airflow_parsing_context")
+    text = context_file.read_text()
+    assert (
+        text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
+        "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
+    )
