@@ -37,6 +37,7 @@ LOG_LEVEL: str = conf.get_mandatory_value('logging', 'LOGGING_LEVEL').upper()
 FAB_LOG_LEVEL: str = conf.get_mandatory_value('logging', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT: str = conf.get_mandatory_value('logging', 'LOG_FORMAT')
+DAG_PROCESSOR_LOG_FORMAT: str = conf.get_mandatory_value('logging', 'DAG_PROCESSOR_LOG_FORMAT')
 
 LOG_FORMATTER_CLASS: str = conf.get_mandatory_value(
     'logging', 'LOG_FORMATTER_CLASS', fallback='airflow.utils.log.timezone_aware.TimezoneAware'
@@ -76,6 +77,10 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
             'class': COLORED_FORMATTER_CLASS if COLORED_LOG else LOG_FORMATTER_CLASS,
         },
+        'source_processor': {
+            'format': DAG_PROCESSOR_LOG_FORMAT,
+            'class': LOG_FORMATTER_CLASS,
+        },
     },
     'filters': {
         'mask_secrets': {
@@ -102,10 +107,16 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
             'filters': ['mask_secrets'],
         },
+        'processor_to_stdout': {
+            'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
+            'formatter': 'source_processor',
+            'stream': 'sys.stdout',
+            'filters': ['mask_secrets'],
+        },
     },
     'loggers': {
         'airflow.processor': {
-            'handlers': ['console' if SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT else 'processor'],
+            'handlers': ['processor_to_stdout' if SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT else 'processor'],
             'level': LOG_LEVEL,
             'propagate': False,
         },
