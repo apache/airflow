@@ -65,7 +65,7 @@ class TestAwsS3Hook:
 
     @pytest.mark.parametrize("transfer_config_args", [1, True, '{"use_threads": false}'])
     def test_transfer_config_args_invalid(self, transfer_config_args):
-        with pytest.raises(ValueError, match=f"transfer_config_args '.*' must be of type {dict}"):
+        with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
             S3Hook(transfer_config_args=transfer_config_args)
 
     def test_parse_s3_url(self):
@@ -512,7 +512,7 @@ class TestAwsS3Hook:
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
-        with pytest.raises(ValueError, match=f"extra_args '.*' must be of type {dict}"):
+        with pytest.raises(TypeError, match="extra_args expected dict, got .*"):
             S3Hook(extra_args=1)
 
     def test_should_throw_error_if_extra_args_contains_unknown_arg(self, s3_bucket):
