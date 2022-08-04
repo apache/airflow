@@ -2209,7 +2209,6 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
-        # Reuse it for smart sensor to send default email alert
         if task is None:
             task = getattr(self, 'task')
         use_default = task is None
