@@ -35,7 +35,7 @@ Operators
 .. _howto/operator:EmrServerlessCreateApplicationOperator:
 
 Create an EMR Serverless Application
-==========================
+====================================
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessCreateApplicationOperator` to
 create a new EMR Serverless Application.

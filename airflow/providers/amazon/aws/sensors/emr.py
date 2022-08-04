@@ -153,10 +153,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
-        try:
-            response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
-        except Exception:
-            raise AirflowException(f'Unable to get job state: {response}')
+        response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
 
         state = response['jobRun']['state']
 
@@ -219,10 +216,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     def poke(self, context: 'Context') -> bool:
         state = None
 
-        try:
-            response = self.hook.conn.get_application(applicationId=self.application_id)
-        except Exception:
-            raise AirflowException(f'Unable to get application state: {response}')
+        response = self.hook.conn.get_application(applicationId=self.application_id)
 
         state = response['application']['state']
 
