@@ -860,9 +860,8 @@
                     "labels": {
                         "description": "Labels for the secret",
                         "type": "object",
+                        "default": null,
                         "additionalProperties": {
-                            "description": "Label key",
-                            "default": null,
                             "type": "string"
                         }
                     },
@@ -899,9 +898,8 @@
                     "labels": {
                         "description": "Labels for the configmap",
                         "type": "object",
+                        "default": null,
                         "additionalProperties": {
-                            "description": "Label key",
-                            "default": null,
                             "type": "string"
                         }
                     },
