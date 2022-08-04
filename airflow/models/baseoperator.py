@@ -48,7 +48,6 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urlparse
 
 import attr
 import pendulum
@@ -193,7 +192,7 @@ def partial(
     task_group: Optional["TaskGroup"] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    owner: Union[str, Dict[str, str]] = DEFAULT_OWNER,
+    owner: str = DEFAULT_OWNER,
     email: Union[None, str, Iterable[str]] = None,
     params: Optional[dict] = None,
     resources: Optional[Dict[str, Any]] = None,
@@ -462,9 +461,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_id: a unique, meaningful id for the task
     :param owner: the owner of the task. Using a meaningful description
         (e.g. user/person/team/role name) to clarify ownership is recommended.
-        You can also provide a dict containing a link that will be clickable in the UI.
-        eg: {"name": "owner1", "link": "https://www.my_team_website.com"}. You can use it as a Slack channel
-        or 'email links' for quick emails.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
         comma or semi-colon separated string or by passing a list of strings.
@@ -707,7 +703,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __init__(
         self,
         task_id: str,
-        owner: Union[str, Dict[str, str]] = DEFAULT_OWNER,
+        owner: str = DEFAULT_OWNER,
         email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
         email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
@@ -783,7 +779,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not self.__from_mapped and task_group:
             task_group.add(self)
 
-        self.owner, self.owner_link = self.parse_owner(owner)
+        self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
@@ -1474,26 +1470,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             DagContext.pop_context_managed_dag()
 
         return cls.__serialized_fields
-
-    @staticmethod
-    def _is_valid_link(link) -> bool:
-        """Parses a given link, and verifies if it's a valid URL, or a 'mailto' link"""
-        try:
-            result = urlparse(link)
-            if link.startswith('mailto:'):
-                return all([result.scheme, result.path])
-            return all([result.scheme, result.netloc])
-        except ValueError:
-            return False
-
-    def parse_owner(self, owner) -> Tuple[str, Dict[str, str]]:
-        """Receiving the owner from the task, and based on it's type returning an object with a link or not"""
-        if isinstance(owner, dict):
-            if not self._is_valid_link(owner['link']):
-                raise AirflowException("Wrong link format was used for the owner. Use a valid link")
-            return str(owner['name']), {owner['name']: owner['link']}
-        else:
-            return owner, {str(owner): ""}
 
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""

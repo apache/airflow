@@ -191,7 +191,6 @@ class TestDag(unittest.TestCase):
 
         assert op1.dag is dag
         assert op1.owner == 'owner1'
-        assert op1.owner_link == {'owner1': ""}
         assert op2.dag is dag2
         assert op2.owner == 'owner2'
 
@@ -1982,17 +1981,12 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             'dag',
             start_date=DEFAULT_DATE,
+            owner_links={"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"},
         )
-        with dag:
-            EmptyOperator(task_id='task', owner={"name": "owner1", "link": "https://mylink.com"})
-            EmptyOperator(task_id='task2', owner={"name": "owner2", "link": "mailto:someone@yoursite.com"})
 
         assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
         session = settings.Session()
         dag.sync_to_db(session=session)
-
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
-        assert set(orm_dag.owners.split(', ')) == {'owner1', 'owner2'}
 
         expected_owners = [
             {'dag': {'owner1': 'https://mylink.com'}},
@@ -2002,9 +1996,11 @@ class TestDag(unittest.TestCase):
         for dag_owner in orm_dag_owners:
             assert dag_owner.as_dict() in expected_owners
 
-        # Test dag owner links are removed
-        dag._remove_task('task')
-        dag._remove_task('task2')
+        # Test dag owner links are removed completely
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+        )
         dag.sync_to_db(session=session)
 
         orm_dag_owners = session.query(DagOwnerAttributes).all()
@@ -2012,7 +2008,7 @@ class TestDag(unittest.TestCase):
 
         # Check wrong formatted owner link
         with pytest.raises(AirflowException):
-            EmptyOperator(task_id='task', owner={"name": "owner1", "link": "abcd"}, dag=dag)
+            DAG('dag', start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
 
 
 class TestDagModel:

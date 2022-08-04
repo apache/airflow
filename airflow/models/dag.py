@@ -49,6 +49,7 @@ from typing import (
     cast,
     overload,
 )
+from urllib.parse import urlparse
 
 import jinja2
 import pendulum
@@ -312,6 +313,9 @@ class DAG(LoggingMixin):
         ``Environment`` is used to render templates as string values.
     :param tags: List of tags to help filtering DAGs in the UI.
     :param schedule_on: List of upstream datasets if for use in triggering DAG runs.
+    :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
+        Can be used as an HTTP link (for example the link to your Slack channel), or an email link.
+        e.g: {"dag_owner": "https://airflow.apache.org/"}
     """
 
     _comps = {
@@ -372,12 +376,14 @@ class DAG(LoggingMixin):
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
         schedule_on: Optional[Sequence["Dataset"]] = None,
+        owner_links: Optional[Dict[str, str]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
+        self.owner_links = owner_links if owner_links else {}
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
@@ -532,6 +538,12 @@ class DAG(LoggingMixin):
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
+        bad_links_format = self.validate_owner_links()
+        if bad_links_format:
+            raise AirflowException(
+                "Wrong link format was used for the owner. Use a valid link \n"
+                f"Bad formatted links are: {bad_links_format}"
+            )
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
         """Check ``schedule_interval`` and ``timetable`` match.
@@ -1135,21 +1147,7 @@ class DAG(LoggingMixin):
         :return: Comma separated list of owners in DAG tasks
         :rtype: str
         """
-        return ", ".join({t.owner for t in self.tasks})  # type: ignore
-
-    @property
-    def owner_links(self) -> Dict[str, str]:
-        """
-        Return dict of all owners and links that are found in DAG tasks.
-
-        :return: Dict containing the owner and it's link, only if the link exists
-        :rtype: dict
-        """
-        owner_links_obj = {}
-        for task in self.tasks:
-            owner_links_obj.update(task.owner_link)
-
-        return {owner: link for owner, link in owner_links_obj.items() if link}
+        return ", ".join({t.owner for t in self.tasks})
 
     @property
     def allow_future_exec_dates(self) -> bool:
@@ -2803,6 +2801,20 @@ class DAG(LoggingMixin):
                     "DAG Schedule must be None, if there are any required params without default values"
                 )
 
+    def validate_owner_links(self) -> Dict[str, str]:
+        """Parses a given link, and verifies if it's a valid URL, or a 'mailto' link"""
+        wrong_links = {}
+        for owner, link in self.owner_links.items():
+            result = urlparse(link)
+            if link.startswith('mailto:'):
+                # netloc is not existing for 'mailto' link, so we are checking that the path is parsed
+                if not all([result.scheme, result.path]):
+                    wrong_links.update({owner: link})
+            elif not all([result.scheme, result.netloc]):
+                wrong_links.update({owner: link})
+
+        return wrong_links
+
 
 class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
@@ -3177,6 +3189,7 @@ def dag(
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
     schedule_on: Optional[Sequence["Dataset"]] = None,
+    owner_links: Optional[Dict[str, str]] = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3228,6 +3241,7 @@ def dag(
                 render_template_as_native_obj=render_template_as_native_obj,
                 tags=tags,
                 schedule_on=schedule_on,
+                owner_links=owner_links,
             ) as dag_obj:
                 # Set DAG documentation from function documentation.
                 if f.__doc__:

@@ -18,9 +18,9 @@
 
 """add dag_owner_attributes table
 
-Revision ID: 679989279cf4
-Revises: 0038cd0c28b4
-Create Date: 2022-07-29 09:45:15.972777
+Revision ID: 1486deb605b4
+Revises: f4ff391becb5
+Create Date: 2022-08-04 16:59:45.406589
 
 """
 
@@ -28,8 +28,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '679989279cf4'
-down_revision = '0038cd0c28b4'
+revision = '1486deb605b4'
+down_revision = 'f4ff391becb5'
 branch_labels = None
 depends_on = None
 airflow_version = '2.4.0'

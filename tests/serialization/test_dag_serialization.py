@@ -98,7 +98,6 @@ serialized_simple_dag_ground_truth = {
             {
                 "task_id": "bash_task",
                 "owner": "airflow",
-                "owner_link": {'airflow': ''},
                 "retries": 1,
                 "retry_delay": 300.0,
                 "max_retry_delay": 600.0,
@@ -134,7 +133,6 @@ serialized_simple_dag_ground_truth = {
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
                 "downstream_task_ids": [],
-                "owner_link": {'airflow': ''},
                 "_inlets": [],
                 "_is_empty": False,
                 "_outlets": [],
@@ -1102,7 +1100,6 @@ class TestStringifiedDAGs:
             'on_retry_callback': None,
             'on_success_callback': None,
             'owner': 'airflow',
-            'owner_link': {'airflow': ''},
             'params': {},
             'pool': 'default_pool',
             'pool_slots': 1,
@@ -2066,5 +2063,4 @@ def test_dummy_operator_serde(is_inherit):
         'template_ext': [],
         'template_fields': [],
         'template_fields_renderers': {},
-        'owner_link': {'airflow': ''},
     }
