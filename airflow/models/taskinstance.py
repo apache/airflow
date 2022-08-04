@@ -59,6 +59,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     and_,
     false,
@@ -92,6 +93,7 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
+    UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
@@ -427,7 +429,6 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -479,6 +480,9 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
+        PrimaryKeyConstraint(
+            "dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey', mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
@@ -1518,7 +1522,8 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-            self._create_dataset_dag_run_queue_records(session=session)
+            if self.state == TaskInstanceState.SUCCESS:
+                self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
@@ -1531,7 +1536,7 @@ class TaskInstance(Base, LoggingMixin):
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
                 self.log.debug("downstream dag ids %s", downstream_dag_ids)
                 session.add(
                     DatasetEvent(
@@ -2296,8 +2301,13 @@ class TaskInstance(Base, LoggingMixin):
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
                     path = conf.get_mandatory_value('email', key)
-                    with open(path) as f:
-                        content = f.read()
+                    try:
+                        with open(path) as f:
+                            content = f.read()
+                    except FileNotFoundError:
+                        self.log.warning(f"Could not find email template file '{path!r}'. Using defaults...")
+                    except OSError:
+                        self.log.exception(f"Error while using email template '{path!r}'. Using defaults...")
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)
 
             subject = render('subject_template', default_subject)
@@ -2324,8 +2334,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
-        validators = {m.validate_upstream_return_value for m in task.iter_mapped_dependants()}
-        if not validators:  # No mapped dependants, no need to validate.
+        if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
             return
         # TODO: We don't push TaskMap for mapped task instances because it's not
         # currently possible for a downstream to depend on one individual mapped
@@ -2335,9 +2344,12 @@ class TaskInstance(Base, LoggingMixin):
             return
         if value is None:
             raise XComForMappingNotPushed()
-        for validator in validators:
-            validator(value)
-        assert isinstance(value, collections.abc.Collection)  # The validators type-guard this.
+        if not isinstance(value, (collections.abc.Sequence, dict)):
+            raise UnmappableXComTypePushed(value)
+        if isinstance(value, (bytes, str)):
+            raise UnmappableXComTypePushed(value)
+        if TYPE_CHECKING:  # The isinstance() checks above guard this.
+            assert isinstance(value, collections.abc.Collection)
         task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:
@@ -2618,6 +2630,16 @@ class SimpleTaskInstance:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
+
+    def as_dict(self):
+        new_dict = dict(self.__dict__)
+        for key in new_dict:
+            if key in ['start_date', 'end_date']:
+                val = new_dict[key]
+                if not val or isinstance(val, str):
+                    continue
+                new_dict.update({key: val.isoformat()})
+        return new_dict
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":

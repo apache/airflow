@@ -176,6 +176,7 @@ function draw() {
       // A group node
       if (d3.event.defaultPrevented) return;
       expandGroup(nodeId, node);
+      updateNodeLabels(nodes, taskInstances);
       draw();
       focusGroup(nodeId);
     } else if (nodeId in taskInstances) {

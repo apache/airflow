@@ -44,7 +44,7 @@ Content
 
     Connection Types <connections/slack>
     Python API <_api/airflow/providers/slack/index>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-slack/5.0.0/airflow/providers/slack/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-slack/5.0.0/tests/system/providers/slack>
 
 .. toctree::
     :maxdepth: 1

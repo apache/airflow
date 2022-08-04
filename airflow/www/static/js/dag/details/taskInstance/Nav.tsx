@@ -44,7 +44,7 @@ interface Props {
   runId: DagRun['runId'];
   taskId: Task['id'];
   executionDate: string;
-  operator: string;
+  operator?: string;
   isMapped?: boolean;
 }
 

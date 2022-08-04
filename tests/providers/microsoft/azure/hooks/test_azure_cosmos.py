@@ -91,7 +91,9 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         hook.create_collection(self.test_collection_name, self.test_database_name)
         expected_calls = [
-            mock.call().get_database_client('test_database_name').create_container('test_collection_name')
+            mock.call()
+            .get_database_client('test_database_name')
+            .create_container('test_collection_name', partition_key=None)
         ]
         mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)
@@ -101,7 +103,9 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         hook.create_collection(self.test_collection_name)
         expected_calls = [
-            mock.call().get_database_client('test_database_name').create_container('test_collection_name')
+            mock.call()
+            .get_database_client('test_database_name')
+            .create_container('test_collection_name', partition_key=None)
         ]
         mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)

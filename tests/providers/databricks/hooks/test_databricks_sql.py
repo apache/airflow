@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
 
@@ -72,17 +73,17 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
         test_schema = [(field,) for field in test_fields]
 
         conn = mock_conn.return_value
-        cur = mock.MagicMock(rowcount=0)
+        cur = mock.MagicMock(rowcount=0, description=test_schema)
+        cur.fetchall.return_value = []
         conn.cursor.return_value = cur
-        type(cur).description = mock.PropertyMock(return_value=test_schema)
 
-        query = "select * from test.test"
-        schema, results = self.hook.run(sql=query)
+        query = "select * from test.test;"
+        schema, results = self.hook.run(sql=query, handler=fetch_all_handler)
 
         assert schema == test_schema
         assert results == []
 
-        cur.execute.assert_has_calls([mock.call(q) for q in [query]])
+        cur.execute.assert_has_calls([mock.call(q) for q in [query.rstrip(';')]])
         cur.close.assert_called()
 
     def test_no_query(self):

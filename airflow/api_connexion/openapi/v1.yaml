@@ -818,6 +818,34 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+    get:
+      summary: Get dataset events for a DAG run
+      description: |
+        Get datasets for a dag run.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_upstream_dataset_events
+      tags: [DAGRun, Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
   /eventLogs:
     get:
       summary: List log entries
@@ -1619,6 +1647,13 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - name: uri_pattern
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            If set, only return datasets with uris matching this pattern.
       responses:
         '200':
           description: Success.
@@ -2099,15 +2134,13 @@ components:
           description: |
             The user's first name.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
-          minLength: 1
+            *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
         last_name:
           type: string
           description: |
             The user's last name.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
-          minLength: 1
+            *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
         username:
           type: string
           description: |
@@ -2210,6 +2243,10 @@ components:
         conn_type:
           type: string
           description: The connection type.
+        description:
+          type: string
+          description: The description of the connection.
+          nullable: true
         host:
           type: string
           nullable: true
@@ -2906,6 +2943,8 @@ components:
           nullable: true
         try_number:
           type: integer
+        map_index:
+          type: integer
         max_tries:
           type: integer
         hostname:
@@ -2997,6 +3036,13 @@ components:
       properties:
         key:
           type: string
+        description:
+          type: string
+          description: |
+            The description of the variable.
+
+            *New in version 2.4.0*
+          nullable: true
 
     VariableCollection:
       type: object
@@ -3464,7 +3510,7 @@ components:
           description: The dataset uri
           nullable: false
         extra:
-          type: string
+          type: object
           description: The dataset extra
           nullable: true
         created_at:
@@ -3474,6 +3520,59 @@ components:
         updated_at:
           type: string
           description: The dataset update time
+          nullable: false
+        downstream_dag_references:
+            type: array
+            items:
+              $ref: '#/components/schemas/DatasetDagRef'
+        upstream_task_references:
+            type: array
+            items:
+              $ref: '#/components/schemas/DatasetTaskRef'
+
+
+    DatasetTaskRef:
+      description: |
+        A datasets reference to an upstream task.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID that updates the dataset.
+          nullable: true
+        task_id:
+          type: string
+          description: The task ID that updates the dataset.
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset creation time
+          nullable: false
+        updated_at:
+          type: string
+          description: The dataset update time
+          nullable: false
+
+    DatasetDagRef:
+      description: |
+        A datasets reference to a downstream DAG.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID that depends on the dataset.
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset reference creation time
+          nullable: false
+        updated_at:
+          type: string
+          description: The dataset reference update time
           nullable: false
 
     DatasetCollection:
@@ -3501,31 +3600,34 @@ components:
         dataset_id:
           type: integer
           description: The dataset id
-        extra:
+        dataset_uri:
           type: string
-          description: The dataset extra
+          description: The URI of the dataset
+          nullable: false
+        extra:
+          type: object
+          description: The dataset event extra
           nullable: true
         source_dag_id:
           type: string
           description: The DAG ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_task_id:
           type: string
           description: The task ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_run_id:
           type: string
           description: The DAG run ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_map_index:
           type: integer
           description: The task map index that updated the dataset.
-          nullable: false
-        created_at:
+          nullable: true
+        timestamp:
           type: string
           description: The dataset event creation time
           nullable: false
-
 
     DatasetEventCollection:
       description: |

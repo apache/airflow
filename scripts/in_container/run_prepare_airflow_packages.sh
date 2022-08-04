@@ -63,7 +63,7 @@ function prepare_airflow_packages() {
     fi
 
     # Prepare airflow's wheel
-    PYTHONUNBUFFERED=1 python setup.py compile_assets "${tag_build[@]}" "${packages[@]}"
+    PYTHONUNBUFFERED=1 python setup.py "${tag_build[@]}" "${packages[@]}"
 
     # clean-up
     rm -rf -- *egg-info*

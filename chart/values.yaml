@@ -28,6 +28,9 @@ nameOverride: ""
 # Provide a Kubernetes version (used for API Version selection) to override the auto-detected version
 kubeVersionOverride: ""
 
+# Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit
+revisionHistoryLimit: ~
+
 # User and group of airflow user
 uid: 50000
 gid: 0
@@ -431,6 +434,8 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Command to use when running Airflow workers (templated).
   command: ~
@@ -605,6 +610,8 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Command to use when running the Airflow scheduler (templated).
   command: ~
@@ -853,6 +860,8 @@ webserver:
 
   # Number of webservers
   replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Command to use when running the Airflow webserver (templated).
   command: ~
@@ -986,6 +995,8 @@ triggerer:
   enabled: true
   # Number of airflow triggerers in the deployment
   replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Command to use when running Airflow triggerers (templated).
   command: ~
@@ -1076,6 +1087,8 @@ dagProcessor:
   enabled: false
   # Number of airflow dag processors in the deployment
   replicas: 1
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Command to use when running Airflow dag processors (templated).
   command: ~
@@ -1166,6 +1179,8 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: false
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Command to use when running flower (templated).
   command: ~
@@ -1257,6 +1272,8 @@ flower:
 # StatsD settings
 statsd:
   enabled: true
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -1304,6 +1321,8 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Max number of old replicasets to retain
+  revisionHistoryLimit: ~
   # Command to use for PgBouncer(templated).
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).

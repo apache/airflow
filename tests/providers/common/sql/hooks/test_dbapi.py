@@ -23,8 +23,17 @@ from unittest import mock
 
 import pytest
 
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+
+class DbApiHookInProvider(DbApiHook):
+    conn_name_attr = 'test_conn_id'
+
+
+class NonDbApiHook(BaseHook):
+    pass
 
 
 class TestDbApiHook(unittest.TestCase):
@@ -390,3 +399,14 @@ class TestDbApiHook(unittest.TestCase):
         with pytest.raises(ValueError) as err:
             self.db_hook.run(sql=[])
         assert err.value.args[0] == "List of SQL statements is empty"
+
+    def test_instance_check_works_for_provider_derived_hook(self):
+        assert isinstance(DbApiHookInProvider(), DbApiHook)
+
+    def test_instance_check_works_for_non_db_api_hook(self):
+        assert not isinstance(NonDbApiHook(), DbApiHook)
+
+    def test_instance_check_works_for_legacy_db_api_hook(self):
+        from airflow.hooks.dbapi import DbApiHook as LegacyDbApiHook
+
+        assert isinstance(DbApiHookInProvider(), LegacyDbApiHook)

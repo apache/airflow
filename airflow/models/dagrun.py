@@ -703,7 +703,7 @@ class DagRun(Base, LoggingMixin):
                 dag = row.dag
                 if dag.schedule_on:
                     dag.create_dagrun(
-                        run_type=DagRunType.MANUAL,
+                        run_type=DagRunType.DATASET_TRIGGERED,
                         run_id=self.generate_run_id(
                             DagRunType.DATASET_TRIGGERED, execution_date=timezone.utcnow()
                         ),
@@ -728,9 +728,10 @@ class DagRun(Base, LoggingMixin):
                 try:
                     ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
-                    self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
-                    ti.state = State.REMOVED
-                    session.flush()
+                    if ti.state != State.REMOVED:
+                        self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
+                        ti.state = State.REMOVED
+                        session.flush()
                 else:
                     yield ti
 

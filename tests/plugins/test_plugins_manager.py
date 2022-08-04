@@ -298,6 +298,7 @@ class TestPluginsManager:
         from airflow.plugins_manager import import_errors, load_entrypoint_plugins
 
         mock_dist = mock.Mock()
+        mock_dist.metadata = {"Name": "test-dist"}
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint'
@@ -387,7 +388,7 @@ class TestEntryPointSource:
         mock_entrypoint.module = 'module_name_plugin'
 
         mock_dist = mock.Mock()
-        mock_dist.metadata = {'name': 'test-entrypoint-plugin'}
+        mock_dist.metadata = {'Name': 'test-entrypoint-plugin'}
         mock_dist.version = '1.0.0'
         mock_dist.entry_points = [mock_entrypoint]
 

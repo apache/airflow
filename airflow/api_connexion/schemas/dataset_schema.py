@@ -20,7 +20,35 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.api_connexion.schemas.common_schema import JsonObjectField
+from airflow.models.dataset import Dataset, DatasetDagRef, DatasetEvent, DatasetTaskRef
+
+
+class DatasetTaskRefSchema(SQLAlchemySchema):
+    """DatasetTaskRef DB schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = DatasetTaskRef
+
+    dag_id = auto_field()
+    task_id = auto_field()
+    created_at = auto_field()
+    updated_at = auto_field()
+
+
+class DatasetDagRefSchema(SQLAlchemySchema):
+    """DatasetDagRef DB schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = DatasetDagRef
+
+    dag_id = auto_field()
+    created_at = auto_field()
+    updated_at = auto_field()
 
 
 class DatasetSchema(SQLAlchemySchema):
@@ -33,9 +61,11 @@ class DatasetSchema(SQLAlchemySchema):
 
     id = auto_field()
     uri = auto_field()
-    extra = auto_field()
+    extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
+    upstream_task_references = fields.List(fields.Nested(DatasetTaskRefSchema))
+    downstream_dag_references = fields.List(fields.Nested(DatasetDagRefSchema))
 
 
 class DatasetCollection(NamedTuple):
@@ -66,12 +96,13 @@ class DatasetEventSchema(SQLAlchemySchema):
 
     id = auto_field()
     dataset_id = auto_field()
-    extra = auto_field()
+    dataset_uri = fields.String(attribute='dataset.uri', dump_only=True)
+    extra = JsonObjectField()
     source_task_id = auto_field()
     source_dag_id = auto_field()
     source_run_id = auto_field()
     source_map_index = auto_field()
-    created_at = auto_field()
+    timestamp = auto_field()
 
 
 class DatasetEventCollection(NamedTuple):

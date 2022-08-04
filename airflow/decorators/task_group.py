@@ -80,6 +80,9 @@ class TaskGroupDecorator(Generic[R]):
         #   start >> tg >> end
         return task_group
 
+    def override(self, **kwargs: Any) -> "TaskGroupDecorator[R]":
+        return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
+
 
 class Group(Generic[F]):
     """Declaration of a @task_group-decorated callable for type-checking.

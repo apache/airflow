@@ -130,6 +130,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
+            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -252,12 +253,14 @@ class SelectiveChecks:
         self,
         files: tuple[str, ...] = (),
         default_branch="main",
+        default_constraints_branch="constraints-main",
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
     ):
         self._files = files
         self._default_branch = default_branch
+        self._default_constraints_branch = default_constraints_branch
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
@@ -294,12 +297,19 @@ class SelectiveChecks:
         return self._default_branch
 
     @cached_property
+    def default_constraints_branch(self) -> str:
+        return self._default_constraints_branch
+
+    @cached_property
     def _full_tests_needed(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
-            get_console().print(f"[warning]Full tests needed because labels are {self._pr_labels}[/]")
+            get_console().print(
+                "[warning]Full tests needed because "
+                f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
+            )
             return True
         return False
 
@@ -314,6 +324,14 @@ class SelectiveChecks:
     @cached_property
     def python_versions_list_as_string(self) -> str:
         return " ".join(self.python_versions)
+
+    @cached_property
+    def min_max_python_versions_as_string(self) -> str:
+        return " ".join(
+            [CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0], CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]]
+            if self._full_tests_needed
+            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
+        )
 
     @cached_property
     def all_python_versions(self) -> list[str]:
@@ -370,6 +388,14 @@ class SelectiveChecks:
     @cached_property
     def kubernetes_versions(self) -> list[str]:
         return CURRENT_KUBERNETES_VERSIONS if self._full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
+
+    @cached_property
+    def min_max_kubernetes_versions_as_string(self) -> str:
+        return " ".join(
+            [CURRENT_KUBERNETES_VERSIONS[0], CURRENT_KUBERNETES_VERSIONS[-1]]
+            if self._full_tests_needed
+            else [DEFAULT_KUBERNETES_VERSION]
+        )
 
     @cached_property
     def kubernetes_versions_list_as_string(self) -> str:

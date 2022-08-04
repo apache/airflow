@@ -60,6 +60,7 @@ TEST_UPDATE_MASK = {"paths": ["memory_size_gb"]}  # TODO: Fill missing value
 TEST_UPDATE_MASK_MEMCACHED = {"displayName": "memcached instance"}
 TEST_PARENT = "test-parent"
 TEST_NAME = "test-name"
+TEST_UPDATE_INSTANCE_NAME = "projects/{project_id}/locations/{location}/instances/{instance_id}"
 
 
 class TestCloudMemorystoreCreateInstanceOperator(TestCase):
@@ -278,6 +279,11 @@ class TestCloudMemorystoreListInstancesOperator(TestCase):
 class TestCloudMemorystoreUpdateInstanceOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
+        mock_hook.return_value.update_instance.return_value.name = TEST_UPDATE_INSTANCE_NAME.format(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            instance_id=TEST_INSTANCE_ID,
+        )
         task = CloudMemorystoreUpdateInstanceOperator(
             task_id=TEST_TASK_ID,
             update_mask=TEST_UPDATE_MASK,
@@ -311,6 +317,11 @@ class TestCloudMemorystoreUpdateInstanceOperator(TestCase):
 class TestCloudMemorystoreScaleInstanceOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
+        mock_hook.return_value.update_instance.return_value.name = TEST_UPDATE_INSTANCE_NAME.format(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            instance_id=TEST_INSTANCE_ID,
+        )
         task = CloudMemorystoreScaleInstanceOperator(
             task_id=TEST_TASK_ID,
             memory_size_gb=TEST_INSTANCE_SIZE,
@@ -498,6 +509,11 @@ class TestCloudMemorystoreMemcachedListInstancesOperator(TestCase):
 class TestCloudMemorystoreMemcachedUpdateInstanceOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedHook")
     def test_assert_valid_hook_call(self, mock_hook):
+        mock_hook.return_value.update_instance.return_value.name = TEST_UPDATE_INSTANCE_NAME.format(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            instance_id=TEST_INSTANCE_ID,
+        )
         task = CloudMemorystoreMemcachedUpdateInstanceOperator(
             task_id=TEST_TASK_ID,
             update_mask=TEST_UPDATE_MASK_MEMCACHED,

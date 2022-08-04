@@ -38,6 +38,7 @@
     "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
       "src/*": ["static/js/*"],
     },
+    "noEmit": true,
   },
   "include": [
     "static",

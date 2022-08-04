@@ -137,6 +137,15 @@ class TestExasolHook(unittest.TestCase):
             self.db_hook.run(sql=[])
         assert err.value.args[0] == "List of SQL statements is empty"
 
+    def test_no_result_set(self):
+        """Queries like DROP and SELECT are of type rowCount (not resultSet),
+        which raises an error in pyexasol if trying to iterate over them"""
+        self.cur.result_type = mock.Mock()
+        self.cur.result_type.return_value = 'rowCount'
+
+        sql = 'SQL'
+        self.db_hook.run(sql)
+
     def test_bulk_load(self):
         with pytest.raises(NotImplementedError):
             self.db_hook.bulk_load('table', '/tmp/file')

@@ -75,7 +75,7 @@ class TaskCallbackRequest(CallbackRequest):
 
     def to_json(self) -> str:
         dict_obj = self.__dict__.copy()
-        dict_obj["simple_task_instance"] = dict_obj["simple_task_instance"].__dict__
+        dict_obj["simple_task_instance"] = self.simple_task_instance.as_dict()
         return json.dumps(dict_obj)
 
     @classmethod

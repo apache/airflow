@@ -74,6 +74,40 @@ Extra (optional)
           "sslkey": "/tmp/client-key.pem"
        }
 
+    The following extra parameters use for additional Hook configuration:
+
+    * ``iam`` - If set to ``True`` than use AWS IAM database authentication for
+      `Amazon RDS <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html>`__,
+      `Amazon Aurora <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html>`__
+      or `Amazon Redshift <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`__.
+    * ``aws_conn_id`` - AWS Connection ID which use for authentication via AWS IAM,
+      if not specified then **aws_conn_id** is used.
+    * ``redshift`` - Used when AWS IAM database authentication enabled.
+      If set to ``True`` than authenticate to Amazon Redshift Cluster, otherwise to Amazon RDS or Amazon Aurora.
+    * ``cluster-identifier`` - The unique identifier of the Amazon Redshift Cluster that contains the database
+      for which you are requesting credentials. This parameter is case sensitive.
+      If not specified than hostname from **Connection Host** is used.
+
+    Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
+
+    .. code-block:: json
+
+       {
+          "iam": true,
+          "aws_conn_id": "aws_awesome_rds_conn"
+       }
+
+    Example "extras" field (Amazon Redshift):
+
+    .. code-block:: json
+
+       {
+          "iam": true,
+          "aws_conn_id": "aws_awesome_redshift_conn",
+          "redshift": "/tmp/server-ca.pem",
+          "cluster-identifier": "awesome-redshift-identifier"
+       }
+
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).

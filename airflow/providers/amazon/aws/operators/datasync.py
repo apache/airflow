@@ -49,6 +49,7 @@ class DataSyncOperator(BaseOperator):
         consecutive calls to check TaskExecution status.
     :param max_iterations: Maximum number of
         consecutive calls to check TaskExecution status.
+    :param wait_for_completion: If True, wait for the task execution to reach a final state
     :param task_arn: AWS DataSync TaskArn to use. If None, then this operator will
         attempt to either search for an existing Task or attempt to create a new Task.
     :param source_location_uri: Source location URI to search for. All DataSync
@@ -122,6 +123,7 @@ class DataSyncOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         wait_interval_seconds: int = 30,
         max_iterations: int = 60,
+        wait_for_completion: bool = True,
         task_arn: Optional[str] = None,
         source_location_uri: Optional[str] = None,
         destination_location_uri: Optional[str] = None,
@@ -141,6 +143,7 @@ class DataSyncOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.wait_interval_seconds = wait_interval_seconds
         self.max_iterations = max_iterations
+        self.wait_for_completion = wait_for_completion
 
         self.task_arn = task_arn
 
@@ -345,6 +348,9 @@ class DataSyncOperator(BaseOperator):
         self.log.info("Starting execution for TaskArn %s", self.task_arn)
         self.task_execution_arn = hook.start_task_execution(self.task_arn, **self.task_execution_kwargs)
         self.log.info("Started TaskExecutionArn %s", self.task_execution_arn)
+
+        if not self.wait_for_completion:
+            return
 
         # Wait for task execution to complete
         self.log.info("Waiting for TaskExecutionArn %s", self.task_execution_arn)

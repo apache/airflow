@@ -21,10 +21,10 @@ import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 
 import { getMetaValue } from 'src/utils';
-import type { Dataset } from 'src/types';
+import type { API } from 'src/types';
 
 interface DatasetsData {
-  datasets: Dataset[];
+  datasets: API.Dataset[];
   totalEntries: number;
 }
 
@@ -35,7 +35,7 @@ interface Props {
 }
 
 export default function useDatasets({ limit, offset, order }: Props) {
-  const query = useQuery<DatasetsData>(
+  const query = useQuery(
     ['datasets', limit, offset, order],
     () => {
       const datasetsUrl = getMetaValue('datasets_api') || '/api/v1/datasets';

@@ -30,12 +30,6 @@ Content
 
 .. toctree::
     :maxdepth: 1
-    :caption: Guides
-
-    PrestoToSlackOperator types <operators/transfer/presto_to_slack>
-
-.. toctree::
-    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/presto/index>

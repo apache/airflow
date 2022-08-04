@@ -24,6 +24,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets
 
@@ -70,6 +71,7 @@ class TestDatasetEndpoint:
         )
         session.add(dataset_model)
         session.commit()
+        return dataset_model
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
@@ -77,15 +79,18 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         self._create_dataset(session)
         assert session.query(Dataset).count() == 1
 
-        response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
+        with assert_queries_count(5):
+            response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         assert response.json == {
             "id": 1,
             "uri": "s3://bucket/key",
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "created_at": self.default_time,
             "updated_at": self.default_time,
+            "downstream_dag_references": [],
+            "upstream_task_references": [],
         }
 
     def test_should_respond_404(self):
@@ -120,7 +125,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(Dataset).count() == 2
 
-        response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
+        with assert_queries_count(8):
+            response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -129,16 +135,20 @@ class TestGetDatasets(TestDatasetEndpoint):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
+                    "downstream_dag_references": [],
+                    "upstream_task_references": [],
                 },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
-                    "extra": "{'foo': 'bar'}",
+                    "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
+                    "downstream_dag_references": [],
+                    "upstream_task_references": [],
                 },
             ],
             "total_entries": 2,
@@ -183,6 +193,38 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = self.client.get("/api/v1/datasets")
 
         assert_401(response)
+
+    @parameterized.expand(
+        [
+            ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
+            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", 'wasb://some_dataset_bucket_/key'}),
+            (
+                "api/v1/datasets?uri_pattern=dataset",
+                {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
+            ),
+            (
+                "api/v1/datasets?uri_pattern=",
+                {
+                    'gcp://bucket/key',
+                    's3://folder/key',
+                    'somescheme://dataset/key',
+                    "wasb://some_dataset_bucket_/key",
+                },
+            ),
+        ]
+    )
+    @provide_session
+    def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
+        dataset1 = Dataset("s3://folder/key")
+        dataset2 = Dataset("gcp://bucket/key")
+        dataset3 = Dataset("somescheme://dataset/key")
+        dataset4 = Dataset("wasb://some_dataset_bucket_/key")
+        session.add_all([dataset1, dataset2, dataset3, dataset4])
+        session.commit()
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dataset_urls = {dataset['uri'] for dataset in response.json['datasets']}
+        assert expected_datasets == dataset_urls
 
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
@@ -258,17 +300,17 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
 class TestGetDatasetEvents(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
-        self._create_dataset(session)
+        d = self._create_dataset(session)
         common = {
             "dataset_id": 1,
-            "extra": "{'foo': 'bar'}",
+            "extra": {'foo': 'bar'},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(id=i, created_at=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
         assert session.query(DatasetEvent).count() == 2
@@ -279,20 +321,31 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         response_data = response.json
         assert response_data == {
             "dataset_events": [
-                {"id": 1, "created_at": self.default_time, **common},
-                {"id": 2, "created_at": self.default_time, **common},
+                {
+                    "id": 1,
+                    "timestamp": self.default_time,
+                    **common,
+                    "dataset_uri": d.uri,
+                },
+                {
+                    "id": 2,
+                    "timestamp": self.default_time,
+                    **common,
+                    "dataset_uri": d.uri,
+                },
             ],
             "total_entries": 2,
         }
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        'attr, value',
         [
             ('dataset_id', '2'),
             ('source_dag_id', 'dag2'),
             ('source_task_id', 'task2'),
             ('source_run_id', 'run2'),
             ('source_map_index', '2'),
-        ]
+        ],
     )
     @provide_session
     def test_filtering(self, attr, value, session):
@@ -316,7 +369,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
                 source_map_index=i,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2, 3]
         ]
@@ -335,12 +388,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "dataset_id": 2,
-                    "extra": None,
+                    "dataset_uri": datasets[1].uri,
+                    "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
                     "source_run_id": "run2",
                     "source_map_index": 2,
-                    "created_at": self.default_time,
+                    "timestamp": self.default_time,
                 }
             ],
             "total_entries": 1,
@@ -356,7 +410,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id="custom",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -412,7 +466,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 10)
         ]
@@ -434,7 +488,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 110)
         ]
@@ -456,7 +510,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
                 source_task_id="bar",
                 source_run_id=f"run{i}",
                 source_map_index=-1,
-                created_at=timezone.parse(self.default_time),
+                timestamp=timezone.parse(self.default_time),
             )
             for i in range(1, 200)
         ]

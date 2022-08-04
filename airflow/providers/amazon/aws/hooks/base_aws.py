@@ -24,7 +24,6 @@ This module contains Base AWS Hook.
     :ref:`howto/connection:AWSHook`
 """
 
-import configparser
 import datetime
 import json
 import logging
@@ -48,6 +47,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
+from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
@@ -65,78 +65,62 @@ class BaseSessionFactory(LoggingMixin):
         :ref:`howto/connection:aws:session-factory`
     """
 
-    def __init__(self, conn: Connection, region_name: Optional[str], config: Config) -> None:
+    def __init__(
+        self, conn: Union[Connection, AwsConnectionWrapper], region_name: Optional[str], config: Config
+    ) -> None:
         super().__init__()
-        self.conn = conn
-        self.region_name = region_name
+        self._conn = conn
+        self._region_name = region_name
         self.config = config
-        self.extra_config = self.conn.extra_dejson
 
-        self.basic_session: Optional[boto3.session.Session] = None
-        self.role_arn: Optional[str] = None
+    @cached_property
+    def conn(self) -> AwsConnectionWrapper:
+        """Cached AWS Connection Wrapper."""
+        if isinstance(self._conn, AwsConnectionWrapper):
+            return self._conn
+        return AwsConnectionWrapper(self._conn)
+
+    @cached_property
+    def basic_session(self) -> boto3.session.Session:
+        """Cached property with basic boto3.session.Session."""
+        return self._create_basic_session(session_kwargs=self.conn.session_kwargs)
+
+    @property
+    def extra_config(self) -> Dict[str, Any]:
+        """AWS Connection extra_config."""
+        return self.conn.extra_config
+
+    @property
+    def region_name(self) -> Optional[str]:
+        """Resolve region name.
+
+        1. SessionFactory region_name
+        2. Connection region_name
+        """
+        return self._region_name or self.conn.region_name
+
+    @property
+    def role_arn(self) -> Optional[str]:
+        """Assume Role ARN from AWS Connection"""
+        return self.conn.role_arn
 
     def create_session(self) -> boto3.session.Session:
         """Create AWS session."""
-        session_kwargs = {}
-        if "session_kwargs" in self.extra_config:
-            self.log.info(
-                "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
-                self.extra_config["session_kwargs"],
-            )
-            session_kwargs = self.extra_config["session_kwargs"]
-
-        if "profile" in self.extra_config and "s3_config_file" not in self.extra_config:
-            if "profile_name" not in session_kwargs:
-                self.log.warning(
-                    "Found 'profile' without specifying 's3_config_file'. "
-                    "If required profile from AWS Shared Credentials please "
-                    "set 'profile_name' in extra 'session_kwargs'."
-                )
-
-        self.basic_session = self._create_basic_session(session_kwargs=session_kwargs)
-        self.role_arn = self._read_role_arn_from_extra_config()
-        # If role_arn was specified then STS + assume_role
-        if self.role_arn is None:
+        if not self.role_arn:
             return self.basic_session
-
-        return self._create_session_with_assume_role(session_kwargs=session_kwargs)
-
-    def _get_region_name(self) -> Optional[str]:
-        region_name = self.region_name
-        if self.region_name is None and 'region_name' in self.extra_config:
-            self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
-            region_name = self.extra_config["region_name"]
-        return region_name
+        return self._create_session_with_assume_role(session_kwargs=self.conn.session_kwargs)
 
     def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
-        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
-        aws_session_token = self.extra_config.get("aws_session_token")
-        region_name = self._get_region_name()
-        self.log.debug(
-            "Creating session with aws_access_key_id=%s region_name=%s",
-            aws_access_key_id,
-            region_name,
-        )
-
         return boto3.session.Session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name=region_name,
-            aws_session_token=aws_session_token,
+            aws_access_key_id=self.conn.aws_access_key_id,
+            aws_secret_access_key=self.conn.aws_secret_access_key,
+            aws_session_token=self.conn.aws_session_token,
+            region_name=self.region_name,
             **session_kwargs,
         )
 
     def _create_session_with_assume_role(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
-        assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
-        self.log.debug("assume_role_method=%s", assume_role_method)
-        supported_methods = ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
-        if assume_role_method not in supported_methods:
-            raise NotImplementedError(
-                f'assume_role_method={assume_role_method} in Connection {self.conn.conn_id} Extra.'
-                f'Currently {supported_methods} are supported.'
-                '(Exclude this setting will default to "assume_role").'
-            )
-        if assume_role_method == 'assume_role_with_web_identity':
+        if self.conn.assume_role_method == 'assume_role_with_web_identity':
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
             credentials = botocore.credentials.DeferredRefreshableCredentials(
@@ -151,12 +135,9 @@ class BaseSessionFactory(LoggingMixin):
                 refresh_using=self._refresh_credentials,
                 method="sts-assume-role",
             )
+
         session = botocore.session.get_session()
         session._credentials = credentials
-
-        if self.basic_session is None:
-            raise RuntimeError("The basic session should be created here!")
-
         region_name = self.basic_session.region_name
         session.set_config_variable("region", region_name)
 
@@ -164,25 +145,21 @@ class BaseSessionFactory(LoggingMixin):
 
     def _refresh_credentials(self) -> Dict[str, Any]:
         self.log.debug('Refreshing credentials')
-        assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
-        sts_session = self.basic_session
+        assume_role_method = self.conn.assume_role_method
+        if assume_role_method not in ('assume_role', 'assume_role_with_saml'):
+            raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
 
-        if sts_session is None:
-            raise RuntimeError(
-                "Session should be initialized when refresh credentials with assume_role is used!"
-            )
-
-        sts_client = sts_session.client("sts", config=self.config)
+        sts_client = self.basic_session.client("sts", config=self.config)
 
         if assume_role_method == 'assume_role':
             sts_response = self._assume_role(sts_client=sts_client)
-        elif assume_role_method == 'assume_role_with_saml':
-            sts_response = self._assume_role_with_saml(sts_client=sts_client)
         else:
-            raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
+            sts_response = self._assume_role_with_saml(sts_client=sts_client)
+
         sts_response_http_status = sts_response['ResponseMetadata']['HTTPStatusCode']
-        if not sts_response_http_status == 200:
+        if sts_response_http_status != 200:
             raise RuntimeError(f'sts_response_http_status={sts_response_http_status}')
+
         credentials = sts_response['Credentials']
         expiry_time = credentials.get('Expiration').isoformat()
         self.log.debug('New credentials expiry_time: %s', expiry_time)
@@ -194,70 +171,13 @@ class BaseSessionFactory(LoggingMixin):
         }
         return credentials
 
-    def _read_role_arn_from_extra_config(self) -> Optional[str]:
-        aws_account_id = self.extra_config.get("aws_account_id")
-        aws_iam_role = self.extra_config.get("aws_iam_role")
-        role_arn = self.extra_config.get("role_arn")
-        if role_arn is None and aws_account_id is not None and aws_iam_role is not None:
-            self.log.info("Constructing role_arn from aws_account_id and aws_iam_role")
-            warnings.warn(
-                "Constructing 'role_arn' from 'aws_account_id' and 'aws_iam_role' is deprecated and "
-                "will be removed in a future releases. Please set 'role_arn' in extra config.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
-        self.log.debug("role_arn is %s", role_arn)
-        return role_arn
-
-    def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
-        aws_access_key_id = None
-        aws_secret_access_key = None
-        if self.conn.login:
-            aws_access_key_id = self.conn.login
-            aws_secret_access_key = self.conn.password
-            self.log.info("Credentials retrieved from login")
-        elif "aws_access_key_id" in self.extra_config and "aws_secret_access_key" in self.extra_config:
-            aws_access_key_id = self.extra_config["aws_access_key_id"]
-            aws_secret_access_key = self.extra_config["aws_secret_access_key"]
-            self.log.info("Credentials retrieved from extra_config")
-        elif "s3_config_file" in self.extra_config:
-            warnings.warn(
-                "Use local credentials file is never documented and well tested. "
-                "Obtain credentials by this way deprecated and will be removed in a future releases.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            aws_access_key_id, aws_secret_access_key = _parse_s3_config(
-                self.extra_config["s3_config_file"],
-                self.extra_config.get("s3_config_format"),
-                self.extra_config.get("profile"),
-            )
-            self.log.info("Credentials retrieved from extra_config['s3_config_file']")
-        return aws_access_key_id, aws_secret_access_key
-
-    def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
-        return slugify(role_session_name, regex_pattern=r'[^\w+=,.@-]+')
-
     def _assume_role(self, sts_client: boto3.client) -> Dict:
-        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
-        if "ExternalId" not in assume_role_kwargs and "external_id" in self.extra_config:
-            warnings.warn(
-                "'external_id' in extra config is deprecated and will be removed in a future releases. "
-                "Set 'ExternalId' in 'assume_role_kwargs' in extra config.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
-        role_session_name = self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}")
-        self.log.debug(
-            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
-            self.role_arn,
-            role_session_name,
-        )
-        return sts_client.assume_role(
-            RoleArn=self.role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
-        )
+        kw = {
+            "RoleSessionName": self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}"),
+            **self.conn.assume_role_kwargs,
+            "RoleArn": self.role_arn,
+        }
+        return sts_client.assume_role(**kw)
 
     def _assume_role_with_saml(self, sts_client: boto3.client) -> Dict[str, Any]:
         saml_config = self.extra_config['assume_role_with_saml']
@@ -273,12 +193,11 @@ class BaseSessionFactory(LoggingMixin):
             )
 
         self.log.debug("Doing sts_client.assume_role_with_saml to role_arn=%s", self.role_arn)
-        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         return sts_client.assume_role_with_saml(
             RoleArn=self.role_arn,
             PrincipalArn=principal_arn,
             SAMLAssertion=saml_assertion,
-            **assume_role_kwargs,
+            **self.conn.assume_role_kwargs,
         )
 
     def _get_idp_response(
@@ -357,8 +276,6 @@ class BaseSessionFactory(LoggingMixin):
     def _get_web_identity_credential_fetcher(
         self,
     ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
-        if self.basic_session is None:
-            raise Exception("Session should be set where identity is fetched!")
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get('assume_role_with_web_identity_federation')
@@ -368,12 +285,11 @@ class BaseSessionFactory(LoggingMixin):
             raise AirflowException(
                 f'Unsupported federation: {federation}. Currently "google" only are supported.'
             )
-        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
             client_creator=client_creator,
             web_identity_token_loader=web_identity_token_loader,
             role_arn=self.role_arn,
-            extra_args=assume_role_kwargs,
+            extra_args=self.conn.assume_role_kwargs,
         )
 
     def _get_google_identity_token_loader(self):
@@ -394,6 +310,37 @@ class BaseSessionFactory(LoggingMixin):
             return google_id_token_credentials.token
 
         return web_identity_token_loader
+
+    def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
+        return slugify(role_session_name, regex_pattern=r'[^\w+=,.@-]+')
+
+    def _get_region_name(self) -> Optional[str]:
+        warnings.warn(
+            "`BaseSessionFactory._get_region_name` method will be deprecated in the future."
+            "Please use `BaseSessionFactory.region_name` property instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.region_name
+
+    def _read_role_arn_from_extra_config(self) -> Optional[str]:
+        warnings.warn(
+            "`BaseSessionFactory._read_role_arn_from_extra_config` method will be deprecated in the future."
+            "Please use `BaseSessionFactory.role_arn` property instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.role_arn
+
+    def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
+        warnings.warn(
+            "`BaseSessionFactory._read_credentials_from_connection` method will be deprecated in the future."
+            "Please use `BaseSessionFactory.conn.aws_access_key_id` and "
+            "`BaseSessionFactory.aws_secret_access_key` properties instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.conn.aws_access_key_id, self.conn.aws_secret_access_key
 
 
 class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
@@ -446,24 +393,19 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.log.debug("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
 
         try:
-            # Fetch the Airflow connection object
-            connection_object = self.get_connection(self.aws_conn_id)
-            extra_config = connection_object.extra_dejson
-            endpoint_url = extra_config.get("host")
+            # Fetch the Airflow connection object and wrap it in helper
+            connection_object = AwsConnectionWrapper(self.get_connection(self.aws_conn_id))
 
-            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-            if "config_kwargs" in extra_config:
-                self.log.debug(
-                    "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
-                    extra_config["config_kwargs"],
-                )
-                self.config = Config(**extra_config["config_kwargs"])
+            if connection_object.botocore_config:
+                # For historical reason botocore.config.Config from connection overwrites
+                # config which explicitly set in Hook.
+                self.config = connection_object.botocore_config
 
             session = SessionFactory(
                 conn=connection_object, region_name=region_name, config=self.config
             ).create_session()
 
-            return session, endpoint_url
+            return session, connection_object.endpoint_url
 
         except AirflowException:
             self.log.warning(
@@ -675,57 +617,6 @@ class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
     """
 
 
-def _parse_s3_config(
-    config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
-) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Parses a config file for s3 credentials. Can currently
-    parse boto, s3cmd.conf and AWS SDK config formats
-
-    :param config_file_name: path to the config file
-    :param config_format: config type. One of "boto", "s3cmd" or "aws".
-        Defaults to "boto"
-    :param profile: profile name in AWS type config file
-    """
-    config = configparser.ConfigParser()
-    if config.read(config_file_name):  # pragma: no cover
-        sections = config.sections()
-    else:
-        raise AirflowException(f"Couldn't read {config_file_name}")
-    # Setting option names depending on file format
-    if config_format is None:
-        config_format = "boto"
-    conf_format = config_format.lower()
-    if conf_format == "boto":  # pragma: no cover
-        if profile is not None and "profile " + profile in sections:
-            cred_section = "profile " + profile
-        else:
-            cred_section = "Credentials"
-    elif conf_format == "aws" and profile is not None:
-        cred_section = profile
-    else:
-        cred_section = "default"
-    # Option names
-    if conf_format in ("boto", "aws"):  # pragma: no cover
-        key_id_option = "aws_access_key_id"
-        secret_key_option = "aws_secret_access_key"
-        # security_token_option = 'aws_security_token'
-    else:
-        key_id_option = "access_key"
-        secret_key_option = "secret_key"
-    # Actual Parsing
-    if cred_section not in sections:
-        raise AirflowException("This config file format is not recognized")
-    else:
-        try:
-            access_key = config.get(cred_section, key_id_option)
-            secret_key = config.get(cred_section, secret_key_option)
-        except Exception:
-            logging.warning("Option Error in parsing s3 config file")
-            raise
-        return access_key, secret_key
-
-
 def resolve_session_factory() -> Type[BaseSessionFactory]:
     """Resolves custom SessionFactory class"""
     clazz = conf.getimport("aws", "session_factory", fallback=None)
@@ -740,3 +631,16 @@ def resolve_session_factory() -> Type[BaseSessionFactory]:
 
 
 SessionFactory = resolve_session_factory()
+
+
+def _parse_s3_config(
+    config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
+):
+    """For compatibility with airflow.contrib.hooks.aws_hook"""
+    from airflow.providers.amazon.aws.utils.connection_wrapper import _parse_s3_config
+
+    return _parse_s3_config(
+        config_file_name=config_file_name,
+        config_format=config_format,
+        profile=profile,
+    )

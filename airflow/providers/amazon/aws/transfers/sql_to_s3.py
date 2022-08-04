@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import enum
 from collections import namedtuple
-from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
@@ -35,10 +35,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-FILE_FORMAT = Enum(
-    "FILE_FORMAT",
-    "CSV, JSON, PARQUET",
-)
+class FILE_FORMAT(enum.Enum):
+    """Possible file formats."""
+
+    CSV = enum.auto()
+    JSON = enum.auto()
+    PARQUET = enum.auto()
+
 
 FileOptions = namedtuple('FileOptions', ['mode', 'suffix', 'function'])
 
@@ -118,15 +121,24 @@ class SqlToS3Operator(BaseOperator):
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException('The argument path_or_buf is not allowed, please remove it')
 
-        self.file_format = getattr(FILE_FORMAT, file_format.upper(), None)
-
-        if self.file_format is None:
+        try:
+            self.file_format = FILE_FORMAT[file_format.upper()]
+        except KeyError:
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_int_dtypes(df: pd.DataFrame) -> None:
-        """Mutate DataFrame to set dtypes for int columns containing NaN values."""
+    def _fix_dtypes(df: pd.DataFrame) -> None:
+        """
+        Mutate DataFrame to set dtypes for float columns containing NaN values.
+        Set dtype of object to str to allow for downstream transformations.
+        """
         for col in df:
+
+            if df[col].dtype.name == 'object':
+                # if the type wasn't identified or converted, change it to a string so if can still be
+                # processed.
+                df[col] = df[col].astype(str)
+
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
                 notna_series = df[col].dropna().values
@@ -145,7 +157,7 @@ class SqlToS3Operator(BaseOperator):
         data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)
         self.log.info("Data from SQL obtained")
 
-        self._fix_int_dtypes(data_df)
+        self._fix_dtypes(data_df)
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
         with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
