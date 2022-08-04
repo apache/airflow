@@ -538,7 +538,7 @@ class DAG(LoggingMixin):
         if doc_md is None:
             return doc_md
 
-        env = self.get_template_env(force_sandboxed=False)
+        env = self.get_template_env(force_sandboxed=True)
 
         if not doc_md.endswith('.md'):
             template = jinja2.Template(doc_md)
@@ -547,9 +547,6 @@ class DAG(LoggingMixin):
             template = env.get_template(doc_md)
 
         return template.render()
-
-        return template.render()
-        # return pathlib.Path(doc_md).read_text() if pathlib.Path(str(doc_md or '')).is_file() else doc_md
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
         """Check ``schedule_interval`` and ``timetable`` match.

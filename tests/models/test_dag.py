@@ -2231,25 +2231,12 @@ class TestDagDecorator:
             f.flush()
             template_file = os.path.basename(f.name)
 
-            @dag_decorator(default_args=self.DEFAULT_ARGS, doc_md=template_file)
-            def noop_pipeline():
-                """
-                {% if True %}
-                Regular DAG documentation
-                {% endif %}
-                """
+            with DAG('test-dag', start_date=DEFAULT_DATE, doc_md=template_file) as dag:
+                task = EmptyOperator(task_id='op1')
 
-                @task_decorator
-                def return_num(num):
-                    return num
-
-                return_num(4)
-
-            dag = noop_pipeline()
-
-            assert isinstance(dag, DAG)
-            assert dag.dag_id, 'test'
-            assert dag.doc_md.strip(), "External Markdown DAG documentation"
+                assert isinstance(dag, DAG)
+                assert dag.dag_id, 'test'
+                assert dag.doc_md.strip(), "External Markdown DAG documentation"
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
