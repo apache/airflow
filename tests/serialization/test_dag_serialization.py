@@ -81,7 +81,7 @@ class CustomDependencyDetector(DependencyDetector):
     """
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> Optional[DagDependency]:
+    def detect_task_dependencies(task: Operator) -> Optional[DagDependency]:  # type: ignore
         if isinstance(task, CustomDepOperator):
             return DagDependency(
                 source=task.dag_id,
@@ -90,7 +90,7 @@ class CustomDependencyDetector(DependencyDetector):
                 dependency_id=task.task_id,
             )
         else:
-            return DependencyDetector().detect_task_dependencies(task)
+            return DependencyDetector().detect_task_dependencies(task)  # type: ignore
 
 
 executor_config_pod = k8s.V1Pod(
