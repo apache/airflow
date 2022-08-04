@@ -46,7 +46,12 @@ SPARK_PYTHON_TASK = {'python_file': 'test.py', 'parameters': ['--param', '123']}
 SPARK_SUBMIT_TASK = {
     "parameters": ["--class", "org.apache.spark.examples.SparkPi", "dbfs:/path/to/examples.jar", "10"]
 }
-NEW_CLUSTER = {'spark_version': '2.0.x-scala2.10', 'node_type_id': 'development-node', 'num_workers': 1}
+NEW_CLUSTER = {
+    'spark_version': '2.0.x-scala2.10',
+    'node_type_id': 'development-node',
+    'num_workers': 1,
+    "enable_elastic_disk": True,
+}
 EXISTING_CLUSTER_ID = 'existing-cluster-id'
 RUN_NAME = 'run-name'
 RUN_ID = 1
@@ -91,7 +96,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, notebook_task=NOTEBOOK_TASK
         )
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
 
@@ -104,7 +109,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_python_task=SPARK_PYTHON_TASK
         )
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'spark_python_task': SPARK_PYTHON_TASK, 'run_name': TASK_ID}
         )
 
@@ -117,7 +122,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_submit_task=SPARK_SUBMIT_TASK
         )
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'spark_submit_task': SPARK_SUBMIT_TASK, 'run_name': TASK_ID}
         )
 
@@ -129,7 +134,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         """
         json = {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         assert expected == op.json
@@ -137,7 +142,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
     def test_init_with_tasks(self):
         tasks = [{"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}]
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, tasks=tasks)
-        expected = utils.deep_string_coerce({'run_name': TASK_ID, "tasks": tasks})
+        expected = utils.normalise_json_content({'run_name': TASK_ID, "tasks": tasks})
         assert expected == op.json
 
     def test_init_with_specified_run_name(self):
@@ -146,7 +151,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         """
         json = {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
         )
         assert expected == op.json
@@ -158,7 +163,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         pipeline_task = {"pipeline_id": "test-dlt"}
         json = {'new_cluster': NEW_CLUSTER, 'run_name': RUN_NAME, "pipeline_task": pipeline_task}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, "pipeline_task": pipeline_task, 'run_name': RUN_NAME}
         )
         assert expected == op.json
@@ -175,7 +180,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'new_cluster': override_new_cluster,
                 'notebook_task': NOTEBOOK_TASK,
@@ -192,7 +197,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={'ds': DATE})
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': RENDERED_TEMPLATED_NOTEBOOK_TASK,
@@ -209,7 +214,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             'git_branch': 'main',
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, git_source=git_source, json=json)
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': NOTEBOOK_TASK,
@@ -245,7 +250,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -278,7 +283,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': NOTEBOOK_TASK,
@@ -326,7 +331,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -355,7 +360,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -391,7 +396,7 @@ class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
         self.assertTrue(isinstance(exc.value.trigger, DatabricksExecutionTrigger))
         self.assertEqual(exc.value.method_name, 'execute_complete')
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -463,7 +468,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         Test the initializer with the named parameters.
         """
         op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
-        expected = utils.deep_string_coerce({'job_id': 42})
+        expected = utils.normalise_json_content({'job_id': 42})
 
         assert expected == op.json
 
@@ -480,7 +485,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         }
         op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'jar_params': JAR_PARAMS,
@@ -512,7 +517,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             spark_submit_params=SPARK_SUBMIT_PARAMS,
         )
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': override_notebook_params,
                 'jar_params': override_jar_params,
@@ -530,7 +535,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
         op.render_template_fields(context={'ds': DATE})
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'jar_params': RENDERED_TEMPLATED_JAR_PARAMS,
@@ -562,7 +567,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -597,7 +602,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -654,7 +659,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         assert exc_info.value.args[0].endswith(" Exception: Something went wrong...")
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -696,7 +701,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -727,7 +732,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -772,7 +777,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -825,7 +830,7 @@ class TestDatabricksRunNowDeferrableOperator(unittest.TestCase):
         self.assertTrue(isinstance(exc.value.trigger, DatabricksExecutionTrigger))
         self.assertEqual(exc.value.method_name, 'execute_complete')
 
-        expected = utils.deep_string_coerce(
+        expected = utils.normalise_json_content(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,

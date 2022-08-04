@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import deep_string_coerce, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -352,7 +352,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if git_source is not None:
             self.json['git_source'] = git_source
 
-        self.json = deep_string_coerce(self.json)
+        self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
@@ -607,7 +607,7 @@ class DatabricksRunNowOperator(BaseOperator):
         if idempotency_token is not None:
             self.json['idempotency_token'] = idempotency_token
 
-        self.json = deep_string_coerce(self.json)
+        self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
