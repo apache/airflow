@@ -863,20 +863,30 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> Set['DagDependency']:
         """Detects between DAG dependencies for the operator."""
+
+        def get_custom_dep() -> List[DagDependency]:
+            """
+            If custom dependency detector is configured, use it.
+
+            TODO: Remove this logic in 3.0.
+            """
+            custom_dependency_detector_cls = conf.getimport('scheduler', 'dependency_detector', fallback=None)
+            if not (
+                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
+            ):
+                warnings.warn(
+                    "Use of a custom dependency detector is deprecated. "
+                    "Support will be removed in a future release.",
+                    DeprecationWarning,
+                )
+                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
+                if type(dep) is DagDependency:
+                    return [dep]
+            return []
+
         dependency_detector = DependencyDetector()
-        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
-        deps = set()
-        if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
-            warnings.warn(
-                "Use of a custom dependency detector is deprecated. "
-                "Support will be removed in a future release.",
-                DeprecationWarning,
-            )
-            dep = custom_dependency_detector.detect_task_dependencies(op)
-            if type(dep) is DagDependency:
-                deps.add(dep)
-        deps.update(dependency_detector.detect_task_dependencies(op))
-        deps.update(dependency_detector.detect_dag_dependencies(op.dag))
+        deps = set(dependency_detector.detect_task_dependencies(op))
+        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
@@ -1048,14 +1058,13 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            dag_deps = [
-                t.__dict__
+            dag_deps = {
+                dep
                 for task in dag.task_dict.values()
-                for t in SerializedBaseOperator.detect_dependencies(task)
-                if t is not None
-            ]
-
-            serialized_dag["dag_dependencies"] = dag_deps
+                for dep in SerializedBaseOperator.detect_dependencies(task)
+            }
+            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1240,7 +1249,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         return group
 
 
-@dataclass
+@dataclass(frozen=True)
 class DagDependency:
     """Dataclass for representing dependencies between DAGs.
     These are calculated during serialization and attached to serialized DAGs.
@@ -1260,9 +1269,6 @@ class DagDependency:
         if self.dependency_id:
             val += f":{self.dependency_id}"
         return val
-
-    def __hash__(self):
-        return hash((self.source, self.target, self.dependency_type, self.dependency_id))
 
 
 def _has_kubernetes() -> bool:
