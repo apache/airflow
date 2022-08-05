@@ -23,6 +23,7 @@
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
+import openDatasetModal from './openDatasetModal';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -536,4 +537,10 @@ $('#auto_refresh').change(() => {
     $('#loading-dots').css('display', 'none');
   }
   startOrStopRefresh();
+});
+
+$('.next-dataset-triggered').on('click', (e) => {
+  const dagId = $(e.target).data('dag-id');
+  const summary = $(e.target).data('summary');
+  if (dagId) openDatasetModal(dagId, summary || '');
 });
