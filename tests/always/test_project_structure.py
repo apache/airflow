@@ -57,14 +57,6 @@ class TestProjectStructure(unittest.TestCase):
         """
         Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
         """
-        # Deprecated modules that don't have corresponded test
-        expected_missing_providers_modules = {
-            (
-                'airflow/providers/amazon/aws/hooks/aws_dynamodb.py',
-                'tests/providers/amazon/aws/hooks/test_aws_dynamodb.py',
-            )
-        }
-
         # TODO: Should we extend this test to cover other directories?
         modules_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
 
@@ -98,21 +90,7 @@ class TestProjectStructure(unittest.TestCase):
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
         with self.subTest("Detect missing tests in providers module"):
-            expected_missing_test_modules = {pair[1] for pair in expected_missing_providers_modules}
-            missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
             assert set() == missing_tests_files
-
-        with self.subTest("Verify removed deprecated module also removed from deprecated list"):
-            expected_missing_modules = {pair[0] for pair in expected_missing_providers_modules}
-            removed_deprecated_module = expected_missing_modules - modules_files
-            if removed_deprecated_module:
-                self.fail(
-                    "You've removed a deprecated module:\n"
-                    f"{removed_deprecated_module}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of expected missing modules tests, please?"
-                )
 
 
 def get_imports_from_file(filepath: str):
@@ -452,21 +430,18 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         'airflow.providers.amazon.aws.operators.eks.EKSDeleteFargateProfileOperator',
         'airflow.providers.amazon.aws.operators.eks.EKSDeleteNodegroupOperator',
         'airflow.providers.amazon.aws.operators.eks.EKSPodOperator',
-        'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
         'airflow.providers.amazon.aws.operators.glue.AwsGlueJobOperator',
         'airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerOperator',
         'airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator',
         'airflow.providers.amazon.aws.sensors.eks.EKSClusterStateSensor',
         'airflow.providers.amazon.aws.sensors.eks.EKSFargateProfileStateSensor',
         'airflow.providers.amazon.aws.sensors.eks.EKSNodegroupStateSensor',
-        'airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor',
         'airflow.providers.amazon.aws.sensors.glue.AwsGlueJobSensor',
         'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
         'airflow.providers.amazon.aws.sensors.glue_crawler.AwsGlueCrawlerSensor',
         'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
         'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
         'airflow.providers.amazon.aws.sensors.sqs.SQSSensor',
-        'airflow.providers.amazon.aws.transfers.mysql_to_s3.MySQLToS3Operator',
     }
 
 
