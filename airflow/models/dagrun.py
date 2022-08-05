@@ -736,7 +736,7 @@ class DagRun(Base, LoggingMixin):
                     yield ti
 
         tis = list(_filter_tis_and_exclude_removed(self.get_dag(), tis))
-        missing_indexes = self._find_missing_task_indexes(tis, session=session)
+        missing_indexes = self._revise_mapped_task_indexes(tis, session=session)
         if missing_indexes:
             self.verify_integrity(missing_indexes=missing_indexes, session=session)
 
@@ -1158,7 +1158,7 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def _find_missing_task_indexes(
+    def _revise_mapped_task_indexes(
         self,
         tis: Iterable[TI],
         *,
@@ -1183,6 +1183,14 @@ class DagRun(Base, LoggingMixin):
             existing_indexes[task].append(ti.map_index)
             task.run_time_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]
             new_length = task.run_time_mapped_ti_count(self.run_id, session=session) or 0
+
+            if ti.map_index >= new_length:
+                self.log.debug(
+                    "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
+                    ti,
+                    new_length,
+                )
+                ti.state = State.REMOVED
             new_indexes[task] = range(new_length)
         missing_indexes: Dict[MappedOperator, Sequence[int]] = defaultdict(list)
         for k, v in existing_indexes.items():
