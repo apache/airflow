@@ -28,11 +28,14 @@ from typing import (
     FrozenSet,
     Iterable,
     List,
+    MutableMapping,
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     Union,
+    cast,
 )
 
 from airflow.compat.functools import cached_property
@@ -284,6 +287,16 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def extra_links(self) -> List[str]:
         return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, "Session"]]) -> "BaseOperator":
+        """Get the "normal" operator from current abstract operator.
+
+        MappedOperator uses this to unmap itself based on the map index. A non-
+        mapped operator (i.e. BaseOperator subclass) simply returns itself.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
     def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
 
@@ -300,13 +313,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
             link = self.global_operator_extra_link_dict.get(link_name)
             if not link:
                 return None
-        # Check for old function signature
+
         parameters = inspect.signature(link.get_link).parameters
-        args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
-        if "ti_key" in args:
-            return link.get_link(self, ti_key=ti.key)
-        else:
-            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
+        old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
+
+        if old_signature:
+            return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
+        return link.get_link(self.unmap(None), ti_key=ti.key)
 
     def render_template_fields(
         self,
@@ -401,8 +414,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 template = jinja_env.from_string(value)
             dag = self.get_dag()
             if dag and dag.render_template_as_native_obj:
-                return render_template_as_native(template, context)
-            return render_template_to_string(template, context)
+                return render_template_as_native(template, cast(MutableMapping[str, Any], context))
+            return render_template_to_string(template, cast(MutableMapping[str, Any], context))
 
         if isinstance(value, (DagParam, XComArg)):
             return value.resolve(context)

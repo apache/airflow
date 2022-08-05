@@ -1520,6 +1520,7 @@ unittest
 unittests
 unix
 unmanaged
+unmap
 unmappable
 unmapped
 unmapping

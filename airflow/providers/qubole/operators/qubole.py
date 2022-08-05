@@ -31,7 +31,6 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -43,7 +42,7 @@ class QDSLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator: "AbstractOperator",
+        operator: BaseOperator,
         dttm: Optional[datetime] = None,
         *,
         ti_key: Optional["TaskInstanceKey"] = None,

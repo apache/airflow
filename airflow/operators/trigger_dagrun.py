@@ -39,7 +39,6 @@ XCOM_RUN_ID = "trigger_run_id"
 
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskinstance import TaskInstanceKey
 
 
@@ -51,12 +50,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = 'Triggered DAG'
 
-    def get_link(
-        self,
-        operator: "AbstractOperator",
-        *,
-        ti_key: "TaskInstanceKey",
-    ) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: "TaskInstanceKey") -> str:
         # Fetch the correct execution date for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         when = XCom.get_value(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
