@@ -2234,6 +2234,8 @@ class TestDagDecorator:
             with DAG('test-dag', start_date=DEFAULT_DATE, doc_md=template_file) as dag:
                 task = EmptyOperator(task_id='op1')
 
+                task
+
                 assert isinstance(dag, DAG)
                 assert dag.dag_id, 'test'
                 assert dag.doc_md.strip(), "External Markdown DAG documentation"
