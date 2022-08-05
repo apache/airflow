@@ -25,10 +25,10 @@ import time
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Iterator, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Iterator, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
-from sqlalchemy import func, or_
+from sqlalchemy import exc, func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
@@ -51,6 +51,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_c
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.operator import Operator
 
 DR = models.DagRun
 TI = models.TaskInstance
@@ -625,7 +628,7 @@ class DagFileProcessor(LoggingMixin):
             self.log.debug("Processing Callback Request: %s", request)
             try:
                 if isinstance(request, TaskCallbackRequest):
-                    self._execute_task_callbacks(dagbag, request)
+                    self._execute_task_callbacks(dagbag, request, session=session)
                 elif isinstance(request, SlaCallbackRequest):
                     self.manage_slas(dagbag.get_dag(request.dag_id), session=session)
                 elif isinstance(request, DagCallbackRequest):
@@ -637,7 +640,27 @@ class DagFileProcessor(LoggingMixin):
                     request.full_filepath,
                 )
 
-        session.commit()
+        session.flush()
+
+    def execute_callbacks_without_dag(
+        self, callback_requests: List[CallbackRequest], session: Session
+    ) -> None:
+        """
+        Execute what callbacks we can as "best effort" when the dag cannot be found/had parse errors.
+
+        This is so important so that tasks that failed when there is a parse
+        error don't get stuck in queued state.
+        """
+        for request in callback_requests:
+            self.log.debug("Processing Callback Request: %s", request)
+            if isinstance(request, TaskCallbackRequest):
+                self._execute_task_callbacks(None, request, session)
+            else:
+                self.log.info(
+                    "Not executing %s callback for file %s as there was a dag parse error",
+                    request.__class__.__name__,
+                    request.full_filepath,
+                )
 
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
@@ -647,18 +670,51 @@ class DagFileProcessor(LoggingMixin):
             dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
         )
 
-    def _execute_task_callbacks(self, dagbag: DagBag, request: TaskCallbackRequest):
+    def _execute_task_callbacks(
+        self, dagbag: Optional[DagBag], request: TaskCallbackRequest, session: Session
+    ):
+        if not request.is_failure_callback:
+            return
+
         simple_ti = request.simple_task_instance
-        if simple_ti.dag_id in dagbag.dags:
+        ti: Optional[TI] = (
+            session.query(TI)
+            .filter_by(
+                dag_id=simple_ti.dag_id,
+                run_id=simple_ti.run_id,
+                task_id=simple_ti.task_id,
+                map_index=simple_ti.map_index,
+            )
+            .one_or_none()
+        )
+        if not ti:
+            return
+
+        task: Optional["Operator"] = None
+
+        if dagbag and simple_ti.dag_id in dagbag.dags:
             dag = dagbag.dags[simple_ti.dag_id]
             if simple_ti.task_id in dag.task_ids:
                 task = dag.get_task(simple_ti.task_id)
-                if request.is_failure_callback:
-                    ti = TI(task, run_id=simple_ti.run_id, map_index=simple_ti.map_index)
-                    # TODO: Use simple_ti to improve performance here in the future
-                    ti.refresh_from_db()
-                    ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE)
-                    self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
+        else:
+            # We don't have the _real_ dag here (perhaps it had a parse error?) but we still want to run
+            # `handle_failure` so that the state of the TI gets progressed.
+            #
+            # Since handle_failure _really_ wants a task, we do our best effort to give it one
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            try:
+                model = session.query(SerializedDagModel).get(simple_ti.dag_id)
+                if model:
+                    task = model.dag.get_task(simple_ti.task_id)
+            except (exc.NoResultFound, TaskNotFound):
+                pass
+        if task:
+            ti.refresh_from_task(task)
+
+        ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE, session=session)
+        self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
+        session.flush()
 
     @provide_session
     def process_file(
@@ -666,7 +722,7 @@ class DagFileProcessor(LoggingMixin):
         file_path: str,
         callback_requests: List[CallbackRequest],
         pickle_dags: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> Tuple[int, int]:
         """
         Process a Python file containing Airflow DAGs.
@@ -702,12 +758,19 @@ class DagFileProcessor(LoggingMixin):
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             self.update_import_errors(session, dagbag)
+            if callback_requests:
+                # If there were callback requests for this file but there was a
+                # parse error we still need to progress the state of TIs,
+                # otherwise they might be stuck in queued/running for ever!
+                self.execute_callbacks_without_dag(callback_requests, session)
             return 0, len(dagbag.import_errors)
 
-        self.execute_callbacks(dagbag, callback_requests)
+        self.execute_callbacks(dagbag, callback_requests, session)
+        session.commit()
 
         # Save individual DAGs in the ORM
-        dagbag.sync_to_db()
+        dagbag.sync_to_db(session)
+        session.commit()
 
         if pickle_dags:
             paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
