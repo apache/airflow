@@ -31,11 +31,14 @@ import {
 import { ClipboardButton } from 'src/components/Clipboard';
 import type { API } from 'src/types';
 import InfoTooltip from 'src/components/InfoTooltip';
+import { getMetaValue } from 'src/utils';
 
 interface Props {
   datasetId: string;
   onBack: () => void;
 }
+
+const gridUrl = getMetaValue('grid_url');
 
 const Details = ({
   dataset: {
@@ -68,7 +71,7 @@ const Details = ({
         <Link
           key={`${dagId}.${taskId}`}
           color="blue.600"
-          href={`/dags/${dagId}/grid`}
+          href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
           display="block"
         >
           {`${dagId}.${taskId}`}
@@ -86,7 +89,7 @@ const Details = ({
         <Link
           key={dagId}
           color="blue.600"
-          href={`/dags/${dagId}/grid`}
+          href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
           display="block"
         >
           {dagId}
