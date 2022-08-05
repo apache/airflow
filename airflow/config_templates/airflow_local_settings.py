@@ -49,9 +49,7 @@ COLORED_LOG: bool = conf.getboolean('logging', 'COLORED_CONSOLE_LOG')
 
 COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value('logging', 'COLORED_FORMATTER_CLASS')
 
-SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT: bool = conf.getboolean(
-    'logging', 'SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT'
-)
+DAG_PROCESSOR_LOG_TARGET: bool = conf.get_mandatory_value('logging', 'DAG_PROCESSOR_LOG_TARGET')
 
 BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'BASE_LOG_FOLDER')
 
@@ -116,7 +114,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     },
     'loggers': {
         'airflow.processor': {
-            'handlers': ['processor_to_stdout' if SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT else 'processor'],
+            'handlers': ['processor_to_stdout' if DAG_PROCESSOR_LOG_TARGET == "stdout" else 'processor'],
             'level': LOG_LEVEL,
             'propagate': False,
         },

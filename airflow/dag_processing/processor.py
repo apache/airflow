@@ -157,16 +157,14 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             result_channel.send(result)
 
         try:
-            SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT: bool = conf.get(
-                'logging', 'SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT'
-            )
-            if SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT:
+            DAG_PROCESSOR_LOG_TARGET: str = conf.get('logging', 'DAG_PROCESSOR_LOG_TARGET')
+            if DAG_PROCESSOR_LOG_TARGET == "stdout":
                 with Stats.timer() as timer:
                     _handle_dag_file_processing()
             else:
                 # The following line ensures that stdout goes to the same destination as the logs. If stdout
                 # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
-                # necessitates this conditional based on the value of SEND_DAG_PARSER_LOGS_TO_STANDARD_OUT.
+                # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
                 with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
                     StreamLogWriter(log, logging.WARN)
                 ), Stats.timer() as timer:
