@@ -117,6 +117,12 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/emr_eks.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon EMR Serverless
+    external-doc-url: https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/emr_serverless.rst
+    logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
     logo: /integration-logos/aws/Amazon-S3-Glacier_light-bg@4x.png
