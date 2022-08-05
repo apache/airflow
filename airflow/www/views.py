@@ -892,17 +892,7 @@ class Airflow(AirflowBaseView):
                 for name, in dagtags
             ]
 
-            owner_links_dict = {}
-            owner_links = session.query(DagOwnerAttributes).all()
-            # The structure we are going for is:
-            # {dag1: {owner1: link1, owner2: link2}, dag2: {owner1: link1}}
-            for owner_link_pair in owner_links:
-                owner_link_pair_dict = owner_link_pair.as_dict()
-                for dag in owner_link_pair_dict:
-                    if dag in owner_links_dict:
-                        owner_links_dict[dag].update(owner_link_pair_dict[dag])
-                    else:
-                        owner_links_dict.update(owner_link_pair_dict)
+            owner_links_dict = DagOwnerAttributes.get_all(session)
 
             import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id)
 

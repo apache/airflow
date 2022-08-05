@@ -1988,13 +1988,9 @@ class TestDag(unittest.TestCase):
         session = settings.Session()
         dag.sync_to_db(session=session)
 
-        expected_owners = [
-            {'dag': {'owner1': 'https://mylink.com'}},
-            {'dag': {'owner2': 'mailto:someone@yoursite.com'}},
-        ]
-        orm_dag_owners = session.query(DagOwnerAttributes).all()
-        for dag_owner in orm_dag_owners:
-            assert dag_owner.as_dict() in expected_owners
+        expected_owners = {'dag': {'owner1': 'https://mylink.com', 'owner2': 'mailto:someone@yoursite.com'}}
+        orm_dag_owners = DagOwnerAttributes.get_all(session)
+        assert orm_dag_owners == expected_owners
 
         # Test dag owner links are removed completely
         dag = DAG(

@@ -40,7 +40,7 @@ def upgrade():
     op.create_table(
         'dag_owner_attributes',
         sa.Column('dag_id', sa.String(length=250), nullable=False),
-        sa.Column('owner', sa.String(length=100), nullable=False),
+        sa.Column('owner', sa.String(length=500), nullable=False),
         sa.Column('link', sa.String(length=500), nullable=False),
         sa.ForeignKeyConstraint(['dag_id'], ['dag.dag_id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('dag_id', 'owner'),
