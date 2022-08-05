@@ -1845,9 +1845,6 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
 
-        if context is None:
-            context = self.get_template_context()
-
         if error:
             if isinstance(error, BaseException):
                 tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
@@ -1859,7 +1856,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f'operator_failures_{self.task.task_type}')
+        Stats.incr(f'operator_failures_{self.operator}')
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
@@ -1868,6 +1865,10 @@ class TaskInstance(Base, LoggingMixin):
             session.add(TaskFail(ti=self))
 
         self.clear_next_method_args()
+
+        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        if context is None and self.task:
+            context = self.get_template_context(session)
 
         if context is not None:
             context['exception'] = error
@@ -1886,7 +1887,8 @@ class TaskInstance(Base, LoggingMixin):
 
         task: Optional[BaseOperator] = None
         try:
-            task = self.task.unmap((context, session))
+            if self.task and context:
+                task = self.task.unmap((context, session))
         except Exception:
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
@@ -1911,7 +1913,7 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
-        if callback:
+        if callback and context:
             self._run_finished_callback(callback, context, callback_type)
 
         if not test_mode:
@@ -1924,6 +1926,9 @@ class TaskInstance(Base, LoggingMixin):
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
+        if not self.task:
+            # Couldn't load the task, don't know number of retries, guess:
+            return self.try_number <= self.max_tries
 
         return self.task.retries and self.try_number <= self.max_tries
 
