@@ -55,15 +55,18 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
-    @mock_s3
     def test_use_threads_default_value(self):
         hook = S3Hook()
         assert hook.transfer_config.use_threads is True
 
-    @mock_s3
     def test_use_threads_set_value(self):
         hook = S3Hook(transfer_config_args={"use_threads": False})
         assert hook.transfer_config.use_threads is False
+
+    @pytest.mark.parametrize("transfer_config_args", [1, True, '{"use_threads": false}'])
+    def test_transfer_config_args_invalid(self, transfer_config_args):
+        with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
+            S3Hook(transfer_config_args=transfer_config_args)
 
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
@@ -509,7 +512,7 @@ class TestAwsS3Hook:
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError, match="extra_args expected dict, got .*"):
             S3Hook(extra_args=1)
 
     def test_should_throw_error_if_extra_args_contains_unknown_arg(self, s3_bucket):
