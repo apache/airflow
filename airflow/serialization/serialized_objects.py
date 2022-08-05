@@ -845,6 +845,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 ui_color=BaseOperator.ui_color,
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_empty=False,
+                is_sensor=False,
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["_task_type"],
                 dag=None,

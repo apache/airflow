@@ -34,7 +34,6 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.context import Context
 
@@ -100,10 +99,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     ui_color = '#e6f1f2'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
-
-    # Adds one additional dependency for all sensor operators that checks if a
-    # sensor task instance can be rescheduled.
-    deps = BaseOperator.deps | {ReadyToRescheduleDep()}
 
     def __init__(
         self,

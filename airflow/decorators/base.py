@@ -405,6 +405,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=False,
+            is_sensor=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             dag=dag,
