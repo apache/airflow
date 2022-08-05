@@ -135,13 +135,18 @@
         </p>
       {% endif %}
       {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}
-        <p
-          class="label label-default next-dataset-triggered"
-          style="margin-left: 5px;"
-          data-summary="{{ dag_model.get_dataset_triggered_next_run_info() }}"
+        <span
+          class="js-tooltip"
+          title="Click to see dataset details."
         >
-          Next Run: {{ dag_model.get_dataset_triggered_next_run_info() }}
-        </p>
+          <p
+            class="label label-default next-dataset-triggered"
+            style="margin-left: 5px;"
+            data-summary="{{ dag_model.get_dataset_triggered_next_run_info() }}"
+          >
+            Next Run: {{ dag_model.get_dataset_triggered_next_run_info() }}
+          </p>
+        </span>
       {% endif %}
     </h4>
   </div>

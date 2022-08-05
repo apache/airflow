@@ -291,13 +291,18 @@
             </td>
             <td class="text-nowrap">
               {% if dag.dag_id in dataset_triggered_next_run_info %}
-                <div
-                  class="label label-default next-dataset-triggered"
-                  data-dag-id="{{ dag.dag_id }}"
-                  data-summary="{{ dataset_triggered_next_run_info[dag.dag_id] }}"
+                <span
+                  class="js-tooltip"
+                  title="Click to see dataset details."
                 >
-                  {{ dataset_triggered_next_run_info[dag.dag_id] }}
-                </div>
+                  <div
+                    class="label label-default next-dataset-triggered"
+                    data-dag-id="{{ dag.dag_id }}"
+                    data-summary="{{ dataset_triggered_next_run_info[dag.dag_id] }}"
+                  >
+                    {{ dataset_triggered_next_run_info[dag.dag_id] }}
+                  </div>
+                </span>
               {% endif %}
               {% if dag.next_dagrun is not none %}
                 <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
