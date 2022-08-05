@@ -1138,6 +1138,10 @@ class DagRun(Base, LoggingMixin):
         :param session: the session to use
 
         """
+        # Fetch the information we need before handling the exception to avoid
+        # PendingRollbackError due to the session being invalidated on exception
+        # see https://github.com/apache/superset/pull/530
+        run_id = self.run_id
         try:
             if hook_is_noop:
                 session.bulk_insert_mappings(TI, tasks)
@@ -1151,7 +1155,7 @@ class DagRun(Base, LoggingMixin):
             self.log.info(
                 'Hit IntegrityError while creating the TIs for %s- %s',
                 dag_id,
-                self.run_id,
+                run_id,
                 exc_info=True,
             )
             self.log.info('Doing session rollback.')
