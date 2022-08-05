@@ -1575,7 +1575,7 @@ export interface components {
        */
       dry_run?: boolean;
     };
-    ClearTaskInstance: {
+    ClearTaskInstances: {
       /**
        * @description If set, don't actually run this operation. The response will contain a list of task instances
        * planned to be cleaned, but not modified in any way.
@@ -1615,6 +1615,28 @@ export interface components {
       include_parentdag?: boolean;
       /** @description Set state of DAG runs to RUNNING. */
       reset_dag_runs?: boolean;
+      /** @description The DagRun ID for this task instance */
+      dag_run_id?: string | null;
+      /**
+       * @description If set to true, upstream tasks are also affected.
+       * @default false
+       */
+      include_upstream?: boolean;
+      /**
+       * @description If set to true, downstream tasks are also affected.
+       * @default false
+       */
+      include_downstream?: boolean;
+      /**
+       * @description If set to True, also tasks from future DAG Runs are affected.
+       * @default false
+       */
+      include_future?: boolean;
+      /**
+       * @description If set to True, also tasks from past DAG Runs are affected.
+       * @default false
+       */
+      include_past?: boolean;
     };
     UpdateTaskInstancesState: {
       /**
@@ -2450,7 +2472,7 @@ export interface operations {
     /** Parameters of action */
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ClearTaskInstance"];
+        "application/json": components["schemas"]["ClearTaskInstances"];
       };
     };
   };
@@ -4094,7 +4116,7 @@ export type ConfigSection = CamelCasedPropertiesDeep<components['schemas']['Conf
 export type Config = CamelCasedPropertiesDeep<components['schemas']['Config']>;
 export type VersionInfo = CamelCasedPropertiesDeep<components['schemas']['VersionInfo']>;
 export type ClearDagRun = CamelCasedPropertiesDeep<components['schemas']['ClearDagRun']>;
-export type ClearTaskInstance = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstance']>;
+export type ClearTaskInstances = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstances']>;
 export type UpdateTaskInstancesState = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstancesState']>;
 export type ListDagRunsForm = CamelCasedPropertiesDeep<components['schemas']['ListDagRunsForm']>;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['ListTaskInstanceForm']>;
