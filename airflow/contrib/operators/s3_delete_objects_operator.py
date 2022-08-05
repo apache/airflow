@@ -17,15 +17,20 @@
 # under the License.
 """
 This module is deprecated.
-Please use :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`.
+Please use :mod:`airflow.providers.amazon.aws.operators.s3`.
 """
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObjectsOperator  # noqa
+try:
+    from airflow.providers.amazon.aws.operators.s3 import S3DeleteObjectsOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.s3_delete_objects import (  # type: ignore[no-redef]  # noqa
+        S3DeleteObjectsOperator,
+    )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_delete_objects`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
     DeprecationWarning,
     stacklevel=2,
 )

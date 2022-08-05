@@ -40,7 +40,7 @@ class TestRedshiftCreateClusterOperator:
         assert redshift_operator.master_username == "adminuser"
         assert redshift_operator.master_user_password == "Test123$"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_create_single_node_cluster(self, mock_get_conn):
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
@@ -68,7 +68,7 @@ class TestRedshiftCreateClusterOperator:
             **params,
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_create_multi_node_cluster(self, mock_get_conn):
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
@@ -108,8 +108,8 @@ class TestResumeClusterOperator:
         assert redshift_operator.cluster_identifier == "test_cluster"
         assert redshift_operator.aws_conn_id == "aws_conn_test"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_resume_cluster_is_called_when_cluster_is_paused(self, mock_get_conn, mock_cluster_status):
         mock_cluster_status.return_value = 'paused'
         redshift_operator = RedshiftResumeClusterOperator(
@@ -118,8 +118,8 @@ class TestResumeClusterOperator:
         redshift_operator.execute(None)
         mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_resume_cluster_not_called_when_cluster_is_not_paused(self, mock_get_conn, mock_cluster_status):
         mock_cluster_status.return_value = 'available'
         redshift_operator = RedshiftResumeClusterOperator(
@@ -138,8 +138,8 @@ class TestPauseClusterOperator:
         assert redshift_operator.cluster_identifier == "test_cluster"
         assert redshift_operator.aws_conn_id == "aws_conn_test"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_pause_cluster_is_called_when_cluster_is_available(self, mock_get_conn, mock_cluster_status):
         mock_cluster_status.return_value = 'available'
         redshift_operator = RedshiftPauseClusterOperator(
@@ -148,8 +148,8 @@ class TestPauseClusterOperator:
         redshift_operator.execute(None)
         mock_get_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_pause_cluster_not_called_when_cluster_is_not_available(self, mock_get_conn, mock_cluster_status):
         mock_cluster_status.return_value = 'paused'
         redshift_operator = RedshiftPauseClusterOperator(
@@ -160,8 +160,8 @@ class TestPauseClusterOperator:
 
 
 class TestDeleteClusterOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_delete_cluster_with_wait_for_completion(self, mock_get_conn, mock_cluster_status):
         mock_cluster_status.return_value = 'cluster_not_found'
         redshift_operator = RedshiftDeleteClusterOperator(
@@ -174,7 +174,7 @@ class TestDeleteClusterOperator:
             FinalClusterSnapshotIdentifier='',
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_delete_cluster_without_wait_for_completion(self, mock_get_conn):
         redshift_operator = RedshiftDeleteClusterOperator(
             task_id="task_test",

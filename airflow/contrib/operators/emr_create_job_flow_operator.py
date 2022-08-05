@@ -16,14 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.emr_create_job_flow`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.emr`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator  # noqa
+try:
+    from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.emr_create_job_flow import (  # type: ignore[no-redef]  # noqa
+        EmrCreateJobFlowOperator,
+    )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_create_job_flow`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.",
     DeprecationWarning,
     stacklevel=2,
 )

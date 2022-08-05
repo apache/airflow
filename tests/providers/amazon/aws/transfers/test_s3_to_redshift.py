@@ -33,7 +33,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_execute(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -78,7 +78,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_execute_with_column_list(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -125,7 +125,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_deprecated_truncate(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -177,7 +177,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_replace(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -229,7 +229,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_upsert(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -284,7 +284,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_execute_sts_token(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "ASIA_aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -331,7 +331,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     def test_execute_role_arn(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "ASIA_aws_access_key_id"
         secret_key = "aws_secret_access_key"

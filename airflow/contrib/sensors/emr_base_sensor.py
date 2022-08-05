@@ -15,14 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.emr_base`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.emr`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor  # noqa
+try:
+    from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor
+except ImportError:
+    from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor  # type: ignore[no-redef]  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr_base`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.",
     DeprecationWarning,
     stacklevel=2,
 )

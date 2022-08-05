@@ -17,15 +17,20 @@
 # under the License.
 """
 This module is deprecated.
-Please use :mod:`airflow.providers.amazon.aws.operators.emr_terminate_job_flow`.
+Please use :mod:`airflow.providers.amazon.aws.operators.emr`.
 """
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator  # noqa
+try:
+    from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import (  # type: ignore[no-redef]  # noqa
+        EmrTerminateJobFlowOperator,
+    )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_terminate_job_flow`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.",
     DeprecationWarning,
     stacklevel=2,
 )

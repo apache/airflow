@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gc
 try:
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 except ImportError:
-    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
