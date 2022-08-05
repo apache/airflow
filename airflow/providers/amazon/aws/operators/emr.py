@@ -520,7 +520,12 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param aws_conn_id: AWS connection to use
     """
 
-    template_fields: Sequence[str] = ('application_id',)
+    template_fields: Sequence[str] = (
+        'application_id',
+        'execution_role_arn',
+        'job_driver',
+        'configuration_overrides',
+    )
 
     def __init__(
         self,
