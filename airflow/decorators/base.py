@@ -21,6 +21,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Collection,
     Dict,
     Generic,
@@ -258,6 +259,8 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
     kwargs: Dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
+
+    _airflow_is_task_decorator: ClassVar[bool] = True
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):

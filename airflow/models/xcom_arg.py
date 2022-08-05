@@ -358,6 +358,9 @@ class MapXComArg(XComArg):
     """
 
     def __init__(self, arg: XComArg, callables: Sequence[Callable[[Any], Any]]) -> None:
+        for c in callables:
+            if getattr(c, "_airflow_is_task_decorator", False):
+                raise ValueError("map() argument must be a plain function, not a @task operator")
         self.arg = arg
         self.callables = callables
 
