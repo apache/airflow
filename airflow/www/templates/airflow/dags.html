@@ -19,6 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
+{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
 {%- macro sortable_column(display_name, attribute_name) -%}
@@ -68,6 +69,8 @@
   <meta name="dag_stats_url" content="{{ url_for('Airflow.dag_stats') }}">
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
+  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
 {% block head_css %}
@@ -290,7 +293,18 @@
             </td>
             <td class="text-nowrap">
               {% if dag.dag_id in dataset_triggered_next_run_info %}
-                {{ dataset_triggered_next_run_info[dag.dag_id] }}
+                <span
+                  class="js-tooltip"
+                  title="Click to see dataset details."
+                >
+                  <div
+                    class="label label-default next-dataset-triggered"
+                    data-dag-id="{{ dag.dag_id }}"
+                    data-summary="{{ dataset_triggered_next_run_info[dag.dag_id] }}"
+                  >
+                    {{ dataset_triggered_next_run_info[dag.dag_id] }}
+                  </div>
+                </span>
               {% endif %}
               {% if dag.next_dagrun is not none %}
                 <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
@@ -408,6 +422,8 @@
     <div class="tooltip-arrow"></div>
     <div class="tooltip-inner"></div>
   </div>
+  <!-- Modal for dataset-triggered next run -->
+  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
 {% endblock %}
 
 {% block tail %}
