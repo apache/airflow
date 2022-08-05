@@ -522,16 +522,36 @@ class DAG(LoggingMixin):
         self.has_on_success_callback = self.on_success_callback is not None
         self.has_on_failure_callback = self.on_failure_callback is not None
 
-        self.doc_md = doc_md
-
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
+
+        self.doc_md = self.get_doc_md(doc_md)
+
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
+
+    def get_doc_md(self, doc_md: Optional[str]) -> Optional[str]:
+        if doc_md is None:
+            return doc_md
+
+        env = self.get_template_env(force_sandboxed=True)
+
+        if not doc_md.endswith('.md'):
+            template = jinja2.Template(doc_md)
+        else:
+            try:
+                template = env.get_template(doc_md)
+            except jinja2.exceptions.TemplateNotFound:
+                return f"""
+                # Templating Error!
+                Not able to find the template file: `{doc_md}`.
+                """
+
+        return template.render()
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
         """Check ``schedule_interval`` and ``timetable`` match.

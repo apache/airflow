@@ -2209,6 +2209,51 @@ class TestDagDecorator:
         assert dag.dag_id, 'test'
         assert dag.doc_md.strip(), "Regular DAG documentation"
 
+    def test_documentation_template_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            """
+            {% if True %}
+               Regular DAG documentation
+            {% endif %}
+            """
+
+            @task_decorator
+            def return_num(num):
+                return num
+
+            return_num(4)
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'test'
+        assert dag.doc_md.strip(), "Regular DAG documentation"
+
+    def test_resolve_documentation_template_file_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        with NamedTemporaryFile(suffix='.md') as f:
+            f.write(
+                b"""
+            {% if True %}
+               External Markdown DAG documentation
+            {% endif %}
+            """
+            )
+            f.flush()
+            template_file = os.path.basename(f.name)
+
+            with DAG('test-dag', start_date=DEFAULT_DATE, doc_md=template_file) as dag:
+                task = EmptyOperator(task_id='op1')
+
+                task
+
+                assert isinstance(dag, DAG)
+                assert dag.dag_id, 'test'
+                assert dag.doc_md.strip(), "External Markdown DAG documentation"
+
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
 
