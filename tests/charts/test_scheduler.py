@@ -318,7 +318,7 @@ class SchedulerTest(unittest.TestCase):
                         "container": {
                             "allowPrivilegeEscalation": "false",
                             'readOnlyRootFilesystem': "true",
-                            },
+                        },
                     }
                 },
             },
@@ -326,10 +326,10 @@ class SchedulerTest(unittest.TestCase):
         )
         assert "false" == jmespath.search(
             "spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation", docs[0]
-            )
+        )
         assert "true" == jmespath.search(
             "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", docs[0]
-            )
+        )
 
         assert 1000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
         assert 1000 == jmespath.search("spec.template.spec.securityContext.runAsGroup", docs[0])
