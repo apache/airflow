@@ -60,20 +60,43 @@ may be available in plugins.
 CronTriggerTimetable
 ^^^^^^^^^^^^^^^^^^^^
 
-A timetable which accepts a cron expression.
+A timetable that accepts a cron expression, and triggers DAG runs according to it.
 
-Note `CronDataIntervalTimetable`_ also accepts a cron expression. See `Differences between the two cron timetables`_.
+.. seealso:: `Differences between the two cron timetables`_
 
 .. code-block:: python
 
-    from airflow.timetables.interval import CronTriggerTimetable
+    from airflow.timetables.trigger import CronTriggerTimetable
 
 
     @dag(
-        timetable=CronTriggerTimetable(cron='0 1 * * 3', timezone='UTC'),  # At 01:00 on Wednesday
+        timetable=CronTriggerTimetable('0 1 * * 3', timezone='UTC'),  # At 01:00 on Wednesday
     )
     def example_dag():
         pass
+
+It is also possible to provide a static data interval to the timetable. The optional ``interval`` argument
+must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. If given, a triggered DAG
+run's data interval would span the specified duration, and *ends* with the trigger time.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+
+    @dag(
+        # Runs every Friday at 18:00 to cover the work week (9:00 Monday to 18:00 Friday).
+        timetable=CronTriggerTimetable(
+            "0 18 * * 5",
+            timezone="UTC",
+            interval=timedelta(days=4, hours=9),
+        ),
+    )
+    def example_dag():
+        pass
+
 
 .. _DeltaDataIntervalTimetable:
 
@@ -94,11 +117,13 @@ Schedules data intervals with a time delta. Can be selected by providing a
 CronDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Another timetable which accepts a cron expression. Can be selected by providing a string that is a valid
-cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
+A timetable that accepts a cron expression, creates data intervals according to the interval between each cron
+trigger points, and triggers a DAG run at the end of each data interval.
 
+.. seealso:: `Differences between the two cron timetables`_
 
-Note `CronTriggerTimetable`_ also accepts a cron expression. See `Differences between the two cron timetables`_.
+This can be selected by providing a string that is a valid cron expression to the ``schedule_interval``
+parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
 
 .. code-block:: python
 
