@@ -23,6 +23,7 @@ import {
 } from '@chakra-ui/react';
 
 import Time from 'src/components/Time';
+import { getMetaValue } from 'src/utils';
 
 interface CellProps {
   cell: {
@@ -35,18 +36,24 @@ interface CellProps {
 
 export const TimeCell = ({ cell: { value } }: CellProps) => <Time dateTime={value} />;
 
-export const DatasetLink = ({ cell: { value, row } }: CellProps) => (
-  <Link
-    color="blue.600"
-    href={`/datasets?dataset_id=${row.original.datasetId}`}
-  >
-    {value}
-  </Link>
-);
+export const DatasetLink = ({ cell: { value, row } }: CellProps) => {
+  const datasetsUrl = getMetaValue('datasets_url');
+  return (
+    <Link
+      color="blue.600"
+      href={`${datasetsUrl}?dataset_id=${row.original.datasetId}`}
+    >
+      {value}
+    </Link>
+  );
+};
 
 export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
   const { sourceRunId, sourceDagId, sourceMapIndex } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
+  const gridUrl = getMetaValue('grid_url');
+  const dagId = getMetaValue('dag_id');
+  const stringToReplace = dagId || '__DAG_ID__';
+  const url = `${gridUrl?.replace(stringToReplace, sourceDagId)}?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
   const mapIndex = sourceMapIndex > -1 ? `[${sourceMapIndex}]` : '';
   return (
     <Box>
