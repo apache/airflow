@@ -49,7 +49,7 @@ COLORED_LOG: bool = conf.getboolean('logging', 'COLORED_CONSOLE_LOG')
 
 COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value('logging', 'COLORED_FORMATTER_CLASS')
 
-DAG_PROCESSOR_LOG_TARGET: bool = conf.get_mandatory_value('scheduler', 'DAG_PROCESSOR_LOG_TARGET')
+DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value('logging', 'DAG_PROCESSOR_LOG_TARGET')
 
 BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'BASE_LOG_FOLDER')
 
