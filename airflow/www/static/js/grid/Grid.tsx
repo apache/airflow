@@ -124,6 +124,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         ref={scrollRef}
         maxHeight="900px"
         position="relative"
+        pr={4}
       >
         <Table pr="10px">
           <Thead>
