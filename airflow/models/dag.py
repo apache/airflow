@@ -534,7 +534,7 @@ class DAG(LoggingMixin):
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
 
-    def get_doc_md(self, doc_md: str) -> str:
+    def get_doc_md(self, doc_md: Optional[str]) -> Optional[str]:
         if doc_md is None:
             return doc_md
 
@@ -543,8 +543,13 @@ class DAG(LoggingMixin):
         if not doc_md.endswith('.md'):
             template = jinja2.Template(doc_md)
         else:
-            # template = env.loader.get_source(env, doc_md)[0]
-            template = env.get_template(doc_md)
+            try:
+                template = env.get_template(doc_md)
+            except jinja2.exceptions.TemplateNotFound:
+                return f"""
+                # Templating Error!
+                Not able to find the template file: `{doc_md}`.
+                """
 
         return template.render()
 
