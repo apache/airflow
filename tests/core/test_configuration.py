@@ -33,6 +33,7 @@ from airflow import configuration
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
+    _custom_secrets_backend,
     conf,
     expand_env_var,
     get_airflow_config,
@@ -296,6 +297,7 @@ sql_alchemy_conn = airflow
     def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
 
+        _custom_secrets_backend.cache_clear()  # so secrets backend gets reloaded
         mock_client = mock.MagicMock()
         # mock_client.side_effect = AirflowConfigException
         mock_hvac.Client.return_value = mock_client

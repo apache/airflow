@@ -1535,6 +1535,11 @@ def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
     """Get Secret Backend if defined in airflow.cfg"""
     secrets_backend_cls = conf.getimport(section='secrets', key='backend')
 
+    return _custom_secrets_backend(secrets_backend_cls)
+
+
+@functools.lru_cache(maxsize=2)
+def _custom_secrets_backend(secrets_backend_cls) -> Optional[BaseSecretsBackend]:
     if secrets_backend_cls:
         try:
             backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
