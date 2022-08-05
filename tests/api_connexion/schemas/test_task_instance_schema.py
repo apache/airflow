@@ -177,6 +177,37 @@ class TestClearTaskInstanceFormSchema(unittest.TestCase):
                     }
                 ]
             ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                        "start_date": "2022-08-03T00:00:00+00:00",
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                        "end_date": "2022-08-03T00:00:00+00:00",
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                        "end_date": "2022-08-04T00:00:00+00:00",
+                        "start_date": "2022-08-03T00:00:00+00:00",
+                    }
+                ]
+            ),
         ]
     )
     def test_validation_error(self, payload):

@@ -569,7 +569,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClearTaskInstance'
+              $ref: '#/components/schemas/ClearTaskInstances'
 
       responses:
         '200':
@@ -3698,7 +3698,7 @@ components:
           type: boolean
           default: true
 
-    ClearTaskInstance:
+    ClearTaskInstances:
       type: object
       properties:
         dry_run:
@@ -3749,6 +3749,31 @@ components:
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
           type: boolean
+
+        dag_run_id:
+          type: string
+          description:  The DagRun ID for this task instance
+          nullable: true
+
+        include_upstream:
+          description: If set to true, upstream tasks are also affected.
+          type: boolean
+          default: false
+
+        include_downstream:
+          description: If set to true, downstream tasks are also affected.
+          type: boolean
+          default: false
+
+        include_future:
+          description: If set to True, also tasks from future DAG Runs are affected.
+          type: boolean
+          default: false
+
+        include_past:
+          description: If set to True, also tasks from past DAG Runs are affected.
+          type: boolean
+          default: false
 
     UpdateTaskInstancesState:
       type: object

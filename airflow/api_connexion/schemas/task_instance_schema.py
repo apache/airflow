@@ -119,6 +119,11 @@ class ClearTaskInstanceFormSchema(Schema):
     include_parentdag = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
+    dag_run_id = fields.Str(load_default=None)
+    include_upstream = fields.Boolean(load_default=False)
+    include_downstream = fields.Boolean(load_default=False)
+    include_future = fields.Boolean(load_default=False)
+    include_past = fields.Boolean(load_default=False)
 
     @validates_schema
     def validate_form(self, data, **kwargs):
@@ -128,6 +133,12 @@ class ClearTaskInstanceFormSchema(Schema):
         if data["start_date"] and data["end_date"]:
             if data["start_date"] > data["end_date"]:
                 raise ValidationError("end_date is sooner than start_date")
+        if data["start_date"] and data["end_date"] and data["dag_run_id"]:
+            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+        if data["start_date"] and data["dag_run_id"]:
+            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+        if data["end_date"] and data["dag_run_id"]:
+            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
 
 
 class SetTaskInstanceStateFormSchema(Schema):
