@@ -673,8 +673,6 @@ class DagFileProcessor(LoggingMixin):
     def _execute_task_callbacks(
         self, dagbag: Optional[DagBag], request: TaskCallbackRequest, session: Session
     ):
-        from airflow.models.baseoperator import BaseOperator
-
         if not request.is_failure_callback:
             return
 
@@ -711,10 +709,9 @@ class DagFileProcessor(LoggingMixin):
                     task = model.dag.get_task(simple_ti.task_id)
             except (exc.NoResultFound, TaskNotFound):
                 pass
-        if not task:
-            task = BaseOperator(task_id=simple_ti.task_id)
+        if task:
+            ti.refresh_from_task(task)
 
-        ti.refresh_from_task(task)
         ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE, session=session)
         self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
         session.flush()
