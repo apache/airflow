@@ -1809,7 +1809,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
     :param deferrable: Run operator in the deferrable mode
-    :param polling_interval_seconds time in seconds between polling for job completion.
+    :param polling_interval_seconds: time in seconds between polling for job completion.
         The value is considered only when running in deferrable mode. Must be greater than 0.
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
