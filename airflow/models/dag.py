@@ -2215,6 +2215,8 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
+        from airflow.utils.task_group import TaskGroupContext
+
         if not self.start_date and not task.start_date:
             raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
@@ -2233,15 +2235,22 @@ class DAG(LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
+        task_id = task.task_id
+        if not task.task_group:
+            task_group = TaskGroupContext.get_current_task_group(self)
+            if task_group:
+                task_id = task_group.child_id(task_id)
+                task_group.add(task)
+
         if (
-            task.task_id in self.task_dict and self.task_dict[task.task_id] is not task
-        ) or task.task_id in self._task_group.used_group_ids:
-            raise DuplicateTaskIdFound(f"Task id '{task.task_id}' has already been added to the DAG")
+            task_id in self.task_dict and self.task_dict[task_id] is not task
+        ) or task_id in self._task_group.used_group_ids:
+            raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         else:
-            self.task_dict[task.task_id] = task
+            self.task_dict[task_id] = task
             task.dag = self
             # Add task_id to used_group_ids to prevent group_id and task_id collisions.
-            self._task_group.used_group_ids.add(task.task_id)
+            self._task_group.used_group_ids.add(task_id)
 
         self.task_count = len(self.task_dict)
 

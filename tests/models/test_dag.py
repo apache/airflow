@@ -61,6 +61,7 @@ from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -1402,6 +1403,19 @@ class TestDag(unittest.TestCase):
             run_id="test_create_dagrun_job_id_is_set", state=State.NONE, creating_job_id=job_id
         )
         assert dr.creating_job_id == job_id
+
+    def test_dag_add_task_sets_default_task_group(self):
+        dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", start_date=DEFAULT_DATE)
+        task_without_task_group = EmptyOperator(task_id="task_without_group_id")
+        default_task_group = TaskGroupContext.get_current_task_group(dag)
+        dag.add_task(task_without_task_group)
+        assert default_task_group.get_child_by_label("task_without_group_id") == task_without_task_group
+
+        task_group = TaskGroup(group_id="task_group", dag=dag)
+        task_with_task_group = EmptyOperator(task_id="task_with_task_group", task_group=task_group)
+        dag.add_task(task_with_task_group)
+        assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
+        assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
 
     @parameterized.expand(
         [
