@@ -429,33 +429,6 @@ class TestDagFileProcessor:
             error="Message", test_mode=conf.getboolean('core', 'unit_test_mode'), session=session
         )
 
-    @patch.object(TaskInstance, 'handle_failure')
-    def test_execute_on_failure_callbacks_dag_parse_error(self, mock_ti_handle_failure):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        with create_session() as session:
-            session.query(TaskInstance).delete()
-            dag = dagbag.get_dag('example_branch_operator')
-            dagrun = dag.create_dagrun(
-                state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                session=session,
-            )
-            task = dag.get_task(task_id='run_this_first')
-            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.QUEUED)
-            session.add(ti)
-
-        requests = [
-            TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
-            )
-        ]
-        dag_file_processor.execute_callbacks_without_dag(requests, session)
-        mock_ti_handle_failure.assert_called_once_with(
-            error="Message", test_mode=conf.getboolean('core', 'unit_test_mode'), session=session
-        )
-
     def test_failure_callbacks_should_not_drop_hostname(self):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
