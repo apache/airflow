@@ -22,6 +22,7 @@
 import { getMetaValue } from './utils';
 
 function openDatasetModal(dagId, summary) {
+  const datasetsUrl = getMetaValue('datasets_url');
   let nextRunUrl = getMetaValue('next_run_datasets_url');
   $('#datasets_tbody').empty();
   $('#datasets_error').hide();
@@ -41,7 +42,7 @@ function openDatasetModal(dagId, summary) {
 
             const uriCell = document.createElement('td');
             const datasetLink = document.createElement('a');
-            datasetLink.href = `/datasets?dataset_id=${d.id}`;
+            datasetLink.href = `${datasetsUrl}?dataset_id=${d.id}`;
             datasetLink.innerText = d.uri;
             uriCell.append(datasetLink);
 
