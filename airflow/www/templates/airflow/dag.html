@@ -54,6 +54,7 @@
   <meta name="success_url" content="{{ url_for('Airflow.success') }}">
   <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
   <meta name="run_url" content="{{ url_for('Airflow.run') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
