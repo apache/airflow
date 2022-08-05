@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import collections
 import copy
 import functools
 import itertools
@@ -38,6 +38,7 @@ from typing import (
     Dict,
     FrozenSet,
     Iterable,
+    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -49,7 +50,7 @@ from typing import (
     cast,
     overload,
 )
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
@@ -538,11 +539,11 @@ class DAG(LoggingMixin):
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
-        bad_links_format = self.validate_owner_links()
-        if bad_links_format:
+        wrong_links = dict(self.iter_invalid_owner_links())
+        if wrong_links:
             raise AirflowException(
                 "Wrong link format was used for the owner. Use a valid link \n"
-                f"Bad formatted links are: {bad_links_format}"
+                f"Bad formatted links are: {wrong_links}"
             )
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
@@ -2801,19 +2802,18 @@ class DAG(LoggingMixin):
                     "DAG Schedule must be None, if there are any required params without default values"
                 )
 
-    def validate_owner_links(self) -> Dict[str, str]:
-        """Parses a given link, and verifies if it's a valid URL, or a 'mailto' link"""
-        wrong_links = {}
+    def iter_invalid_owner_links(self) -> Iterator[Tuple[str, str]]:
+        """Parses a given link, and verifies if it's a valid URL, or a 'mailto' link.
+        Returns an iterator of invalid (owner, link) pairs.
+        """
         for owner, link in self.owner_links.items():
-            result = urlparse(link)
-            if link.startswith('mailto:'):
+            result = urlsplit(link)
+            if result.scheme == "mailto":
                 # netloc is not existing for 'mailto' link, so we are checking that the path is parsed
-                if not all([result.scheme, result.path]):
-                    wrong_links.update({owner: link})
-            elif not all([result.scheme, result.netloc]):
-                wrong_links.update({owner: link})
-
-        return wrong_links
+                if not result.path:
+                    yield result.path, link
+            elif not result.scheme or not result.netloc:
+                yield owner, link
 
 
 class DagTag(Base):
@@ -2844,14 +2844,18 @@ class DagOwnerAttributes(Base):
         nullable=False,
         primary_key=True,
     )
-    owner = Column(String(100), primary_key=True, nullable=False)
+    owner = Column(String(500), primary_key=True, nullable=False)
     link = Column(String(500), nullable=False)
 
     def __repr__(self):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
 
-    def as_dict(self) -> Dict[str, Dict[str, str]]:
-        return {self.dag_id: {self.owner: self.link}}
+    @classmethod
+    def get_all(cls, session) -> Dict[str, Dict[str, str]]:
+        dag_links: dict = collections.defaultdict(dict)
+        for obj in session.query(cls):
+            dag_links[obj.dag_id].update({obj.owner: obj.link})
+        return dag_links
 
 
 class DagModel(Base):
