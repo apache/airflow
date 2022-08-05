@@ -30,6 +30,7 @@ configuring an Airflow environment.
     :maxdepth: 2
 
     add-dag-tags
+    add-owner-links
     set-config
     set-up-database
     operator/index
