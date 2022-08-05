@@ -51,7 +51,6 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -154,20 +153,6 @@ class SchedulerJob(BaseJob):
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
         self._paused_dag_without_running_dagruns: Set = set()
-
-        if conf.getboolean('smart_sensor', 'use_smart_sensor'):
-            compatible_sensors = set(
-                map(
-                    lambda l: l.strip(),
-                    conf.get_mandatory_value('smart_sensor', 'sensors_enabled').split(','),
-                )
-            )
-            docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
-            warnings.warn(
-                f'Smart sensors are deprecated, yet can be used for {compatible_sensors} sensors.'
-                f' Please use Deferrable Operators instead. See {docs_url} for more info.',
-                DeprecationWarning,
-            )
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""

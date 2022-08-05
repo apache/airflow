@@ -39,7 +39,6 @@ from typing import (
     Iterable,
     List,
     NamedTuple,
-    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -87,7 +86,6 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
-    AirflowSmartSensorException,
     AirflowTaskTimeout,
     DagRunNotFound,
     TaskDeferralError,
@@ -623,7 +621,6 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        # TODO: whether we need sensing here or not (in sensor and task_instance state machine)
         if self.state in State.running:
             return self._try_number
         return self._try_number + 1
@@ -1465,9 +1462,6 @@ class TaskInstance(Base, LoggingMixin):
                 session.merge(self)
                 session.commit()
             return
-        except AirflowSmartSensorException as e:
-            self.log.info(e)
-            return
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1605,22 +1599,6 @@ class TaskInstance(Base, LoggingMixin):
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
 
-            if self.task.is_smart_sensor_compatible():
-                # Try to register it in the smart sensor service.
-                registered = False
-                try:
-                    registered = self.task.register_in_sensor_service(self, context)
-                except Exception:
-                    self.log.warning(
-                        "Failed to register in sensor service."
-                        " Continue to run task in non smart sensor mode.",
-                        exc_info=True,
-                    )
-
-                if registered:
-                    # Will raise AirflowSmartSensorException to avoid long running execution.
-                    self._update_ti_state_for_sensing()
-
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
@@ -1630,16 +1608,6 @@ class TaskInstance(Base, LoggingMixin):
 
         Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
-
-    @provide_session
-    def _update_ti_state_for_sensing(self, session: Session = NEW_SESSION) -> NoReturn:
-        self.log.info('Submitting %s to sensor service', self)
-        self.state = State.SENSING
-        self.start_date = timezone.utcnow()
-        session.merge(self)
-        session.commit()
-        # Raise exception for sensing state
-        raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
     def _run_finished_callback(
         self, callback: Optional["TaskStateChangeCallback"], context: Context, callback_type: str
@@ -2241,7 +2209,6 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
-        # Reuse it for smart sensor to send default email alert
         if task is None:
             task = getattr(self, 'task')
         use_default = task is None

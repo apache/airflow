@@ -32,6 +32,9 @@ metadata:
 {{- with $Global.Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+{{- if $configMapContent.labels }}
+{{ toYaml $configMapContent.labels | indent 4 }}
+{{- end }}
   annotations:
     "helm.sh/hook": "pre-install,pre-upgrade"
     "helm.sh/hook-delete-policy": "before-hook-creation"

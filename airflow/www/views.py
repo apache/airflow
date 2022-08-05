@@ -110,7 +110,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import Dataset
+from airflow.models.dataset import Dataset, DatasetDagRef, DatasetDagRunQueue
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3613,6 +3613,40 @@ class Airflow(AirflowBaseView):
                 'dag_runs': encoded_runs,
             }
         # avoid spaces to reduce payload size
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
+    @expose('/object/next_run_datasets/<string:dag_id>')
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+    def next_run_datasets(self, dag_id):
+        """Returns datasets necessary, and their status, for the next dag run"""
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        if not dag:
+            return {'error': f"can't find dag {dag_id}"}, 404
+
+        with create_session() as session:
+            data = [
+                dict(info)
+                for info in session.query(
+                    Dataset.id,
+                    Dataset.uri,
+                    DatasetDagRunQueue.created_at,
+                )
+                .join(DatasetDagRef, Dataset.id == DatasetDagRef.dataset_id)
+                .join(
+                    DatasetDagRunQueue,
+                    and_(
+                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                    ),
+                    isouter=True,
+                )
+                .filter(DatasetDagRef.dag_id == dag_id)
+                .order_by(Dataset.id)
+                .all()
+            ]
         return (
             htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},

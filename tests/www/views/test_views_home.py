@@ -55,7 +55,7 @@ def test_home(capture_templates, admin_client):
             '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", "sensing": "mediumpurple", '
+            '"scheduled": "tan", '
             '"shutdown": "blue", "skipped": "hotpink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'

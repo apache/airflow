@@ -1371,8 +1371,6 @@ export interface components {
      * *New in version 2.1.0*
      */
     PluginCollectionItem: {
-      /** @description The plugin number */
-      number?: string;
       /** @description The name of the plugin */
       name?: string;
       /** @description The plugin hooks */
@@ -1870,7 +1868,9 @@ export interface components {
      *
      * *Changed in version 2.0.2*&#58; 'removed' is added as a possible value.
      *
-     * *Changed in version 2.2.0*&#58; 'deferred' and 'sensing' is added as a possible value.
+     * *Changed in version 2.2.0*&#58; 'deferred' is added as a possible value.
+     *
+     * *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
      *
      * @enum {string}
      */
@@ -1886,7 +1886,6 @@ export interface components {
       | "none"
       | "scheduled"
       | "deferred"
-      | "sensing"
       | "removed";
     /**
      * @description DAG State.

@@ -37,7 +37,7 @@ from airflow.models import (
     errors,
 )
 from airflow.models.dagcode import DagCode
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.models.dataset import Dataset, DatasetDagRef, DatasetDagRunQueue, DatasetEvent, DatasetTaskRef
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
@@ -57,6 +57,9 @@ def clear_db_datasets():
     with create_session() as session:
         session.query(DatasetEvent).delete()
         session.query(Dataset).delete()
+        session.query(DatasetDagRunQueue).delete()
+        session.query(DatasetDagRef).delete()
+        session.query(DatasetTaskRef).delete()
 
 
 def clear_db_dags():

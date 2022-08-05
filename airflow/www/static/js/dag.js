@@ -55,6 +55,7 @@ let subdagId = '';
 let dagRunId = '';
 let mapIndex;
 let mapStates = [];
+let extraLinks;
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -144,7 +145,7 @@ document.addEventListener('click', (event) => {
 export function callModal({
   taskId: t,
   executionDate: d,
-  extraLinks,
+  extraLinks: e,
   tryNumber,
   isSubDag,
   dagRunId: drID,
@@ -160,6 +161,7 @@ export function callModal({
   executionDate = d;
   dagRunId = drID;
   mapIndex = mi;
+  extraLinks = e;
   if (isMapped) {
     mapStates = mappedStates;
   }
@@ -269,7 +271,7 @@ export function callModal({
   }
   query.delete('try_number');
 
-  if (extraLinks && extraLinks.length > 0) {
+  if (!isMapped && extraLinks && extraLinks.length > 0) {
     const markupArr = [];
     extraLinks.sort();
     $.each(extraLinks, (i, link) => {
@@ -318,6 +320,7 @@ $(document).on('click', '.map_index_item', function mapItem() {
       taskId,
       executionDate,
       dagRunId,
+      extraLinks,
       mapIndex: -1,
       isMapped: true,
       mappedStates: mapStates,
@@ -327,6 +330,7 @@ $(document).on('click', '.map_index_item', function mapItem() {
       taskId,
       executionDate,
       dagRunId,
+      extraLinks,
       mapIndex: mi,
     });
   }
