@@ -1767,7 +1767,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: matrix.platform == 'linux/amd64'
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze prod-image build

@@ -61,6 +61,7 @@ from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -1403,6 +1404,19 @@ class TestDag(unittest.TestCase):
         )
         assert dr.creating_job_id == job_id
 
+    def test_dag_add_task_sets_default_task_group(self):
+        dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", start_date=DEFAULT_DATE)
+        task_without_task_group = EmptyOperator(task_id="task_without_group_id")
+        default_task_group = TaskGroupContext.get_current_task_group(dag)
+        dag.add_task(task_without_task_group)
+        assert default_task_group.get_child_by_label("task_without_group_id") == task_without_task_group
+
+        task_group = TaskGroup(group_id="task_group", dag=dag)
+        task_with_task_group = EmptyOperator(task_id="task_with_task_group", task_group=task_group)
+        dag.add_task(task_with_task_group)
+        assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
+        assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
+
     @parameterized.expand(
         [
             (State.QUEUED,),
@@ -2223,6 +2237,51 @@ class TestDagDecorator:
         assert isinstance(dag, DAG)
         assert dag.dag_id, 'test'
         assert dag.doc_md.strip(), "Regular DAG documentation"
+
+    def test_documentation_template_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            """
+            {% if True %}
+               Regular DAG documentation
+            {% endif %}
+            """
+
+            @task_decorator
+            def return_num(num):
+                return num
+
+            return_num(4)
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'test'
+        assert dag.doc_md.strip(), "Regular DAG documentation"
+
+    def test_resolve_documentation_template_file_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        with NamedTemporaryFile(suffix='.md') as f:
+            f.write(
+                b"""
+            {% if True %}
+               External Markdown DAG documentation
+            {% endif %}
+            """
+            )
+            f.flush()
+            template_file = os.path.basename(f.name)
+
+            with DAG('test-dag', start_date=DEFAULT_DATE, doc_md=template_file) as dag:
+                task = EmptyOperator(task_id='op1')
+
+                task
+
+                assert isinstance(dag, DAG)
+                assert dag.dag_id, 'test'
+                assert dag.doc_md.strip(), "External Markdown DAG documentation"
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""

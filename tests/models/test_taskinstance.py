@@ -2081,7 +2081,7 @@ class TestTaskInstance:
         ti = TI(task=task, run_id=dr.run_id)
         ti.state = State.QUEUED
         session.merge(ti)
-        session.commit()
+        session.flush()
         assert ti.state == State.QUEUED
         assert ti.try_number == 1
         ti.handle_failure("test queued ti", test_mode=True)
@@ -2090,6 +2090,37 @@ class TestTaskInstance:
         assert ti._try_number == 1
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
+
+    @patch.object(Stats, 'incr')
+    def test_handle_failure_no_task(self, Stats_incr, dag_maker):
+        """
+        When a zombie is detected for a DAG with a parse error, we need to be able to run handle_failure
+        _without_ ti.task being set
+        """
+        session = settings.Session()
+        with dag_maker():
+            task = EmptyOperator(task_id="mytask", retries=1)
+        dr = dag_maker.create_dagrun()
+        ti = TI(task=task, run_id=dr.run_id)
+        ti = session.merge(ti)
+        ti.task = None
+        ti.state = State.QUEUED
+        session.flush()
+
+        assert ti.task is None, "Check critical pre-condition"
+
+        assert ti.state == State.QUEUED
+        assert ti.try_number == 1
+
+        ti.handle_failure("test queued ti", test_mode=False)
+        assert ti.state == State.UP_FOR_RETRY
+        # Assert that 'ti._try_number' is bumped from 0 to 1. This is the last/current try
+        assert ti._try_number == 1
+        # Check 'ti.try_number' is bumped to 2. This is try_number for next run
+        assert ti.try_number == 2
+
+        Stats_incr.assert_any_call('ti_failures')
+        Stats_incr.assert_any_call('operator_failures_EmptyOperator')
 
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():

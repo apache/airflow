@@ -529,13 +529,14 @@ class DAG(LoggingMixin):
         self.has_on_success_callback = self.on_success_callback is not None
         self.has_on_failure_callback = self.on_failure_callback is not None
 
-        self.doc_md = doc_md
-
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
+
+        self.doc_md = self.get_doc_md(doc_md)
+
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
@@ -545,6 +546,25 @@ class DAG(LoggingMixin):
                 "Wrong link format was used for the owner. Use a valid link \n"
                 f"Bad formatted links are: {wrong_links}"
             )
+
+    def get_doc_md(self, doc_md: Optional[str]) -> Optional[str]:
+        if doc_md is None:
+            return doc_md
+
+        env = self.get_template_env(force_sandboxed=True)
+
+        if not doc_md.endswith('.md'):
+            template = jinja2.Template(doc_md)
+        else:
+            try:
+                template = env.get_template(doc_md)
+            except jinja2.exceptions.TemplateNotFound:
+                return f"""
+                # Templating Error!
+                Not able to find the template file: `{doc_md}`.
+                """
+
+        return template.render()
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
         """Check ``schedule_interval`` and ``timetable`` match.
@@ -2228,6 +2248,8 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
+        from airflow.utils.task_group import TaskGroupContext
+
         if not self.start_date and not task.start_date:
             raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
@@ -2246,15 +2268,22 @@ class DAG(LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
+        task_id = task.task_id
+        if not task.task_group:
+            task_group = TaskGroupContext.get_current_task_group(self)
+            if task_group:
+                task_id = task_group.child_id(task_id)
+                task_group.add(task)
+
         if (
-            task.task_id in self.task_dict and self.task_dict[task.task_id] is not task
-        ) or task.task_id in self._task_group.used_group_ids:
-            raise DuplicateTaskIdFound(f"Task id '{task.task_id}' has already been added to the DAG")
+            task_id in self.task_dict and self.task_dict[task_id] is not task
+        ) or task_id in self._task_group.used_group_ids:
+            raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
         else:
-            self.task_dict[task.task_id] = task
+            self.task_dict[task_id] = task
             task.dag = self
             # Add task_id to used_group_ids to prevent group_id and task_id collisions.
-            self._task_group.used_group_ids.add(task.task_id)
+            self._task_group.used_group_ids.add(task_id)
 
         self.task_count = len(self.task_dict)
 
