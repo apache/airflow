@@ -1545,7 +1545,7 @@ def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
     return None
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=2)
 def _custom_secrets_backend(secrets_backend_cls, **alternative_secrets_config_dict):
     """Separate function to create secrets backend instance to allow caching"""
     return secrets_backend_cls(**alternative_secrets_config_dict)
