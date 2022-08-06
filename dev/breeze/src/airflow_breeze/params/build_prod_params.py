@@ -195,15 +195,6 @@ class BuildProdParams(CommonBuildParams):
     @property
     def required_image_args(self) -> List[str]:
         return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_pip_install_flags",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
             "airflow_branch",
             "airflow_constraints_mode",
             "airflow_extras",
@@ -227,6 +218,15 @@ class BuildProdParams(CommonBuildParams):
     @property
     def optional_image_args(self) -> List[str]:
         return [
+            "additional_airflow_extras",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_pip_install_flags",
+            "additional_python_deps",
+            "additional_runtime_apt_command",
+            "additional_runtime_apt_deps",
+            "additional_runtime_apt_env",
             "dev_apt_command",
             "dev_apt_deps",
             "runtime_apt_command",
