@@ -102,4 +102,4 @@ Resources & links
 
 * `Issues on GitHub <https://github.com/apache/airflow/issues>`_
 * `Slack (chat) Channel <https://s.apache.org/airflow-slack>`_
-* `Airflow Improvement Proposals <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals>`_
+* `Airflow Improvement Proposals <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals>`_
