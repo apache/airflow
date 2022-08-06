@@ -170,3 +170,21 @@ class GitSyncWebserverTest(unittest.TestCase):
             "spec.template.spec.containers[1].resources.requests.memory", docs[0]
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
+
+    def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": None,
+                        "branch": "test-branch",
+                    },
+                    "persistence": {"enabled": True},
+                }
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])

@@ -131,6 +131,24 @@ class GitSyncSchedulerTest(unittest.TestCase):
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
+    def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": None,
+                        "branch": "test-branch",
+                    },
+                    "persistence": {"enabled": True},
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
