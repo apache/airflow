@@ -23,13 +23,13 @@ Add Owner Links to DAG
 
 .. versionadded:: 2.4.0
 
-You can pass the 'owner_link' parameter for your DAG object, which will make the owner to become a clickable link
+You can pass the ``owner_link`` parameter for your DAG object, which will make the owner to become a clickable link
 in the main DAGs view page.
 You can use it to set a custom HTTP link (for example, the owner's Slack channel), or use a
 `maitlo <https://en.wikipedia.org/wiki/Mailto>`_ link to have an automated email message (up to 500 characters).
 
 Example:
-In your Dag file, add a 'owners_link' parameter to the DAG object that will hold a dictionary of an owner and it's link.
+In your DAG file, add a ``owners_link`` parameter to the DAG object that will hold a dictionary of an owner and it's link.
 After that, define a task that will use this owner, and the link in the DAGs view will become clickable
 
 .. code-block:: python
