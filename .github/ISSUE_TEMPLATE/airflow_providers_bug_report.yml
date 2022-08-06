@@ -109,7 +109,9 @@ body:
   - type: input
     attributes:
       label: Apache Airflow version
-      description: What Apache Airflow version are you using? [Only Airflow 2 is supported](https://github.com/apache/airflow#version-life-cycle) for bugs.
+      description: >
+        What Apache Airflow version are you using?
+        [Only Airflow 2 is supported](https://github.com/apache/airflow#version-life-cycle) for bugs.
     validations:
       required: true
   - type: input
