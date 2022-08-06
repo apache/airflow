@@ -25,7 +25,7 @@ echo "     NOTE! If you want to rebuild webserver assets dynamically:"
 echo
 echo "        * Restart airflow webserver with '-d' flag."
 echo "          AND (in a separate terminal in your host):"
-echo "        * Run 'breeze www-compile-assets --dev'."
+echo "        * Run 'breeze compile-www-assets --dev'."
 echo "           OR"
 echo "        * Run 'yarn dev' in the 'airflow/www' if you have yarn installed and want to watch recompiling happens."
 echo
