@@ -271,13 +271,24 @@ def check_docker_compose_version(verbose: bool):
     """
     version_pattern = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     docker_compose_version_command = ["docker-compose", "--version"]
-    docker_compose_version_result = run_command(
-        docker_compose_version_command,
-        verbose=verbose,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        docker_compose_version_result = run_command(
+            docker_compose_version_command,
+            verbose=verbose,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        docker_compose_version_command = ["docker", "compose", "version"]
+        docker_compose_version_result = run_command(
+            docker_compose_version_command,
+            verbose=verbose,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        )
+
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
