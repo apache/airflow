@@ -79,7 +79,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.host == 'not%20idempotent'
 
         # Remove URL encoding
-        secrets_manager_backend.secret_values_are_urlencoded = False
+        secrets_manager_backend.are_secret_values_urlencoded = False
 
         conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
         assert conn.login == 'is%20url%20encoded'

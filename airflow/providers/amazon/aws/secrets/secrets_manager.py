@@ -95,7 +95,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
         If False (set it as false in backend_kwargs), you can store the secret using different
         fields (password, user...).
-    :param secret_values_are_urlencoded: If True, and full_url_mode is False, then the values are assumed to
+    :param are_secret_values_urlencoded: If True, and full_url_mode is False, then the values are assumed to
         be URL-encoded and will be decoded before being passed into a Connection object. This option is
         ignored when full_url_mode is True.
     :param extra_conn_words: for using just when you set full_url_mode as false and store
@@ -113,7 +113,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         profile_name: Optional[str] = None,
         sep: str = "/",
         full_url_mode: bool = True,
-        secret_values_are_urlencoded: Optional[bool] = None,
+        are_secret_values_urlencoded: Optional[bool] = None,
         extra_conn_words: Optional[Dict[str, List[str]]] = None,
         **kwargs,
     ):
@@ -134,8 +134,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.sep = sep
         self.full_url_mode = full_url_mode
 
-        if secret_values_are_urlencoded is None:
-            self.secret_values_are_urlencoded = True
+        if are_secret_values_urlencoded is None:
+            self.are_secret_values_urlencoded = True
         else:
             warnings.warn(
                 "The `secret_values_are_urlencoded` kwarg only exists to assist in migrating away from"
@@ -144,7 +144,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 PendingDeprecationWarning,
                 stacklevel=2,
             )
-            if full_url_mode and not secret_values_are_urlencoded:
+            if full_url_mode and not are_secret_values_urlencoded:
                 warnings.warn(
                     "The `secret_values_are_urlencoded` kwarg for the SecretsManagerBackend is only used"
                     " when `full_url_mode` is False. When `full_url_mode` is True, the secret needs to be"
@@ -152,7 +152,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                     UserWarning,
                     stacklevel=2,
                 )
-            self.secret_values_are_urlencoded = secret_values_are_urlencoded
+            self.are_secret_values_urlencoded = are_secret_values_urlencoded
         self.extra_conn_words = extra_conn_words or {}
         self.kwargs = kwargs
 
@@ -188,7 +188,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
             data = self._standardize_secret_keys(secret_dict)
 
-            if self.secret_values_are_urlencoded:
+            if self.are_secret_values_urlencoded:
                 data = self._remove_escaping_in_secret_dict(secret=data, conn_id=conn_id)
 
             port: Optional[int] = None
@@ -317,6 +317,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                     " In addition to decoding the values for your connection, you must also set"
                     " ``secret_values_are_urlencoded=False`` for your config variable"
                     " ``secrets.backend_kwargs`` because this connection's URL encoding is not idempotent."
+                    " For more information, see:"
+                    " https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/secrets-backends"
+                    "/aws-secrets-manager.html#url-encoding-of-secrets-when-full-url-mode-is-false"
                 )
             warnings.warn(msg, DeprecationWarning, stacklevel=2)
 

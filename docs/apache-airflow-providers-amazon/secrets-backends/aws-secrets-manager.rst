@@ -92,7 +92,14 @@ This behavior is now deprecated, and will be removed at a future date.
 In most cases, you should not have any issues migrating your secrets to not being URL-encoded in advance of the deprecation.
 Simply decoding your secret values will work, and no further changes are required.
 
-In rare circumstances, when URL-encoding is not idempotent, the ``DeprecationWarning`` will tell you to add a new parameter to your ``backend_kwargs``.
+In rare circumstances, the ``DeprecationWarning`` will tell you to add a new parameter to your ``backend_kwargs``.
+This warning occurs when decoding is not idempotent.
+A decoding is idempotent when decoding it once using the ``urllib.parse.unquote`` function is equivalent to decoding it two or more times using that function.
+For example:
+
+* If ``"foo%20bar"`` is a URL-encoded value, then decoding is idempotent because ``unquote(unquote("foo%20bar")) == unquote("foo%20bar")``
+* If ``"foo%2520bar"`` is a URL-encoded value, then decoding is _not_ idempotent because ``unquote(unquote("foo%2520bar")) != unquote("foo%2520bar")``
+
 Setting ``secret_values_are_urlencoded`` to ``false`` will force the ``SecretsManagerBackend`` to stop treating secret values as being URL-encoded.
 
 .. code-block:: ini
