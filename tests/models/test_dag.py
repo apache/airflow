@@ -46,7 +46,7 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
 from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
@@ -700,14 +700,14 @@ class TestDag(unittest.TestCase):
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(4):
+        with assert_queries_count(8):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(4):
+        with assert_queries_count(8):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -726,7 +726,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -745,7 +745,7 @@ class TestDag(unittest.TestCase):
         # Removing all tags
         for dag in dags:
             dag.tags = None
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -1990,6 +1990,35 @@ class TestDag(unittest.TestCase):
             start_date + delta,
             start_date + 2 * delta,
         ]
+
+    def test_dag_owner_links(self):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            owner_links={"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"},
+        )
+
+        assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        expected_owners = {'dag': {'owner1': 'https://mylink.com', 'owner2': 'mailto:someone@yoursite.com'}}
+        orm_dag_owners = DagOwnerAttributes.get_all(session)
+        assert orm_dag_owners == expected_owners
+
+        # Test dag owner links are removed completely
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+        )
+        dag.sync_to_db(session=session)
+
+        orm_dag_owners = session.query(DagOwnerAttributes).all()
+        assert not orm_dag_owners
+
+        # Check wrong formatted owner link
+        with pytest.raises(AirflowException):
+            DAG('dag', start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
 
 
 class TestDagModel:

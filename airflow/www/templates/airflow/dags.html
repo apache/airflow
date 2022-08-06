@@ -257,7 +257,11 @@
             <td>
               {% for owner in dag.owners.split(",") %}
                 <a class="label label-default"
+                 {% if owner_links and owner.strip() in owner_links.get(dag.dag_id, {}) %}
+                   href="{{ owner_links[dag.dag_id].get(owner.strip()) }}" target="_blank"
+                 {% else %}
                    href="?search={{ owner | trim }}"
+                 {% endif %}
                    style="margin: 3px 6px 3px 0;">
                   {{ owner | trim }}
                 </a>

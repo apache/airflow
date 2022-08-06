@@ -105,7 +105,17 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import (
+    Connection,
+    DagModel,
+    DagOwnerAttributes,
+    DagTag,
+    Log,
+    SlaMiss,
+    TaskFail,
+    XCom,
+    errors,
+)
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
@@ -882,6 +892,8 @@ class Airflow(AirflowBaseView):
                 for name, in dagtags
             ]
 
+            owner_links_dict = DagOwnerAttributes.get_all(session)
+
             import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id)
 
             if (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG) not in user_permissions:
@@ -973,6 +985,7 @@ class Airflow(AirflowBaseView):
             ),
             num_runs=num_runs,
             tags=tags,
+            owner_links=owner_links_dict,
             state_color=state_color_mapping,
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
@@ -1307,6 +1320,10 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
+        owner_links = (
+            session.query(models.DagOwnerAttributes).filter(models.DagOwnerAttributes.dag_id == dag_id).all()
+        )
+
         attrs_to_avoid = [
             "NUM_DAGS_PER_DAGRUN_QUERY",
             "serialized_dag",
@@ -1319,6 +1336,7 @@ class Airflow(AirflowBaseView):
             "max_active_tasks",
             "schedule_interval",
             "owners",
+            "dag_owner_links",
             "is_paused",
         ]
         attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
@@ -1342,6 +1360,7 @@ class Airflow(AirflowBaseView):
             State=State,
             active_runs=active_runs,
             tags=tags,
+            owner_links=owner_links,
             dag_model_attrs=dag_model_attrs,
         )
 

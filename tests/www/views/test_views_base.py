@@ -30,7 +30,7 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_index(admin_client):
-    with assert_queries_count(15):
+    with assert_queries_count(16):
         resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response('DAGs', resp)
 

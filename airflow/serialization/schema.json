@@ -127,6 +127,7 @@
                 }
             ]
         },
+        "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
           "properties": {
