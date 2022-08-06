@@ -106,33 +106,10 @@ body:
       label: Versions of Apache Airflow Providers
       description: What Apache Airflow Providers versions are you using?
       placeholder: You can use `pip freeze | grep apache-airflow-providers` (you can leave only relevant ones)
-  - type: dropdown
+  - type: input
     attributes:
       label: Apache Airflow version
-      description: >
-        What Apache Airflow version are you using? Only Airflow 2 is supported for bugs. If you wish to
-        discuss Airflow 1.10, open a [discussion](https://github.com/apache/airflow/discussions) instead!
-      multiple: false
-      options:
-        - "2.3.3 (latest released)"
-        - "2.3.2"
-        - "2.3.1"
-        - "2.3.0"
-        - "2.2.5"
-        - "2.2.4"
-        - "2.2.3"
-        - "2.2.2"
-        - "2.2.1"
-        - "2.2.0"
-        - "2.1.4"
-        - "2.1.3"
-        - "2.1.2"
-        - "2.1.1"
-        - "2.1.0"
-        - "2.0.2"
-        - "2.0.1"
-        - "2.0.0"
-        - "main (development)"
+      description: What Apache Airflow version are you using? [Only Airflow 2 is supported](https://github.com/apache/airflow#version-life-cycle) for bugs.
     validations:
       required: true
   - type: input
