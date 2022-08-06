@@ -569,16 +569,10 @@ workers:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
-  # hostAliases to use in worker pods.
-  # See:
-  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
   # - ip: "127.0.0.2"
   #   hostnames:
-  #   - "test.hostname.one"
-  # - ip: "127.0.0.3"
-  #   hostnames:
-  #   - "test.hostname.two"
+  #   - "example.hostname.test"
 
   podAnnotations: {}
 
@@ -685,16 +679,10 @@ scheduler:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
-  # hostAliases to use in scheduler pods.
-  # See:
-  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
   # - ip: "127.0.0.2"
   #   hostnames:
-  #   - "test.hostname.one"
-  # - ip: "127.0.0.3"
-  #   hostnames:
-  #   - "test.hostname.two"
+  #   - "example.hostname.test"
 
   priorityClassName: ~
 
@@ -993,16 +981,10 @@ webserver:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
-  # hostAliases to use in webserver pods.
-  # See:
-  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
   # - ip: "127.0.0.2"
   #   hostnames:
-  #   - "test.hostname.one"
-  # - ip: "127.0.0.3"
-  #   hostnames:
-  #   - "test.hostname.two"
+  #   - "example.hostname.test"
 
   podAnnotations: {}
 
@@ -1093,6 +1075,10 @@ triggerer:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
+  hostAliases: []
+  # - ip: "127.0.0.2"
+  #   hostnames:
+  #   - "example.hostname.test"
 
   priorityClassName: ~
 

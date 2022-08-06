@@ -1471,13 +1471,7 @@
                         {
                             "ip": "127.0.0.2",
                             "hostnames": [
-                                "test.hostname.one"
-                            ]
-                        },
-                        {
-                            "ip": "127.0.0.3",
-                            "hostnames": [
-                                "test.hostname.two"
+                                "example.hostname.test"
                             ]
                         }
                     ]
@@ -1813,13 +1807,7 @@
                         {
                             "ip": "127.0.0.2",
                             "hostnames": [
-                                "test.hostname.one"
-                            ]
-                        },
-                        {
-                            "ip": "127.0.0.3",
-                            "hostnames": [
-                                "test.hostname.two"
+                                "example.hostname.test"
                             ]
                         }
                     ]
@@ -2153,6 +2141,22 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
+                },
+                "hostAliases": {
+                    "description": "Specify HostAliases for trigerer.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.2",
+                            "hostnames": [
+                                "example.hostname.test"
+                            ]
+                        }
+                    ]
                 },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
@@ -3288,13 +3292,7 @@
                         {
                             "ip": "127.0.0.2",
                             "hostnames": [
-                                "test.hostname.one"
-                            ]
-                        },
-                        {
-                            "ip": "127.0.0.3",
-                            "hostnames": [
-                                "test.hostname.two"
+                                "example.hostname.test"
                             ]
                         }
                     ]

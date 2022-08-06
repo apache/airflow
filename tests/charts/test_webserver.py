@@ -219,7 +219,6 @@ class WebserverDeploymentTest(unittest.TestCase):
     def test_webserver_host_aliases(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "webserver": {
                     "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
                 },

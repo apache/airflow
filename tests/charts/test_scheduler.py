@@ -118,7 +118,6 @@ class SchedulerTest(unittest.TestCase):
     def test_scheduler_host_aliases(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "scheduler": {
                     "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
                 },
