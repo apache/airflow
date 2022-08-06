@@ -33,6 +33,7 @@ from airflow import configuration
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
+    _custom_secrets_backend,
     conf,
     expand_env_var,
     get_airflow_config,
@@ -296,6 +297,7 @@ sql_alchemy_conn = airflow
     def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
 
+        _custom_secrets_backend.cache_clear()
         mock_client = mock.MagicMock()
         # mock_client.side_effect = AirflowConfigException
         mock_hvac.Client.return_value = mock_client
@@ -322,6 +324,7 @@ sql_alchemy_conn = airflow
             ),
         ):
             test_conf.get('test', 'sql_alchemy_conn')
+        _custom_secrets_backend.cache_clear()
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
@@ -1297,3 +1300,81 @@ sql_alchemy_conn=sqlite://test
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
                 assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars(
+        {
+            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+        }
+    )
+    def test_config_from_secret_backend_caches_instance(self, mock_hvac):
+        """Get Config Value from a Secret Backend"""
+        _custom_secrets_backend.cache_clear()
+
+        test_config = '''[test]
+sql_alchemy_conn_secret = sql_alchemy_conn
+secret_key_secret = secret_key
+'''
+        test_config_default = '''[test]
+sql_alchemy_conn = airflow
+secret_key = airflow
+'''
+
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        def fake_read_secret(path, mount_point, version):
+            if path.endswith('sql_alchemy_conn'):
+                return {
+                    'request_id': '2d48a2ad-6bcb-e5b6-429d-da35fdf31f56',
+                    'lease_id': '',
+                    'renewable': False,
+                    'lease_duration': 0,
+                    'data': {
+                        'data': {'value': 'fake_conn'},
+                        'metadata': {
+                            'created_time': '2020-03-28T02:10:54.301784Z',
+                            'deletion_time': '',
+                            'destroyed': False,
+                            'version': 1,
+                        },
+                    },
+                    'wrap_info': None,
+                    'warnings': None,
+                    'auth': None,
+                }
+            if path.endswith('secret_key'):
+                return {
+                    'request_id': '2d48a2ad-6bcb-e5b6-429d-da35fdf31f56',
+                    'lease_id': '',
+                    'renewable': False,
+                    'lease_duration': 0,
+                    'data': {
+                        'data': {'value': 'fake_key'},
+                        'metadata': {
+                            'created_time': '2020-03-28T02:10:54.301784Z',
+                            'deletion_time': '',
+                            'destroyed': False,
+                            'version': 1,
+                        },
+                    },
+                    'wrap_info': None,
+                    'warnings': None,
+                    'auth': None,
+                }
+
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = fake_read_secret
+
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+            ('test', 'secret_key'),
+        }
+
+        assert 'fake_conn' == test_conf.get('test', 'sql_alchemy_conn')
+        mock_hvac.Client.assert_called_once()
+        assert 'fake_key' == test_conf.get('test', 'secret_key')
+        mock_hvac.Client.assert_called_once()
+        _custom_secrets_backend.cache_clear()
