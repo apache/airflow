@@ -26,6 +26,7 @@ from itsdangerous.url_safe import URLSafeSerializer
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -58,7 +59,9 @@ def configured_app(minimal_app_for_api):
 
 class TestGetLog:
     DAG_ID = 'dag_for_testing_log_endpoint'
+    RUN_ID = 'dag_run_id_for_testing_log_endpoint'
     TASK_ID = 'task_for_testing_log_endpoint'
+    MAPPED_TASK_ID = 'mapped_task_for_testing_log_endpoint'
     TRY_NUMBER = 1
 
     default_time = "2020-06-10T20:00:00+00:00"
@@ -72,8 +75,15 @@ class TestGetLog:
 
         with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
             EmptyOperator(task_id=self.TASK_ID)
+
+            @task(task_id=self.MAPPED_TASK_ID)
+            def add_one(x: int):
+                return x + 1
+
+            add_one.expand(x=[1, 2, 3])
+
         dr = dag_maker.create_dagrun(
-            run_id='TEST_DAG_RUN_ID',
+            run_id=self.RUN_ID,
             run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -87,34 +97,48 @@ class TestGetLog:
         ) as dummy_dag:
             EmptyOperator(task_id=self.TASK_ID)
         dag_maker.create_dagrun(
-            run_id='TEST_DAG_RUN_ID',
+            run_id=self.RUN_ID,
             run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
         configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
 
+        for ti in dr.task_instances:
+            ti.try_number = 1
+            ti.hostname = 'localhost'
+
         self.ti = dr.task_instances[0]
-        self.ti.try_number = 1
-        self.ti.hostname = 'localhost'
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
         self.log_dir = tmp_path
 
-        dir_path = tmp_path / self.DAG_ID / self.TASK_ID / self.default_time.replace(':', '.')
+        # TASK_ID
+        dir_path = tmp_path / f"dag_id={self.DAG_ID}" / f"run_id={self.RUN_ID}" / f"task_id={self.TASK_ID}"
         dir_path.mkdir(parents=True)
 
-        log = dir_path / "1.log"
+        log = dir_path / "attempt=1.log"
         log.write_text("Log for testing.")
+
+        # MAPPED_TASK_ID
+        for map_index in range(3):
+            dir_path = (
+                tmp_path
+                / f"dag_id={self.DAG_ID}"
+                / f"run_id={self.RUN_ID}"
+                / f"task_id={self.MAPPED_TASK_ID}"
+                / f"map_index={map_index}"
+            )
+
+            dir_path.mkdir(parents=True)
+
+            log = dir_path / "attempt=1.log"
+            log.write_text("Log for testing.")
 
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config['handlers']['task']['base_log_folder'] = self.log_dir
-
-        create_log_template(
-            '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
-        )
 
         logging.config.dictConfig(logging_config)
 
@@ -130,13 +154,13 @@ class TestGetLog:
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={"token": token},
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
         expected_filename = (
-            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
+            f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt=1.log"
         )
         assert (
             response.json['content']
@@ -146,19 +170,33 @@ class TestGetLog:
         assert info == {'end_of_log': True}
         assert 200 == response.status_code
 
-    def test_should_respond_200_text_plain(self):
+    @pytest.mark.parametrize(
+        'request_url, expected_filename, extra_query_string',
+        [
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1.log",
+                {},
+            ),
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=1.log",
+                {"map_index": 0},
+            ),
+        ],
+    )
+    def test_should_respond_200_text_plain(self, request_url, expected_filename, extra_query_string):
+        expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
+
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            request_url,
+            query_string={'token': token, **extra_query_string},
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
-        )
-        expected_filename = (
-            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert 200 == response.status_code
         assert (
@@ -166,7 +204,24 @@ class TestGetLog:
             == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
-    def test_get_logs_of_removed_task(self):
+    @pytest.mark.parametrize(
+        'request_url, expected_filename, extra_query_string',
+        [
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1.log",
+                {},
+            ),
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=1.log",
+                {"map_index": 0},
+            ),
+        ],
+    )
+    def test_get_logs_of_removed_task(self, request_url, expected_filename, extra_query_string):
+        expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
+
         # Recreate DAG without tasks
         dagbag = self.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
@@ -178,14 +233,12 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            request_url,
+            query_string={'token': token, **extra_query_string},
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = (
-            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
-        )
+
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
@@ -198,8 +251,8 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/1",
+            query_string={"token": token},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 404
@@ -219,7 +272,7 @@ class TestGetLog:
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
-                f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
                 headers={"Accept": 'text/plain'},
                 environ_overrides={'REMOTE_USER': "test"},
@@ -240,8 +293,8 @@ class TestGetLog:
 
         # check guessing
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={"token": token},
             headers={'Content-Type': 'application/jso'},
             environ_overrides={'REMOTE_USER': "test"},
         )
@@ -252,8 +305,8 @@ class TestGetLog:
         token = {"download_logs": False}
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={"token": token},
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
@@ -285,8 +338,8 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": False})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={"token": token},
             headers={'Accept': 'application/json'},
         )
 
@@ -298,9 +351,37 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={"token": token},
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
+
+    def test_should_raise_404_when_missing_map_index_param_for_mapped_task(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
+            query_string={'token': token},
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "TaskInstance not found"
+
+    def test_should_raise_404_when_filtering_on_map_index_for_unmapped_task(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={'token': token, "map_index": 0},
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "TaskInstance not found"

@@ -1461,6 +1461,7 @@ paths:
       - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/TaskTryNumber'
       - $ref: '#/components/parameters/FullContent'
+      - $ref: '#/components/parameters/FilterMapIndex'
       - $ref: '#/components/parameters/ContinuationToken'
 
     get:
@@ -4364,7 +4365,8 @@ components:
         type: string
       required: true
       description: The XCom key.
-    # Filter
+
+    # Filters
     FilterExecutionDateGTE:
       in: query
       name: execution_date_gte
@@ -4528,6 +4530,13 @@ components:
         type: integer
       description: The map index that updated the dataset.
 
+    FilterMapIndex:
+      in: query
+      name: map_index
+      schema:
+        type: integer
+      description: Filter on map index for mapped task.
+
     OrderBy:
       in: query
       name: order_by
@@ -4553,7 +4562,6 @@ components:
         *New in version 2.1.1*
 
     # Other parameters
-
     FileToken:
       in: path
       name: file_token

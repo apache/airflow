@@ -422,6 +422,8 @@ export interface paths {
          * By default, only the first fragment will be returned.
          */
         full_content?: components["parameters"]["FullContent"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -2113,6 +2115,8 @@ export interface components {
     FilterSourceRunID: string;
     /** @description The map index that updated the dataset. */
     FilterSourceMapIndex: number;
+    /** @description Filter on map index for mapped task. */
+    FilterMapIndex: number;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -3432,6 +3436,8 @@ export interface operations {
          * By default, only the first fragment will be returned.
          */
         full_content?: components["parameters"]["FullContent"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
