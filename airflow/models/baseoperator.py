@@ -1364,13 +1364,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Required by DAGNode."""
         return [self]
 
-    @property
-    def output(self):
-        """Returns reference to XCom pushed by current operator"""
-        from airflow.models.xcom_arg import XComArg
-
-        return XComArg(operator=self)
-
     @staticmethod
     def xcom_push(
         context: Any,
