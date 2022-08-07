@@ -17,7 +17,7 @@
 
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests_mock
@@ -47,6 +47,11 @@ class TestLivyHook(unittest.TestCase):
         )
         db.merge_conn(Connection(conn_id='missing_host', conn_type='http', port=1234))
         db.merge_conn(Connection(conn_id='invalid_uri', uri='http://invalid_uri:4321'))
+        db.merge_conn(
+            Connection(
+                conn_id='with_credentials', login='login', password='secret', conn_type='http', host='host'
+            )
+        )
 
     def test_build_get_hook(self):
 
@@ -459,3 +464,14 @@ class TestLivyHook(unittest.TestCase):
 
         hook = LivyHook(extra_headers={'X-Requested-By': 'user'})
         hook.post_batch(file='sparkapp')
+
+    def test_alternate_auth_type(self):
+        auth_type = MagicMock()
+
+        hook = LivyHook(livy_conn_id='with_credentials', auth_type=auth_type)
+
+        auth_type.assert_not_called()
+
+        hook.get_conn()
+
+        auth_type.assert_called_once_with('login', 'secret')

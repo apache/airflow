@@ -49,6 +49,7 @@ class LivyOperator(BaseOperator):
     :param conf: Spark configuration properties.
     :param proxy_user: user to impersonate when running the job.
     :param livy_conn_id: reference to a pre-defined Livy Connection.
+    :param livy_conn_auth_type: The auth type for the Livy Connection.
     :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
     :param extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
@@ -79,6 +80,7 @@ class LivyOperator(BaseOperator):
         name: Optional[str] = None,
         proxy_user: Optional[str] = None,
         livy_conn_id: str = 'livy_default',
+        livy_conn_auth_type: Optional[Any] = None,
         polling_interval: int = 0,
         extra_options: Optional[Dict[str, Any]] = None,
         extra_headers: Optional[Dict[str, Any]] = None,
@@ -108,6 +110,7 @@ class LivyOperator(BaseOperator):
         }
 
         self._livy_conn_id = livy_conn_id
+        self._livy_conn_auth_type = livy_conn_auth_type
         self._polling_interval = polling_interval
         self._extra_options = extra_options or {}
         self._extra_headers = extra_headers or {}
@@ -128,6 +131,7 @@ class LivyOperator(BaseOperator):
                 livy_conn_id=self._livy_conn_id,
                 extra_headers=self._extra_headers,
                 extra_options=self._extra_options,
+                auth_type=self._livy_conn_auth_type,
             )
         return self._livy_hook
 

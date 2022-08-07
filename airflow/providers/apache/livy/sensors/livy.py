@@ -41,12 +41,14 @@ class LivySensor(BaseSensorOperator):
         *,
         batch_id: Union[int, str],
         livy_conn_id: str = 'livy_default',
+        livy_conn_auth_type: Optional[Any] = None,
         extra_options: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.batch_id = batch_id
         self._livy_conn_id = livy_conn_id
+        self._livy_conn_auth_type = livy_conn_auth_type
         self._livy_hook: Optional[LivyHook] = None
         self._extra_options = extra_options or {}
 
@@ -58,7 +60,11 @@ class LivySensor(BaseSensorOperator):
         :rtype: LivyHook
         """
         if self._livy_hook is None or not isinstance(self._livy_hook, LivyHook):
-            self._livy_hook = LivyHook(livy_conn_id=self._livy_conn_id, extra_options=self._extra_options)
+            self._livy_hook = LivyHook(
+                livy_conn_id=self._livy_conn_id,
+                extra_options=self._extra_options,
+                auth_type=self._livy_conn_auth_type,
+            )
         return self._livy_hook
 
     def poke(self, context: "Context") -> bool:
