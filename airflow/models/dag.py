@@ -3256,7 +3256,7 @@ def dag(
     jinja_environment_kwargs: Optional[Dict] = None,
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
-    schedule: Optional[Sequence["Dataset"]] = None,
+    schedule: Optional[ScheduleArg] = None,
     owner_links: Optional[Dict[str, str]] = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
