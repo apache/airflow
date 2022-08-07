@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-08-06T09:37:37Z
+# This constraints file was automatically generated on 2022-08-07T10:13:06Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -204,7 +204,7 @@ colorama==0.4.5
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.14.0
-coverage==6.4.2
+coverage==6.4.3
 crcmod==1.7
 cron-descriptor==1.2.31
 croniter==1.3.5
@@ -242,7 +242,7 @@ flake8-colors==0.1.9
 flake8==5.0.4
 flake8_implicit_str_concat==0.3.0
 flaky==3.7.0
-flower==1.1.0
+flower==1.2.0
 freezegun==1.2.1
 frozenlist==1.3.1
 fsspec==2022.7.1
@@ -486,7 +486,7 @@ pytzdata==2020.1
 pywinrm==0.4.3
 pyzmq==23.2.0
 qds-sdk==1.16.1
-readme-renderer==35.0
+readme-renderer==36.0
 redis==3.5.3
 redshift-connector==2.0.908
 requests-file==1.5.1
