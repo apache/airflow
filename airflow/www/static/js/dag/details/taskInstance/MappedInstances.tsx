@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Flex,
   Text,
@@ -30,7 +30,7 @@ import { snakeCase } from 'lodash';
 import {
   MdDetails, MdCode, MdSyncAlt, MdReorder,
 } from 'react-icons/md';
-import type { Row, SortingRule } from 'react-table';
+import type { SortingRule } from 'react-table';
 
 import { getMetaValue } from 'src/utils';
 import { formatDuration, getDuration } from 'src/datetime_utils';
@@ -57,11 +57,13 @@ interface Props {
   dagId: string;
   runId: string;
   taskId: string;
-  onRowClicked: (selectedRow: Row, taskInstances: TaskInstance[]) => void;
+  onRowClicked: (rowMapIndex: number, taskInstances: TaskInstance[]) => void;
+  mapIndex?: TaskInstance['mapIndex'];
+  onMappedInstanceFetch: (mappedTaskInstances: TaskInstance[]) => void;
 }
 
 const MappedInstances = ({
-  dagId, runId, taskId, onRowClicked,
+  dagId, runId, taskId, onRowClicked, onMappedInstanceFetch, mapIndex,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -77,6 +79,10 @@ const MappedInstances = ({
   } = useMappedInstances({
     dagId, runId, taskId, limit, offset, order,
   });
+
+  useEffect(() => {
+    onMappedInstanceFetch(taskInstances as TaskInstance[]);
+  }, [mapIndex, onMappedInstanceFetch, taskInstances]);
 
   const data = useMemo(
     () => taskInstances.map((mi) => {
@@ -147,6 +153,8 @@ const MappedInstances = ({
     [],
   );
 
+  if (mapIndex !== undefined) { return null; }
+
   return (
     <Box>
       <br />
@@ -165,7 +173,7 @@ const MappedInstances = ({
           sortBy,
         }}
         isLoading={isLoading}
-        onRowClicked={(row) => onRowClicked(row, taskInstances as TaskInstance[])}
+        onRowClicked={(row) => onRowClicked(row.values.mapIndex, taskInstances as TaskInstance[])}
       />
     </Box>
   );

@@ -143,7 +143,7 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (!internalIndexes.includes(selectedAttempt)) {
+    if (!internalIndexes.includes(selectedAttempt) && internalIndexes.length) {
       setSelectedAttempt(internalIndexes[0]);
     }
 

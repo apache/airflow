@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Text,
@@ -37,7 +37,6 @@ import type {
 } from 'src/types';
 
 import type { SelectionProps } from 'src/dag/useSelection';
-import type { Row } from 'react-table';
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
@@ -59,7 +58,7 @@ interface Props {
 const TaskInstance = ({
   taskId, runId, mapIndex, onSelect,
 }: Props) => {
-  const isMapIndexDefined = !((mapIndex === null || mapIndex === undefined));
+  const isMapIndexDefined = !(mapIndex === undefined);
   const selectedRows: number[] = isMapIndexDefined ? [mapIndex] : [];
   const { data: { dagRuns, groups } } = useGridData();
 
@@ -77,6 +76,16 @@ const TaskInstance = ({
     }
   }, [group, runId, isMapIndexDefined]);
 
+  const setInstanceForMappedIndex = useCallback((
+    rowMapIndex: number | undefined,
+    mappedTaskInstances: TaskInstanceType[],
+  ) => {
+    const taskInstance = mappedTaskInstances.find((ti) => ti.mapIndex === rowMapIndex);
+    if (taskInstance) {
+      setInstance(taskInstance);
+    }
+  }, [setInstance]);
+
   if (!group || !run) return null;
 
   const { children, isMapped, operator } = group;
@@ -87,7 +96,7 @@ const TaskInstance = ({
   };
 
   const isGroup = !!children;
-  const showLogs = !isGroup && ((!isMapped) || (isMapped && isMapIndexDefined));
+  const showLogs = !isGroup && ((!isMapped) || (isMapped && isMapIndexDefined)) && !!instance;
 
   let isPreferedTabDisplayed = false;
 
@@ -106,17 +115,13 @@ const TaskInstance = ({
 
   const { executionDate } = run;
 
-  if (!instance) return null;
-
   let taskActionsTitle = 'Task Actions';
   if (isMapped) {
     taskActionsTitle += ` for ${selectedRows.length || 'all'} mapped task${selectedRows.length !== 1 ? 's' : ''}`;
   }
 
-  const onRowClicked = (row: Row, mappedTaskInstances: TaskInstanceType[]) => {
-    const rowMapIndex = row.values.mapIndex;
-    const taskInstance = mappedTaskInstances.find((ti) => ti.mapIndex === rowMapIndex);
-    setInstance(taskInstance);
+  const onRowClicked = (rowMapIndex: number, mappedTaskInstances: TaskInstanceType[]) => {
+    setInstanceForMappedIndex(rowMapIndex, mappedTaskInstances);
     onSelect({ runId, taskId, mapIndex: rowMapIndex });
   };
 
@@ -156,7 +161,7 @@ const TaskInstance = ({
                 mapIndexes={selectedRows}
               />
               )}
-              <Details instance={instance} group={group} />
+              {instance && <Details instance={instance} group={group} />}
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
@@ -165,12 +170,16 @@ const TaskInstance = ({
                   extraLinks={group?.extraLinks || []}
                 />
               )}
-              {(isMapped && taskId && !isMapIndexDefined) && (
+              {(isMapped && taskId) && (
                 <MappedInstances
                   dagId={dagId}
                   runId={runId}
                   taskId={taskId}
                   onRowClicked={onRowClicked}
+                  mapIndex={mapIndex}
+                  onMappedInstanceFetch={
+                    (taskInstances) => setInstanceForMappedIndex(mapIndex, taskInstances)
+                  }
                 />
               )}
             </Box>
