@@ -80,7 +80,7 @@ To pass data between tasks you have three options:
 
 * Uploading and downloading large files from a storage service (either one you run, or part of a public cloud)
 
-* TaskFlow API automatically passes data between tasks
+* TaskFlow API automatically passes data between tasks via implicit :doc:`xcoms`
 
 Airflow sends out Tasks to run on Workers as space becomes available, so there's no guarantee all the tasks in your DAG will run on the same worker or the same machine.
 
