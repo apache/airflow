@@ -44,7 +44,7 @@ release-management:name:23bcbf95c4ca34de89a367669f7274c1
 release-management:params:bc6b726d05240c22ac8522edc4a200ee
 release-management:short_help:37a6259cc0c1dae299a7866489dff0bd
 setup:chain:68934a3e9455fa72420237eb05902327
-setup:commands:c95a46d890baef83220804e613c55542
+setup:commands:33563f641086f804640e5e278f374b87
 setup:deprecated:68934a3e9455fa72420237eb05902327
 setup:epilog:37a6259cc0c1dae299a7866489dff0bd
 setup:help:53e8d17d2f9a677f11cc08495a7a5012
