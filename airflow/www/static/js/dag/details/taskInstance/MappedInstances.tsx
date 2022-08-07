@@ -30,7 +30,7 @@ import { snakeCase } from 'lodash';
 import {
   MdDetails, MdCode, MdSyncAlt, MdReorder,
 } from 'react-icons/md';
-import type { SortingRule } from 'react-table';
+import type { Row, SortingRule } from 'react-table';
 
 import { getMetaValue } from 'src/utils';
 import { formatDuration, getDuration } from 'src/datetime_utils';
@@ -38,8 +38,8 @@ import { useMappedInstances } from 'src/api';
 import { SimpleStatus } from 'src/dag/StatusBox';
 import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
+import type { TaskInstance } from 'src/types';
 
-const canEdit = getMetaValue('can_edit') === 'True';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
@@ -57,11 +57,11 @@ interface Props {
   dagId: string;
   runId: string;
   taskId: string;
-  selectRows: (selectedRows: number[]) => void;
+  onRowClicked: (selectedRow: Row, taskInstances: TaskInstance[]) => void;
 }
 
 const MappedInstances = ({
-  dagId, runId, taskId, selectRows,
+  dagId, runId, taskId, onRowClicked,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -165,7 +165,7 @@ const MappedInstances = ({
           sortBy,
         }}
         isLoading={isLoading}
-        selectRows={canEdit ? selectRows : undefined}
+        onRowClicked={(row) => onRowClicked(row, taskInstances as TaskInstance[])}
       />
     </Box>
   );

@@ -84,6 +84,7 @@ interface Props {
   dagId: Dag['id'];
   dagRunId: DagRun['runId'];
   taskId: TaskInstance['taskId'];
+  mapIndex?: TaskInstance['mapIndex'];
   executionDate: DagRun['executionDate'];
   tryNumber: TaskInstance['tryNumber'];
 }
@@ -92,6 +93,7 @@ const Logs = ({
   dagId,
   dagRunId,
   taskId,
+  mapIndex,
   executionDate,
   tryNumber,
 }: Props) => {
@@ -106,6 +108,7 @@ const Logs = ({
     dagId,
     dagRunId,
     taskId,
+    mapIndex,
     taskTryNumber: selectedAttempt,
     fullContent: shouldRequestFullContent,
   });

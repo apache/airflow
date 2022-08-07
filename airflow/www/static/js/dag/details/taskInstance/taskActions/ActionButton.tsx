@@ -18,7 +18,7 @@
  */
 
 import React from 'react';
-import { Button } from '@chakra-ui/react';
+import { Button, ButtonProps } from '@chakra-ui/react';
 
 const titleMap = {
   past: 'Also include past task instances when clearing this one',
@@ -29,8 +29,11 @@ const titleMap = {
   failed: 'Only consider failed task instances when clearing this one',
 };
 
-const ActionButton = ({ name, ...rest }) => (
-  <Button title={titleMap[name.toLowerCase()]} {...rest}>{name}</Button>
+type KeysOfTitleMap = keyof (typeof titleMap);
+
+type Props = ButtonProps & { name: Capitalize<KeysOfTitleMap> } ;
+const ActionButton = ({ name, ...rest }: Props) => (
+  <Button title={titleMap[name.toLowerCase() as KeysOfTitleMap]} {...rest}>{name}</Button>
 );
 
 export default ActionButton;

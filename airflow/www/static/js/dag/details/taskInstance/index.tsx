@@ -19,12 +19,9 @@
 
 /* global localStorage */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
-  VStack,
-  Divider,
-  StackDivider,
   Text,
   Tabs,
   TabList,
@@ -35,17 +32,18 @@ import {
 
 import { useGridData } from 'src/api';
 import { getMetaValue, getTask } from 'src/utils';
-import type { Task, DagRun } from 'src/types';
+import type {
+  Task, DagRun, TaskInstance as TaskInstanceType,
+} from 'src/types';
 
-import RunAction from './taskActions/Run';
-import ClearAction from './taskActions/Clear';
-import MarkFailedAction from './taskActions/MarkFailed';
-import MarkSuccessAction from './taskActions/MarkSuccess';
+import type { SelectionProps } from 'src/dag/useSelection';
+import type { Row } from 'react-table';
 import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
 import Details from './Details';
 import MappedInstances from './MappedInstances';
+import TaskActions from './taskActions';
 
 const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
 
@@ -54,17 +52,30 @@ const dagId = getMetaValue('dag_id')!;
 interface Props {
   taskId: Task['id'];
   runId: DagRun['runId'];
+  mapIndex: TaskInstanceType['mapIndex'];
+  onSelect: (selectionProps: SelectionProps) => void;
 }
 
-const TaskInstance = ({ taskId, runId }: Props) => {
-  const [selectedRows, setSelectedRows] = useState<number[]>([]);
+const TaskInstance = ({
+  taskId, runId, mapIndex, onSelect,
+}: Props) => {
+  const isMapIndexDefined = !((mapIndex === null || mapIndex === undefined));
+  const selectedRows: number[] = isMapIndexDefined ? [mapIndex] : [];
   const { data: { dagRuns, groups } } = useGridData();
 
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
+  const [instance, setInstance] = useState<TaskInstanceType>();
+
   const group = getTask({ taskId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
+
+  useEffect(() => {
+    if (!isMapIndexDefined) {
+      setInstance(group?.instances.find((ti) => ti.runId === runId));
+    }
+  }, [group, runId, isMapIndexDefined]);
 
   if (!group || !run) return null;
 
@@ -76,7 +87,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
   };
 
   const isGroup = !!children;
-  const isSimpleTask = !isMapped && !isGroup;
+  const showLogs = !isGroup && ((!isMapped) || (isMapped && isMapIndexDefined));
 
   let isPreferedTabDisplayed = false;
 
@@ -85,7 +96,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
       isPreferedTabDisplayed = true;
       break;
     case 1:
-      isPreferedTabDisplayed = isSimpleTask;
+      isPreferedTabDisplayed = showLogs;
       break;
     default:
       isPreferedTabDisplayed = false;
@@ -95,13 +106,18 @@ const TaskInstance = ({ taskId, runId }: Props) => {
 
   const { executionDate } = run;
 
-  const instance = group.instances.find((ti) => ti.runId === runId);
   if (!instance) return null;
 
   let taskActionsTitle = 'Task Actions';
   if (isMapped) {
     taskActionsTitle += ` for ${selectedRows.length || 'all'} mapped task${selectedRows.length !== 1 ? 's' : ''}`;
   }
+
+  const onRowClicked = (row: Row, mappedTaskInstances: TaskInstanceType[]) => {
+    const taskInstance = mappedTaskInstances.find((ti) => ti.mapIndex === row.index);
+    setInstance(taskInstance);
+    onSelect({ runId, taskId, mapIndex: parseInt(row.id, 10) });
+  };
 
   return (
     <Box py="4px">
@@ -119,7 +135,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
           <Tab>
             <Text as="strong">Details</Text>
           </Tab>
-          { isSimpleTask && (
+          { showLogs && (
             <Tab>
               <Text as="strong">Logs</Text>
             </Tab>
@@ -130,38 +146,14 @@ const TaskInstance = ({ taskId, runId }: Props) => {
           <TabPanel>
             <Box py="4px">
               {!isGroup && (
-                <Box my={3}>
-                  <Text as="strong">{taskActionsTitle}</Text>
-                  <Divider my={2} />
-                  <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-                    <RunAction
-                      runId={runId}
-                      taskId={taskId}
-                      dagId={dagId}
-                      mapIndexes={selectedRows}
-                    />
-                    <ClearAction
-                      runId={runId}
-                      taskId={taskId}
-                      dagId={dagId}
-                      executionDate={executionDate}
-                      mapIndexes={selectedRows}
-                    />
-                    <MarkFailedAction
-                      runId={runId}
-                      taskId={taskId}
-                      dagId={dagId}
-                      mapIndexes={selectedRows}
-                    />
-                    <MarkSuccessAction
-                      runId={runId}
-                      taskId={taskId}
-                      dagId={dagId}
-                      mapIndexes={selectedRows}
-                    />
-                  </VStack>
-                  <Divider my={2} />
-                </Box>
+              <TaskActions
+                title={taskActionsTitle}
+                runId={runId}
+                taskId={taskId}
+                dagId={dagId}
+                executionDate={executionDate}
+                mapIndexes={selectedRows}
+              />
               )}
               <Details instance={instance} group={group} />
               {!isMapped && (
@@ -172,25 +164,26 @@ const TaskInstance = ({ taskId, runId }: Props) => {
                   extraLinks={group?.extraLinks || []}
                 />
               )}
-              {isMapped && taskId && (
+              {(isMapped && taskId && !isMapIndexDefined) && (
                 <MappedInstances
                   dagId={dagId}
                   runId={runId}
                   taskId={taskId}
-                  selectRows={setSelectedRows}
+                  onRowClicked={onRowClicked}
                 />
               )}
             </Box>
           </TabPanel>
           {/* Logs Tab */}
-          { isSimpleTask && (
+          { showLogs && (
           <TabPanel>
             <Logs
               dagId={dagId}
               dagRunId={runId}
               taskId={taskId!}
+              mapIndex={mapIndex}
               executionDate={executionDate}
-              tryNumber={instance?.tryNumber}
+              tryNumber={instance.tryNumber}
             />
           </TabPanel>
           )}
