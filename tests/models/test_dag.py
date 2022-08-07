@@ -1719,14 +1719,14 @@ class TestDag(unittest.TestCase):
         Test to check that a DAG with catchup = False only schedules beginning now, not back to the start date
         """
 
-        def make_dag(dag_id, schedule_interval, start_date, catchup):
+        def make_dag(dag_id, schedule, start_date, catchup):
             default_args = {
                 'owner': 'airflow',
                 'depends_on_past': False,
             }
             dag = DAG(
                 dag_id,
-                schedule=schedule_interval,
+                schedule=schedule,
                 start_date=start_date,
                 catchup=catchup,
                 default_args=default_args,
