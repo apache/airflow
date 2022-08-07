@@ -52,7 +52,7 @@ from airflow_breeze.utils.path_utils import (
     get_used_sources_setup_metadata_hash,
 )
 from airflow_breeze.utils.recording import output_file_for_recording
-from airflow_breeze.utils.reinstall import ask_to_reinstall_breeze, reinstall_breeze, warn_non_editable
+from airflow_breeze.utils.reinstall import reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.run_utils import assert_pre_commit_installed, run_command
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
@@ -62,12 +62,6 @@ def setup():
     pass
 
 
-@click.option(
-    '-f',
-    '--force',
-    is_flag=True,
-    help='Force upgrade without asking question to the user.',
-)
 @click.option(
     '-a',
     '--use-current-airflow-sources',
@@ -82,17 +76,14 @@ def setup():
     if not output_file_for_recording
     else "Self upgrade Breeze.",
 )
-def self_upgrade(force: bool, use_current_airflow_sources: bool):
+def self_upgrade(use_current_airflow_sources: bool):
     if use_current_airflow_sources:
         airflow_sources: Optional[Path] = get_used_airflow_sources()
     else:
         airflow_sources = get_installation_airflow_sources()
     if airflow_sources is not None:
         breeze_sources = airflow_sources / "dev" / "breeze"
-        if force:
-            reinstall_breeze(breeze_sources)
-        else:
-            ask_to_reinstall_breeze(breeze_sources, timeout=None)
+        reinstall_breeze(breeze_sources, re_run=False)
     else:
         warn_non_editable()
         sys.exit(1)
