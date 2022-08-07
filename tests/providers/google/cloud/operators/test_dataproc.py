@@ -907,7 +907,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
         )
 
-    @mock.patch(DATAPROC_PATH.format("DataprocAsyncHook"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_STRING.format("DataprocBaseTrigger"))
     def test_execute_deferrable(self, mock_trigger_hook, mock_hook):
         job = {}

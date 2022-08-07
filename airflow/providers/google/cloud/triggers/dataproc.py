@@ -19,12 +19,13 @@
 """This module contains Google Dataproc triggers."""
 
 import asyncio
+from typing import Optional, Sequence, Union
+
+from google.cloud.dataproc_v1 import JobStatus
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.dataproc_v1 import JobStatus, Job
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 
 class DataprocBaseTrigger(BaseTrigger):
