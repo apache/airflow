@@ -114,9 +114,10 @@ const TaskInstance = ({
   }
 
   const onRowClicked = (row: Row, mappedTaskInstances: TaskInstanceType[]) => {
-    const taskInstance = mappedTaskInstances.find((ti) => ti.mapIndex === row.index);
+    const rowMapIndex = row.values.mapIndex;
+    const taskInstance = mappedTaskInstances.find((ti) => ti.mapIndex === rowMapIndex);
     setInstance(taskInstance);
-    onSelect({ runId, taskId, mapIndex: parseInt(row.id, 10) });
+    onSelect({ runId, taskId, mapIndex: rowMapIndex });
   };
 
   return (

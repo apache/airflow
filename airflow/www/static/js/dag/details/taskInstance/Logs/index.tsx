@@ -116,7 +116,11 @@ const Logs = ({
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
-  }).toString();
+  });
+
+  if (mapIndex !== undefined) {
+    params.append('map_index', mapIndex.toString());
+  }
 
   const { parsedLogs, fileSources = [] } = useMemo(
     () => parseLogs(
@@ -230,9 +234,10 @@ const Logs = ({
                 executionDate={executionDate}
                 isInternal
                 tryNumber={tryNumber}
+                mapIndex={mapIndex}
               />
               <LinkButton
-                href={`${logUrl}&${params}`}
+                href={`${logUrl}&${params.toString()}`}
               >
                 See More
               </LinkButton>
