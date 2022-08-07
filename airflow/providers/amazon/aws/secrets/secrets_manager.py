@@ -21,12 +21,13 @@ import ast
 import json
 import re
 import warnings
-from typing import Optional
-from urllib.parse import urlencode
+from typing import Any, Dict, List, Optional
+from urllib.parse import unquote, urlencode
 
 import boto3
 
 from airflow.compat.functools import cached_property
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils import get_airflow_version
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -68,7 +69,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: python
 
         possible_words_for_conn_fields = {
-            "user": ["user", "username", "login", "user_name"],
+            "login": ["user", "username", "login", "user_name"],
             "password": ["password", "pass", "key"],
             "host": ["host", "remote_host", "server"],
             "port": ["port"],
@@ -94,6 +95,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
         If False (set it as false in backend_kwargs), you can store the secret using different
         fields (password, user...).
+    :param are_secret_values_urlencoded: If True, and full_url_mode is False, then the values are assumed to
+        be URL-encoded and will be decoded before being passed into a Connection object. This option is
+        ignored when full_url_mode is True.
     :param extra_conn_words: for using just when you set full_url_mode as false and store
         the secrets in different fields of secrets manager. You can add more words for each connection
         part beyond the default ones. The extra words to be searched should be passed as a dict of lists,
@@ -109,7 +113,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         profile_name: Optional[str] = None,
         sep: str = "/",
         full_url_mode: bool = True,
-        extra_conn_words: Optional[dict] = None,
+        are_secret_values_urlencoded: Optional[bool] = None,
+        extra_conn_words: Optional[Dict[str, List[str]]] = None,
         **kwargs,
     ):
         super().__init__()
@@ -128,6 +133,26 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.profile_name = profile_name
         self.sep = sep
         self.full_url_mode = full_url_mode
+
+        if are_secret_values_urlencoded is None:
+            self.are_secret_values_urlencoded = True
+        else:
+            warnings.warn(
+                "The `secret_values_are_urlencoded` kwarg only exists to assist in migrating away from"
+                " URL-encoding secret values when `full_url_mode` is False. It will be considered deprecated"
+                " when values are not required to be URL-encoded by default.",
+                PendingDeprecationWarning,
+                stacklevel=2,
+            )
+            if full_url_mode and not are_secret_values_urlencoded:
+                warnings.warn(
+                    "The `secret_values_are_urlencoded` kwarg for the SecretsManagerBackend is only used"
+                    " when `full_url_mode` is False. When `full_url_mode` is True, the secret needs to be"
+                    " URL-encoded.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            self.are_secret_values_urlencoded = are_secret_values_urlencoded
         self.extra_conn_words = extra_conn_words or {}
         self.kwargs = kwargs
 
@@ -139,7 +164,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         return session.client(service_name="secretsmanager", **self.kwargs)
 
     @staticmethod
-    def _format_uri_with_extra(secret, conn_string):
+    def _format_uri_with_extra(secret, conn_string: str) -> str:
         try:
             extra_dict = secret['extra']
         except KeyError:
@@ -150,7 +175,41 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_string
 
-    def get_uri_from_secret(self, secret):
+    def get_connection(self, conn_id: str) -> Optional[Connection]:
+        if not self.full_url_mode:
+            secret_string = self._get_secret(self.connections_prefix, conn_id)
+            secret_dict = self._deserialize_json_string(secret_string)
+
+            if not secret_dict:
+                return None
+
+            if 'extra' in secret_dict and isinstance(secret_dict['extra'], str):
+                secret_dict['extra'] = self._deserialize_json_string(secret_dict['extra'])
+
+            data = self._standardize_secret_keys(secret_dict)
+
+            if self.are_secret_values_urlencoded:
+                data = self._remove_escaping_in_secret_dict(secret=data, conn_id=conn_id)
+
+            port: Optional[int] = None
+
+            if data['port'] is not None:
+                port = int(data['port'])
+
+            return Connection(
+                login=data['user'],
+                password=data['password'],
+                host=data['host'],
+                port=port,
+                schema=data['schema'],
+                conn_type=data['conn_type'],
+                extra=data['extra'],
+            )
+
+        return super().get_connection(conn_id=conn_id)
+
+    def _standardize_secret_keys(self, secret: Dict[str, Any]) -> Dict[str, Any]:
+        """Standardize the names of the keys in the dict. These keys align with"""
         possible_words_for_conn_fields = {
             'user': ['user', 'username', 'login', 'user_name'],
             'password': ['password', 'pass', 'key'],
@@ -158,23 +217,115 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             'port': ['port'],
             'schema': ['database', 'schema'],
             'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
+            'extra': ['extra'],
         }
 
         for conn_field, extra_words in self.extra_conn_words.items():
             possible_words_for_conn_fields[conn_field].extend(extra_words)
 
-        conn_d = {}
+        conn_d: Dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
             try:
                 conn_d[conn_field] = [v for k, v in secret.items() if k in possible_words][0]
             except IndexError:
-                conn_d[conn_field] = ''
+                conn_d[conn_field] = None
 
+        return conn_d
+
+    def get_uri_from_secret(self, secret: Dict[str, str]) -> str:
+        conn_d: Dict[str, str] = {k: v if v else '' for k, v in self._standardize_secret_keys(secret).items()}
         conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
-
         return self._format_uri_with_extra(secret, conn_string)
 
-    def get_conn_value(self, conn_id: str):
+    def _deserialize_json_string(self, value: Optional[str]) -> Optional[Dict[Any, Any]]:
+        if not value:
+            return None
+        try:
+            # Use ast.literal_eval for backwards compatibility.
+            # Previous version of this code had a comment saying that using json.loads caused errors.
+            # This likely means people were using dict reprs instead of valid JSONs.
+            res: Dict[str, Any] = json.loads(value)
+        except json.JSONDecodeError:
+            try:
+                res = ast.literal_eval(value) if value else None
+                warnings.warn(
+                    f'In future versions, `{type(self).__name__}` will only support valid JSONs, not dict'
+                    ' reprs. Please make sure your secret is a valid JSON.'
+                )
+            except ValueError:  # 'malformed node or string: ' error, for empty conns
+                return None
+
+        return res
+
+    def _remove_escaping_in_secret_dict(self, secret: Dict[str, Any], conn_id: str) -> Dict[str, Any]:
+        # When ``unquote(v) == v``, then removing unquote won't affect the user, regardless of
+        # whether or not ``v`` is URL-encoded. For example, "foo bar" is not URL-encoded. But
+        # because decoding it doesn't affect the value, then it will migrate safely when
+        # ``unquote`` gets removed.
+        #
+        # When parameters are URL-encoded, but decoding is idempotent, we need to warn the user
+        # to un-escape their secrets. For example, if "foo%20bar" is a URL-encoded string, then
+        # decoding is idempotent because ``unquote(unquote("foo%20bar")) == unquote("foo%20bar")``.
+        #
+        # In the rare situation that value is URL-encoded but the decoding is _not_ idempotent,
+        # this causes a major issue. For example, if "foo%2520bar" is URL-encoded, then decoding is
+        # _not_ idempotent because ``unquote(unquote("foo%2520bar")) != unquote("foo%2520bar")``
+        #
+        # This causes a problem for migration because if the user decodes their value, we cannot
+        # infer that is the case by looking at the decoded value (from our vantage point, it will
+        # look to be URL-encoded.)
+        #
+        # So when this uncommon situation occurs, the user _must_ adjust the configuration and set
+        # ``parameters_are_urlencoded`` to False to migrate safely. In all other cases, we do not
+        # need the user to adjust this object to migrate; they can transition their secrets with
+        # the default configuration.
+
+        warn_user = False
+        idempotent = True
+
+        for k, v in secret.copy().items():
+
+            if k == "extra" and isinstance(v, dict):
+                # The old behavior was that extras were _not_ urlencoded inside the secret.
+                # If they were urlencoded (e.g. "foo%20bar"), then they would be re-urlencoded
+                # (e.g. "foo%20bar" becomes "foo%2520bar") and then unquoted once when parsed.
+                # So we should just allow the extra dict to remain as-is.
+                continue
+
+            elif v is not None:
+                v_unquoted = unquote(v)
+                if v != v_unquoted:
+                    secret[k] = unquote(v)
+                    warn_user = True
+
+                    # Check to see if decoding is idempotent.
+                    if v_unquoted == unquote(v_unquoted):
+                        idempotent = False
+
+        if warn_user:
+            msg = (
+                "When ``full_url_mode=True``, URL-encoding secret values is deprecated. In future versions, "
+                f" this value will not be un-escaped. For the conn_id {conn_id!r}, please remove the"
+                " URL-encoding."
+                "\n\nThis warning was raised because the SecretsManagerBackend detected that this connection"
+                " was URL-encoded."
+            )
+            if idempotent:
+                msg = f" Once the values for conn_id {conn_id!r} are decoded, this warning will go away."
+            if not idempotent:
+                msg += (
+                    " In addition to decoding the values for your connection, you must also set"
+                    " ``secret_values_are_urlencoded=False`` for your config variable"
+                    " ``secrets.backend_kwargs`` because this connection's URL encoding is not idempotent."
+                    " For more information, see:"
+                    " https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/secrets-backends"
+                    "/aws-secrets-manager.html#url-encoding-of-secrets-when-full-url-mode-is-false"
+                )
+            warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
+        return secret
+
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
         """
         Get serialized representation of Connection
 
@@ -185,13 +336,30 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         if self.full_url_mode:
             return self._get_secret(self.connections_prefix, conn_id)
-        try:
-            secret_string = self._get_secret(self.connections_prefix, conn_id)
-            # json.loads gives error
-            secret = ast.literal_eval(secret_string) if secret_string else None
-        except ValueError:  # 'malformed node or string: ' error, for empty conns
-            connection = None
-            secret = None
+        else:
+            warnings.warn(
+                f'In future versions, `{type(self).__name__}.get_conn_value` will return a JSON string when'
+                ' full_url_mode is False, not a URI.',
+                DeprecationWarning,
+            )
+
+        # It is very rare for user code to get to this point, since:
+        #
+        # - When full_url_mode is True, the previous statement returns.
+        # - When full_url_mode is False, get_connection() does not call
+        #   `get_conn_value`. Additionally, full_url_mode defaults to True.
+        #
+        # So the code would have to be calling `get_conn_value` directly, and
+        # the user would be using a non-default setting.
+        #
+        # As of Airflow 2.3.0, get_conn_value() is allowed to return a JSON
+        # string in the base implementation. This is a way to deprecate this
+        # behavior gracefully.
+
+        secret_string = self._get_secret(self.connections_prefix, conn_id)
+
+        secret = self._deserialize_json_string(secret_string)
+        connection = None
 
         # These lines will check if we have with some denomination stored an username, password and host
         if secret:
