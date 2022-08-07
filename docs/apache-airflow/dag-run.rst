@@ -43,10 +43,9 @@ There are two possible terminal states for the DAG Run:
 Cron Presets
 ''''''''''''
 
-Each DAG may or may not have a schedule, which informs how DAG Runs are
-created. ``schedule_interval`` is defined as a DAG argument, which can be passed a
-`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
-a ``str``, a ``datetime.timedelta`` object, or one of the following cron "presets".
+You may set your DAG to run on a simple schedule by setting its ``schedule`` param with either a
+`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, or a ``datetime.timedelta`` object,
+or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable </concepts/timetable>`
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
@@ -82,7 +81,7 @@ Data Interval
 
 Each DAG run in Airflow has an assigned "data interval" that represents the time
 range it operates in. For a DAG scheduled with ``@daily``, for example, each of
-its data interval would start each day at midnight (00:00) and end at midnight
+ts data interval would start each day at midnight (00:00) and end at midnight
 (24:00).
 
 A DAG run is usually scheduled *after* its associated data interval has ended,
@@ -102,7 +101,7 @@ scheduled one interval after ``start_date``.
 
 .. tip::
 
-    If ``schedule_interval`` is not enough to express your DAG's schedule,
+    If a cron expression or `timedelta` object is not enough to express your DAG's schedule,
     logical date, or data interval, see :doc:`/concepts/timetable`.
     For more information on ``logical date``, see :ref:`concepts:dag-run` and
     :ref:`faq:what-does-execution-date-mean`
@@ -117,8 +116,8 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a
-series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
+An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a either a cron expression or timetable, defines a series of intervals which the scheduler turns into individual DAG Runs and executes.
+The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
