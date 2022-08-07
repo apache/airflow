@@ -771,6 +771,49 @@ class TestAwsBaseHook:
         assert isinstance(conn_config_fallback_not_exists, AwsConnectionWrapper)
         assert not conn_config_fallback_not_exists
 
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.SessionFactory')
+    @pytest.mark.parametrize("hook_region_name", [None, "eu-west-1"])
+    @pytest.mark.parametrize(
+        "hook_botocore_config", [None, Config(s3={"us_east_1_regional_endpoint": "regional"})]
+    )
+    @pytest.mark.parametrize("method_region_name", [None, "cn-north-1"])
+    def test_get_session(
+        self, mock_session_factory, hook_region_name, hook_botocore_config, method_region_name
+    ):
+        """Test get boto3 Session by hook."""
+        mock_session_factory_instance = mock_session_factory.return_value
+        mock_session_factory_instance.create_session.return_value = MOCK_BOTO3_SESSION
+
+        hook = AwsBaseHook(aws_conn_id=None, region_name=hook_region_name, config=hook_botocore_config)
+        session = hook.get_session(region_name=method_region_name)
+        mock_session_factory.assert_called_once_with(
+            conn=hook.conn_config,
+            region_name=method_region_name,
+            config=hook_botocore_config,
+        )
+        assert mock_session_factory_instance.create_session.assert_called_once
+        assert session == MOCK_BOTO3_SESSION
+
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.get_session',
+        return_value=MOCK_BOTO3_SESSION,
+    )
+    @pytest.mark.parametrize("region_name", [None, "aws-global", "eu-west-1"])
+    def test_deprecate_private_method__get_credentials(self, mock_boto3_session, region_name):
+        """Test deprecated method AwsGenericHook._get_credentials."""
+        hook = AwsBaseHook(aws_conn_id=None)
+        warning_message = (
+            r"`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases\. "
+            r"Please use `AwsGenericHook.get_session` method and "
+            r"`AwsGenericHook.conn_config.endpoint_url` property instead\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            session, endpoint = hook._get_credentials(region_name)
+
+        mock_boto3_session.assert_called_once_with(region_name=region_name)
+        assert session == MOCK_BOTO3_SESSION
+        assert endpoint == hook.conn_config.endpoint_url
+
 
 class ThrowErrorUntilCount:
     """Holds counter state for invoking a method several times in a row."""

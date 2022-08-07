@@ -329,8 +329,8 @@ class BaseSessionFactory(LoggingMixin):
 
     def _get_region_name(self) -> Optional[str]:
         warnings.warn(
-            "`BaseSessionFactory._get_region_name` method will be deprecated in the future."
-            "Please use `BaseSessionFactory.region_name` property instead.",
+            "`BaseSessionFactory._get_region_name` method deprecated and will be removed "
+            "in a future releases. Please use `BaseSessionFactory.region_name` property instead.",
             PendingDeprecationWarning,
             stacklevel=2,
         )
@@ -338,8 +338,8 @@ class BaseSessionFactory(LoggingMixin):
 
     def _read_role_arn_from_extra_config(self) -> Optional[str]:
         warnings.warn(
-            "`BaseSessionFactory._read_role_arn_from_extra_config` method will be deprecated in the future."
-            "Please use `BaseSessionFactory.role_arn` property instead.",
+            "`BaseSessionFactory._read_role_arn_from_extra_config` method deprecated and will be removed "
+            "in a future releases. Please use `BaseSessionFactory.role_arn` property instead.",
             PendingDeprecationWarning,
             stacklevel=2,
         )
@@ -347,8 +347,8 @@ class BaseSessionFactory(LoggingMixin):
 
     def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
         warnings.warn(
-            "`BaseSessionFactory._read_credentials_from_connection` method will be deprecated in the future."
-            "Please use `BaseSessionFactory.conn.aws_access_key_id` and "
+            "`BaseSessionFactory._read_credentials_from_connection` method deprecated and will be removed "
+            "in a future releases. Please use `BaseSessionFactory.conn.aws_access_key_id` and "
             "`BaseSessionFactory.aws_secret_access_key` properties instead.",
             PendingDeprecationWarning,
             stacklevel=2,
@@ -430,14 +430,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Configuration for botocore client read-only property."""
         return self.conn_config.botocore_config
 
-    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
-        self.log.debug("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
-
-        session = SessionFactory(
+    def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
+        """Get the underlying boto3.session.Session(region_name=region_name)."""
+        return SessionFactory(
             conn=self.conn_config, region_name=region_name, config=self.config
         ).create_session()
-
-        return session, self.conn_config.endpoint_url
 
     def get_client_type(
         self,
@@ -446,8 +443,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name=region_name)
-
         if client_type:
             warnings.warn(
                 "client_type is deprecated. Set client_type from class attribute.",
@@ -462,7 +457,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if config is None:
             config = self.config
 
-        return session.client(client_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
+        session = self.get_session(region_name=region_name)
+        return session.client(
+            client_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+        )
 
     def get_resource_type(
         self,
@@ -471,8 +469,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name=region_name)
-
         if resource_type:
             warnings.warn(
                 "resource_type is deprecated. Set resource_type from class attribute.",
@@ -487,10 +483,13 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if config is None:
             config = self.config
 
-        return session.resource(resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
+        session = self.get_session(region_name=region_name)
+        return session.resource(
+            resource_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+        )
 
     @cached_property
-    def conn(self) -> Union[boto3.client, boto3.resource]:
+    def conn(self) -> BaseAwsConnection:
         """
         Get the underlying boto3 client/resource (cached)
 
@@ -538,22 +537,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Compat shim
         return self.conn
 
-    def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
-        """Get the underlying boto3.session."""
-        session, _ = self._get_credentials(region_name=region_name)
-        return session
-
     def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
         """
         Get the underlying `botocore.Credentials` object.
 
         This contains the following authentication attributes: access_key, secret_key and token.
         """
-        session, _ = self._get_credentials(region_name=region_name)
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
-        return session.get_credentials().get_frozen_credentials()
+        return self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
 
     def expand_role(self, role: str, region_name: Optional[str] = None) -> str:
         """
@@ -567,8 +560,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if "/" in role:
             return role
         else:
-            session, endpoint_url = self._get_credentials(region_name=region_name)
-            _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+            session = self.get_session(region_name=region_name)
+            _client = session.client(
+                'iam', endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+            )
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
@@ -602,6 +597,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return decorator_f
 
         return retry_decorator
+
+    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
+        warnings.warn(
+            "`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases. "
+            "Please use `AwsGenericHook.get_session` method and "
+            "`AwsGenericHook.conn_config.endpoint_url` property instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.get_session(region_name=region_name), self.conn_config.endpoint_url
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
