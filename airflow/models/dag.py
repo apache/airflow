@@ -488,7 +488,7 @@ class DAG(LoggingMixin):
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Optional[List[Dataset]] = None
 
-        if schedule:
+        if schedule is not NOTSET:
             if isinstance(schedule, List):
                 # if List, only support List[Dataset]
                 if any(isinstance(x, Dataset) for x in schedule):

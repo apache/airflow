@@ -1044,7 +1044,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_dag_run_id = f"manual__{expected_logical_date}"
         else:
             expected_dag_run_id = dag_run_id
-        assert {
+        assert response.json == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
@@ -1058,7 +1058,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-        } == response.json
+        }
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
