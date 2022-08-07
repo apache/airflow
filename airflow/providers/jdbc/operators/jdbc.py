@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -57,6 +57,7 @@ class JdbcOperator(BaseOperator):
         jdbc_conn_id: str = 'jdbc_default',
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
+        handler: Callable[[Any], Any] = fetch_all_handler,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -64,9 +65,13 @@ class JdbcOperator(BaseOperator):
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit
+        self.handler = handler
         self.hook = None
 
     def execute(self, context: 'Context'):
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        return hook.run(self.sql, self.autocommit, parameters=self.parameters, handler=fetch_all_handler)
+        if self.do_xcom_push:
+            return hook.run(self.sql, self.autocommit, parameters=self.parameters, handler=self.handler)
+        else:
+            return hook.run(self.sql, self.autocommit, parameters=self.parameters)
