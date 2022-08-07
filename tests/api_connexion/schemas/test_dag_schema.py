@@ -37,7 +37,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         fileloc="/root/airflow/dags/my_dag.py",
         owners="airflow1,airflow2",
         description="The description",
-        schedule="5 4 * * *",
+        schedule_interval="5 4 * * *",
         tags=[DagTag(name="tag-1"), DagTag(name="tag-2")],
     )
     serialized_dag = DAGSchema().dump(dag_model)

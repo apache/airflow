@@ -2808,7 +2808,7 @@ class DAG(LoggingMixin):
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+            exclusion_list = {
                 'parent_dag',
                 '_old_context_manager_dags',
                 'safe_dag_id',
@@ -2830,6 +2830,7 @@ class DAG(LoggingMixin):
                 'has_on_success_callback',
                 'has_on_failure_callback',
             }
+            cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:

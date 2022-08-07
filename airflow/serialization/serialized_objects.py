@@ -1111,7 +1111,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k == "upstream_datasets":
+            elif k == "dataset_triggers":
                 v = cls._deserialize(v)
             # else use v as it is
 
