@@ -27,6 +27,8 @@ Create Date: 2022-08-04 16:59:45.406589
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
+
 # revision identifiers, used by Alembic.
 revision = '1486deb605b4'
 down_revision = 'f4ff391becb5'
@@ -39,7 +41,7 @@ def upgrade():
     """Apply Add ``DagOwnerAttributes`` table"""
     op.create_table(
         'dag_owner_attributes',
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('dag_id', StringID(), nullable=False),
         sa.Column('owner', sa.String(length=500), nullable=False),
         sa.Column('link', sa.String(length=500), nullable=False),
         sa.ForeignKeyConstraint(['dag_id'], ['dag.dag_id'], ondelete='CASCADE'),
