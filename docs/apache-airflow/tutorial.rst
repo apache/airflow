@@ -95,7 +95,7 @@ Instantiate a DAG
 We'll need a DAG object to nest our tasks into. Here we pass a string
 that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
-define a ``schedule_interval`` of 1 day for the DAG.
+define a ``schedule`` of 1 day for the DAG.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python

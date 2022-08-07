@@ -1,0 +1,3 @@
+Deprecation of ``schedule_interval`` and ``timetable`` params
+
+We add new DAG parameter ``schedule`` that can accept a cron expression, timedelta object, *timetable* object, or list of dataset objects. Params ``schedule_interval`` and ``timetable`` are  deprecated.

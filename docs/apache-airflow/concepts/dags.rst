@@ -145,21 +145,21 @@ DAGs will run in one of two ways:
  - When they are *triggered* either manually or via the API
  - On a defined *schedule*, which is defined as part of the DAG
 
-DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule_interval`` argument, like this::
+DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule`` argument, like this::
 
     with DAG("my_daily_dag", schedule="@daily"):
         ...
 
-The ``schedule_interval`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
+The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
     with DAG("my_daily_dag", schedule="0 * * * *"):
         ...
 
 .. tip::
 
-    For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
+    For more information on ``schedule`` values, see :doc:`DAG Run </dag-run>`.
 
-    If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
+    If ``schedule`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
     For more information on ``logical date``, see :ref:`data-interval` and
     :ref:`faq:what-does-execution-date-mean`.
 
