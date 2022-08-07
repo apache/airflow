@@ -46,7 +46,7 @@ const Details = () => {
         <TaskInstanceContent
           runId={runId}
           taskId={taskId}
-          mapIndex={mapIndex}
+          mapIndex={mapIndex === null ? undefined : mapIndex}
           onSelect={onSelect}
         />
         )}

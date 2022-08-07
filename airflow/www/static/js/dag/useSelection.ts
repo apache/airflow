@@ -36,6 +36,7 @@ const useSelection = () => {
   const clearSelection = () => {
     searchParams.delete(RUN_ID);
     searchParams.delete(TASK_ID);
+    searchParams.delete(MAP_INDEX);
     setSearchParams(searchParams);
   };
 
@@ -57,7 +58,7 @@ const useSelection = () => {
   const runId = searchParams.get(RUN_ID);
   const taskId = searchParams.get(TASK_ID);
   const mapIndexParam = searchParams.get(MAP_INDEX);
-  const mapIndex = mapIndexParam !== null ? parseInt(mapIndexParam, 10) : undefined;
+  const mapIndex = mapIndexParam !== null ? parseInt(mapIndexParam, 10) : null;
 
   return {
     selected: {

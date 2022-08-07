@@ -38,17 +38,19 @@ describe('Test useSelection hook', () => {
       selected: {
         runId,
         taskId,
+        mapIndex,
       },
     } = result.current;
 
     expect(runId).toBeNull();
     expect(taskId).toBeNull();
+    expect(mapIndex).toBeNull();
   });
 
   test.each([
-    { taskId: 'task_1', runId: 'run_1' },
-    { runId: 'run_1', taskId: null },
-    { taskId: 'task_1', runId: null },
+    { taskId: 'task_1', runId: 'run_1', mapIndex: 2 },
+    { runId: 'run_1', taskId: null, mapIndex: null },
+    { taskId: 'task_1', runId: null, mapIndex: 1 },
   ])('Test onSelect() and clearSelection()', async (selected) => {
     const { result } = renderHook(() => useSelection(), { wrapper: Wrapper });
 
@@ -58,6 +60,7 @@ describe('Test useSelection hook', () => {
 
     expect(result.current.selected.taskId).toBe(selected.taskId);
     expect(result.current.selected.runId).toBe(selected.runId);
+    expect(result.current.selected.mapIndex).toBe(selected.mapIndex);
 
     // clearSelection
     await act(async () => {
@@ -66,5 +69,6 @@ describe('Test useSelection hook', () => {
 
     expect(result.current.selected.taskId).toBeNull();
     expect(result.current.selected.runId).toBeNull();
+    expect(result.current.selected.mapIndex).toBeNull();
   });
 });
