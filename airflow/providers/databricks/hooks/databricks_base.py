@@ -23,6 +23,7 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
 import copy
+import platform
 import time
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -143,7 +144,13 @@ class BaseDatabricksHook(BaseHook):
         if provider.is_source:
             version += "-source"
 
-        return f'Airflow/{__version__} Databricks/{version} ({self.caller})'
+        python_version = platform.python_version()
+        system = platform.system().lower()
+        ua_string = (
+            f"databricks-aiflow/{version} _/0.0.0 python/{python_version} os/{system} "
+            f"airflow/{__version__} operator/{self.caller}"
+        )
+        return ua_string
 
     @cached_property
     def host(self) -> str:

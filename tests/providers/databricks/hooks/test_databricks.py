@@ -244,6 +244,12 @@ class TestDatabricksHook(unittest.TestCase):
 
         self.hook = DatabricksHook(retry_delay=0)
 
+    def test_user_agent_string(self):
+        op = "DatabricksSql"
+        hook = DatabricksHook(retry_delay=0, caller=op)
+        ua_string = hook.user_agent_value
+        assert ua_string.endswith(f" operator/{op}")
+
     def test_parse_host_with_proper_host(self):
         host = self.hook._parse_host(HOST)
         assert host == HOST
