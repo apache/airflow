@@ -131,7 +131,7 @@ class LivyOperator(BaseOperator):
                 livy_conn_id=self._livy_conn_id,
                 extra_headers=self._extra_headers,
                 extra_options=self._extra_options,
-                auth_type=self._livy_conn_auth_type
+                auth_type=self._livy_conn_auth_type,
             )
         return self._livy_hook
 

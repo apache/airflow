@@ -17,7 +17,7 @@
 
 import json
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests_mock
@@ -47,7 +47,7 @@ class TestLivyHook(unittest.TestCase):
         )
         db.merge_conn(Connection(conn_id='missing_host', conn_type='http', port=1234))
         db.merge_conn(Connection(conn_id='invalid_uri', uri='http://invalid_uri:4321'))
-        db.merge_conn(Connection(conn_id='with_credentials', login='login', password='secret', host='host'))
+        db.merge_conn(Connection(conn_id='with_credentials', login='login', password='secret', conn_type='http', host='host'))
 
     def test_build_get_hook(self):
 
