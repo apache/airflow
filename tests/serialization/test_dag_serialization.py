@@ -1423,7 +1423,7 @@ class TestStringifiedDAGs:
         d3 = Dataset('d3')
         d4 = Dataset('d4')
         execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=execution_date, schedule_on=[d1]) as dag:
+        with DAG(dag_id="test", start_date=execution_date, schedule=[d1]) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
