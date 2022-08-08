@@ -59,7 +59,7 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 # Example DAG for AutoML Natural Language Text Classification
 with models.DAG(
     "example_automl_text_cls",
-    schedule=None,  # Override to match your needs
+    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

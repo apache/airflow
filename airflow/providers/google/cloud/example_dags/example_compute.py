@@ -52,7 +52,7 @@ GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get('GCE_SHORT_MACHINE_TYPE_NAME', 'n1-
 
 with models.DAG(
     'example_gcp_compute',
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

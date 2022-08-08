@@ -238,7 +238,7 @@ MODEL_OBJ = {
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as custom_jobs_dag:
@@ -328,7 +328,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_dataset",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dataset_dag:
@@ -431,7 +431,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_auto_ml",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as auto_ml_dag:
@@ -548,7 +548,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_batch_prediction_job",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as batch_prediction_job_dag:
@@ -588,7 +588,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_endpoint",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as endpoint_dag:
@@ -644,7 +644,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_hyperparameter_tuning_job",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as hyperparameter_tuning_job_dag:
@@ -717,7 +717,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_model_service",
-    schedule="@once",
+    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as model_service_dag:

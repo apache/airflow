@@ -64,7 +64,7 @@ default_args = {
 
 with models.DAG(
     "example_gcp_dataflow_native_java",
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=['example'],
@@ -115,7 +115,7 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     tags=['example'],
 ) as dag_native_python:
 
@@ -151,7 +151,7 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     tags=['example'],
 ) as dag_native_python_async:
     # [START howto_operator_start_python_job_async]
@@ -253,7 +253,7 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     tags=['example'],
 ) as dag_template:
     # [START howto_operator_start_template_job]

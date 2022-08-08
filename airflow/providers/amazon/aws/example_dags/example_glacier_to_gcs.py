@@ -28,7 +28,7 @@ OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
 
 with DAG(
     "example_glacier_to_gcs",
-    schedule=None,
+    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:

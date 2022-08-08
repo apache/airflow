@@ -86,7 +86,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 # Example DAG to create dataset, train model_id and deploy it.
 with models.DAG(
     "example_create_and_deploy",
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     user_defined_macros={
@@ -199,7 +199,7 @@ with models.DAG(
 # Example DAG for AutoML datasets operations
 with models.DAG(
     "example_automl_dataset",
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
@@ -268,7 +268,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_get_deploy",
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=["example"],
@@ -294,7 +294,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_predict",
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=["example"],

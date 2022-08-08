@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.sensors.looker import LookerCheckPdtBuildSen
 
 with models.DAG(
     dag_id='example_gcp_looker',
-    schedule=None,
+    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

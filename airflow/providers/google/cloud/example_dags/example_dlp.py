@@ -63,7 +63,7 @@ OBJECT_GCS_OUTPUT_URI = os.path.join(OUTPUT_BUCKET, "tmp", OUTPUT_FILENAME)
 
 with models.DAG(
     "example_gcp_dlp",
-    schedule='@once',  # Override to match your needs
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=['example'],
@@ -113,7 +113,7 @@ UPDATE_CUSTOM_INFO_TYPE = {
 
 with models.DAG(
     "example_gcp_dlp_info_types",
-    schedule='@once',
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=["example", "dlp", "info-types"],
@@ -157,7 +157,7 @@ TRIGGER_ID = "example_trigger"
 
 with models.DAG(
     "example_gcp_dlp_job",
-    schedule='@once',
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=["example", "dlp_job"],
@@ -203,7 +203,7 @@ DEIDENTIFY_CONFIG = {
 
 with models.DAG(
     "example_gcp_dlp_deidentify_content",
-    schedule='@once',
+    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=START_DATE,
     catchup=False,
     tags=["example", "dlp", "deidentify"],

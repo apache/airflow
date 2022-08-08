@@ -26,7 +26,7 @@ S3_KEY = os.getenv("S3_KEY", "s3://<bucket>/<prefix>")
 
 with DAG(
     dag_id="example_gcs_to_s3",
-    schedule=None,
+    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     tags=["example"],
     catchup=False,

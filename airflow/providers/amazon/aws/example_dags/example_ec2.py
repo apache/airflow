@@ -26,7 +26,7 @@ INSTANCE_ID = os.getenv("INSTANCE_ID", "instance-id")
 
 with DAG(
     dag_id='example_ec2',
-    schedule=None,
+    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

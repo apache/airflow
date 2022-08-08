@@ -31,7 +31,7 @@ with models.DAG(
     "example_gdrive_to_local_with_gdrive_sensor",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    schedule=None,  # Override to match your needs
+    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     tags=["example"],
 ) as dag:
     # [START detect_file]
