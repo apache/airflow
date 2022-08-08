@@ -247,7 +247,7 @@ kinds of test types:
 
   .. code-block:: bash
 
-       breeze testing test --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
+       breeze testing tests --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
 
   Run all Quarantined tests:
 
