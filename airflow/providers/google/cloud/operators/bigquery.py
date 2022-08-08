@@ -2143,7 +2143,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        # Submit a new job and wait for it to complete and get the result.
+        # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,
             project_id=self.project_id,
@@ -2151,6 +2151,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
+            nowait=True,
         )
 
     @staticmethod
@@ -2178,7 +2179,6 @@ class BigQueryInsertJobOperator(BaseOperator):
         try:
             self.log.info("Executing: %s'", self.configuration)
             job = self._submit_job(hook, job_id)
-            self._handle_job_error(job)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
@@ -2186,11 +2186,7 @@ class BigQueryInsertJobOperator(BaseOperator):
                 location=self.location,
                 job_id=job_id,
             )
-            if job.state in self.reattach_states:
-                # We are reattaching to a job
-                job.result(timeout=self.result_timeout, retry=self.result_retry)
-                self._handle_job_error(job)
-            else:
+            if job.state not in self.reattach_states:
                 # Same job configuration so we need force_rerun
                 raise AirflowException(
                     f"Job with id: {job_id} already exists and is in {job.state} state. If you "
@@ -2225,10 +2221,16 @@ class BigQueryInsertJobOperator(BaseOperator):
                             BigQueryTableLink.persist(**persist_kwargs)
 
         self.job_id = job.job_id
-        return job.job_id
+        # Wait for the job to complete
+        job.result(timeout=self.result_timeout, retry=self.result_retry)
+        self._handle_job_error(job)
+
+        return self.job_id
 
     def on_kill(self) -> None:
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(  # type: ignore[union-attr]
                 job_id=self.job_id, project_id=self.project_id, location=self.location
             )
+        else:
+            self.log.info('Skipping to cancel job: %s:%s.%s', self.project_id, self.location, self.job_id)

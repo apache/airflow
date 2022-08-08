@@ -975,6 +975,7 @@ isfile
 ish
 isn
 iterable
+iterables
 iteratively
 iterm
 itertools
@@ -1051,6 +1052,7 @@ lshift
 lxml
 macOS
 macosx
+mailto
 makedirs
 makedsn
 mapred
@@ -1520,6 +1522,7 @@ unittest
 unittests
 unix
 unmanaged
+unmap
 unmappable
 unmapped
 unmapping

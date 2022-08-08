@@ -47,7 +47,6 @@ from flask import (
     before_render_template,
     flash,
     g,
-    jsonify,
     make_response,
     redirect,
     render_template,
@@ -106,12 +105,22 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import (
+    Connection,
+    DagModel,
+    DagOwnerAttributes,
+    DagTag,
+    Log,
+    SlaMiss,
+    TaskFail,
+    XCom,
+    errors,
+)
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import Dataset
+from airflow.models.dataset import Dataset, DatasetDagRef, DatasetDagRunQueue
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -883,6 +892,8 @@ class Airflow(AirflowBaseView):
                 for name, in dagtags
             ]
 
+            owner_links_dict = DagOwnerAttributes.get_all(session)
+
             import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id)
 
             if (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG) not in user_permissions:
@@ -974,6 +985,7 @@ class Airflow(AirflowBaseView):
             ),
             num_runs=num_runs,
             tags=tags,
+            owner_links=owner_links_dict,
             state_color=state_color_mapping,
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
@@ -1308,6 +1320,10 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
+        owner_links = (
+            session.query(models.DagOwnerAttributes).filter(models.DagOwnerAttributes.dag_id == dag_id).all()
+        )
+
         attrs_to_avoid = [
             "NUM_DAGS_PER_DAGRUN_QUERY",
             "serialized_dag",
@@ -1320,6 +1336,7 @@ class Airflow(AirflowBaseView):
             "max_active_tasks",
             "schedule_interval",
             "owners",
+            "dag_owner_links",
             "is_paused",
         ]
         attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
@@ -1343,6 +1360,7 @@ class Airflow(AirflowBaseView):
             State=State,
             active_runs=active_runs,
             tags=tags,
+            owner_links=owner_links,
             dag_model_attrs=dag_model_attrs,
         )
 
@@ -1535,11 +1553,7 @@ class Airflow(AirflowBaseView):
             if not metadata:
                 metadata = {}
         except json.decoder.JSONDecodeError:
-            error_message = "Invalid JSON metadata"
-            response = jsonify({"error": error_message})
-            response.status_code = 400
-
-            return response
+            return {"error": "Invalid JSON metadata"}, 400
 
         # Convert string datetime into actual datetime
         try:
@@ -1549,18 +1563,15 @@ class Airflow(AirflowBaseView):
                 f'Given execution date, {execution_date}, could not be identified as a date. '
                 'Example date format: 2015-11-16T14:34:15+00:00'
             )
-            response = jsonify({'error': error_message})
-            response.status_code = 400
-
-            return response
+            return {'error': error_message}, 400
 
         task_log_reader = TaskLogReader()
         if not task_log_reader.supports_read:
-            return jsonify(
-                message="Task log handler does not support read logs.",
-                error=True,
-                metadata={"end_of_log": True},
-            )
+            return {
+                "message": "Task log handler does not support read logs.",
+                "error": True,
+                "metadata": {"end_of_log": True},
+            }
 
         ti = (
             session.query(models.TaskInstance)
@@ -1569,11 +1580,11 @@ class Airflow(AirflowBaseView):
         )
 
         if ti is None:
-            return jsonify(
-                message="*** Task instance did not exist in the DB\n",
-                error=True,
-                metadata={"end_of_log": True},
-            )
+            return {
+                "message": "*** Task instance did not exist in the DB\n",
+                "error": True,
+                "metadata": {"end_of_log": True},
+            }
 
         try:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -1583,7 +1594,7 @@ class Airflow(AirflowBaseView):
             if response_format == 'json':
                 logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
                 message = logs[0] if try_number is not None else logs
-                return jsonify(message=message, metadata=metadata)
+                return {"message": message, "metadata": metadata}
 
             metadata['download_logs'] = True
             attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
@@ -1596,7 +1607,7 @@ class Airflow(AirflowBaseView):
         except AttributeError as e:
             error_message = [f"Task log handler does not support read logs.\n{str(e)}\n"]
             metadata['end_of_log'] = True
-            return jsonify(message=error_message, error=True, metadata=metadata)
+            return {"message": error_message, "error": True, "metadata": metadata}
 
     @expose('/log')
     @auth.has_access(
@@ -2709,29 +2720,6 @@ class Airflow(AirflowBaseView):
         if num_runs is None:
             num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
-        try:
-            base_date = _safe_parse_datetime(request.args["base_date"])
-        except (KeyError, ValueError):
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        dag_runs = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-            .order_by(DagRun.execution_date.desc())
-            .limit(num_runs)
-            .all()
-        )
-        dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-
-        max_date = max(dag_run_dates, default=None)
-
-        form = DateTimeWithNumRunsForm(
-            data={
-                'base_date': max_date or timezone.utcnow(),
-                'num_runs': num_runs,
-            }
-        )
-
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
         task_log_reader = TaskLogReader()
@@ -2749,9 +2737,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             'airflow/grid.html',
-            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
-            form=form,
             dag=dag,
             doc_md=doc_md,
             num_runs=num_runs,
@@ -3546,21 +3532,12 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
-            response = jsonify(
-                {
-                    'url': None,
-                    'error': f"can't find dag {dag} or task_id {task_id}",
-                }
-            )
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': f"can't find dag {dag} or task_id {task_id}"}, 404
 
         task: "AbstractOperator" = dag.get_task(task_id)
         link_name = request.args.get('link_name')
         if link_name is None:
-            response = jsonify({'url': None, 'error': 'Link name not passed'})
-            response.status_code = 400
-            return response
+            return {'url': None, 'error': 'Link name not passed'}, 400
 
         ti = (
             session.query(TaskInstance)
@@ -3569,23 +3546,15 @@ class Airflow(AirflowBaseView):
             .first()
         )
         if not ti:
-            response = jsonify({'url': None, 'error': 'Task Instances not found'})
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': 'Task Instances not found'}, 404
         try:
             url = task.get_extra_links(ti, link_name)
         except ValueError as err:
-            response = jsonify({'url': None, 'error': str(err)})
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': str(err)}, 404
         if url:
-            response = jsonify({'error': None, 'url': url})
-            response.status_code = 200
-            return response
+            return {'error': None, 'url': url}
         else:
-            response = jsonify({'url': None, 'error': f'No URL found for {link_name}'})
-            response.status_code = 404
-            return response
+            return {'url': None, 'error': f'No URL found for {link_name}'}, 404
 
     @expose('/object/task_instances')
     @auth.has_access(
@@ -3604,9 +3573,7 @@ class Airflow(AirflowBaseView):
         if dttm:
             dttm = _safe_parse_datetime(dttm)
         else:
-            response = jsonify({'error': f"Invalid execution_date {dttm}"})
-            response.status_code = 400
-            return response
+            return {'error': f"Invalid execution_date {dttm}"}, 400
 
         with create_session() as session:
             task_instances = {
@@ -3629,9 +3596,7 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not dag:
-            response = jsonify({'error': f"can't find dag {dag_id}"})
-            response.status_code = 404
-            return response
+            return {'error': f"can't find dag {dag_id}"}, 404
 
         root = request.args.get('root')
         if root:
@@ -3667,6 +3632,40 @@ class Airflow(AirflowBaseView):
                 'dag_runs': encoded_runs,
             }
         # avoid spaces to reduce payload size
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
+    @expose('/object/next_run_datasets/<string:dag_id>')
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+    def next_run_datasets(self, dag_id):
+        """Returns datasets necessary, and their status, for the next dag run"""
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        if not dag:
+            return {'error': f"can't find dag {dag_id}"}, 404
+
+        with create_session() as session:
+            data = [
+                dict(info)
+                for info in session.query(
+                    Dataset.id,
+                    Dataset.uri,
+                    DatasetDagRunQueue.created_at,
+                )
+                .join(DatasetDagRef, Dataset.id == DatasetDagRef.dataset_id)
+                .join(
+                    DatasetDagRunQueue,
+                    and_(
+                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                    ),
+                    isouter=True,
+                )
+                .filter(DatasetDagRef.dag_id == dag_id)
+                .order_by(Dataset.id)
+                .all()
+            ]
         return (
             htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},

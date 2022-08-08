@@ -83,6 +83,34 @@ Verify that you can get the secret:
 
 If you don't want to use any ``connections_prefix`` for retrieving connections, set it as an empty string ``""`` in the configuration.
 
+URL-Encoding of Secrets When Full URL Mode is False
+"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Previous versions of the Amazon provider package required values in the AWS secret to be URL-encoded when the setting ``full_url_mode`` is ``false``.
+This behavior is now deprecated, and will be removed at a future date.
+
+In most cases, you should not have any issues migrating your secrets to not being URL-encoded in advance of the deprecation.
+Simply decoding your secret values will work, and no further changes are required.
+
+In rare circumstances, the ``DeprecationWarning`` will tell you to add a new parameter to your ``backend_kwargs``.
+This warning occurs when decoding is not idempotent.
+A decoding is idempotent when decoding it once using the ``urllib.parse.unquote`` function is equivalent to decoding it two or more times using that function.
+For example:
+
+* If ``"foo%20bar"`` is a URL-encoded value, then decoding is idempotent because ``unquote(unquote("foo%20bar")) == unquote("foo%20bar")``
+* If ``"foo%2520bar"`` is a URL-encoded value, then decoding is _not_ idempotent because ``unquote(unquote("foo%2520bar")) != unquote("foo%2520bar")``
+
+Setting ``secret_values_are_urlencoded`` to ``false`` will force the ``SecretsManagerBackend`` to stop treating secret values as being URL-encoded.
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+    backend_kwargs = {"connections_prefix": "airflow/connections", "full_url_mode": false, "secret_values_are_urlencoded": false}
+
+
+Note that if ``full_url_mode`` is ``true``, it is still necessary to URL-encode the entire secret.
+
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
 

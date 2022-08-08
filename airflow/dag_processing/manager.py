@@ -251,7 +251,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             signal_conn=signal_conn,
             async_mode=async_mode,
         )
-
         processor_manager.start()
 
     def heartbeat(self) -> None:

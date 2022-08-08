@@ -44,7 +44,7 @@ from slugify import slugify
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -66,19 +66,24 @@ class BaseSessionFactory(LoggingMixin):
     """
 
     def __init__(
-        self, conn: Union[Connection, AwsConnectionWrapper], region_name: Optional[str], config: Config
+        self,
+        conn: Optional[Union[Connection, AwsConnectionWrapper]],
+        region_name: Optional[str] = None,
+        config: Optional[Config] = None,
     ) -> None:
         super().__init__()
         self._conn = conn
         self._region_name = region_name
-        self.config = config
+        self._config = config
 
     @cached_property
     def conn(self) -> AwsConnectionWrapper:
         """Cached AWS Connection Wrapper."""
-        if isinstance(self._conn, AwsConnectionWrapper):
-            return self._conn
-        return AwsConnectionWrapper(self._conn)
+        return AwsConnectionWrapper(
+            conn=self._conn,
+            region_name=self._region_name,
+            botocore_config=self._config,
+        )
 
     @cached_property
     def basic_session(self) -> boto3.session.Session:
@@ -92,12 +97,13 @@ class BaseSessionFactory(LoggingMixin):
 
     @property
     def region_name(self) -> Optional[str]:
-        """Resolve region name.
+        """AWS Region Name read-only property."""
+        return self.conn.region_name
 
-        1. SessionFactory region_name
-        2. Connection region_name
-        """
-        return self._region_name or self.conn.region_name
+    @property
+    def config(self) -> Optional[Config]:
+        """Configuration for botocore client read-only property."""
+        return self.conn.botocore_config
 
     @property
     def role_arn(self) -> Optional[str]:
@@ -105,8 +111,15 @@ class BaseSessionFactory(LoggingMixin):
         return self.conn.role_arn
 
     def create_session(self) -> boto3.session.Session:
-        """Create AWS session."""
-        if not self.role_arn:
+        """Create boto3 Session from connection config."""
+        if not self.conn:
+            self.log.info(
+                "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
+                "See: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
+                self.region_name,
+            )
+            return boto3.session.Session(region_name=self.region_name)
+        elif not self.role_arn:
             return self.basic_session
         return self._create_session_with_assume_role(session_kwargs=self.conn.session_kwargs)
 
@@ -316,8 +329,8 @@ class BaseSessionFactory(LoggingMixin):
 
     def _get_region_name(self) -> Optional[str]:
         warnings.warn(
-            "`BaseSessionFactory._get_region_name` method will be deprecated in the future."
-            "Please use `BaseSessionFactory.region_name` property instead.",
+            "`BaseSessionFactory._get_region_name` method deprecated and will be removed "
+            "in a future releases. Please use `BaseSessionFactory.region_name` property instead.",
             PendingDeprecationWarning,
             stacklevel=2,
         )
@@ -325,8 +338,8 @@ class BaseSessionFactory(LoggingMixin):
 
     def _read_role_arn_from_extra_config(self) -> Optional[str]:
         warnings.warn(
-            "`BaseSessionFactory._read_role_arn_from_extra_config` method will be deprecated in the future."
-            "Please use `BaseSessionFactory.role_arn` property instead.",
+            "`BaseSessionFactory._read_role_arn_from_extra_config` method deprecated and will be removed "
+            "in a future releases. Please use `BaseSessionFactory.role_arn` property instead.",
             PendingDeprecationWarning,
             stacklevel=2,
         )
@@ -334,8 +347,8 @@ class BaseSessionFactory(LoggingMixin):
 
     def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
         warnings.warn(
-            "`BaseSessionFactory._read_credentials_from_connection` method will be deprecated in the future."
-            "Please use `BaseSessionFactory.conn.aws_access_key_id` and "
+            "`BaseSessionFactory._read_credentials_from_connection` method deprecated and will be removed "
+            "in a future releases. Please use `BaseSessionFactory.conn.aws_access_key_id` and "
             "`BaseSessionFactory.aws_secret_access_key` properties instead.",
             PendingDeprecationWarning,
             stacklevel=2,
@@ -381,45 +394,47 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.verify = verify
         self.client_type = client_type
         self.resource_type = resource_type
-        self.region_name = region_name
-        self.config = config
+        self._region_name = region_name
+        self._config = config
 
-    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
+    @cached_property
+    def conn_config(self) -> AwsConnectionWrapper:
+        """Get the Airflow Connection object and wrap it in helper (cached)."""
+        connection = None
+        if self.aws_conn_id:
+            try:
+                connection = self.get_connection(self.aws_conn_id)
+            except AirflowNotFoundException:
+                warnings.warn(
+                    f"Unable to find AWS Connection ID '{self.aws_conn_id}', switching to empty. "
+                    "This behaviour is deprecated and will be removed in a future releases. "
+                    "Please provide existed AWS connection ID or if required boto3 credential strategy "
+                    "explicit set AWS Connection ID to None.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
 
-        if not self.aws_conn_id:
-            session = boto3.session.Session(region_name=region_name)
-            return session, None
-
-        self.log.debug("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
-
-        try:
-            # Fetch the Airflow connection object and wrap it in helper
-            connection_object = AwsConnectionWrapper(self.get_connection(self.aws_conn_id))
-
-            if connection_object.botocore_config:
-                # For historical reason botocore.config.Config from connection overwrites
-                # config which explicitly set in Hook.
-                self.config = connection_object.botocore_config
-
-            session = SessionFactory(
-                conn=connection_object, region_name=region_name, config=self.config
-            ).create_session()
-
-            return session, connection_object.endpoint_url
-
-        except AirflowException:
-            self.log.warning(
-                "Unable to use Airflow Connection for credentials. "
-                "Fallback on boto3 credential strategy. See: "
-                "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html"
-            )
-
-        self.log.debug(
-            "Creating session using boto3 credential strategy region_name=%s",
-            region_name,
+        return AwsConnectionWrapper(
+            conn=connection or Connection(conn_id=None, conn_type="aws"),
+            region_name=self._region_name,
+            botocore_config=self._config,
         )
-        session = boto3.session.Session(region_name=region_name)
-        return session, None
+
+    @property
+    def region_name(self) -> Optional[str]:
+        """AWS Region Name read-only property."""
+        return self.conn_config.region_name
+
+    @property
+    def config(self) -> Optional[Config]:
+        """Configuration for botocore client read-only property."""
+        return self.conn_config.botocore_config
+
+    def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
+        """Get the underlying boto3.session.Session(region_name=region_name)."""
+        return SessionFactory(
+            conn=self.conn_config, region_name=region_name, config=self.config
+        ).create_session()
 
     def get_client_type(
         self,
@@ -428,8 +443,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name=region_name)
-
         if client_type:
             warnings.warn(
                 "client_type is deprecated. Set client_type from class attribute.",
@@ -444,7 +457,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if config is None:
             config = self.config
 
-        return session.client(client_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
+        session = self.get_session(region_name=region_name)
+        return session.client(
+            client_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+        )
 
     def get_resource_type(
         self,
@@ -453,8 +469,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
-        session, endpoint_url = self._get_credentials(region_name=region_name)
-
         if resource_type:
             warnings.warn(
                 "resource_type is deprecated. Set resource_type from class attribute.",
@@ -469,10 +483,13 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if config is None:
             config = self.config
 
-        return session.resource(resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
+        session = self.get_session(region_name=region_name)
+        return session.resource(
+            resource_type, endpoint_url=self.conn_config.endpoint_url, config=config, verify=self.verify
+        )
 
     @cached_property
-    def conn(self) -> Union[boto3.client, boto3.resource]:
+    def conn(self) -> BaseAwsConnection:
         """
         Get the underlying boto3 client/resource (cached)
 
@@ -491,6 +508,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @cached_property
     def conn_client_meta(self) -> ClientMeta:
+        """Get botocore client metadata from Hook connection (cached)."""
         conn = self.conn
         if isinstance(conn, botocore.client.BaseClient):
             return conn.meta
@@ -498,10 +516,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @property
     def conn_region_name(self) -> str:
+        """Get actual AWS Region Name from Hook connection (cached)."""
         return self.conn_client_meta.region_name
 
     @property
     def conn_partition(self) -> str:
+        """Get associated AWS Region Partition from Hook connection (cached)."""
         return self.conn_client_meta.partition
 
     def get_conn(self) -> BaseAwsConnection:
@@ -517,22 +537,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Compat shim
         return self.conn
 
-    def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
-        """Get the underlying boto3.session."""
-        session, _ = self._get_credentials(region_name=region_name)
-        return session
-
     def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
         """
         Get the underlying `botocore.Credentials` object.
 
         This contains the following authentication attributes: access_key, secret_key and token.
         """
-        session, _ = self._get_credentials(region_name=region_name)
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
-        return session.get_credentials().get_frozen_credentials()
+        return self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
 
     def expand_role(self, role: str, region_name: Optional[str] = None) -> str:
         """
@@ -546,8 +560,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if "/" in role:
             return role
         else:
-            session, endpoint_url = self._get_credentials(region_name=region_name)
-            _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+            session = self.get_session(region_name=region_name)
+            _client = session.client(
+                'iam', endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+            )
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
@@ -581,6 +597,45 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return decorator_f
 
         return retry_decorator
+
+    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
+        warnings.warn(
+            "`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases. "
+            "Please use `AwsGenericHook.get_session` method and "
+            "`AwsGenericHook.conn_config.endpoint_url` property instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.get_session(region_name=region_name), self.conn_config.endpoint_url
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict[str, Any]:
+        """Returns custom UI field behaviour for AWS Connection."""
+        return {
+            "hidden_fields": ["host", "schema", "port"],
+            "relabeling": {
+                "login": "AWS Access Key ID",
+                "password": "AWS Secret Access Key",
+            },
+            "placeholders": {
+                "login": "AKIAIOSFODNN7EXAMPLE",
+                "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "extra": json.dumps(
+                    {
+                        "region_name": "us-east-1",
+                        "session_kwargs": {"profile_name": "default"},
+                        "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+                        "role_arn": "arn:aws:iam::123456789098:role/role-name",
+                        "assume_role_method": "assume_role",
+                        "assume_role_kwargs": {"RoleSessionName": "airflow"},
+                        "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+                        "host": "http://localhost:4566",
+                    },
+                    indent=2,
+                ),
+            },
+        }
 
     def test_connection(self):
         """

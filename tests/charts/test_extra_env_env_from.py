@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
-RELEASE_NAME = "TEST-EXTRA-ENV-ENV-FROM"
+RELEASE_NAME = "test-extra-env-env-from"
 
 # Test Params: k8s object key and paths with expected env / envFrom
 PARAMS = [
