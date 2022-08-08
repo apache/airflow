@@ -57,7 +57,7 @@ start-airflow:3e793b11dc2158c54bfc189bfe20d6f2
 static-checks:03e96245e60c225ed94514ad7b42ceb0
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:chain:68934a3e9455fa72420237eb05902327
-testing:commands:52beb8911b727d83e048cec69ba1f4a6
+testing:commands:3e5405800cfc798409e101e845cdd30a
 testing:deprecated:68934a3e9455fa72420237eb05902327
 testing:epilog:37a6259cc0c1dae299a7866489dff0bd
 testing:help:590a1f3d30c4015a1df4acb1a622c66d
