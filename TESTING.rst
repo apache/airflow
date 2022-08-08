@@ -253,7 +253,7 @@ kinds of test types:
 
   .. code-block:: bash
 
-       breeze testing test --test-type Quarantined tests --db-reset
+       breeze testing tests --test-type Quarantined tests --db-reset
 
 Helm Unit Tests
 ===============
