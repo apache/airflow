@@ -205,21 +205,15 @@ Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
 .. code-block:: bash
 
-  ./breeze-legacy initialize-local-virtualenv
+  ./scripts/ci/tools/initialize_virtualenv.py
 
-By default Breeze installs the ``devel`` extra only. You can optionally control which extras are installed by exporting ``VIRTUALENV_EXTRAS`` before calling Breeze:
-
-.. code-block:: bash
-
-  export VIRTUALENV_EXTRAS="devel,google,postgres"
-  ./breeze-legacy initialize-local-virtualenv
-
-5. (optionally) run yarn build if you plan to run the webserver
+By default Breeze installs the ``devel`` extra only. You can optionally control which extras are
+Adding extra dependencies as parameter.
 
 .. code-block:: bash
 
-    cd airflow/www
-    yarn build
+  ./scripts/ci/tools/initialize_virtualenv.py devel,google,postgres
+
 
 Developing Providers
 --------------------

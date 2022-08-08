@@ -23,6 +23,7 @@ import platform
 from enum import Enum
 from functools import lru_cache
 
+from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-20.04"
@@ -41,6 +42,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
 ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
@@ -56,10 +58,7 @@ ALLOWED_INTEGRATIONS = [
     'trino',
     'all',
 ]
-ALLOWED_KUBERNETES_MODES = ['image']
-ALLOWED_KUBERNETES_VERSIONS = ['v1.25.0', 'v1.24.4', 'v1.23.10', 'v1.22.13', 'v1.21.14']
-ALLOWED_KIND_VERSIONS = ['v0.15.0']
-ALLOWED_HELM_VERSIONS = ['v3.9.2']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.24.2', 'v1.23.6', 'v1.22.9', 'v1.21.12']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
 ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
@@ -74,6 +73,8 @@ ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
 ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
 ALLOWED_MYSQL_VERSIONS = ['5.7', '8']
 ALLOWED_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
+
+PIP_VERSION = "22.2.2"
 
 
 @lru_cache(maxsize=None)
@@ -112,18 +113,6 @@ MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
-
-PARAM_NAME_DESCRIPTION = {
-    "BACKEND": "backend",
-    "MYSQL_VERSION": "Mysql version",
-    "KUBERNETES_MODE": "Kubernetes mode",
-    "KUBERNETES_VERSION": "Kubernetes version",
-    "KIND_VERSION": "KinD version",
-    "HELM_VERSION": "Helm version",
-    "EXECUTOR": "Executors",
-    "POSTGRES_VERSION": "Postgres version",
-    "MSSQL_VERSION": "MSSql version",
-}
 
 EXCLUDE_DOCS_PACKAGE_FOLDER = [
     'exts',
@@ -239,17 +228,14 @@ FILES_FOR_REBUILD_CHECK = [
 
 ENABLED_SYSTEMS = ""
 
-CURRENT_KUBERNETES_MODES = ['image']
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
-CURRENT_KIND_VERSIONS = ALLOWED_KIND_VERSIONS
-CURRENT_HELM_VERSIONS = ALLOWED_HELM_VERSIONS
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 
-DEFAULT_KUBERNETES_MODE = CURRENT_KUBERNETES_MODES[0]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
-DEFAULT_KIND_VERSION = CURRENT_KIND_VERSIONS[0]
-DEFAULT_HELM_VERSION = CURRENT_HELM_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
+
+KIND_VERSION = 'v0.15.0'
+HELM_VERSION = 'v3.9.4'
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None

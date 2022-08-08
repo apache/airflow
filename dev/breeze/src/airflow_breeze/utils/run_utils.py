@@ -354,13 +354,7 @@ def filter_out_none(**kwargs) -> dict:
     return kwargs
 
 
-def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction: str) -> None:
-    skip_image_pre_commits = os.environ.get('SKIP_IMAGE_PRE_COMMITS', "false")
-    if skip_image_pre_commits[0].lower() == "t":
-        get_console().print(
-            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
-        )
-        sys.exit(0)
+def check_if_image_exists(image: str, verbose: bool, dry_run: bool) -> bool:
     cmd_result = run_command(
         ["docker", "inspect", image],
         stdout=subprocess.DEVNULL,
@@ -369,22 +363,30 @@ def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction:
         verbose=verbose,
         dry_run=dry_run,
     )
-    if cmd_result.returncode != 0:
-        print(f'[red]The image {image} is not available.[/]\n')
-        print(f"\n[yellow]Please run at the earliest convenience:[/]\n\n{instruction}\n\n")
-        sys.exit(1)
+    return cmd_result.returncode == 0
 
 
-def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
+def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
     github_repository = os.environ.get('GITHUB_REPOSITORY', APACHE_AIRFLOW_GITHUB_REPOSITORY)
     python_version = "3.7"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
-    fail_if_image_missing(
+    skip_image_pre_commits = os.environ.get('SKIP_IMAGE_PRE_COMMITS', "false")
+    if skip_image_pre_commits[0].lower() == "t":
+        get_console().print(
+            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
+        )
+        sys.exit(0)
+    if not check_if_image_exists(
         image=airflow_image,
         verbose=verbose,
         dry_run=dry_run,
-        instruction=f"breeze ci-image build --python {python_version}",
-    )
+    ):
+        get_console().print(f'[red]The image {airflow_image} is not available.[/]\n')
+        get_console().print(
+            f"\n[yellow]Please run this to fix it:[/]\n\n"
+            f"breeze ci-image build --python {python_version}\n\n"
+        )
+        sys.exit(1)
     return airflow_image
 
 
