@@ -289,7 +289,7 @@ def tests(
 
 @testing.command(
     name='helm-tests',
-    help="Run Helm chart tess.",
+    help="Run Helm chart tests.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
