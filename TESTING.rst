@@ -235,7 +235,7 @@ kinds of test types:
 
   .. code-block:: bash
 
-       breeze testing test --test-type Providers --db-reset tests
+       breeze testing tests --test-type Providers --db-reset tests
 
 * Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
   marks and for those you need to select the type using test-type switch. If you want to run such tests
