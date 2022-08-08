@@ -2159,7 +2159,7 @@
                     }
                 },
                 "hostAliases": {
-                    "description": "Specify HostAliases for trigerer.",
+                    "description": "Specify HostAliases for triggerer.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
