@@ -46,7 +46,6 @@ def task_remove_sample_data_from_s3():
 with DAG(
     dag_id="example_s3_to_redshift",
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     catchup=False,
     tags=['example'],
 ) as dag:

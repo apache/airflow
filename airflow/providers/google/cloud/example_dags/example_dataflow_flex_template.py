@@ -47,7 +47,6 @@ with models.DAG(
     dag_id="example_gcp_dataflow_flex_template_java",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
 ) as dag_flex_template:
     # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(

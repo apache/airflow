@@ -49,7 +49,6 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksN
 
 with DAG(
     dag_id='example_eks_templated',
-    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     tags=['example', 'templated'],
     catchup=False,

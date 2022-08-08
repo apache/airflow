@@ -106,7 +106,6 @@ aws_to_gcs_transfer_body = {
 
 with models.DAG(
     'example_gcp_transfer_aws',
-    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

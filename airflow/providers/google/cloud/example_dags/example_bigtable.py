@@ -80,7 +80,6 @@ CBT_POKE_INTERVAL = getenv('GCP_BIG_TABLE_POKE_INTERVAL', '60')
 
 with models.DAG(
     'example_gcp_bigtable_operators',
-    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

@@ -35,7 +35,6 @@ S3_KEY = getenv("S3_KEY", "key")
 with DAG(
     dag_id="example_imap_attachment_to_s3",
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     catchup=False,
     tags=['example'],
 ) as dag:

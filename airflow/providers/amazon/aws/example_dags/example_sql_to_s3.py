@@ -28,7 +28,6 @@ SQL_QUERY = os.environ.get("SQL_QUERY", "SHOW tables")
 
 with models.DAG(
     "example_sql_to_s3",
-    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

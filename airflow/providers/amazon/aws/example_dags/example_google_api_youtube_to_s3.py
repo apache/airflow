@@ -66,7 +66,6 @@ def transform_video_ids(**kwargs):
 
 with DAG(
     dag_id="example_google_api_youtube_to_s3",
-    schedule_interval=None,  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

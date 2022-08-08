@@ -94,7 +94,6 @@ else:
 with models.DAG(
     'example_gcp_function',
     default_args=default_args,
-    schedule_interval='@once',  # TODO: replace with `schedule=` once min ver >= 2.4
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

@@ -53,7 +53,6 @@ EXAMPLE_TASK_BODY = {
 with models.DAG(
     "example_dataplex",
     start_date=datetime.datetime(2021, 1, 1),
-    schedule_interval="@once",  # TODO: replace with `schedule=` once min ver >= 2.4
 ) as dag:
     # [START howto_dataplex_create_task_operator]
     create_dataplex_task = DataplexCreateTaskOperator(

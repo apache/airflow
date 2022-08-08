@@ -178,6 +178,17 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ("This module is deprecated. Please use `airflow.operators.empty`.", "winrm"),
     ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "dbt"),
     ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "jdbc"),
+    *[
+        (
+            "Param `schedule_interval` is deprecated and will be removed in a future release. "
+            "Please use `schedule` instead.",
+            x,
+        )
+        for x in (
+            'amazon',
+            'google',
+        )
+    ],
     ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "azure"),
     ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "qubole"),
     ("This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.", "winrm"),
@@ -199,6 +210,7 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
     "distutils Version classes are deprecated. Use packaging.version instead.",
     "the imp module is deprecated in favour of importlib; "
+    "see the module's documentation for alternative uses",
     "see the module's documentation for alternative uses",
 }
 
