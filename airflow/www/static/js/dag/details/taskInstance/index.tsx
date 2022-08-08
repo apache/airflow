@@ -170,14 +170,14 @@ const TaskInstance = ({
                   extraLinks={group?.extraLinks || []}
                 />
               )}
-              {(isMapped && taskId) && (
+              {isMapped && taskId && (
                 <MappedInstances
                   dagId={dagId}
                   runId={runId}
                   taskId={taskId}
                   onRowClicked={onRowClicked}
                   mapIndex={mapIndex}
-                  onMappedInstanceFetch={
+                  onMappedInstancesFetch={
                     (taskInstances) => setInstanceForMappedIndex(mapIndex, taskInstances)
                   }
                 />

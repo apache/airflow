@@ -17,7 +17,9 @@
  * under the License.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, {
+  useState, useMemo, useEffect, SyntheticEvent,
+} from 'react';
 import {
   Flex,
   Text,
@@ -59,11 +61,13 @@ interface Props {
   taskId: string;
   onRowClicked: (rowMapIndex: number, taskInstances: TaskInstance[]) => void;
   mapIndex?: TaskInstance['mapIndex'];
-  onMappedInstanceFetch: (mappedTaskInstances: TaskInstance[]) => void;
+  onMappedInstancesFetch: (mappedTaskInstances: TaskInstance[]) => void;
 }
 
+const stopPropagation = (e: SyntheticEvent) => e.stopPropagation();
+
 const MappedInstances = ({
-  dagId, runId, taskId, onRowClicked, onMappedInstanceFetch, mapIndex,
+  dagId, runId, taskId, onRowClicked, onMappedInstancesFetch, mapIndex,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -81,8 +85,8 @@ const MappedInstances = ({
   });
 
   useEffect(() => {
-    onMappedInstanceFetch(taskInstances as TaskInstance[]);
-  }, [mapIndex, onMappedInstanceFetch, taskInstances]);
+    onMappedInstancesFetch(taskInstances as TaskInstance[]);
+  }, [mapIndex, onMappedInstancesFetch, taskInstances]);
 
   const data = useMemo(
     () => taskInstances.map((mi) => {
@@ -109,10 +113,10 @@ const MappedInstances = ({
         endDate: <Time dateTime={mi.endDate} />,
         links: (
           <Flex alignItems="center">
-            <IconLink mr={1} title="Details" aria-label="Details" icon={<MdDetails />} href={detailsLink} />
-            <IconLink mr={1} title="Rendered Templates" aria-label="Rendered Templates" icon={<MdCode />} href={renderedLink} />
-            <IconLink mr={1} title="Log" aria-label="Log" icon={<MdReorder />} href={logLink} />
-            <IconLink title="XCom" fontWeight="bold" aria-label="XCom" icon={<MdSyncAlt />} href={xcomLink} />
+            <IconLink mr={1} onClick={stopPropagation} title="Details" aria-label="Details" icon={<MdDetails />} href={detailsLink} />
+            <IconLink mr={1} onClick={stopPropagation} title="Rendered Templates" aria-label="Rendered Templates" icon={<MdCode />} href={renderedLink} />
+            <IconLink mr={1} onClick={stopPropagation} title="Log" aria-label="Log" icon={<MdReorder />} href={logLink} />
+            <IconLink onClick={stopPropagation} title="XCom" fontWeight="bold" aria-label="XCom" icon={<MdSyncAlt />} href={xcomLink} />
           </Flex>
         ),
       };
