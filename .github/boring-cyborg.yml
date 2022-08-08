@@ -242,7 +242,4 @@ firstIssueWelcomeComment: >
 
 checkUpToDate:
   targetBranch: main
-  files:
-    - airflow/migrations/*
-    - airflow/migrations/**/*
-    - airflow/alembic.ini
+  files: []
