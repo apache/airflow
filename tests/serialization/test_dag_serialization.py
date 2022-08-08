@@ -1270,6 +1270,7 @@ class TestStringifiedDAGs:
             task1 >> task2
 
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+
         deps = serialize_op["deps"]
         assert deps == [
             'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
@@ -1324,6 +1325,7 @@ class TestStringifiedDAGs:
             'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
             'airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep',
             'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
+            'airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep',
             'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
             'test_plugin.CustomTestTriggerRule',
         ]
@@ -1334,6 +1336,7 @@ class TestStringifiedDAGs:
             '<TIDep(Not In Retry Period)>',
             '<TIDep(Not Previously Skipped)>',
             '<TIDep(Previous Dagrun State)>',
+            '<TIDep(Ready To Reschedule)>',
             '<TIDep(Trigger Rule)>',
         ]
 
@@ -1605,7 +1608,7 @@ class TestStringifiedDAGs:
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
 
         blob = SerializedBaseOperator.serialize_operator(op)
-        assert "deps" in blob
+        assert op.deps == BaseOperator.deps
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
         assert serialized_op.reschedule == (mode == "reschedule")

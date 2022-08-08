@@ -40,7 +40,8 @@ class ReadyToRescheduleDep(BaseTIDep):
         considered as passed. This dependency fails if the latest reschedule
         request's reschedule date is still in future.
         """
-        if not getattr(ti.task, "reschedule", False):
+        is_mapped = ti.task.is_mapped
+        if not is_mapped and not getattr(ti.task, "reschedule", False):
             yield self._passing_status(reason="Task is not in reschedule mode.")
             return
 
@@ -62,6 +63,9 @@ class ReadyToRescheduleDep(BaseTIDep):
             .first()
         )
         if not task_reschedule:
+            if is_mapped:
+                yield self._passing_status(reason="The task is mapped and not in reschedule mode")
+                return
             yield self._passing_status(reason="There is no reschedule request for this task instance.")
             return
 

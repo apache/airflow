@@ -32,11 +32,13 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
         task = Mock(dag=dag, reschedule=True)
+        task.is_mapped = False
         ti = TaskInstance(task=task, state=state, run_id=None)
         return ti
 
     def _get_task_reschedule(self, reschedule_date):
         task = Mock(dag_id='test_dag', task_id='test_task')
+        task.is_mapped = False
         reschedule = TaskReschedule(
             task=task,
             run_id=None,

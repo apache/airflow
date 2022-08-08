@@ -202,7 +202,6 @@ class OperatorPartial:
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> "MappedOperator":
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.base import BaseSensorOperator
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
@@ -229,7 +228,6 @@ class OperatorPartial:
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=issubclass(self.operator_class, EmptyOperator),
-            is_sensor=issubclass(self.operator_class, BaseSensorOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             dag=dag,
@@ -279,7 +277,6 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool
-    _is_sensor: bool
     _task_module: str
     _task_type: str
 
@@ -385,13 +382,6 @@ class MappedOperator(AbstractOperator):
     def inherits_from_empty_operator(self) -> bool:
         """Implementing Operator."""
         return self._is_empty
-
-    @property
-    def reschedule(self) -> bool:
-        """Check if the operator is a sensor and has mode reschedule"""
-        if self._is_sensor:
-            return self.partial_kwargs['mode'] == 'reschedule'
-        raise AttributeError("reschedule is not defined for MappedOperator")
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
