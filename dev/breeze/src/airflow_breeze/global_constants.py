@@ -55,7 +55,7 @@ ALLOWED_INTEGRATIONS = [
 ALLOWED_KUBERNETES_MODES = ['image']
 ALLOWED_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
 ALLOWED_KIND_VERSIONS = ['v0.14.0']
-ALLOWED_HELM_VERSIONS = ['v3.6.3']
+ALLOWED_HELM_VERSIONS = ['v3.9.2']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
 ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
@@ -239,7 +239,7 @@ ENABLED_SYSTEMS = ""
 CURRENT_KUBERNETES_MODES = ['image']
 CURRENT_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
 CURRENT_KIND_VERSIONS = ['v0.14.0']
-CURRENT_HELM_VERSIONS = ['v3.6.3']
+CURRENT_HELM_VERSIONS = ['v3.9.2']
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 
 DEFAULT_KUBERNETES_MODE = CURRENT_KUBERNETES_MODES[0]

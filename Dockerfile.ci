@@ -1054,7 +1054,7 @@ ARG RUNTIME_APT_DEPS="\
       xxd"
 
 # Install Helm
-ARG HELM_VERSION="v3.6.3"
+ARG HELM_VERSION="v3.9.2"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
