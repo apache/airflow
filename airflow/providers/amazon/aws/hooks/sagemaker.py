@@ -20,7 +20,6 @@ import os
 import tarfile
 import tempfile
 import time
-import warnings
 from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, cast
@@ -235,36 +234,6 @@ class SageMakerHook(AwsBaseHook):
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
             if "S3DataSource" in channel['DataSource']:
                 self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
-
-    def get_log_conn(self):
-        """
-        This method is deprecated.
-        Please use :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.
-        """
-        warnings.warn(
-            "Method `get_log_conn` has been deprecated. "
-            "Please use `airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return self.logs_hook.get_conn()
-
-    def log_stream(self, log_group, stream_name, start_time=0, skip=0):
-        """
-        This method is deprecated.
-        Please use
-        :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.
-        """
-        warnings.warn(
-            "Method `log_stream` has been deprecated. "
-            "Please use "
-            "`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return self.logs_hook.get_log_events(log_group, stream_name, start_time, skip)
 
     def multi_stream_iter(self, log_group: str, streams: list, positions=None) -> Generator:
         """

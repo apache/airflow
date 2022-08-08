@@ -19,9 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator, ECSProtocol
-
-__all__ = ["ECSOperator", "ECSProtocol"]
+from airflow.providers.amazon.aws.operators.ecs import EcsOperator, EcsProtocol  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs`.",
