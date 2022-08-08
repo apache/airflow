@@ -17,8 +17,8 @@
 
 import warnings
 from copy import deepcopy
-from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from dataclasses import MISSING, InitVar, dataclass, field, fields
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from botocore.config import Config
 
@@ -35,25 +35,43 @@ class AwsConnectionWrapper(LoggingMixin):
     """
     AWS Connection Wrapper class helper.
     Use for validate and resolve AWS Connection parameters.
+
+    ``conn`` reference to Airflow Connection object or AwsConnectionWrapper
+        if it set to ``None`` than default values would use.
+
+    The precedence rules for ``region_name``
+        1. Explicit set (in Hook) ``region_name``.
+        2. Airflow Connection Extra 'region_name'.
+
+    The precedence rules for ``botocore_config``
+        1. Explicit set (in Hook) ``botocore_config``.
+        2. Construct from Airflow Connection Extra 'botocore_kwargs'.
+        3. The wrapper's default value
     """
 
-    conn: InitVar[Optional["Connection"]]
+    conn: InitVar[Optional[Union["Connection", "AwsConnectionWrapper"]]]
+    region_name: Optional[str] = field(default=None)
+    botocore_config: Optional[Config] = field(default=None)
 
+    # Reference to Airflow Connection attributes
+    # ``extra_config`` contains original Airflow Connection Extra.
     conn_id: Optional[str] = field(init=False, default=None)
     conn_type: Optional[str] = field(init=False, default=None)
     login: Optional[str] = field(init=False, repr=False, default=None)
     password: Optional[str] = field(init=False, repr=False, default=None)
     extra_config: Dict[str, Any] = field(init=False, repr=False, default_factory=dict)
 
-    aws_access_key_id: Optional[str] = field(init=False)
-    aws_secret_access_key: Optional[str] = field(init=False)
-    aws_session_token: Optional[str] = field(init=False)
+    # AWS Credentials from connection.
+    aws_access_key_id: Optional[str] = field(init=False, default=None)
+    aws_secret_access_key: Optional[str] = field(init=False, default=None)
+    aws_session_token: Optional[str] = field(init=False, default=None)
 
-    region_name: Optional[str] = field(init=False, default=None)
+    # Additional boto3.session.Session keyword arguments.
     session_kwargs: Dict[str, Any] = field(init=False, default_factory=dict)
-    botocore_config: Optional[Config] = field(init=False, default=None)
+    # Custom endpoint_url for boto3.client and boto3.resource
     endpoint_url: Optional[str] = field(init=False, default=None)
 
+    # Assume Role Configurations
     role_arn: Optional[str] = field(init=False, default=None)
     assume_role_method: Optional[str] = field(init=False, default=None)
     assume_role_kwargs: Dict[str, Any] = field(init=False, default_factory=dict)
@@ -63,7 +81,30 @@ class AwsConnectionWrapper(LoggingMixin):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
     def __post_init__(self, conn: "Connection"):
-        if not conn:
+        if isinstance(conn, type(self)):
+            # For every field with init=False we copy reference value from original wrapper
+            # For every field with init=True we use init values if it not equal default
+            # We can't use ``dataclasses.replace`` in classmethod because
+            # we limited by InitVar arguments since it not stored in object,
+            # and also we do not want to run __post_init__ method again which print all logs/warnings again.
+            for fl in fields(conn):
+                value = getattr(conn, fl.name)
+                if not fl.init:
+                    setattr(self, fl.name, value)
+                else:
+                    if fl.default is not MISSING:
+                        default = fl.default
+                    elif fl.default_factory is not MISSING:
+                        default = fl.default_factory()  # zero-argument callable
+                    else:
+                        continue  # Value mandatory, skip
+
+                    orig_value = getattr(self, fl.name)
+                    if orig_value == default:
+                        # Only replace value if it not equal default value
+                        setattr(self, fl.name, value)
+            return
+        elif not conn:
             return
 
         extra = deepcopy(conn.extra_dejson)
@@ -86,7 +127,7 @@ class AwsConnectionWrapper(LoggingMixin):
         init_credentials = self._get_credentials(**extra)
         self.aws_access_key_id, self.aws_secret_access_key, self.aws_session_token = init_credentials
 
-        if "region_name" in extra:
+        if not self.region_name and "region_name" in extra:
             self.region_name = extra["region_name"]
             self.log.info("Retrieving region_name=%s from %s extra.", self.region_name, self.conn_repr)
 
@@ -106,7 +147,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 )
 
         config_kwargs = extra.get("config_kwargs")
-        if config_kwargs:
+        if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
             self.log.info("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
             self.botocore_config = Config(**config_kwargs)
@@ -119,6 +160,7 @@ class AwsConnectionWrapper(LoggingMixin):
 
     @property
     def extra_dejson(self):
+        """Compatibility with `airflow.models.Connection.extra_dejson` property."""
         return self.extra_config
 
     def __bool__(self):

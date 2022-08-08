@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor  # noqa
+from airflow.providers.amazon.aws.sensors.s3 import S3PrefixSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3`.",

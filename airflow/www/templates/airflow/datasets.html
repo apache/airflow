@@ -24,6 +24,7 @@
   {{ super() }}
   <meta name="datasets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_datasets') }}">
   <meta name="dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_dataset_events') }}">
+  <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
 {% block content %}

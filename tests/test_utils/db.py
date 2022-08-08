@@ -20,6 +20,7 @@ from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import (
     Connection,
     DagModel,
+    DagOwnerAttributes,
     DagRun,
     DagTag,
     DagWarning,
@@ -65,6 +66,7 @@ def clear_db_datasets():
 def clear_db_dags():
     with create_session() as session:
         session.query(DagTag).delete()
+        session.query(DagOwnerAttributes).delete()
         session.query(DagModel).delete()
 
 

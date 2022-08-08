@@ -18,6 +18,7 @@
 #}
 
 {% extends base_template %}
+{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
 {% block page_title %}{{ dag.dag_id }} - {{ appbuilder.app_name }}{% endblock %}
@@ -54,8 +55,10 @@
   <meta name="success_url" content="{{ url_for('Airflow.success') }}">
   <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
   <meta name="run_url" content="{{ url_for('Airflow.run') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
+  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
   <meta name="dag_details_url" content="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
@@ -134,9 +137,18 @@
         </p>
       {% endif %}
       {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}
-        <p class="label label-default" style="margin-left: 5px">
-          Next Run: {{ dag_model.get_dataset_triggered_next_run_info() }}
-        </p>
+        <span
+          class="js-tooltip"
+          title="Click to see dataset details."
+        >
+          <p
+            class="label label-default next-dataset-triggered"
+            style="margin-left: 5px;"
+            data-summary="{{ dag_model.get_dataset_triggered_next_run_info() }}"
+          >
+            Next Run: {{ dag_model.get_dataset_triggered_next_run_info() }}
+          </p>
+        </span>
       {% endif %}
     </h4>
   </div>
@@ -431,6 +443,8 @@
       </div>
     </div>
   </div>
+  <!-- Modal for dataset-triggered next run -->
+  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
 {% endblock %}
 {% block tail %}
   {{ super() }}
