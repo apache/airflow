@@ -26,9 +26,9 @@ class TestPodReader:
     @pytest.mark.parametrize(
         'triggerer, webserver, expected',
         [
-            (True, True, ['RELEASE-NAME-airflow-webserver', 'RELEASE-NAME-airflow-triggerer']),
-            (True, False, ['RELEASE-NAME-airflow-triggerer']),
-            (False, True, ['RELEASE-NAME-airflow-webserver']),
+            (True, True, ['release-name-airflow-webserver', 'release-name-airflow-triggerer']),
+            (True, False, ['release-name-airflow-triggerer']),
+            (False, True, ['release-name-airflow-webserver']),
             (False, False, []),
         ],
     )
@@ -46,9 +46,9 @@ class TestPodReader:
     @pytest.mark.parametrize(
         'triggerer, webserver, expected',
         [
-            (True, True, 'RELEASE-NAME-pod-log-reader-role'),
-            (True, False, 'RELEASE-NAME-pod-log-reader-role'),
-            (False, True, 'RELEASE-NAME-pod-log-reader-role'),
+            (True, True, 'release-name-pod-log-reader-role'),
+            (True, False, 'release-name-pod-log-reader-role'),
+            (False, True, 'release-name-pod-log-reader-role'),
             (False, False, None),
         ],
     )

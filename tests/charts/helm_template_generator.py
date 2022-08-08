@@ -102,7 +102,7 @@ def validate_k8s_object(instance, kubernetes_version):
 
 
 def render_chart(
-    name="RELEASE-NAME",
+    name="release-name",
     values=None,
     show_only=None,
     chart_dir=None,

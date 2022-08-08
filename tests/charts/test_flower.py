@@ -42,7 +42,7 @@ class TestFlowerDeployment:
 
         assert bool(docs) is created
         if created:
-            assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+            assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
             assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
@@ -118,7 +118,7 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_create_flower_deployment_with_authorization(self):
@@ -286,7 +286,7 @@ class TestFlowerService:
 
         assert bool(docs) is created
         if created:
-            assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+            assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
 
     def test_default_service(self):
         docs = render_chart(
@@ -294,9 +294,9 @@ class TestFlowerService:
             show_only=["templates/flower/flower-service.yaml"],
         )
 
-        assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-flower" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
-        assert {"tier": "airflow", "component": "flower", "release": "RELEASE-NAME"} == jmespath.search(
+        assert {"tier": "airflow", "component": "flower", "release": "release-name"} == jmespath.search(
             "spec.selector", docs[0]
         )
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
@@ -331,7 +331,7 @@ class TestFlowerService:
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
                 [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
-                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 5555}],
+                [{"name": "release-name", "protocol": "UDP", "port": 5555}],
             ),
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
             (

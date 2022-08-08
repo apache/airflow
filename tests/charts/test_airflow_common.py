@@ -93,7 +93,7 @@ class TestAirflowCommon:
         Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
         deployments.
         """
-        release_name = "TEST-BASIC"
+        release_name = "test-basic"
         k8s_objects = render_chart(
             name=release_name,
             values={

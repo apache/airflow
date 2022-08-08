@@ -38,7 +38,7 @@ class CleanupPodsTest(unittest.TestCase):
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
             'apache/airflow'
         )
-        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-config"}} in jmespath.search(
+        assert {"name": "config", "configMap": {"name": "release-name-airflow-config"}} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.volumes", docs[0]
         )
         assert {
@@ -154,7 +154,7 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search(
+        assert ["release-name"] == jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
         )
         assert ["Helm"] == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
@@ -171,7 +171,7 @@ class CleanupPodsTest(unittest.TestCase):
         assert {
             "tier": "airflow",
             "component": "airflow-cleanup-pods",
-            "release": "RELEASE-NAME",
+            "release": "release-name",
             "project": "airflow",
         } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
 

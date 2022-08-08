@@ -23,58 +23,58 @@ from parameterized import parameterized
 from tests.charts.helm_template_generator import render_chart
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
-    ('Secret', 'TEST-RBAC-postgresql'),
-    ('Secret', 'TEST-RBAC-airflow-metadata'),
-    ('Secret', 'TEST-RBAC-pgbouncer-config'),
-    ('Secret', 'TEST-RBAC-pgbouncer-stats'),
-    ('ConfigMap', 'TEST-RBAC-airflow-config'),
-    ('Service', 'TEST-RBAC-postgresql-headless'),
-    ('Service', 'TEST-RBAC-postgresql'),
-    ('Service', 'TEST-RBAC-statsd'),
-    ('Service', 'TEST-RBAC-webserver'),
-    ('Service', 'TEST-RBAC-flower'),
-    ('Service', 'TEST-RBAC-pgbouncer'),
-    ('Service', 'TEST-RBAC-redis'),
-    ('Service', 'TEST-RBAC-worker'),
-    ('Deployment', 'TEST-RBAC-scheduler'),
-    ('Deployment', 'TEST-RBAC-statsd'),
-    ('Deployment', 'TEST-RBAC-webserver'),
-    ('Deployment', 'TEST-RBAC-flower'),
-    ('Deployment', 'TEST-RBAC-pgbouncer'),
-    ('Deployment', 'TEST-RBAC-triggerer'),
-    ('StatefulSet', 'TEST-RBAC-postgresql'),
-    ('StatefulSet', 'TEST-RBAC-redis'),
-    ('StatefulSet', 'TEST-RBAC-worker'),
-    ('Secret', 'TEST-RBAC-broker-url'),
-    ('Secret', 'TEST-RBAC-fernet-key'),
-    ('Secret', 'TEST-RBAC-redis-password'),
-    ('Secret', 'TEST-RBAC-webserver-secret-key'),
-    ('Job', 'TEST-RBAC-create-user'),
-    ('Job', 'TEST-RBAC-run-airflow-migrations'),
-    ('CronJob', 'TEST-RBAC-cleanup'),
+    ('Secret', 'test-rbac-postgresql'),
+    ('Secret', 'test-rbac-airflow-metadata'),
+    ('Secret', 'test-rbac-pgbouncer-config'),
+    ('Secret', 'test-rbac-pgbouncer-stats'),
+    ('ConfigMap', 'test-rbac-airflow-config'),
+    ('Service', 'test-rbac-postgresql-headless'),
+    ('Service', 'test-rbac-postgresql'),
+    ('Service', 'test-rbac-statsd'),
+    ('Service', 'test-rbac-webserver'),
+    ('Service', 'test-rbac-flower'),
+    ('Service', 'test-rbac-pgbouncer'),
+    ('Service', 'test-rbac-redis'),
+    ('Service', 'test-rbac-worker'),
+    ('Deployment', 'test-rbac-scheduler'),
+    ('Deployment', 'test-rbac-statsd'),
+    ('Deployment', 'test-rbac-webserver'),
+    ('Deployment', 'test-rbac-flower'),
+    ('Deployment', 'test-rbac-pgbouncer'),
+    ('Deployment', 'test-rbac-triggerer'),
+    ('StatefulSet', 'test-rbac-postgresql'),
+    ('StatefulSet', 'test-rbac-redis'),
+    ('StatefulSet', 'test-rbac-worker'),
+    ('Secret', 'test-rbac-broker-url'),
+    ('Secret', 'test-rbac-fernet-key'),
+    ('Secret', 'test-rbac-redis-password'),
+    ('Secret', 'test-rbac-webserver-secret-key'),
+    ('Job', 'test-rbac-create-user'),
+    ('Job', 'test-rbac-run-airflow-migrations'),
+    ('CronJob', 'test-rbac-cleanup'),
 ]
 
 RBAC_ENABLED_KIND_NAME_TUPLES = [
-    ('Role', 'TEST-RBAC-pod-launcher-role'),
-    ('Role', 'TEST-RBAC-cleanup-role'),
-    ('Role', 'TEST-RBAC-pod-log-reader-role'),
-    ('RoleBinding', 'TEST-RBAC-pod-launcher-rolebinding'),
-    ('RoleBinding', 'TEST-RBAC-pod-log-reader-rolebinding'),
-    ('RoleBinding', 'TEST-RBAC-cleanup-rolebinding'),
+    ('Role', 'test-rbac-pod-launcher-role'),
+    ('Role', 'test-rbac-cleanup-role'),
+    ('Role', 'test-rbac-pod-log-reader-role'),
+    ('RoleBinding', 'test-rbac-pod-launcher-rolebinding'),
+    ('RoleBinding', 'test-rbac-pod-log-reader-rolebinding'),
+    ('RoleBinding', 'test-rbac-cleanup-rolebinding'),
 ]
 
 SERVICE_ACCOUNT_NAME_TUPLES = [
-    ('ServiceAccount', 'TEST-RBAC-cleanup'),
-    ('ServiceAccount', 'TEST-RBAC-scheduler'),
-    ('ServiceAccount', 'TEST-RBAC-webserver'),
-    ('ServiceAccount', 'TEST-RBAC-worker'),
-    ('ServiceAccount', 'TEST-RBAC-triggerer'),
-    ('ServiceAccount', 'TEST-RBAC-pgbouncer'),
-    ('ServiceAccount', 'TEST-RBAC-flower'),
-    ('ServiceAccount', 'TEST-RBAC-statsd'),
-    ('ServiceAccount', 'TEST-RBAC-create-user-job'),
-    ('ServiceAccount', 'TEST-RBAC-migrate-database-job'),
-    ('ServiceAccount', 'TEST-RBAC-redis'),
+    ('ServiceAccount', 'test-rbac-cleanup'),
+    ('ServiceAccount', 'test-rbac-scheduler'),
+    ('ServiceAccount', 'test-rbac-webserver'),
+    ('ServiceAccount', 'test-rbac-worker'),
+    ('ServiceAccount', 'test-rbac-triggerer'),
+    ('ServiceAccount', 'test-rbac-pgbouncer'),
+    ('ServiceAccount', 'test-rbac-flower'),
+    ('ServiceAccount', 'test-rbac-statsd'),
+    ('ServiceAccount', 'test-rbac-create-user-job'),
+    ('ServiceAccount', 'test-rbac-migrate-database-job'),
+    ('ServiceAccount', 'test-rbac-redis'),
 ]
 
 CUSTOM_SERVICE_ACCOUNT_NAMES = (
@@ -114,17 +114,17 @@ class RBACTest(unittest.TestCase):
         # TODO remove default from condition after airflow update
         if version == "2.3.2" or version == "default":
             return [
-                ('Secret', 'TEST-RBAC-airflow-result-backend')
+                ('Secret', 'test-rbac-airflow-result-backend')
             ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
         return DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
 
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values=self._get_values_with_version(
                 values={
-                    "fullnameOverride": "TEST-RBAC",
+                    "fullnameOverride": "test-rbac",
                     "rbac": {"create": False},
                     "cleanup": {
                         "enabled": True,
@@ -163,10 +163,10 @@ class RBACTest(unittest.TestCase):
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values=self._get_values_with_version(
                 values={
-                    "fullnameOverride": "TEST-RBAC",
+                    "fullnameOverride": "test-rbac",
                     "rbac": {"create": False},
                     "cleanup": {"enabled": True},
                     "flower": {"enabled": True},
@@ -187,10 +187,10 @@ class RBACTest(unittest.TestCase):
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values=self._get_values_with_version(
                 values={
-                    "fullnameOverride": "TEST-RBAC",
+                    "fullnameOverride": "test-rbac",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -228,10 +228,10 @@ class RBACTest(unittest.TestCase):
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_with_sa(self, version):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values=self._get_values_with_version(
                 values={
-                    "fullnameOverride": "TEST-RBAC",
+                    "fullnameOverride": "test-rbac",
                     "cleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
@@ -252,9 +252,9 @@ class RBACTest(unittest.TestCase):
 
     def test_service_account_custom_names(self):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values={
-                "fullnameOverride": "TEST-RBAC",
+                "fullnameOverride": "test-rbac",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
@@ -290,9 +290,9 @@ class RBACTest(unittest.TestCase):
 
     def test_service_account_custom_names_in_objects(self):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values={
-                "fullnameOverride": "TEST-RBAC",
+                "fullnameOverride": "test-rbac",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
@@ -336,9 +336,9 @@ class RBACTest(unittest.TestCase):
 
     def test_service_account_without_resource(self):
         k8s_objects = render_chart(
-            "TEST-RBAC",
+            "test-rbac",
             values={
-                "fullnameOverride": "TEST-RBAC",
+                "fullnameOverride": "test-rbac",
                 "executor": "LocalExecutor",
                 "cleanup": {"enabled": False},
                 "pgbouncer": {"enabled": False},
@@ -354,9 +354,9 @@ class RBACTest(unittest.TestCase):
             if k8s_object['kind'] == "ServiceAccount"
         ]
         service_account_names = [
-            'TEST-RBAC-scheduler',
-            'TEST-RBAC-webserver',
-            'TEST-RBAC-triggerer',
-            'TEST-RBAC-migrate-database-job',
+            'test-rbac-scheduler',
+            'test-rbac-webserver',
+            'test-rbac-triggerer',
+            'test-rbac-migrate-database-job',
         ]
         self.assertCountEqual(list_of_sa_names, service_account_names)

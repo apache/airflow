@@ -44,14 +44,14 @@ class TestBaseChartTest(unittest.TestCase):
     def test_basic_deployments(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
-            "TEST-BASIC",
+            "test-basic",
             self._get_values_with_version(
                 values={
                     "chart": {
                         'metadata': 'AA',
                     },
-                    'labels': {"TEST-LABEL": "TEST-VALUE"},
-                    "fullnameOverride": "TEST-BASIC",
+                    'labels': {"test-label": "TEST-VALUE"},
+                    "fullnameOverride": "test-basic",
                 },
                 version=version,
             ),
@@ -61,43 +61,43 @@ class TestBaseChartTest(unittest.TestCase):
         }
         # TODO remove default from condition after airflow update
         if version == "2.3.2" or version == "default":
-            assert ('Secret', 'TEST-BASIC-airflow-result-backend') in list_of_kind_names_tuples
-            list_of_kind_names_tuples.remove(('Secret', 'TEST-BASIC-airflow-result-backend'))
+            assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
+            list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
-            ('ServiceAccount', 'TEST-BASIC-create-user-job'),
-            ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
-            ('ServiceAccount', 'TEST-BASIC-redis'),
-            ('ServiceAccount', 'TEST-BASIC-scheduler'),
-            ('ServiceAccount', 'TEST-BASIC-statsd'),
-            ('ServiceAccount', 'TEST-BASIC-triggerer'),
-            ('ServiceAccount', 'TEST-BASIC-webserver'),
-            ('ServiceAccount', 'TEST-BASIC-worker'),
-            ('Secret', 'TEST-BASIC-airflow-metadata'),
-            ('Secret', 'TEST-BASIC-broker-url'),
-            ('Secret', 'TEST-BASIC-fernet-key'),
-            ('Secret', 'TEST-BASIC-webserver-secret-key'),
-            ('Secret', 'TEST-BASIC-postgresql'),
-            ('Secret', 'TEST-BASIC-redis-password'),
-            ('ConfigMap', 'TEST-BASIC-airflow-config'),
-            ('Role', 'TEST-BASIC-pod-launcher-role'),
-            ('Role', 'TEST-BASIC-pod-log-reader-role'),
-            ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
-            ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
-            ('Service', 'TEST-BASIC-postgresql-headless'),
-            ('Service', 'TEST-BASIC-postgresql'),
-            ('Service', 'TEST-BASIC-redis'),
-            ('Service', 'TEST-BASIC-statsd'),
-            ('Service', 'TEST-BASIC-webserver'),
-            ('Service', 'TEST-BASIC-worker'),
-            ('Deployment', 'TEST-BASIC-scheduler'),
-            ('Deployment', 'TEST-BASIC-statsd'),
-            ('Deployment', 'TEST-BASIC-triggerer'),
-            ('Deployment', 'TEST-BASIC-webserver'),
-            ('StatefulSet', 'TEST-BASIC-postgresql'),
-            ('StatefulSet', 'TEST-BASIC-redis'),
-            ('StatefulSet', 'TEST-BASIC-worker'),
-            ('Job', 'TEST-BASIC-create-user'),
-            ('Job', 'TEST-BASIC-run-airflow-migrations'),
+            ('ServiceAccount', 'test-basic-create-user-job'),
+            ('ServiceAccount', 'test-basic-migrate-database-job'),
+            ('ServiceAccount', 'test-basic-redis'),
+            ('ServiceAccount', 'test-basic-scheduler'),
+            ('ServiceAccount', 'test-basic-statsd'),
+            ('ServiceAccount', 'test-basic-triggerer'),
+            ('ServiceAccount', 'test-basic-webserver'),
+            ('ServiceAccount', 'test-basic-worker'),
+            ('Secret', 'test-basic-airflow-metadata'),
+            ('Secret', 'test-basic-broker-url'),
+            ('Secret', 'test-basic-fernet-key'),
+            ('Secret', 'test-basic-webserver-secret-key'),
+            ('Secret', 'test-basic-postgresql'),
+            ('Secret', 'test-basic-redis-password'),
+            ('ConfigMap', 'test-basic-airflow-config'),
+            ('Role', 'test-basic-pod-launcher-role'),
+            ('Role', 'test-basic-pod-log-reader-role'),
+            ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
+            ('RoleBinding', 'test-basic-pod-log-reader-rolebinding'),
+            ('Service', 'test-basic-postgresql-headless'),
+            ('Service', 'test-basic-postgresql'),
+            ('Service', 'test-basic-redis'),
+            ('Service', 'test-basic-statsd'),
+            ('Service', 'test-basic-webserver'),
+            ('Service', 'test-basic-worker'),
+            ('Deployment', 'test-basic-scheduler'),
+            ('Deployment', 'test-basic-statsd'),
+            ('Deployment', 'test-basic-triggerer'),
+            ('Deployment', 'test-basic-webserver'),
+            ('StatefulSet', 'test-basic-postgresql'),
+            ('StatefulSet', 'test-basic-redis'),
+            ('StatefulSet', 'test-basic-worker'),
+            ('Job', 'test-basic-create-user'),
+            ('Job', 'test-basic-run-airflow-migrations'),
         }
         assert expected_object_count_in_basic_deployment == len(k8s_objects)
         for k8s_object in k8s_objects:
@@ -110,8 +110,8 @@ class TestBaseChartTest(unittest.TestCase):
                 continue
             k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
             assert 'TEST-VALUE' == labels.get(
-                "TEST-LABEL"
-            ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
+                "test-label"
+            ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
@@ -119,14 +119,14 @@ class TestBaseChartTest(unittest.TestCase):
         object_count_in_basic_deployment = self._get_object_count(version)
         expected_object_count_with_standalone_scheduler = object_count_in_basic_deployment + 2
         k8s_objects = render_chart(
-            "TEST-BASIC",
+            "test-basic",
             self._get_values_with_version(
                 values={
                     "chart": {
                         'metadata': 'AA',
                     },
-                    'labels': {"TEST-LABEL": "TEST-VALUE"},
-                    "fullnameOverride": "TEST-BASIC",
+                    'labels': {"test-label": "TEST-VALUE"},
+                    "fullnameOverride": "test-basic",
                     "dagProcessor": {'enabled': True},
                 },
                 version=version,
@@ -137,45 +137,45 @@ class TestBaseChartTest(unittest.TestCase):
         }
         # TODO remove default from condition after airflow update
         if version == "2.3.2" or version == "default":
-            assert ('Secret', 'TEST-BASIC-airflow-result-backend') in list_of_kind_names_tuples
-            list_of_kind_names_tuples.remove(('Secret', 'TEST-BASIC-airflow-result-backend'))
+            assert ('Secret', 'test-basic-airflow-result-backend') in list_of_kind_names_tuples
+            list_of_kind_names_tuples.remove(('Secret', 'test-basic-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
-            ('ServiceAccount', 'TEST-BASIC-create-user-job'),
-            ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
-            ('ServiceAccount', 'TEST-BASIC-redis'),
-            ('ServiceAccount', 'TEST-BASIC-scheduler'),
-            ('ServiceAccount', 'TEST-BASIC-statsd'),
-            ('ServiceAccount', 'TEST-BASIC-triggerer'),
-            ('ServiceAccount', 'TEST-BASIC-dag-processor'),
-            ('ServiceAccount', 'TEST-BASIC-webserver'),
-            ('ServiceAccount', 'TEST-BASIC-worker'),
-            ('Secret', 'TEST-BASIC-airflow-metadata'),
-            ('Secret', 'TEST-BASIC-broker-url'),
-            ('Secret', 'TEST-BASIC-fernet-key'),
-            ('Secret', 'TEST-BASIC-webserver-secret-key'),
-            ('Secret', 'TEST-BASIC-postgresql'),
-            ('Secret', 'TEST-BASIC-redis-password'),
-            ('ConfigMap', 'TEST-BASIC-airflow-config'),
-            ('Role', 'TEST-BASIC-pod-launcher-role'),
-            ('Role', 'TEST-BASIC-pod-log-reader-role'),
-            ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
-            ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
-            ('Service', 'TEST-BASIC-postgresql-headless'),
-            ('Service', 'TEST-BASIC-postgresql'),
-            ('Service', 'TEST-BASIC-redis'),
-            ('Service', 'TEST-BASIC-statsd'),
-            ('Service', 'TEST-BASIC-webserver'),
-            ('Service', 'TEST-BASIC-worker'),
-            ('Deployment', 'TEST-BASIC-scheduler'),
-            ('Deployment', 'TEST-BASIC-statsd'),
-            ('Deployment', 'TEST-BASIC-triggerer'),
-            ('Deployment', 'TEST-BASIC-dag-processor'),
-            ('Deployment', 'TEST-BASIC-webserver'),
-            ('StatefulSet', 'TEST-BASIC-postgresql'),
-            ('StatefulSet', 'TEST-BASIC-redis'),
-            ('StatefulSet', 'TEST-BASIC-worker'),
-            ('Job', 'TEST-BASIC-create-user'),
-            ('Job', 'TEST-BASIC-run-airflow-migrations'),
+            ('ServiceAccount', 'test-basic-create-user-job'),
+            ('ServiceAccount', 'test-basic-migrate-database-job'),
+            ('ServiceAccount', 'test-basic-redis'),
+            ('ServiceAccount', 'test-basic-scheduler'),
+            ('ServiceAccount', 'test-basic-statsd'),
+            ('ServiceAccount', 'test-basic-triggerer'),
+            ('ServiceAccount', 'test-basic-dag-processor'),
+            ('ServiceAccount', 'test-basic-webserver'),
+            ('ServiceAccount', 'test-basic-worker'),
+            ('Secret', 'test-basic-airflow-metadata'),
+            ('Secret', 'test-basic-broker-url'),
+            ('Secret', 'test-basic-fernet-key'),
+            ('Secret', 'test-basic-webserver-secret-key'),
+            ('Secret', 'test-basic-postgresql'),
+            ('Secret', 'test-basic-redis-password'),
+            ('ConfigMap', 'test-basic-airflow-config'),
+            ('Role', 'test-basic-pod-launcher-role'),
+            ('Role', 'test-basic-pod-log-reader-role'),
+            ('RoleBinding', 'test-basic-pod-launcher-rolebinding'),
+            ('RoleBinding', 'test-basic-pod-log-reader-rolebinding'),
+            ('Service', 'test-basic-postgresql-headless'),
+            ('Service', 'test-basic-postgresql'),
+            ('Service', 'test-basic-redis'),
+            ('Service', 'test-basic-statsd'),
+            ('Service', 'test-basic-webserver'),
+            ('Service', 'test-basic-worker'),
+            ('Deployment', 'test-basic-scheduler'),
+            ('Deployment', 'test-basic-statsd'),
+            ('Deployment', 'test-basic-triggerer'),
+            ('Deployment', 'test-basic-dag-processor'),
+            ('Deployment', 'test-basic-webserver'),
+            ('StatefulSet', 'test-basic-postgresql'),
+            ('StatefulSet', 'test-basic-redis'),
+            ('StatefulSet', 'test-basic-worker'),
+            ('Job', 'test-basic-create-user'),
+            ('Job', 'test-basic-run-airflow-migrations'),
         }
         assert expected_object_count_with_standalone_scheduler == len(k8s_objects)
         for k8s_object in k8s_objects:
@@ -188,14 +188,14 @@ class TestBaseChartTest(unittest.TestCase):
                 continue
             k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
             assert 'TEST-VALUE' == labels.get(
-                "TEST-LABEL"
-            ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
+                "test-label"
+            ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_default_users(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
-            "TEST-BASIC",
+            "test-basic",
             values=self._get_values_with_version(
                 values={"webserver": {"defaultUser": {'enabled': False}}}, version=version
             ),
@@ -203,12 +203,12 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
-        assert ('Job', 'TEST-BASIC-create-user') not in list_of_kind_names_tuples
+        assert ('Job', 'test-basic-create-user') not in list_of_kind_names_tuples
         assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
-            "TEST-BASIC",
+            "test-basic",
             {
                 "networkPolicies": {"enabled": True},
                 "executor": "CeleryExecutor",
@@ -221,20 +221,20 @@ class TestBaseChartTest(unittest.TestCase):
         }
 
         expected_kind_names = [
-            ('NetworkPolicy', 'TEST-BASIC-redis-policy'),
-            ('NetworkPolicy', 'TEST-BASIC-flower-policy'),
-            ('NetworkPolicy', 'TEST-BASIC-pgbouncer-policy'),
-            ('NetworkPolicy', 'TEST-BASIC-scheduler-policy'),
-            ('NetworkPolicy', 'TEST-BASIC-statsd-policy'),
-            ('NetworkPolicy', 'TEST-BASIC-webserver-policy'),
-            ('NetworkPolicy', 'TEST-BASIC-worker-policy'),
+            ('NetworkPolicy', 'test-basic-redis-policy'),
+            ('NetworkPolicy', 'test-basic-flower-policy'),
+            ('NetworkPolicy', 'test-basic-pgbouncer-policy'),
+            ('NetworkPolicy', 'test-basic-scheduler-policy'),
+            ('NetworkPolicy', 'test-basic-statsd-policy'),
+            ('NetworkPolicy', 'test-basic-webserver-policy'),
+            ('NetworkPolicy', 'test-basic-worker-policy'),
         ]
         for kind_name in expected_kind_names:
             assert kind_name in kind_names_tuples
 
     def test_labels_are_valid(self):
         """Test labels are correctly applied on all objects created by this chart"""
-        release_name = "TEST-BASIC"
+        release_name = "test-basic"
         k8s_objects = render_chart(
             name=release_name,
             values={
@@ -344,7 +344,7 @@ class TestBaseChartTest(unittest.TestCase):
 
     def test_labels_are_valid_on_job_templates(self):
         """Test labels are correctly applied on all job templates created by this chart"""
-        release_name = "TEST-BASIC"
+        release_name = "test-basic"
         k8s_objects = render_chart(
             name=release_name,
             values={
@@ -384,7 +384,7 @@ class TestBaseChartTest(unittest.TestCase):
         Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
         deployments.
         """
-        release_name = "TEST-BASIC"
+        release_name = "test-basic"
         k8s_objects = render_chart(
             name=release_name,
             values={
@@ -431,7 +431,7 @@ class TestBaseChartTest(unittest.TestCase):
             return out
 
         image_repo = "test-airflow-repo/airflow"
-        k8s_objects = render_chart("TEST-BASIC", {"defaultAirflowRepository": image_repo})
+        k8s_objects = render_chart("test-basic", {"defaultAirflowRepository": image_repo})
 
         objs_with_image = get_k8s_objs_with_image(k8s_objects)
         for obj in objs_with_image:
@@ -443,7 +443,7 @@ class TestBaseChartTest(unittest.TestCase):
     def test_unsupported_executor(self):
         with self.assertRaises(CalledProcessError) as ex_ctx:
             render_chart(
-                "TEST-BASIC",
+                "test-basic",
                 {
                     "executor": "SequentialExecutor",
                 },
@@ -469,7 +469,7 @@ class TestBaseChartTest(unittest.TestCase):
     def test_invalid_pull_policy(self, image):
         with self.assertRaises(CalledProcessError) as ex_ctx:
             render_chart(
-                "TEST-BASIC",
+                "test-basic",
                 {
                     "images": {image: {"pullPolicy": "InvalidPolicy"}},
                 },
@@ -482,7 +482,7 @@ class TestBaseChartTest(unittest.TestCase):
     def test_invalid_dags_access_mode(self):
         with self.assertRaises(CalledProcessError) as ex_ctx:
             render_chart(
-                "TEST-BASIC",
+                "test-basic",
                 {
                     "dags": {"persistence": {"accessMode": "InvalidMode"}},
                 },

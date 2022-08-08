@@ -229,7 +229,7 @@ class CreateUserJobTest(unittest.TestCase):
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_default_user_overrides(self):

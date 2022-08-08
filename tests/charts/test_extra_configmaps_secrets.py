@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
-RELEASE_NAME = "TEST-EXTRA-CONFIGMAPS-SECRETS"
+RELEASE_NAME = "test-extra-configmaps-secrets"
 
 
 class ExtraConfigMapsSecretsTest(unittest.TestCase):
