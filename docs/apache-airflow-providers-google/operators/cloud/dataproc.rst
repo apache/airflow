@@ -176,7 +176,7 @@ Example of the configuration for a Spark Job:
 
 Example of the configuration for a Spark Job running in `deferrable mode <https://airflow.apache.org/docs/apache-airflow/stable/concepts/deferring.html>`__:
 
-.. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_spark_deferrable.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_spark_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_spark_deferrable_config]
