@@ -201,11 +201,30 @@ class TestAwsConnectionWrapper:
             assert mock_botocore_config.assert_called_once
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls
 
-    @pytest.mark.parametrize("endpoint_url", [None, "https://example.org"])
-    def test_get_endpoint_url(self, endpoint_url):
-        mock_conn = mock_connection_factory(extra={"host": endpoint_url} if endpoint_url else None)
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-        assert wrap_conn.endpoint_url == endpoint_url
+    @pytest.mark.parametrize(
+        "extra, expected",
+        [
+            ({"host": "https://host.aws"}, "https://host.aws"),
+            ({"endpoint_url": "https://endpoint.aws"}, "https://endpoint.aws"),
+            ({"host": "https://host.aws", "endpoint_url": "https://endpoint.aws"}, "https://host.aws"),
+        ],
+        ids=["'host' is used", "'endpoint_url' is used", "'host' preferred over 'endpoint_url'"],
+    )
+    def test_get_endpoint_url_from_extra(self, extra, expected):
+        mock_conn = mock_connection_factory(extra=extra)
+        expected_deprecation_message = (
+            "extra['host'] is deprecated and will be removed in a future release."
+            " Please set extra['endpoint_url'] instead"
+        )
+
+        with pytest.warns(None) as records:
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+
+        if extra.get("host"):
+            assert len(records) == 1
+            assert str(records[0].message) == expected_deprecation_message
+
+        assert wrap_conn.endpoint_url == expected
 
     @pytest.mark.parametrize("aws_account_id, aws_iam_role", [(None, None), ("111111111111", "another-role")])
     def test_get_role_arn(self, aws_account_id, aws_iam_role):
@@ -351,3 +370,14 @@ class TestAwsConnectionWrapper:
         # Test overwrite/inherit init fields
         assert wrap_conn.region_name == (region_name or orig_wrapper.region_name)
         assert wrap_conn.botocore_config == (botocore_config or orig_wrapper.botocore_config)
+
+    def test_connection_host_raises_deprecation(self):
+        mock_conn = mock_connection_factory(host="https://aws.com")
+        expected_deprecation_message = (
+            f"Host {mock_conn.host} specified in the connection is not used."
+            " Please, set it on extra['endpoint_url'] instead"
+        )
+        with pytest.warns(DeprecationWarning) as record:
+            AwsConnectionWrapper(conn=mock_conn)
+
+            assert str(record[0].message) == expected_deprecation_message

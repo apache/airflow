@@ -152,7 +152,24 @@ class AwsConnectionWrapper(LoggingMixin):
             self.log.info("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
             self.botocore_config = Config(**config_kwargs)
 
+        if conn.host:
+            warnings.warn(
+                f"Host {conn.host} specified in the connection is not used."
+                " Please, set it on extra['endpoint_url'] instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.endpoint_url = extra.get("host")
+        if self.endpoint_url:
+            warnings.warn(
+                "extra['host'] is deprecated and will be removed in a future release."
+                " Please set extra['endpoint_url'] instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            self.endpoint_url = extra.get("endpoint_url")
 
         # Retrieve Assume Role Configuration
         assume_role_configs = self._get_assume_role_configs(**extra)
