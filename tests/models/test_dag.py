@@ -2041,7 +2041,8 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
 
-        dag_models = DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
         assert dag_models == []
 
         session.rollback()
@@ -2086,13 +2087,15 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
 
-        needed = DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        needed = query.all()
         assert needed == [orm_dag]
 
         orm_dag.is_paused = True
         session.flush()
 
-        dag_models = DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
         assert dag_models == []
 
         session.rollback()
@@ -2117,12 +2120,14 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
 
-        needed = DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        needed = query.all()
         assert needed == [orm_dag]
         orm_dag.has_import_errors = True
         session.merge(orm_dag)
         session.flush()
-        needed = DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        needed = query.all()
         assert needed == []
 
     @pytest.mark.parametrize(

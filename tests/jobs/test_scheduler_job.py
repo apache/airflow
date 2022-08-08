@@ -3317,7 +3317,8 @@ class TestSchedulerJob:
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
         session = settings.Session()
         assert session.query(DagRun).count() == 0
-        dag_models = DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
         self.scheduler_job._create_dag_runs(dag_models, session)
         dr = session.query(DagRun).one()
         dr.state == DagRunState.QUEUED
@@ -3325,7 +3326,8 @@ class TestSchedulerJob:
         assert dag_maker.dag_model.next_dagrun_create_after is None
         session.flush()
         # dags_needing_dagruns query should not return any value
-        assert len(DagModel.dags_needing_dagruns(session).all()) == 0
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert len(query.all()) == 0
         self.scheduler_job._create_dag_runs(dag_models, session)
         assert session.query(DagRun).count() == 1
         assert dag_maker.dag_model.next_dagrun_create_after is None
@@ -3341,7 +3343,8 @@ class TestSchedulerJob:
         # check that next_dagrun is set properly by Schedulerjob._update_dag_next_dagruns
         self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
-        assert len(DagModel.dags_needing_dagruns(session).all()) == 1
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert len(query.all()) == 1
         # assert next_dagrun has been updated correctly
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         # assert no dagruns is created yet
@@ -3378,7 +3381,8 @@ class TestSchedulerJob:
         self.scheduler_job.executor = MockExecutor(do_update=True)
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        DagModel.dags_needing_dagruns(session).all()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        query.all()
         for _ in range(3):
             self.scheduler_job._do_scheduling(session)
 
