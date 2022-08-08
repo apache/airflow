@@ -149,7 +149,6 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             copy_options=copy_options,
-            truncate_table=True,
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
