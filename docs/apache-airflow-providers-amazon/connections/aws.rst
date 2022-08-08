@@ -83,7 +83,7 @@ Extra (optional)
       `assume_role_with_web_identity <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html>`__
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
-    * ``host``: Endpoint URL for the connection.
+    * ``endpoint_url``: Endpoint URL for the connection.
 
 .. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
 
@@ -98,6 +98,7 @@ Extra (optional)
       `s3cmd <https://s3tools.org/kb/item14.htm>`_ if not specified then **boto** is used.
     * ``profile``: If you are getting your credentials from the ``s3_config_file``
       you can specify the profile with this parameter.
+    * ``host``: Used as connection's URL. Use ``endpoint_url`` instead.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
