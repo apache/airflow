@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-08-07T10:40:17Z
+# This constraints file was automatically generated on 2022-08-08T19:35:17Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -66,12 +66,12 @@ arrow==1.2.2
 asana==1.0.0
 asn1crypto==1.5.1
 astroid==2.11.7
-asttokens==2.0.5
+asttokens==2.0.7
 async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 attrs==20.3.0
-aws-sam-translator==1.48.0
+aws-sam-translator==1.49.0
 aws-xray-sdk==2.10.0
 azure-batch==12.0.0
 azure-common==1.1.28
@@ -138,7 +138,7 @@ curlify==2.2.1
 dask==2022.8.0
 databricks-sql-connector==2.0.2
 datadog==0.44.0
-db-dtypes==1.0.2
+db-dtypes==1.0.3
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -252,7 +252,7 @@ isodate==0.6.1
 itsdangerous==2.1.2
 jedi==0.18.1
 jeepney==0.8.0
-jira==3.3.1
+jira==3.3.2
 jmespath==0.10.0
 jschema-to-python==1.2.3
 json-merge-patch==0.2
@@ -265,7 +265,7 @@ jsonschema==3.2.0
 junit-xml==1.9
 jupyter-client==7.3.4
 jupyter-core==4.11.1
-keyring==23.7.0
+keyring==23.8.2
 kombu==5.2.4
 krb5==0.3.0
 kubernetes==23.6.0
