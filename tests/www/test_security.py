@@ -452,7 +452,7 @@ def test_get_accessible_dag_ids(app, security_manager, session):
         ],
     ) as user:
 
-        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule="2 2 * * *")
+        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
         session.add(dag_model)
         session.commit()
 
@@ -480,7 +480,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security
         ],
     ) as user:
 
-        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule="2 2 * * *")
+        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
         session.add(dag_model)
         session.commit()
 
