@@ -229,7 +229,7 @@ kinds of test types:
 
   .. code-block:: bash
 
-       breeze testing test --test-type Core  --db-reset tests
+       breeze testing tests --test-type Core  --db-reset tests
 
   Runs all provider tests:
 
