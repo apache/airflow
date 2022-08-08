@@ -195,7 +195,7 @@ class TestTrinoHook(unittest.TestCase):
 
         self.db_hook = UnitTestTrinoHook()
 
-    @patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
+    @patch('airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows')
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
         rows = [("hello",), ("world",)]
@@ -240,14 +240,27 @@ class TestTrinoHook(unittest.TestCase):
 
         self.cur.execute.assert_called_once_with(statement, None)
 
-    @patch('airflow.hooks.dbapi.DbApiHook.run')
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.run')
     def test_run(self, mock_run):
-        hql = "SELECT 1"
+        sql = "SELECT 1"
         autocommit = False
-        parameters = {"hello": "world"}
-        handler = str
-        self.db_hook.run(hql, autocommit, parameters, handler)
-        mock_run.assert_called_once_with(sql=hql, autocommit=False, parameters=parameters, handler=str)
+        parameters = ("hello", "world")
+        handler = list
+        self.db_hook.run(sql, autocommit, parameters, list)
+        mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
+
+    def test_connection_success(self):
+        status, msg = self.db_hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.get_conn')
+    def test_connection_failure(self, mock_conn):
+        mock_conn.side_effect = Exception('Test')
+        self.db_hook.get_conn = mock_conn
+        status, msg = self.db_hook.test_connection()
+        assert status is False
+        assert msg == 'Test'
 
 
 class TestTrinoHookIntegration(unittest.TestCase):

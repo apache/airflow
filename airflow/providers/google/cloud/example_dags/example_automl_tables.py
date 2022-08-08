@@ -204,14 +204,14 @@ with models.DAG(
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
 ) as example_dag:
-    create_dataset_task = AutoMLCreateDatasetOperator(
+    create_dataset_task2 = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task",
         dataset=DATASET,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = create_dataset_task.output['dataset_id']
+    dataset_id = create_dataset_task2.output['dataset_id']
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",

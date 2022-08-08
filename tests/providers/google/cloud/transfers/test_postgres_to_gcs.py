@@ -92,7 +92,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         assert op.bucket == BUCKET
         assert op.filename == FILENAME
 
-    def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip):
+    def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
         assert BUCKET == bucket
         assert FILENAME.format(0) == obj
         assert 'application/json' == mime_type
@@ -159,7 +159,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
             FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             assert BUCKET == bucket
             assert 'application/json' == mime_type
             assert not gzip
@@ -183,7 +183,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     assert SCHEMA_JSON == file.read()

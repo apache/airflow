@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/arangodb/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-arangodb/2.0.0/airflow/providers/arangodb/example_dags>
 
 .. toctree::
     :maxdepth: 1
@@ -64,7 +64,7 @@ Package apache-airflow-providers-arangodb
 `ArangoDB <https://www.arangodb.com/>`__
 
 
-Release: 1.0.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -75,16 +75,18 @@ are in ``airflow.providers.arangodb`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-arangodb``
 
-PIP requirements
-----------------
+Requirements
+------------
 
-=================  ==================
-PIP package        Version required
-=================  ==================
-``python-arango``  ``>=7.3.2``
-=================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.2.0``
+``python-arango``   ``>=7.3.2``
+==================  ==================
 
 .. include:: ../../airflow/providers/arangodb/CHANGELOG.rst

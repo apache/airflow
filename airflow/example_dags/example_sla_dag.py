@@ -60,6 +60,6 @@ def example_sla_dag():
     sleep_20() >> sleep_30()
 
 
-dag = example_sla_dag()
+example_dag = example_sla_dag()
 
 # [END howto_task_sla]

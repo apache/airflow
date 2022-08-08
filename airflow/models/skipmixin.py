@@ -148,7 +148,8 @@ class SkipMixin(LoggingMixin):
         dag_run = ti.get_dagrun()
         task = ti.task
         dag = task.dag
-        assert dag  # For Mypy.
+        if TYPE_CHECKING:
+            assert dag
 
         # At runtime, the downstream list will only be operators
         downstream_tasks = cast("List[BaseOperator]", task.downstream_list)

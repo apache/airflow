@@ -266,7 +266,7 @@ class MongoHook(BaseHook):
         :param mongo_collection: The name of the collection to update.
         :param docs: The new documents.
         :param filter_docs: A list of queries that match the documents to replace.
-            Can be omitted; then the _id fields from docs will be used.
+            Can be omitted; then the _id fields from airflow.docs will be used.
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
         :param upsert: If ``True``, perform an insert if no documents

@@ -213,9 +213,9 @@ def test_action_has_dag_edit_access(create_task_instance, class_type, no_instanc
     else:
         test_items = tis if class_type == TaskInstance else [ti.get_dagrun() for ti in tis]
         test_items = test_items[0] if len(test_items) == 1 else test_items
-
-    with app.create_app(testing=True).app_context():
-        with mock.patch("airflow.www.views.current_app.appbuilder.sm.can_edit_dag") as mocked_can_edit:
+    application = app.create_app(testing=True)
+    with application.app_context():
+        with mock.patch.object(application.appbuilder.sm, "can_edit_dag") as mocked_can_edit:
             mocked_can_edit.return_value = True
             assert not isinstance(test_items, list) or len(test_items) == no_instances
             assert some_view_action_which_requires_dag_edit_access(None, test_items) is True

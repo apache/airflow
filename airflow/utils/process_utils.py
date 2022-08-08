@@ -61,8 +61,9 @@ def reap_process_group(
     a SIGKILL will be send.
 
     :param process_group_id: process group id to kill.
-           The process that wants to create the group should run `os.setpgid(0, 0)` as the first
-           command it executes which will set group id = process_id. Effectively the process that is the
+           The process that wants to create the group should run
+           `airflow.utils.process_utils.set_new_process_group()` as the first command
+           it executes which will set group id = process_id. Effectively the process that is the
            "root" of the group has pid = gid and all other processes in the group have different
            pids but the same gid (equal the pid of the root process)
     :param logger: log handler
@@ -320,7 +321,6 @@ def set_new_process_group() -> None:
     rather than having to iterate the child processes.
     If current process spawn by system call ``exec()`` than keep current process group
     """
-
     if os.getpid() == os.getsid(0):
         # If PID = SID than process a session leader, and it is not possible to change process group
         return

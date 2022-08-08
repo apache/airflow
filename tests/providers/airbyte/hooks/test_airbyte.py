@@ -38,9 +38,12 @@ class TestAirbyteHook(unittest.TestCase):
     job_id = 1
     sync_connection_endpoint = 'http://test-airbyte:8001/api/v1/connections/sync'
     get_job_endpoint = 'http://test-airbyte:8001/api/v1/jobs/get'
+    cancel_job_endpoint = 'http://test-airbyte:8001/api/v1/jobs/cancel'
+
     health_endpoint = 'http://test-airbyte:8001/api/v1/health'
     _mock_sync_conn_success_response_body = {'job': {'id': 1}}
     _mock_job_status_success_response_body = {'job': {'status': 'succeeded'}}
+    _mock_job_cancel_status = 'cancelled'
 
     def setUp(self):
         db.merge_conn(
@@ -70,6 +73,12 @@ class TestAirbyteHook(unittest.TestCase):
         resp = self.hook.get_job(job_id=self.job_id)
         assert resp.status_code == 200
         assert resp.json() == self._mock_job_status_success_response_body
+
+    @requests_mock.mock()
+    def test_cancel_job(self, m):
+        m.post(self.cancel_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body)
+        resp = self.hook.cancel_job(job_id=self.job_id)
+        assert resp.status_code == 200
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_succeeded(self, mock_get_job):

@@ -20,21 +20,11 @@ import datetime
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
-from typing import TYPE_CHECKING, Set, Tuple, Union
+from typing import TYPE_CHECKING, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.models.sqla import Model
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    Sequence,
-    String,
-    Table,
-    UniqueConstraint,
-)
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, UniqueConstraint
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
 
@@ -53,41 +43,11 @@ if TYPE_CHECKING:
         Identity = None
 
 
-def get_sequence_or_identity(sequence_name: str) -> Union[Sequence, 'Identity']:
-    """
-    Depending on the engine it either returns Sequence, or Identity (in case of MSSQL in SQLAlchemy 1.4).
-    In SQLAlchemy 1.4 using sequence is not allowed for primary key columns in MsSQL.
-    Primary columns in MsSQL use IDENTITY keyword to auto increment.
-    Using Sequence for those fields used to be allowed in SQLAlchemy 1.3 (and essentially ignored
-    if only name was specified).
-
-    See https://docs.sqlalchemy.org/en/14/dialects/mssql.html
-
-        Changed in version 1.4: Removed the ability to use a Sequence object to modify IDENTITY
-        characteristics. Sequence objects now only manipulate true T-SQL SEQUENCE types.
-
-    :param sequence_name: name of the sequence
-    :return: Sequence or Identity
-    """
-    from airflow.settings import SQL_ALCHEMY_CONN
-
-    if SQL_ALCHEMY_CONN is not None and SQL_ALCHEMY_CONN.startswith('mssql'):
-        try:
-            from sqlalchemy import Identity
-
-            return Identity()
-        except Exception:
-            # Identity object is only available in SQLAlchemy 1.4.
-            # For SQLAlchemy 1.3 compatibility we return original Sequence if Identity is missing
-            pass
-    return Sequence(sequence_name)
-
-
 class Action(Model):
     """Represents permission actions such as `can_read`."""
 
     __tablename__ = "ab_permission"
-    id = Column(Integer, get_sequence_or_identity("ab_permission_id_seq"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(100), unique=True, nullable=False)
 
     def __repr__(self):
@@ -98,7 +58,7 @@ class Resource(Model):
     """Represents permission object such as `User` or `Dag`."""
 
     __tablename__ = "ab_view_menu"
-    id = Column(Integer, get_sequence_or_identity("ab_view_menu_id_seq"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(250), unique=True, nullable=False)
 
     def __eq__(self, other):
@@ -114,7 +74,7 @@ class Resource(Model):
 assoc_permission_role = Table(
     "ab_permission_view_role",
     Model.metadata,
-    Column("id", Integer, get_sequence_or_identity("ab_permission_view_role_id_seq"), primary_key=True),
+    Column("id", Integer, primary_key=True),
     Column("permission_view_id", Integer, ForeignKey("ab_permission_view.id")),
     Column("role_id", Integer, ForeignKey("ab_role.id")),
     UniqueConstraint("permission_view_id", "role_id"),
@@ -126,7 +86,7 @@ class Role(Model):
 
     __tablename__ = "ab_role"
 
-    id = Column(Integer, get_sequence_or_identity("ab_role_id_seq"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
     permissions = relationship("Permission", secondary=assoc_permission_role, backref="role", lazy="joined")
 
@@ -139,7 +99,7 @@ class Permission(Model):
 
     __tablename__ = "ab_permission_view"
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
-    id = Column(Integer, get_sequence_or_identity("ab_permission_view_id_seq"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
     action = relationship(
         "Action",
@@ -160,7 +120,7 @@ class Permission(Model):
 assoc_user_role = Table(
     "ab_user_role",
     Model.metadata,
-    Column("id", Integer, get_sequence_or_identity("ab_user_role_id_seq"), primary_key=True),
+    Column("id", Integer, primary_key=True),
     Column("user_id", Integer, ForeignKey("ab_user.id")),
     Column("role_id", Integer, ForeignKey("ab_role.id")),
     UniqueConstraint("user_id", "role_id"),
@@ -171,7 +131,7 @@ class User(Model):
     """Represents an Airflow user which has roles assigned to it."""
 
     __tablename__ = "ab_user"
-    id = Column(Integer, get_sequence_or_identity("ab_user_id_seq"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     first_name = Column(String(64), nullable=False)
     last_name = Column(String(64), nullable=False)
     username = Column(String(256), unique=True, nullable=False)
@@ -264,7 +224,7 @@ class RegisterUser(Model):
     """Represents a user registration."""
 
     __tablename__ = "ab_register_user"
-    id = Column(Integer, get_sequence_or_identity("ab_register_user_id_seq"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     first_name = Column(String(64), nullable=False)
     last_name = Column(String(64), nullable=False)
     username = Column(String(256), unique=True, nullable=False)

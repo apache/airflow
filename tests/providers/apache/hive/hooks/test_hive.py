@@ -625,7 +625,7 @@ class TestHiveServer2Hook(unittest.TestCase):
 
         with mock.patch.dict(
             'os.environ',
-            {conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"},
+            {conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?auth_mechanism=LDAP"},
         ):
             HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
             mock_connect.assert_called_once_with(
@@ -826,7 +826,7 @@ class TestHiveServer2Hook(unittest.TestCase):
             )
 
             output = '\n'.join(
-                res_tuple[0] for res_tuple in hook.get_results(hql=hql, hive_conf={'key': 'value'})['data']
+                res_tuple[0] for res_tuple in hook.get_results(hql, hive_conf={'key': 'value'})['data']
             )
         assert 'value' in output
         assert 'test_dag_id' in output

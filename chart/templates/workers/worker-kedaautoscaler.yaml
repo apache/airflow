@@ -41,6 +41,10 @@ spec:
   cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}    # Optional. Default: 300 seconds
   minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}   # Optional. Default: 0
   maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}   # Optional. Default: 100
+{{- if .Values.workers.keda.advanced }}
+  advanced:
+{{ toYaml .Values.workers.keda.advanced | indent 4 }}
+{{- end }}
   triggers:
     - type: postgresql
       metadata:

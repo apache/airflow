@@ -45,7 +45,7 @@ def upgrade():
     op.create_table(
         TABLE_NAME,
         sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-        sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
+        sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.Column('priority_weight', sa.Integer(), default=1, nullable=False),
         sa.Column('callback_data', ExtendedJSON, nullable=False),
         sa.Column('callback_type', sa.String(20), nullable=False),

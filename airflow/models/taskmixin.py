@@ -195,10 +195,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             )
 
         if not self.has_dag():
-            # If this task does not yet have a dag, add it to the same dag as the other task and
-            # put it in the dag's root TaskGroup.
+            # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
-            self.dag.task_group.add(self)
 
         def add_only_new(obj, item_set: Set[str], item: str) -> None:
             """Adds only new items to item set"""
@@ -210,9 +208,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         for task in task_list:
             if dag and not task.has_dag():
                 # If the other task does not yet have a dag, add it to the same dag as this task and
-                # put it in the dag's root TaskGroup.
                 dag.add_task(task)
-                dag.task_group.add(task)
             if upstream:
                 add_only_new(task, task.downstream_task_ids, self.node_id)
                 add_only_new(self, self.upstream_task_ids, task.node_id)
@@ -237,7 +233,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional["EdgeModifier"] = None,
     ) -> None:
-        """Set a node (or nodes) to be directly downstream from the current node."""
+        """Set a node (or nodes) to be directly upstream from the current node."""
         self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property

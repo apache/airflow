@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Index, Integer, String, Text, text
+from sqlalchemy import Column, Index, Integer, String, Text
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -32,7 +32,7 @@ class Log(Base):
     dttm = Column(UtcDateTime)
     dag_id = Column(StringID())
     task_id = Column(StringID())
-    map_index = Column(Integer, server_default=text('NULL'))
+    map_index = Column(Integer)
     event = Column(String(30))
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))
@@ -55,7 +55,8 @@ class Log(Base):
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
             self.map_index = task_instance.map_index
-            task_owner = task_instance.task.owner
+            if task_instance.task:
+                task_owner = task_instance.task.owner
 
         if 'task_id' in kwargs:
             self.task_id = kwargs['task_id']

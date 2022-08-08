@@ -51,7 +51,7 @@ Package apache-airflow-providers-sendgrid
 `Sendgrid <https://sendgrid.com/>`__
 
 
-Release: 2.0.4
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -62,16 +62,18 @@ are in ``airflow.providers.sendgrid`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-sendgrid``
 
-PIP requirements
-----------------
+Requirements
+------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``sendgrid``   ``>=6.0.0``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.2.0``
+``sendgrid``        ``>=6.0.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/sendgrid/CHANGELOG.rst

@@ -36,11 +36,11 @@ class StorageLink(BaseGoogleLink):
     format_str = GCS_STORAGE_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, uri: str):
+    def persist(context: "Context", task_instance, uri: str, project_id: Optional[str]):
         task_instance.xcom_push(
             context=context,
             key=StorageLink.key,
-            value={"uri": uri, "project_id": task_instance.project_id},
+            value={"uri": uri, "project_id": project_id},
         )
 
 

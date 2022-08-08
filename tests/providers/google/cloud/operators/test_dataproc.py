@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
+from google.cloud.dataproc_v1 import Batch
 
 from airflow import AirflowException
 from airflow.exceptions import AirflowTaskTimeout
@@ -1657,6 +1658,35 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_batch_failed(self, mock_hook, to_dict_mock):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
+        mock_hook.return_value.get_batch.return_value.state = Batch.State.FAILED
+        with pytest.raises(AirflowException):
+            op.execute(context=MagicMock())
+            mock_hook.return_value.get_batch.assert_called_once_with(
+                batch_id=BATCH_ID,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                retry=RETRY,
+                timeout=TIMEOUT,
+                metadata=METADATA,
+            )
 
 
 class TestDataprocDeleteBatchOperator:

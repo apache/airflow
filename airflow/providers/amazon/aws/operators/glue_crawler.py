@@ -15,19 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
@@ -48,6 +42,7 @@ class GlueCrawlerOperator(BaseOperator):
     :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
     """
 
+    template_fields: Sequence[str] = ('config',)
     ui_color = '#ededed'
 
     def __init__(

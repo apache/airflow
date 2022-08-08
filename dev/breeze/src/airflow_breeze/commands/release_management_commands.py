@@ -24,8 +24,7 @@ from typing import IO, Dict, List, Optional, Tuple
 
 import click
 
-from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
-from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -35,6 +34,7 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     argument_packages,
     option_airflow_constraints_mode_ci,
@@ -43,16 +43,13 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_dry_run,
     option_github_repository,
-    option_image_tag,
+    option_image_tag_for_running,
     option_installation_package_format,
-    option_max_age,
     option_package_format,
     option_parallelism,
     option_python,
     option_python_versions,
     option_run_in_parallel,
-    option_timezone,
-    option_updated_on_or_after,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -66,105 +63,9 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.run_utils import RunCommandResult, run_command
-
-RELEASE_MANAGEMENT_PARAMETERS = {
-    "breeze prepare-airflow-package": [
-        {"name": "Package flags", "options": ["--package-format", "--version-suffix-for-pypi"]}
-    ],
-    "breeze verify-provider-packages": [
-        {
-            "name": "Provider verification flags",
-            "options": [
-                "--use-airflow-version",
-                "--airflow-constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--debug",
-            ],
-        }
-    ],
-    "breeze prepare-provider-packages": [
-        {
-            "name": "Package flags",
-            "options": [
-                "--package-format",
-                "--version-suffix-for-pypi",
-                "--package-list-file",
-                "--debug",
-            ],
-        }
-    ],
-    "breeze prepare-provider-documentation": [
-        {
-            "name": "Provider documentation preparation flags",
-            "options": [
-                "--debug",
-            ],
-        }
-    ],
-    "breeze generate-constraints": [
-        {
-            "name": "Generate constraints flags",
-            "options": [
-                "--image-tag",
-                "--python",
-                "--airflow-constraints-mode",
-                "--debug",
-            ],
-        },
-        {
-            "name": "Parallel running",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-            ],
-        },
-    ],
-    "breeze release-prod-images": [
-        {
-            "name": "Release PROD IMAGE flags",
-            "options": [
-                "--airflow-version",
-                "--dockerhub-repo",
-                "--slim-images",
-                "--limit-python",
-                "--limit-platform",
-                "--skip-latest",
-            ],
-        }
-    ],
-    "breeze find-newer-dependencies": [
-        {
-            "name": "Find newer dependencies flags",
-            "options": [
-                "--python",
-                "--timezone",
-                "--constraints-branch",
-                "--updated-on-or-after",
-                "--max-age",
-            ],
-        }
-    ],
-}
-
-RELEASE_MANAGEMENT_COMMANDS = {
-    "name": "Release management",
-    "commands": [
-        "verify-provider-packages",
-        "prepare-provider-documentation",
-        "prepare-provider-packages",
-        "prepare-airflow-package",
-        "release-prod-images",
-        "generate-constraints",
-        "find-newer-dependencies",
-    ],
-}
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command, run_compile_www_assets
 
 option_debug_release_management = click.option(
     "--debug",
@@ -231,7 +132,16 @@ echo -e '\\e[34mRun this command to debug:
         )
 
 
-@main.command(
+@click.group(
+    cls=BreezeGroup,
+    name='release-management',
+    help="Tools that release managers can use to prepare and manage Airflow releases",
+)
+def release_management():
+    pass
+
+
+@release_management.command(
     name='prepare-airflow-package',
     help="Prepare sdist/whl package of Airflow.",
 )
@@ -250,6 +160,7 @@ def prepare_airflow_packages(
     debug: bool,
 ):
     perform_environment_checks(verbose=verbose)
+    run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
         github_repository=github_repository,
@@ -260,7 +171,7 @@ def prepare_airflow_packages(
         install_providers_from_sources=False,
         mount_sources=MOUNT_ALL,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     result_command = run_with_debug(
         params=shell_params,
         command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
@@ -272,7 +183,7 @@ def prepare_airflow_packages(
     sys.exit(result_command.returncode)
 
 
-@main.command(
+@release_management.command(
     name='prepare-provider-documentation',
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
@@ -299,7 +210,7 @@ def prepare_provider_documentation(
         answer=answer,
         skip_environment_initialization=True,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh", *packages]
     result_command = run_with_debug(
         params=shell_params,
@@ -312,7 +223,7 @@ def prepare_provider_documentation(
     sys.exit(result_command.returncode)
 
 
-@main.command(
+@release_management.command(
     name='prepare-provider-packages',
     help="Prepare sdist/whl packages of Airflow Providers.",
 )
@@ -351,7 +262,7 @@ def prepare_provider_packages(
         skip_environment_initialization=True,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh", *packages_list]
     result_command = run_with_debug(
         params=shell_params,
@@ -407,7 +318,7 @@ def run_generate_constraints_in_parallel(
     pool.close()
 
 
-@main.command(
+@release_management.command(
     name='generate-constraints',
     help="Generates pinned constraint files with all extras from setup.py in parallel.",
 )
@@ -418,7 +329,7 @@ def run_generate_constraints_in_parallel(
 @option_run_in_parallel
 @option_parallelism
 @option_python_versions
-@option_image_tag
+@option_image_tag_for_running
 @option_answer
 @option_debug_release_management
 @option_airflow_constraints_mode_ci
@@ -430,7 +341,7 @@ def generate_constraints(
     run_in_parallel: bool,
     parallelism: int,
     python_versions: str,
-    image_tag: str,
+    image_tag: Optional[str],
     answer: Optional[str],
     debug: bool,
     airflow_constraints_mode: str,
@@ -451,7 +362,7 @@ def generate_constraints(
         if run_in_parallel:
             get_console().print("\n[info]Use this command to build the images:[/]\n")
             get_console().print(
-                f"     breeze build-image --run-in-parallel --python-versions '{python_versions}' "
+                f"     breeze ci-image build --run-in-parallel --python-versions '{python_versions}' "
                 f"--upgrade-to-newer-dependencies\n"
             )
         else:
@@ -460,7 +371,7 @@ def generate_constraints(
             )
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
-                f"     breeze build-image --python'{shell_params.python}' "
+                f"     breeze ci-image build --python '{shell_params.python}' "
                 f"--upgrade-to-newer-dependencies\n"
             )
         sys.exit(1)
@@ -504,13 +415,19 @@ def generate_constraints(
             sys.exit(return_code)
 
 
-@main.command(
+@release_management.command(
     name='verify-provider-packages',
     help="Verifies if all provider code is following expectations for providers.",
 )
 @option_use_airflow_version
 @option_airflow_extras
 @option_airflow_constraints_reference
+@click.option(
+    "--skip-constraints",
+    is_flag=True,
+    help="Do not use constraints when installing providers.",
+    envvar='SKIP_CONSTRAINTS',
+)
 @option_use_packages_from_dist
 @option_installation_package_format
 @option_verbose
@@ -522,6 +439,7 @@ def verify_provider_packages(
     dry_run: bool,
     use_airflow_version: Optional[str],
     airflow_constraints_reference: str,
+    skip_constraints: bool,
     airflow_extras: str,
     use_packages_from_dist: bool,
     debug: bool,
@@ -538,9 +456,10 @@ def verify_provider_packages(
         airflow_extras=airflow_extras,
         airflow_constraints_reference=airflow_constraints_reference,
         use_packages_from_dist=use_packages_from_dist,
+        skip_constraints=skip_constraints,
         package_format=package_format,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     cmd_to_run = [
         "-c",
         "python /opt/airflow/scripts/in_container/verify_providers.py",
@@ -573,7 +492,7 @@ def alias_image(image_from: str, image_to: str, dry_run: bool, verbose: bool):
     )
 
 
-@main.command(
+@release_management.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option('--airflow-version', required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
@@ -621,8 +540,8 @@ def release_prod_images(
     dry_run: bool,
 ):
     perform_environment_checks(verbose=verbose)
-    rebuild_ci_image_if_needed(
-        build_params=ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION),
+    rebuild_or_pull_ci_image_if_needed(
+        command_params=ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION),
         dry_run=dry_run,
         verbose=verbose,
     )
@@ -650,12 +569,11 @@ def release_prod_images(
         ["docker", 'buildx', 'inspect', 'airflow_cache'], check=False, dry_run=dry_run, verbose=verbose
     )
     if result_inspect_builder.returncode != 0:
-        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print("[error]Airflow Cache builder must be configured to release the images[/]")
         get_console().print()
         get_console().print(
-            "See https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md"
-            "#setting-up-cache-refreshing-with-hardware-armamd-support for "
-            "instructions on setting it up."
+            "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
+            " for instructions on setting it up."
         )
         sys.exit(1)
     result_regctl = run_command(["regctl", 'version'], check=False, dry_run=dry_run, verbose=verbose)
@@ -759,21 +677,3 @@ def release_prod_images(
                 verbose=verbose,
                 dry_run=dry_run,
             )
-
-
-@main.command(name="find-newer-dependencies", help="Finds which dependencies are being upgraded.")
-@option_timezone
-@option_airflow_constraints_reference
-@option_python
-@option_updated_on_or_after
-@option_max_age
-def breeze_find_newer_dependencies(
-    airflow_constraints_reference: str, python: str, timezone: str, updated_on_or_after: str, max_age: int
-):
-    return find_newer_dependencies(
-        constraints_branch=airflow_constraints_reference,
-        python=python,
-        timezone=timezone,
-        updated_on_or_after=updated_on_or_after,
-        max_age=max_age,
-    )

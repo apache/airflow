@@ -121,7 +121,7 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
     Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:EksFargateProfileStateSensor`
 
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)

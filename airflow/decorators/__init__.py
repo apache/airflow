@@ -41,11 +41,11 @@ __all__ = [
 class TaskDecoratorCollection:
     """Implementation to provide the ``@task`` syntax."""
 
-    python: Any = staticmethod(python_task)
+    python = staticmethod(python_task)
     virtualenv = staticmethod(virtualenv_task)
     branch = staticmethod(branch_task)
 
-    __call__ = python  # Alias '@task' to '@task.python'.
+    __call__: Any = python  # Alias '@task' to '@task.python'.
 
     def __getattr__(self, name: str) -> TaskDecorator:
         """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""

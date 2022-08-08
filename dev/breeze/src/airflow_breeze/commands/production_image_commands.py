@@ -15,20 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import multiprocessing as mp
 import os
 import sys
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import click
 
-from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
 from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
     option_additional_dev_apt_env,
     option_additional_extras,
+    option_additional_pip_install_flags,
     option_additional_python_deps,
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
@@ -36,7 +38,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
     option_answer,
-    option_build_multiple_images,
+    option_builder,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -47,13 +49,17 @@ from airflow_breeze.utils.common_options import (
     option_github_token,
     option_github_username,
     option_image_name,
-    option_image_tag,
+    option_image_tag_for_building,
+    option_image_tag_for_pulling,
+    option_image_tag_for_verifying,
     option_install_providers_from_sources,
     option_parallelism,
-    option_platform,
+    option_platform_multiple,
     option_prepare_buildx_cache,
-    option_push_image,
+    option_pull,
+    option_push,
     option_python,
+    option_python_image,
     option_python_versions,
     option_run_in_parallel,
     option_runtime_apt_command,
@@ -61,152 +67,92 @@ from airflow_breeze.utils.common_options import (
     option_tag_as_latest,
     option_upgrade_to_newer_dependencies,
     option_verbose,
-    option_verify_image,
+    option_verify,
     option_wait_for_image,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
     prepare_docker_build_from_input,
+    warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
+from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
 
-PRODUCTION_IMAGE_TOOLS_COMMANDS = {
-    "name": "Production Image tools",
-    "commands": [
-        "build-prod-image",
-        "pull-prod-image",
-        "verify-prod-image",
-    ],
-}
-PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
-    "breeze build-prod-image": [
-        {
-            "name": "Basic usage",
-            "options": [
-                "--python",
-                "--install-airflow-version",
-                "--upgrade-to-newer-dependencies",
-                "--debian-version",
-                "--image-tag",
-                "--tag-as-latest",
-                "--docker-cache",
-            ],
-        },
-        {
-            "name": "Building multiple images",
-            "options": [
-                "--build-multiple-images",
-                "--python-versions",
-            ],
-        },
-        {
-            "name": "Options for customizing images",
-            "options": [
-                "--install-providers-from-sources",
-                "--airflow-extras",
-                "--airflow-constraints-mode",
-                "--airflow-constraints-reference",
-                "--additional-python-deps",
-                "--additional-extras",
-                "--additional-runtime-apt-deps",
-                "--additional-runtime-apt-env",
-                "--additional-runtime-apt-command",
-                "--additional-dev-apt-deps",
-                "--additional-dev-apt-env",
-                "--additional-dev-apt-command",
-                "--runtime-apt-deps",
-                "--runtime-apt-command",
-                "--dev-apt-deps",
-                "--dev-apt-command",
-            ],
-        },
-        {
-            "name": "Customization options (for specific customization needs)",
-            "options": [
-                "--install-packages-from-context",
-                "--airflow-is-in-context",
-                "--cleanup-context",
-                "--disable-mysql-client-installation",
-                "--disable-mssql-client-installation",
-                "--disable-postgres-client-installation",
-                "--disable-airflow-repo-cache",
-                "--install-airflow-reference",
-                "--installation-method",
-            ],
-        },
-        {
-            "name": "Preparing cache and push (for maintainers and CI)",
-            "options": [
-                "--github-token",
-                "--github-username",
-                "--platform",
-                "--login-to-github-registry",
-                "--push-image",
-                "--empty-image",
-                "--prepare-buildx-cache",
-            ],
-        },
-    ],
-    "breeze pull-prod-image": [
-        {
-            "name": "Pull image flags",
-            "options": [
-                "--image-tag",
-                "--python",
-                "--github-token",
-                "--verify-image",
-                "--wait-for-image",
-                "--tag-as-latest",
-            ],
-        },
-        {
-            "name": "Parallel running",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-            ],
-        },
-    ],
-    "breeze verify-prod-image": [
-        {
-            "name": "Verify image flags",
-            "options": [
-                "--image-name",
-                "--python",
-                "--image-tag",
-            ],
-        }
-    ],
-}
+
+def start_building(parallel: bool, prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+    make_sure_builder_configured(
+        parallel=parallel, params=prod_image_params, dry_run=dry_run, verbose=verbose
+    )
+    if prod_image_params.cleanup_context:
+        clean_docker_context_files(verbose=verbose, dry_run=dry_run)
+    check_docker_context_files(prod_image_params.install_packages_from_context)
+    if prod_image_params.prepare_buildx_cache or prod_image_params.push:
+        login_to_github_docker_registry(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
+
+
+def run_build_in_parallel(
+    image_params_list: List[BuildProdParams],
+    python_version_list: List[str],
+    parallelism: int,
+    dry_run: bool,
+    verbose: bool,
+) -> None:
+    warm_up_docker_builder(image_params_list[0], verbose=verbose, dry_run=dry_run)
+    get_console().print(
+        f"\n[info]Building with parallelism = {parallelism} for the images: {python_version_list}:"
+    )
+    pool = mp.Pool(parallelism)
+    results = [
+        pool.apply_async(
+            run_build_production_image,
+            args=(
+                verbose,
+                dry_run,
+                image_param,
+                True,
+            ),
+        )
+        for image_param in image_params_list
+    ]
+    check_async_run_results(results)
+    pool.close()
+
+
+@click.group(
+    cls=BreezeGroup, name='prod-image', help="Tools that developers can use to manually manage PROD images"
+)
+def prod_image():
+    pass
 
 
 @option_verbose
 @option_dry_run
 @option_answer
-@main.command(name='build-prod-image')
+@prod_image.command(name='build')
 @option_python
-@option_build_multiple_images
+@option_run_in_parallel
+@option_parallelism
 @option_python_versions
 @option_upgrade_to_newer_dependencies
-@option_platform
+@option_platform_multiple
 @option_debian_version
 @option_github_repository
 @option_github_token
 @option_github_username
 @option_docker_cache
-@option_image_tag
+@option_image_tag_for_building
 @option_prepare_buildx_cache
-@option_push_image
+@option_push
 @option_empty_image
 @option_airflow_constraints_mode_prod
 @click.option(
@@ -216,13 +162,9 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 )
 @option_install_providers_from_sources
 @click.option(
-    '--airflow-is-in-context',
-    help="If set Airflow is installed from docker-context-files only rather than from PyPI or sources.",
-    is_flag=True,
-)
-@click.option(
     '--install-packages-from-context',
-    help='Install wheels from local docker-context-files when building image.',
+    help='Install wheels from local docker-context-files when building image. '
+    'Implies --disable-airflow-repo-cache.',
     is_flag=True,
 )
 @click.option(
@@ -259,15 +201,19 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 @option_additional_dev_apt_env
 @option_additional_runtime_apt_env
 @option_additional_runtime_apt_command
+@option_builder
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_python_image
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_tag_as_latest
-def build_prod_image(
+@option_additional_pip_install_flags
+def build(
     verbose: bool,
     dry_run: bool,
-    build_multiple_images: bool,
+    run_in_parallel: bool,
+    parallelism: int,
     python_versions: str,
     answer: Optional[str],
     **kwargs,
@@ -277,8 +223,8 @@ def build_prod_image(
     """
 
     def run_build(prod_image_params: BuildProdParams) -> None:
-        return_code, info = build_production_image(
-            verbose=verbose, dry_run=dry_run, prod_image_params=prod_image_params
+        return_code, info = run_build_production_image(
+            verbose=verbose, dry_run=dry_run, prod_image_params=prod_image_params, parallel=False
         )
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
@@ -286,19 +232,31 @@ def build_prod_image(
 
     perform_environment_checks(verbose=verbose)
     parameters_passed = filter_out_none(**kwargs)
-    if build_multiple_images:
+
+    fix_group_permissions(verbose=verbose)
+    if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
+        params_list: List[BuildProdParams] = []
         for python in python_version_list:
             params = BuildProdParams(**parameters_passed)
             params.python = python
             params.answer = answer
-            run_build(prod_image_params=params)
+            params_list.append(params)
+        start_building(parallel=True, prod_image_params=params_list[0], dry_run=dry_run, verbose=verbose)
+        run_build_in_parallel(
+            image_params_list=params_list,
+            python_version_list=python_version_list,
+            parallelism=parallelism,
+            dry_run=dry_run,
+            verbose=verbose,
+        )
     else:
         params = BuildProdParams(**parameters_passed)
+        start_building(parallel=False, prod_image_params=params, dry_run=dry_run, verbose=verbose)
         run_build(prod_image_params=params)
 
 
-@main.command(name='pull-prod-image')
+@prod_image.command(name='pull')
 @option_verbose
 @option_dry_run
 @option_python
@@ -307,10 +265,10 @@ def build_prod_image(
 @option_parallelism
 @option_python_versions
 @option_github_token
-@option_image_tag
+@option_image_tag_for_pulling
 @option_wait_for_image
 @option_tag_as_latest
-@option_verify_image
+@option_verify
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def pull_prod_image(
     verbose: bool,
@@ -321,13 +279,20 @@ def pull_prod_image(
     parallelism: int,
     python_versions: str,
     github_token: str,
-    image_tag: Optional[str],
+    image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
-    verify_image: bool,
+    verify: bool,
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
+    if image_tag == "latest":
+        get_console().print("[red]You cannot pull latest images because they are not published any more!\n")
+        get_console().print(
+            "[yellow]You need to specify commit tag to pull and image. If you wish to get"
+            " the latest image, you need to run `breeze ci-image build` command\n"
+        )
+        sys.exit(1)
     perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -346,7 +311,7 @@ def pull_prod_image(
             image_params_list=prod_image_params_list,
             python_version_list=python_version_list,
             verbose=verbose,
-            verify_image=verify_image,
+            verify=verify,
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
             extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
@@ -369,8 +334,8 @@ def pull_prod_image(
             sys.exit(return_code)
 
 
-@main.command(
-    name='verify-prod-image',
+@prod_image.command(
+    name='verify',
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -380,16 +345,24 @@ def pull_prod_image(
 @option_dry_run
 @option_python
 @option_github_repository
-@option_image_tag
+@option_image_tag_for_verifying
 @option_image_name
+@option_pull
+@click.option(
+    '--slim-image',
+    help='The image to verify is slim and non-slim tests should be skipped.',
+    is_flag=True,
+)
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
-def verify_prod_image(
+def verify(
     verbose: bool,
     dry_run: bool,
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: str,
+    image_tag: Optional[str],
+    pull: bool,
+    slim_image: bool,
     extra_pytest_args: Tuple,
 ):
     """Verify Production image."""
@@ -399,6 +372,9 @@ def verify_prod_image(
             python=python, image_tag=image_tag, github_repository=github_repository
         )
         image_name = build_params.airflow_image_name_with_tag
+    if pull:
+        command_to_run = ["docker", "pull", image_name]
+        run_command(command_to_run, verbose=verbose, dry_run=dry_run, check=True)
     get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
     return_code, info = verify_an_image(
         image_name=image_name,
@@ -406,6 +382,7 @@ def verify_prod_image(
         dry_run=dry_run,
         image_type='PROD',
         extra_pytest_args=extra_pytest_args,
+        slim_image=slim_image,
     )
     sys.exit(return_code)
 
@@ -459,8 +436,8 @@ def check_docker_context_files(install_packages_from_context: bool):
             sys.exit(1)
 
 
-def build_production_image(
-    verbose: bool, dry_run: bool, prod_image_params: BuildProdParams
+def run_build_production_image(
+    verbose: bool, dry_run: bool, prod_image_params: BuildProdParams, parallel: bool
 ) -> Tuple[int, str]:
     """
     Builds PROD image:
@@ -480,32 +457,22 @@ def build_production_image(
     :param verbose: print commands when running
     :param dry_run: do not execute "write" commands - just print what would happen
     :param prod_image_params: PROD image parameters
+    :param parallel: run build in parallel
     """
     if (
         prod_image_params.is_multi_platform()
-        and not prod_image_params.push_image
+        and not prod_image_params.push
         and not prod_image_params.prepare_buildx_cache
     ):
         get_console().print(
-            "\n[red]You cannot use multi-platform build without using --push-image flag"
+            "\n[red]You cannot use multi-platform build without using --push flag"
             " or preparing buildx cache![/]\n"
         )
-        return 1, "Error: building multi-platform image without --push-image."
-    fix_group_permissions(verbose=verbose)
-    if verbose or dry_run:
-        get_console().print(
-            f"\n[info]Building PROD image of airflow from {AIRFLOW_SOURCES_ROOT} "
-            f"python version: {prod_image_params.python}[/]\n"
-        )
-    if prod_image_params.cleanup_context:
-        clean_docker_context_files(verbose=verbose, dry_run=dry_run)
-    check_docker_context_files(prod_image_params.install_packages_from_context)
-    if prod_image_params.prepare_buildx_cache or prod_image_params.push_image:
-        login_to_github_docker_registry(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
+        return 1, "Error: building multi-platform image without --push."
     get_console().print(f"\n[info]Building PROD Image for Python {prod_image_params.python}\n")
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
-            image_params=prod_image_params, dry_run=dry_run, verbose=verbose, parallel=False
+            image_params=prod_image_params, dry_run=dry_run, verbose=verbose, parallel=parallel
         )
     else:
         if prod_image_params.empty_image:
@@ -533,7 +500,7 @@ def build_production_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
                 text=True,
-                enabled_output_group=True,
+                enabled_output_group=not parallel,
             )
             if build_command_result.returncode == 0:
                 if prod_image_params.tag_as_latest:

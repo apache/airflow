@@ -469,11 +469,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                             process_line_callback=process_line_callback,
                         )
                     if dataflow_job_name and self.dataflow_config.location:
-                        multiple_jobs = (
-                            self.dataflow_config.multiple_jobs
-                            if self.dataflow_config.multiple_jobs
-                            else False
-                        )
+                        multiple_jobs = self.dataflow_config.multiple_jobs or False
                         DataflowJobLink.persist(
                             self,
                             context,

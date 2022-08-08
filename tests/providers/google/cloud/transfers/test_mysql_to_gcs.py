@@ -124,7 +124,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
             assert 'application/json' == mime_type
@@ -158,7 +158,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert CSV_FILENAME.format(0) == obj
             assert 'text/csv' == mime_type
@@ -193,7 +193,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert CSV_FILENAME.format(0) == obj
             assert 'text/csv' == mime_type
@@ -228,7 +228,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert CSV_FILENAME.format(0) == obj
             assert 'text/csv' == mime_type
@@ -257,7 +257,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert 'application/json' == mime_type
             assert not gzip
@@ -285,7 +285,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 assert not gzip
                 with open(tmp_filename, 'rb') as file:
@@ -311,7 +311,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 assert not gzip
                 with open(tmp_filename, 'rb') as file:

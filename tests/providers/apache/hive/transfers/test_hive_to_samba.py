@@ -64,7 +64,7 @@ class TestHive2SambaOperator(TestHiveEnvironment):
 
         mock_hive_hook.assert_called_once_with(hiveserver2_conn_id=self.kwargs['hiveserver2_conn_id'])
         mock_hive_hook.return_value.to_csv.assert_called_once_with(
-            hql=self.kwargs['hql'],
+            self.kwargs['hql'],
             csv_filepath=mock_tmp_file.name,
             hive_conf=context_to_airflow_vars(context),
         )

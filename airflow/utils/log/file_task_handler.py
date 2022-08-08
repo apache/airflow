@@ -18,16 +18,16 @@
 """File logging handler for tasks."""
 import logging
 import os
-from datetime import datetime
+import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
-
-from itsdangerous import TimedJSONWebSignatureSerializer
+from typing import TYPE_CHECKING, Optional
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -44,11 +44,15 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: str):
+    def __init__(self, base_log_folder: str, filename_template: Optional[str] = None):
         super().__init__()
         self.handler: Optional[logging.FileHandler] = None
         self.local_base = base_log_folder
-        self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
+        if filename_template is not None:
+            warnings.warn(
+                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
+                DeprecationWarning,
+            )
 
     def set_context(self, ti: "TaskInstance"):
         """
@@ -75,21 +79,27 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
-        if self.filename_jinja_template:
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)
+            template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+
+        if jinja_tpl:
             if hasattr(ti, "task"):
                 context = ti.get_template_context()
             else:
-                context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
             context["try_number"] = try_number
-            return render_template_to_string(self.filename_jinja_template, context)
-        elif self.filename_template:
-            dag_run = ti.get_dagrun()
-            dag = ti.task.dag
-            assert dag is not None  # For Mypy.
+            return render_template_to_string(jinja_tpl, context)
+        elif str_tpl:
             try:
-                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+                dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            else:
+                if TYPE_CHECKING:
+                    assert dag is not None
+                data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -98,7 +108,7 @@ class FileTaskHandler(logging.Handler):
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            return self.filename_template.format(
+            return str_tpl.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 run_id=ti.run_id,
@@ -191,16 +201,17 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                signer = TimedJSONWebSignatureSerializer(
+                signer = JWTSigner(
                     secret_key=conf.get('webserver', 'secret_key'),
-                    algorithm_name='HS512',
-                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
-                    # This isn't really a "salt", more of a signing context
-                    salt='task-instance-logs',
+                    expiration_time_in_seconds=conf.getint(
+                        'webserver', 'log_request_clock_grace', fallback=30
+                    ),
+                    audience="task-instance-logs",
                 )
-
                 response = httpx.get(
-                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                    url,
+                    timeout=timeout,
+                    headers={b'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 

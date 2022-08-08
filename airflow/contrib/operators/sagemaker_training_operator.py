@@ -15,14 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.sagemaker_training`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.sagemaker`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.sagemaker_training import SageMakerTrainingOperator  # noqa
+try:
+    from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.sagemaker_training import (  # type: ignore[no-redef]  # noqa
+        SageMakerTrainingOperator,
+    )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker_training`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.",
     DeprecationWarning,
     stacklevel=2,
 )

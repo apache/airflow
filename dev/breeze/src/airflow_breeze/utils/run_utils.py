@@ -89,7 +89,11 @@ def run_command(
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
         env_to_print = get_environments_to_print(env)
         with ci_group(title=f"Running {title}"):
-            get_console().print(f"\n[info]Working directory {workdir} [/]\n")
+            get_console().print(f"\n[info]Working directory {workdir}\n")
+            if input:
+                get_console().print("[info]Input:")
+                get_console().print(input)
+                get_console().print()
             # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
             get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:
@@ -183,7 +187,7 @@ def assert_pre_commit_installed(verbose: bool):
     else:
         get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
         get_console().print(command_result.stderr)
-        get_console().print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\nMake sure to run:\n      breeze setup self-upgrade\n\n")
         sys.exit(1)
 
 
@@ -211,7 +215,8 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
     get_console().print(
-        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
+        f"\n[info]Please run at the earliest "
+        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 
@@ -347,6 +352,45 @@ def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
         image=airflow_image,
         verbose=verbose,
         dry_run=dry_run,
-        instruction=f"breeze build-image --python {python_version}",
+        instruction=f"breeze ci-image build --python {python_version}",
     )
     return airflow_image
+
+
+def run_compile_www_assets(
+    dev: bool,
+    verbose: bool,
+    dry_run: bool,
+):
+    from airflow_breeze.utils.docker_command_utils import perform_environment_checks
+
+    assert_pre_commit_installed(verbose=verbose)
+    perform_environment_checks(verbose=verbose)
+    if dev:
+        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[info]If you want to see output of the compilation command,\n"
+            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
+            "[info]However, it requires you to have local yarn installation.\n"
+        )
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        'run',
+        "--hook-stage",
+        "manual",
+        'compile-www-assets-dev' if dev else 'compile-www-assets',
+        '--all-files',
+    ]
+    env = os.environ.copy()
+    compile_www_assets_result = run_command(
+        command_to_execute,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        no_output_dump_on_exception=True,
+        text=True,
+        env=env,
+    )
+    return compile_www_assets_result

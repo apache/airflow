@@ -101,6 +101,7 @@ Name                                        Description
 ``scheduler.critical_section_busy``         Count of times a scheduler process tried to get a lock on the critical
                                             section (needed to send tasks to the executor) and found it locked by
                                             another process.
+``sla_missed``                              Number of SLA misses
 ``sla_callback_notification_failure``       Number of failed SLA miss callback notification attempts
 ``sla_email_notification_failure``          Number of failed SLA miss email notification attempts
 ``ti.start.<dag_id>.<task_id>``             Number of started task in a given dag. Similar to <job_name>_start but for task
@@ -142,11 +143,6 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``smart_sensor_operator.poked_tasks``               Number of tasks poked by the smart sensor in the previous poking loop
-``smart_sensor_operator.poked_success``             Number of newly succeeded tasks poked by the smart sensor in the previous poking loop
-``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
-``smart_sensor_operator.exception_failures``        Number of failures caused by exception in the previous smart sensor poking loop
-``smart_sensor_operator.infra_failures``            Number of infrastructure failures in the previous smart sensor poking loop
 ``triggers.running``                                Number of triggers currently running (per triggerer)
 =================================================== ========================================================================
 

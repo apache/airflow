@@ -340,7 +340,7 @@ def prepare_engine_args(disable_connection_pool=False):
         # When those additional connections are returned to the pool, they are disconnected and discarded.
         # It follows then that the total number of simultaneous connections
         # the pool will allow is pool_size + max_overflow,
-        # and the total number of “sleeping” connections the pool will allow is pool_size.
+        # and the total number of "sleeping" connections the pool will allow is pool_size.
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
@@ -353,7 +353,7 @@ def prepare_engine_args(disable_connection_pool=False):
         pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
-        # Typically, this is a simple statement like “SELECT 1”, but may also make use
+        # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic

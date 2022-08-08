@@ -157,8 +157,8 @@ class TestLoadConnection(unittest.TestCase):
     @parameterized.expand(
         (
             (
-                "CONN_ID=mysql://host_1?param1=val1&param2=val2",
-                {"CONN_ID": "mysql://host_1?param1=val1&param2=val2"},
+                "CONN_ID=mysql://host_1/?param1=val1&param2=val2",
+                {"CONN_ID": "mysql://host_1/?param1=val1&param2=val2"},
             ),
         )
     )

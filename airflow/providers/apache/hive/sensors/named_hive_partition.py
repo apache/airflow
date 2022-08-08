@@ -40,7 +40,6 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ('partition_names',)
     ui_color = '#8d99ae'
-    poke_context_fields = ('partition_names', 'metastore_conn_id')
 
     def __init__(
         self,
@@ -76,7 +75,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             schema, table_partition = first_split
         second_split = table_partition.split('/', 1)
         if len(second_split) == 1:
-            raise ValueError('Could not parse ' + partition + 'into table, partition')
+            raise ValueError(f'Could not parse {partition}into table, partition')
         else:
             table, partition = second_split
         return schema, table, partition
@@ -104,12 +103,3 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
         self.next_index_to_poke = 0
         return True
-
-    def is_smart_sensor_compatible(self):
-        result = (
-            not self.soft_fail
-            and not self.hook
-            and len(self.partition_names) <= 30
-            and super().is_smart_sensor_compatible()
-        )
-        return result

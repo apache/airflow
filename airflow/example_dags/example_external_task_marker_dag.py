@@ -18,23 +18,25 @@
 
 """
 Example DAG demonstrating setting up inter-DAG dependencies using ExternalTaskSensor and
-ExternalTaskMarker
+ExternalTaskMarker.
 
 In this example, child_task1 in example_external_task_marker_child depends on parent_task in
-example_external_task_marker_parent. When parent_task is cleared with "Recursive" selected,
-the presence of ExternalTaskMarker tells Airflow to clear child_task1 and its
-downstream tasks.
+example_external_task_marker_parent. When parent_task is cleared with 'Recursive' selected,
+the presence of ExternalTaskMarker tells Airflow to clear child_task1 and its downstream tasks.
 
 ExternalTaskSensor will keep poking for the status of remote ExternalTaskMarker task at a regular
 interval till one of the following will happen:
-1. ExternalTaskMarker reaches the states mentioned in the allowed_states list
-    In this case, ExternalTaskSensor will exit with a success status code
-2. ExternalTaskMarker reaches the states mentioned in the failed_states list
-    In this case, ExternalTaskSensor will raise an AirflowException and user need to handle this
-    with multiple downstream tasks
-3. ExternalTaskSensor times out
-    In this case, ExternalTaskSensor will raise AirflowSkipException or AirflowSensorTimeout
-    exception
+
+ExternalTaskMarker reaches the states mentioned in the allowed_states list.
+In this case, ExternalTaskSensor will exit with a success status code
+
+ExternalTaskMarker reaches the states mentioned in the failed_states list
+In this case, ExternalTaskSensor will raise an AirflowException and user need to handle this
+with multiple downstream tasks
+
+ExternalTaskSensor times out. In this case, ExternalTaskSensor will raise AirflowSkipException
+or AirflowSensorTimeout exception
+
 """
 
 import pendulum

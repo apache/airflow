@@ -22,6 +22,8 @@ description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
 versions:
+  - 3.0.1
+  - 3.0.0
   - 2.0.5
   - 2.0.4
   - 2.0.3
@@ -32,8 +34,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.2.0
+  - JIRA>1.0.7
 
 integrations:
   - integration-name: Atlassian Jira
@@ -55,9 +58,6 @@ hooks:
   - integration-name: Atlassian Jira
     python-modules:
       - airflow.providers.jira.hooks.jira
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.jira.hooks.jira.JiraHook
 
 connection-types:
   - hook-class-name: airflow.providers.jira.hooks.jira.JiraHook

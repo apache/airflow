@@ -26,7 +26,7 @@ from moto import mock_iam, mock_lambda, mock_sts
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-from airflow.providers.amazon.aws.operators.aws_lambda import AwsLambdaInvokeFunctionOperator
+from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvokeFunctionOperator
 
 
 @mock_lambda

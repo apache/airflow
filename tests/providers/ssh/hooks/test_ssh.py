@@ -78,6 +78,8 @@ TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASS
 
 TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
 
+TEST_CIPHERS = ["aes128-ctr", "aes192-ctr", "aes256-ctr"]
+
 
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_NO_EXTRA = 'ssh_with_no_extra'
@@ -99,6 +101,7 @@ class TestSSHHook(unittest.TestCase):
         'ssh_with_host_key_and_allow_host_key_changes_true'
     )
     CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS = 'ssh_with_extra_disabled_algorithms'
+    CONN_SSH_WITH_EXTRA_CIPHERS = 'ssh_with_extra_ciphers'
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -119,6 +122,7 @@ class TestSSHHook(unittest.TestCase):
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
+                cls.CONN_SSH_WITH_EXTRA_CIPHERS,
             ]
             connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
             connections.delete(synchronize_session=False)
@@ -273,6 +277,14 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({"disabled_algorithms": TEST_DISABLED_ALGORITHMS}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_EXTRA_CIPHERS,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"ciphers": TEST_CIPHERS}),
             )
         )
 
@@ -780,6 +792,19 @@ class TestSSHHook(unittest.TestCase):
                 look_for_keys=True,
                 disabled_algorithms=TEST_DISABLED_ALGORITHMS,
             )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_with_extra_ciphers(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_EXTRA_CIPHERS,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+        )
+
+        with hook.get_conn():
+            transport = ssh_mock.return_value.get_transport.return_value
+            assert transport.get_security_options.return_value.ciphers == TEST_CIPHERS
 
     def test_openssh_private_key(self):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko

@@ -564,6 +564,30 @@ class PodTemplateFileTest(unittest.TestCase):
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
+    def test_workers_pod_annotations(self):
+        docs = render_chart(
+            values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "my_annotation" in annotations
+        assert "annotated!" in annotations["my_annotation"]
+
+    def test_airflow_and_workers_pod_annotations(self):
+        # should give preference to workers.podAnnotations
+        docs = render_chart(
+            values={
+                "airflowPodAnnotations": {"my_annotation": "airflowPodAnnotations"},
+                "workers": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "my_annotation" in annotations
+        assert "workerPodAnnotations" in annotations["my_annotation"]
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={

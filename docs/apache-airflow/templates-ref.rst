@@ -115,8 +115,10 @@ dot notation. Here are some examples of what is possible:
 Refer to the models documentation for more information on the objects'
 attributes and methods.
 
-The ``var`` template variable allows you to access variables defined in Airflow's
-UI. You can access them as either plain-text or JSON. If you use JSON, you are
+Airflow Variables in Templates
+------------------------------
+The ``var`` template variable allows you to access Airflow Variables.
+You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``.
 
@@ -125,11 +127,17 @@ It is also possible to fetch a variable by string if needed with
 ``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
 supplied in case the variable does not exist.
 
-Similarly, Airflow Connections data can be accessed via the ``conn`` template variable.
-For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
+
+Airflow Connections in Templates
+---------------------------------
+Similarly, Airflow Connections data can be accessed via the ``conn`` template variable. For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
 ``{{ conn.my_conn_id.password }}``, etc.
+
 Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{ conn.get('my_conn_id_'+index).host }}``
-) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``)
+) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``).
+
+Additionally, the ``extras`` field of a connection can be fetched as a Python Dictionary with the ``extra_dejson`` field, e.g.
+``conn.my_aws_conn_id.extra_dejson.region_name`` would fetch ``region_name`` out of ``extras``.
 
 Filters
 -------

@@ -44,15 +44,16 @@ in the `documentation <https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+for the minimum Airflow version supported) via
 ``pip install {{PACKAGE_PIP_NAME}}``
 
 The package supports the following python versions: {{ ",".join(SUPPORTED_PYTHON_VERSIONS) }}
 
 {%- if PIP_REQUIREMENTS %}
 
-PIP requirements
-----------------
+Requirements
+------------
 
 {{  PIP_REQUIREMENTS_TABLE_RST | safe }}
 

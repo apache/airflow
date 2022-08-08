@@ -134,6 +134,28 @@ class TestExternalTaskSensor(unittest.TestCase):
                 "unit_test_dag failed."
             )
 
+    def test_external_task_sensor_soft_fail_failed_states_as_skipped(self, session=None):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            allowed_states=[State.FAILED],
+            failed_states=[State.SUCCESS],
+            soft_fail=True,
+            dag=self.dag,
+        )
+
+        # when
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # then
+        session = settings.Session()
+        TI = TaskInstance
+        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        assert len(task_instances) == 1, "Unexpected number of task instances"
+        assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
+
     def test_external_task_sensor_external_task_id_param(self):
         """Test external_task_ids is set properly when external_task_id is passed as a template"""
         self.test_time_sensor()
@@ -141,10 +163,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_task_sensor_check',
             external_dag_id='{{ params.dag_id }}',
             external_task_id='{{ params.task_id }}',
-            params={
-                'dag_id': TEST_DAG_ID,
-                'task_id': TEST_TASK_ID,
-            },
+            params={'dag_id': TEST_DAG_ID, 'task_id': TEST_TASK_ID},
             dag=self.dag,
         )
 
@@ -162,10 +181,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_task_sensor_check',
             external_dag_id='{{ params.dag_id }}',
             external_task_ids=['{{ params.task_id }}'],
-            params={
-                'dag_id': TEST_DAG_ID,
-                'task_id': TEST_TASK_ID,
-            },
+            params={'dag_id': TEST_DAG_ID, 'task_id': TEST_TASK_ID},
             dag=self.dag,
         )
 
@@ -213,6 +229,31 @@ class TestExternalTaskSensor(unittest.TestCase):
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_dag_sensor_soft_fail_as_skipped(self):
+        other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
+        other_dag.create_dagrun(
+            run_id='test', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.SUCCESS
+        )
+        op = ExternalTaskSensor(
+            task_id='test_external_dag_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id=None,
+            allowed_states=[State.FAILED],
+            failed_states=[State.SUCCESS],
+            soft_fail=True,
+            dag=self.dag,
+        )
+
+        # when
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # then
+        session = settings.Session()
+        TI = TaskInstance
+        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        assert len(task_instances) == 1, "Unexpected number of task instances"
+        assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
     def test_external_task_sensor_fn_multiple_execution_dates(self):
         bash_command_code = """

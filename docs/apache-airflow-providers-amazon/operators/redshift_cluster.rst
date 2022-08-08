@@ -40,7 +40,7 @@ Create an Amazon Redshift cluster
 To create an Amazon Redshift Cluster with the specified parameters you can use
 :class:`~airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftCreateClusterOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_cluster]
@@ -54,7 +54,7 @@ Resume an Amazon Redshift cluster
 To resume a 'paused' Amazon Redshift cluster you can use
 :class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_resume_cluster]
@@ -68,7 +68,7 @@ Pause an Amazon Redshift cluster
 To pause an 'available' Amazon Redshift cluster you can use
 :class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_pause_cluster]
@@ -82,7 +82,7 @@ Delete an Amazon Redshift cluster
 To delete an Amazon Redshift cluster you can use
 :class:`RedshiftDeleteClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_redshift_delete_cluster]
@@ -99,7 +99,7 @@ Wait on an Amazon Redshift cluster state
 To check the state of an Amazon Redshift Cluster until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_redshift_cluster]

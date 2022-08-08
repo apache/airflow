@@ -28,8 +28,8 @@ Authenticating to AWS
 
 Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
-To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified, or
-``aws://``).
+To use IAM instance profile, create an "empty" connection (i.e. one with no AWS Access Key ID or AWS Secret Access Key
+specified, or ``aws://``).
 
 
 Default Connection IDs
@@ -49,40 +49,88 @@ Configuring the Connection
 --------------------------
 
 
-Login (optional)
+AWS Access Key ID (optional)
     Specify the AWS access key ID used for the initial connection.
-    If you do an *assume_role* by specifying a ``role_arn`` in the **Extra** field,
+    If you do an `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__
+    by specifying a ``role_arn`` in the **Extra** field,
     then temporary credentials will be used for subsequent calls to AWS.
 
-Password (optional)
+AWS Secret Access Key (optional)
     Specify the AWS secret access key used for the initial connection.
-    If you do an *assume_role* by specifying a ``role_arn`` in the **Extra** field,
+    If you do an `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__
+    by specifying a ``role_arn`` in the **Extra** field,
     then temporary credentials will be used for subsequent calls to AWS.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. The following parameters are all optional:
 
-    * ``aws_session_token``: AWS session token used for the initial connection if you use external credentials. You are responsible for renewing these.
+    * ``aws_access_key_id``: AWS access key ID used for the initial connection.
+    * ``aws_secret_access_key``: AWS secret access key used for the initial connection
+    * ``aws_session_token``: AWS session token used for the initial connection if you use external credentials.
+      You are responsible for renewing these.
+    * ``region_name``: AWS Region for the connection.
+    * ``session_kwargs``: Additional **kwargs** passed to
+      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
+    * ``config_kwargs``: Additional **kwargs** used to construct a
+      `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
+      passed to `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
+      and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__.
+    * ``role_arn``: If specified, then assume this role, obtaining a set of temporary security credentials using the ``assume_role_method``.
+    * ``assume_role_method``: AWS STS client method, one of
+      `assume_role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__,
+      `assume_role_with_saml <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithSAML.html>`__ or
+      `assume_role_with_web_identity <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html>`__
+      if not specified then **assume_role** is used.
+    * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
+    * ``host``: Endpoint URL for the connection.
 
-    * ``role_arn``: If specified, then an *assume_role* will be done to this role.
+.. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
+
     * ``aws_account_id``: Used to construct ``role_arn`` if it was not specified.
     * ``aws_iam_role``: Used to construct ``role_arn`` if it was not specified.
-    * ``assume_role_kwargs``: Additional ``kwargs`` passed to *assume_role*.
-
-    * ``host``: Endpoint URL for the connection.
-    * ``region_name``: AWS region for the connection.
-    * ``external_id``: AWS external ID for the connection (deprecated, rather use ``assume_role_kwargs``).
-
-    * ``config_kwargs``: Additional ``kwargs`` used to construct a ``botocore.config.Config`` passed to *boto3.client* and *boto3.resource*.
-    * ``session_kwargs``: Additional ``kwargs`` passed to *boto3.session.Session*.
-
-    * ``profile``: If you are getting your credentials from the credentials file, you can specify the profile with this.
+    * ``external_id``: A unique identifier that might be required when you assume a role in another account.
+      Used if ``ExternalId`` in ``assume_role_kwargs`` was not specified.
+    * ``s3_config_file``: Path to local credentials file.
+    * ``s3_config_format``: ``s3_config_file`` format, one of
+      `aws <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`_,
+      `boto <http://boto.cloudhackers.com/en/latest/boto_config_tut.html#details>`_ or
+      `s3cmd <https://s3tools.org/kb/item14.htm>`_ if not specified then **boto** is used.
+    * ``profile``: If you are getting your credentials from the ``s3_config_file``
+      you can specify the profile with this parameter.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
 Examples
 --------
+
+**Snippet for create Connection as URI**:
+  .. code-block:: python
+
+    import os
+    from airflow.models.connection import Connection
+
+
+    conn = Connection(
+        conn_id="sample_aws_connection",
+        conn_type="aws",
+        login="AKIAIOSFODNN7EXAMPLE",  # Reference to AWS Access Key ID
+        password="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",  # Reference to AWS Secret Access Key
+        extra={
+            # Specify extra parameters here
+            "region_name": "eu-central-1",
+        },
+    )
+
+    # Generate Environment Variable Name and Connection URI
+    env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+    conn_uri = conn.get_uri()
+    print(f"{env_key}={conn_uri}")
+    # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?region_name=eu-central-1
+
+    # Test connection
+    os.environ[env_key] = conn_uri
+    print(conn.test_connection())
 
 **Using instance profile**:
   .. code-block:: bash
@@ -105,7 +153,7 @@ Examples for the **Extra** field
 
 1. Using *~/.aws/credentials* and *~/.aws/config* file, with a profile.
 
-This assumes all other Connection fields eg **Login** are empty.
+This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secret Access Key**  are empty.
 
 .. code-block:: json
 
@@ -179,7 +227,9 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     * ``idp_auth_method``: Specify "http_spegno_auth" to use the Python ``requests_gssapi`` library. This library is more up to date than ``requests_kerberos`` and is backward compatible. See ``requests_gssapi`` documentation on PyPI.
     * ``mutual_authentication``: Can be "REQUIRED", "OPTIONAL" or "DISABLED". See ``requests_gssapi`` documentation on PyPI.
     * ``idp_request_kwargs``: Additional ``kwargs`` passed to ``requests`` when requesting from the IDP (over HTTP/S).
-    * ``idp_request_retry_kwargs``: Additional ``kwargs`` to construct a ``urllib3.util.Retry`` used as a retry strategy when requesting from the IDP. See the ``urllib3`` documentation for more details.
+    * ``idp_request_retry_kwargs``: Additional ``kwargs`` to construct a
+      `urllib3.util.Retry <https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry>`_
+      used as a retry strategy when requesting from the IDP.
     * ``log_idp_response``: Useful for debugging - if specified, print the IDP response content to the log. Note that a successful response will contain sensitive information!
     * ``saml_response_xpath``: How to query the IDP response using XML / HTML xpath.
     * ``assume_role_kwargs``: Additional ``kwargs`` passed to ``sts_client.assume_role_with_saml``.
@@ -192,6 +242,70 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
     https://pypi.org/project/requests-gssapi/
+
+
+Avoid Throttling exceptions
+---------------------------
+
+Amazon Web Services have quota limits for simultaneous API call as result with frequent calls
+``apache-airflow-providers-amazon`` components might fail during execution with a
+throttling exception, e.g. *ThrottlingException*, *ProvisionedThroughputExceededException*.
+
+``botocore.config.Config`` supports different exponential backoff modes out of the box:
+``legacy``, ``standard``, ``adaptive``
+
+By default, ``botocore.config.Config`` uses ``legacy`` mode with 5 maximum retry attempts,
+which may not be enough in some cases.
+
+If you encounter throttling exceptions, you may change the mode to ``standard`` with more retry attempts.
+
+
+.. seealso::
+    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#retries
+
+Set in Connection
+^^^^^^^^^^^^^^^^^
+
+**Connection extra field**:
+  .. code-block:: json
+
+    {
+      "config_kwargs": {
+        "retries": {
+          "mode": "standard",
+          "max_attempts": 10
+        }
+      }
+    }
+
+Set in AWS Config File
+^^^^^^^^^^^^^^^^^^^^^^
+
+**~/.aws/config**:
+  .. code-block:: ini
+
+    [awesome_aws_profile]
+    retry_mode = standard
+    max_attempts = 10
+
+**Connection extra field**:
+  .. code-block:: json
+
+    {
+      "session_kwargs": {
+        "profile_name": "awesome_aws_profile"
+      }
+    }
+
+Set by Environment Variables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  .. note:: This sets the retry mode on all connections,
+    unless another retry config is explicitly set on a specific connection.
+
+  .. code-block:: bash
+
+    export AWS_RETRY_MODE=standard
+    export AWS_MAX_ATTEMPTS=10
 
 
 .. _howto/connection:aws:session-factory:
@@ -249,17 +363,13 @@ Example
         def federated(self):
             return "federation" in self.extra_config
 
-        def _create_basic_session(
-            self, session_kwargs: Dict[str, Any]
-        ) -> boto3.session.Session:
+        def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
             if self.federated:
                 return self._create_federated_session(session_kwargs)
             else:
                 return super()._create_basic_session(session_kwargs)
 
-        def _create_federated_session(
-            self, session_kwargs: Dict[str, Any]
-        ) -> boto3.session.Session:
+        def _create_federated_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
             username = self.extra_config["federation"]["username"]
             region_name = self._get_region_name()
             self.log.debug(

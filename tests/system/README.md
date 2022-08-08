@@ -67,7 +67,7 @@ example of command:
 
 ```commandline
 # pytest --system [provider_name] [path_to_test(s)]
-pytest --system google tests/system/providers/google/bigquery/example_bigquery_queries.py
+pytest --system google tests/system/providers/google/cloud/bigquery/example_bigquery_queries.py
 ```
 
 You can specify several `--system` flags if you want to execute tests for several providers:

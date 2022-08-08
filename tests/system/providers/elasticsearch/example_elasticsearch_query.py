@@ -23,7 +23,8 @@ from datetime import datetime
 
 from airflow import models
 from airflow.decorators import task
-from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchHook
+from airflow.operators.python import PythonOperator
+from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook, ElasticsearchSQLHook
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = 'elasticsearch_dag'
@@ -36,7 +37,7 @@ def show_tables():
     show_tables queries elasticsearch to list available tables
     """
     # [START howto_elasticsearch_query]
-    es = ElasticsearchHook(elasticsearch_conn_id=CONN_ID)
+    es = ElasticsearchSQLHook(elasticsearch_conn_id=CONN_ID)
 
     # Handle ES conn with context manager
     with es.get_conn() as es_conn:
@@ -45,6 +46,22 @@ def show_tables():
             print(f"table: {table}")
     return True
     # [END howto_elasticsearch_query]
+
+
+# [START howto_elasticsearch_python_hook]
+def use_elasticsearch_hook():
+    """
+    Use ElasticSearchPythonHook to print results from a local Elasticsearch
+    """
+    es_hosts = ["http://localhost:9200"]
+    es_hook = ElasticsearchPythonHook(hosts=es_hosts)
+    query = {"query": {"match_all": {}}}
+    result = es_hook.search(query=query)
+    print(result)
+    return True
+
+
+# [END howto_elasticsearch_python_hook]
 
 
 with models.DAG(
@@ -58,6 +75,9 @@ with models.DAG(
     (
         # TEST BODY
         execute_query
+    )
+    es_python_test = PythonOperator(
+        task_id='print_data_from_elasticsearch', python_callable=use_elasticsearch_hook
     )
 
 from tests.system.utils import get_test_run  # noqa: E402

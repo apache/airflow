@@ -17,13 +17,9 @@
 # under the License.
 import os
 import pathlib
-import sys
+from typing import Optional
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -36,7 +32,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from S3 remote storage.
     """
 
-    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: str):
+    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: Optional[str] = None):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''

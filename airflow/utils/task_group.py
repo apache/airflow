@@ -283,18 +283,18 @@ class TaskGroup(DAGNode):
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
         """
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
+
+        for task_like in task_or_task_list:
+            self.update_relative(task_like, upstream)
+
         if upstream:
             for task in self.get_roots():
                 task.set_upstream(task_or_task_list)
         else:
             for task in self.get_leaves():
                 task.set_downstream(task_or_task_list)
-
-        if not isinstance(task_or_task_list, Sequence):
-            task_or_task_list = [task_or_task_list]
-
-        for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream)
 
     def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)

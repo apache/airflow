@@ -21,8 +21,6 @@ import logging.config
 import os
 import re
 
-import pytest
-
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
@@ -218,34 +216,37 @@ class TestFileTaskLogHandler:
         os.remove(log_filename)
 
 
-@pytest.fixture()
-def filename_rendering_ti(session, create_task_instance):
-    return create_task_instance(
-        dag_id='dag_for_testing_filename_rendering',
-        task_id='task_for_testing_filename_rendering',
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        session=session,
-    )
-
-
 class TestFilenameRendering:
-    def test_python_formatting(self, filename_rendering_ti):
-        expected_filename = (
-            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
-            f'{DEFAULT_DATE.isoformat()}/42.log'
+    def test_python_formatting(self, create_log_template, create_task_instance):
+        create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
         )
 
-        fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
+        expected_filename = (
+            f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
+            f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_jinja_rendering(self, filename_rendering_ti):
-        expected_filename = (
-            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
-            f'{DEFAULT_DATE.isoformat()}/42.log'
+    def test_jinja_rendering(self, create_log_template, create_task_instance):
+        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
         )
 
-        fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
+        expected_filename = (
+            f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
+            f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename

@@ -28,6 +28,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
+`9dc2851671 <https://github.com/apache/airflow/commit/9dc2851671cd5cdce445f01f380985f2d7a9b4cf>`_  2022-06-05   ``Fix backwards-compatibility introduced by fixing mypy problems (#24230)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`a2bfc0e62d <https://github.com/apache/airflow/commit/a2bfc0e62dddb8b4e17d833bdf22d282cb265935>`_  2022-06-05   ``AIP-47 - Migrate spark DAGs to new design #22439 (#24210)``
+`71e4deb1b0 <https://github.com/apache/airflow/commit/71e4deb1b093b7ad9320eb5eb34eca8ea440a238>`_  2022-05-16   ``Add typing for airflow/configuration.py (#23716)``
+=================================================================================================  ===========  ==================================================================================
+
+2.1.3
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
+=================================================================================================  ===========  ==============================================================
+
 2.1.2
 .....
 

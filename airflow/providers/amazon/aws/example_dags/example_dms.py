@@ -38,6 +38,10 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsStartTaskOperator,
     DmsStopTaskOperator,
 )
+from airflow.providers.amazon.aws.operators.rds import (
+    RdsCreateDbInstanceOperator,
+    RdsDeleteDbInstanceOperator,
+)
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskCompletedSensor
 
 S3_BUCKET = os.getenv('S3_BUCKET', 's3_bucket_name')
@@ -109,29 +113,20 @@ TABLE_MAPPINGS = {
 }
 
 
-def _create_rds_instance():
-    print('Creating RDS Instance.')
-
+def _get_rds_instance_endpoint():
+    print('Retrieving RDS instance endpoint.')
     rds_client = boto3.client('rds')
-    rds_client.create_db_instance(
-        DBName=RDS_DB_NAME,
-        DBInstanceIdentifier=RDS_INSTANCE_NAME,
-        AllocatedStorage=20,
-        DBInstanceClass='db.t3.micro',
-        Engine=RDS_ENGINE,
-        MasterUsername=RDS_USERNAME,
-        MasterUserPassword=RDS_PASSWORD,
-    )
-
-    rds_client.get_waiter('db_instance_available').wait(DBInstanceIdentifier=RDS_INSTANCE_NAME)
 
     response = rds_client.describe_db_instances(DBInstanceIdentifier=RDS_INSTANCE_NAME)
-    return response['DBInstances'][0]['Endpoint']
+    rds_instance_endpoint = response['DBInstances'][0]['Endpoint']
+    return rds_instance_endpoint
 
 
-def _create_rds_table(rds_endpoint):
-    print('Creating table.')
+@task
+def create_sample_table():
+    print('Creating sample table.')
 
+    rds_endpoint = _get_rds_instance_endpoint()
     hostname = rds_endpoint['Address']
     port = rds_endpoint['Port']
     rds_url = f'{RDS_PROTOCOL}://{RDS_USERNAME}:{RDS_PASSWORD}@{hostname}:{port}/{RDS_DB_NAME}'
@@ -154,7 +149,13 @@ def _create_rds_table(rds_endpoint):
         connection.execute(table.select())
 
 
-def _create_dms_replication_instance(ti, dms_client):
+@task
+def create_dms_assets():
+    print('Creating DMS assets.')
+    ti = get_current_context()['ti']
+    dms_client = boto3.client('dms')
+    rds_instance_endpoint = _get_rds_instance_endpoint()
+
     print('Creating replication instance.')
     instance_arn = dms_client.create_replication_instance(
         ReplicationInstanceIdentifier=DMS_REPLICATION_INSTANCE_NAME,
@@ -162,10 +163,7 @@ def _create_dms_replication_instance(ti, dms_client):
     )['ReplicationInstance']['ReplicationInstanceArn']
 
     ti.xcom_push(key='replication_instance_arn', value=instance_arn)
-    return instance_arn
 
-
-def _create_dms_endpoints(ti, dms_client, rds_instance_endpoint):
     print('Creating DMS source endpoint.')
     source_endpoint_arn = dms_client.create_endpoint(
         EndpointIdentifier=SOURCE_ENDPOINT_IDENTIFIER,
@@ -194,28 +192,16 @@ def _create_dms_endpoints(ti, dms_client, rds_instance_endpoint):
     ti.xcom_push(key='source_endpoint_arn', value=source_endpoint_arn)
     ti.xcom_push(key='target_endpoint_arn', value=target_endpoint_arn)
 
-
-def _await_setup_assets(dms_client, instance_arn):
-    print("Awaiting asset provisioning.")
+    print("Awaiting replication instance provisioning.")
     dms_client.get_waiter('replication_instance_available').wait(
         Filters=[{'Name': 'replication-instance-arn', 'Values': [instance_arn]}]
     )
 
 
-def _delete_rds_instance():
-    print('Deleting RDS Instance.')
-
-    rds_client = boto3.client('rds')
-    rds_client.delete_db_instance(
-        DBInstanceIdentifier=RDS_INSTANCE_NAME,
-        SkipFinalSnapshot=True,
-    )
-
-    rds_client.get_waiter('db_instance_deleted').wait(DBInstanceIdentifier=RDS_INSTANCE_NAME)
-
-
-def _delete_dms_assets(dms_client):
+@task(trigger_rule='all_done')
+def delete_dms_assets():
     ti = get_current_context()['ti']
+    dms_client = boto3.client('dms')
     replication_instance_arn = ti.xcom_pull(key='replication_instance_arn')
     source_arn = ti.xcom_pull(key='source_endpoint_arn')
     target_arn = ti.xcom_pull(key='target_endpoint_arn')
@@ -225,13 +211,10 @@ def _delete_dms_assets(dms_client):
     dms_client.delete_endpoint(EndpointArn=source_arn)
     dms_client.delete_endpoint(EndpointArn=target_arn)
 
-
-def _await_all_teardowns(dms_client):
-    print('Awaiting tear-down.')
+    print('Awaiting DMS assets tear-down.')
     dms_client.get_waiter('replication_instance_deleted').wait(
         Filters=[{'Name': 'replication-instance-id', 'Values': [DMS_REPLICATION_INSTANCE_NAME]}]
     )
-
     dms_client.get_waiter('endpoint_deleted').wait(
         Filters=[
             {
@@ -242,27 +225,6 @@ def _await_all_teardowns(dms_client):
     )
 
 
-@task
-def set_up():
-    ti = get_current_context()['ti']
-    dms_client = boto3.client('dms')
-
-    rds_instance_endpoint = _create_rds_instance()
-    _create_rds_table(rds_instance_endpoint)
-    instance_arn = _create_dms_replication_instance(ti, dms_client)
-    _create_dms_endpoints(ti, dms_client, rds_instance_endpoint)
-    _await_setup_assets(dms_client, instance_arn)
-
-
-@task(trigger_rule='all_done')
-def clean_up():
-    dms_client = boto3.client('dms')
-
-    _delete_rds_instance()
-    _delete_dms_assets(dms_client)
-    _await_all_teardowns(dms_client)
-
-
 with DAG(
     dag_id='example_dms',
     schedule_interval=None,
@@ -270,6 +232,19 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
+
+    create_db_instance = RdsCreateDbInstanceOperator(
+        task_id="create_db_instance",
+        db_instance_identifier=RDS_INSTANCE_NAME,
+        db_instance_class='db.t3.micro',
+        engine=RDS_ENGINE,
+        rds_kwargs={
+            "DBName": RDS_DB_NAME,
+            "AllocatedStorage": 20,
+            "MasterUsername": RDS_USERNAME,
+            "MasterUserPassword": RDS_PASSWORD,
+        },
+    )
 
     # [START howto_operator_dms_create_task]
     create_task = DmsCreateTaskOperator(
@@ -334,14 +309,26 @@ with DAG(
     )
     # [END howto_operator_dms_delete_task]
 
+    delete_db_instance = RdsDeleteDbInstanceOperator(
+        task_id='delete_db_instance',
+        db_instance_identifier=RDS_INSTANCE_NAME,
+        rds_kwargs={
+            "SkipFinalSnapshot": True,
+        },
+        trigger_rule='all_done',
+    )
+
     chain(
-        set_up()
-        >> create_task
-        >> start_task
-        >> describe_tasks
-        >> await_task_start
-        >> stop_task
-        >> await_task_stop
-        >> delete_task
-        >> clean_up()
+        create_db_instance,
+        create_sample_table(),
+        create_dms_assets(),
+        create_task,
+        start_task,
+        describe_tasks,
+        await_task_start,
+        stop_task,
+        await_task_stop,
+        delete_task,
+        delete_dms_assets(),
+        delete_db_instance,
     )

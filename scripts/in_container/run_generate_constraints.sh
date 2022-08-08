@@ -25,7 +25,7 @@ mkdir -pv "${CONSTRAINTS_DIR}"
 
 
 if [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints-no-providers" ]]; then
-    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS.keys()))')
+    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_DEPENDENCIES.keys()))')
     CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "UnInstall All PIP packages."

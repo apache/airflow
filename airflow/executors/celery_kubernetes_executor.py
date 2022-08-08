@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Sequence, Set, Union
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -157,7 +157,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
 
-    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -165,19 +165,14 @@ class CeleryKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
+        :rtype: Sequence[airflow.models.TaskInstance]
         """
-        celery_tis = []
-        kubernetes_tis = []
-        abandoned_tis = []
-        for ti in tis:
-            if ti.queue == self.KUBERNETES_QUEUE:
-                kubernetes_tis.append(ti)
-            else:
-                celery_tis.append(ti)
-        abandoned_tis.extend(self.celery_executor.try_adopt_task_instances(celery_tis))
-        abandoned_tis.extend(self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis))
-        return abandoned_tis
+        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return [
+            *self.celery_executor.try_adopt_task_instances(celery_tis),
+            *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
+        ]
 
     def end(self) -> None:
         """End celery and kubernetes executor"""

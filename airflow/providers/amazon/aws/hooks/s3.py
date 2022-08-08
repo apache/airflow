@@ -23,6 +23,7 @@ import gzip as gz
 import io
 import re
 import shutil
+from copy import deepcopy
 from datetime import datetime
 from functools import wraps
 from inspect import signature
@@ -97,6 +98,15 @@ class S3Hook(AwsBaseHook):
     """
     Interact with AWS S3, using the boto3 library.
 
+    :param transfer_config_args: Configuration object for managed S3 transfers.
+    :param extra_args: Extra arguments that may be passed to the download/upload operations.
+
+    .. seealso::
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/customizations/s3.html#s3-transfers
+
+        - For allowed upload extra arguments see ``boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS``.
+        - For allowed download extra arguments see ``boto3.s3.transfer.S3Transfer.ALLOWED_DOWNLOAD_ARGS``.
+
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
@@ -107,25 +117,31 @@ class S3Hook(AwsBaseHook):
     conn_type = 's3'
     hook_name = 'Amazon S3'
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        aws_conn_id: Optional[str] = AwsBaseHook.default_conn_name,
+        transfer_config_args: Optional[Dict] = None,
+        extra_args: Optional[Dict] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         kwargs['client_type'] = 's3'
+        kwargs['aws_conn_id'] = aws_conn_id
 
-        self.extra_args = {}
-        if 'extra_args' in kwargs:
-            self.extra_args = kwargs['extra_args']
-            if not isinstance(self.extra_args, dict):
-                raise ValueError(f"extra_args '{self.extra_args!r}' must be of type {dict}")
-            del kwargs['extra_args']
+        if transfer_config_args and not isinstance(transfer_config_args, dict):
+            raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
+        self.transfer_config = TransferConfig(**transfer_config_args or {})
 
-        self.transfer_config = TransferConfig()
-        if 'transfer_config_args' in kwargs:
-            transport_config_args = kwargs['transfer_config_args']
-            if not isinstance(transport_config_args, dict):
-                raise ValueError(f"transfer_config_args '{transport_config_args!r} must be of type {dict}")
-            self.transfer_config = TransferConfig(**transport_config_args)
-            del kwargs['transfer_config_args']
+        if extra_args and not isinstance(extra_args, dict):
+            raise TypeError(f"extra_args expected dict, got {type(extra_args).__name__}.")
+        self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
+
+    @property
+    def extra_args(self):
+        """Return hook's extra arguments (immutable)."""
+        return deepcopy(self._extra_args)
 
     @staticmethod
     def parse_s3_url(s3url: str) -> Tuple[str, str]:
@@ -162,7 +178,6 @@ class S3Hook(AwsBaseHook):
         :return: the parsed bucket name and key
         :rtype: tuple of str
         """
-
         if bucket is None:
             return S3Hook.parse_s3_url(key)
 
@@ -200,12 +215,9 @@ class S3Hook(AwsBaseHook):
         :return: the bucket object to the bucket name.
         :rtype: boto3.S3.Bucket
         """
-        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
-        # break compatibility, so we set it explicitly to None.
-        session, endpoint_url = self._get_credentials(region_name=None)
-        s3_resource = session.resource(
+        s3_resource = self.get_session().resource(
             "s3",
-            endpoint_url=endpoint_url,
+            endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )
@@ -450,12 +462,9 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
-        # break compatibility, so we set it explicitly to None.
-        session, endpoint_url = self._get_credentials(region_name=None)
-        s3_resource = session.resource(
+        s3_resource = self.get_session().resource(
             "s3",
-            endpoint_url=endpoint_url,
+            endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )
@@ -868,7 +877,11 @@ class S3Hook(AwsBaseHook):
                 raise e
 
         with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
-            s3_obj.download_fileobj(local_tmp_file)
+            s3_obj.download_fileobj(
+                local_tmp_file,
+                ExtraArgs=self.extra_args,
+                Config=self.transfer_config,
+            )
 
         return local_tmp_file.name
 

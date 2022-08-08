@@ -18,13 +18,13 @@
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient
+    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
 
 
-class RedshiftDataHook(AwsBaseHook):
+class RedshiftDataHook(AwsGenericHook['RedshiftDataAPIServiceClient']):
     """
     Interact with AWS Redshift Data, using the boto3 library
     Hook attribute `conn` has all methods that listed in documentation
@@ -37,7 +37,7 @@ class RedshiftDataHook(AwsBaseHook):
         are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
@@ -45,8 +45,3 @@ class RedshiftDataHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "redshift-data"
         super().__init__(*args, **kwargs)
-
-    @property
-    def conn(self) -> 'RedshiftDataAPIServiceClient':
-        """Get the underlying boto3 RedshiftDataAPIService client (cached)"""
-        return super().conn

@@ -29,6 +29,7 @@ import pytest
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun
+from airflow.models.tasklog import LogTemplate
 from airflow.operators.python import PythonOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
@@ -44,6 +45,7 @@ class TestLogView:
     DAG_ID = "dag_log_reader"
     TASK_ID = "task_log_reader"
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
+    FILENAME_TEMPLATE = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(':', '.') }}/{{ try_number }}.log"
 
     @pytest.fixture(autouse=True)
     def log_dir(self):
@@ -70,9 +72,7 @@ class TestLogView:
     def configure_loggers(self, log_dir, settings_folder):
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config["handlers"]["task"]["base_log_folder"] = log_dir
-        logging_config["handlers"]["task"][
-            "filename_template"
-        ] = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(':', '.') }}/{{ try_number }}.log"
+        logging_config["handlers"]["task"]["filename_template"] = self.FILENAME_TEMPLATE
         settings_file = os.path.join(settings_folder, "airflow_local_settings.py")
         with open(settings_file, "w") as handle:
             new_logging_file = f"LOGGING_CONFIG = {logging_config}"
@@ -93,6 +93,10 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def prepare_db(self, create_task_instance):
+        session = settings.Session()
+        log_template = LogTemplate(filename=self.FILENAME_TEMPLATE, elasticsearch_id="")
+        session.add(log_template)
+        session.commit()
         ti = create_task_instance(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
@@ -107,6 +111,8 @@ class TestLogView:
         yield
         clear_db_runs()
         clear_db_dags()
+        session.delete(log_template)
+        session.commit()
 
     def test_test_read_log_chunks_should_read_one_try(self):
         task_log_reader = TaskLogReader()

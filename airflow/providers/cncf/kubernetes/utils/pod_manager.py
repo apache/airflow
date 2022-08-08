@@ -87,7 +87,7 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         container_statuses = pod.status.container_statuses
         container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
         return container_status.state.terminated.message if container_status else None
-    except AttributeError:
+    except (AttributeError, TypeError):
         return None
 
 
@@ -370,7 +370,10 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
+            result = self._exec_pod_command(
+                resp,
+                f'if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi',  # noqa
+            )
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         if result is None:
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')

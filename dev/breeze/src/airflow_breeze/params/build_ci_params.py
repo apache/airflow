@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
@@ -31,8 +30,7 @@ class BuildCiParams(CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints-source-providers"
-    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_constraints_reference: str = ""
     airflow_extras: str = "devel_ci"
     airflow_pre_cached_pip_packages: bool = True
     force_build: bool = False
@@ -64,14 +62,6 @@ class BuildCiParams(CommonBuildParams):
     @property
     def required_image_args(self) -> List[str]:
         return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
             "airflow_branch",
             "airflow_constraints_mode",
             "airflow_constraints_reference",
@@ -89,6 +79,15 @@ class BuildCiParams(CommonBuildParams):
     @property
     def optional_image_args(self) -> List[str]:
         return [
+            "additional_airflow_extras",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_pip_install_flags",
+            "additional_python_deps",
+            "additional_runtime_apt_command",
+            "additional_runtime_apt_deps",
+            "additional_runtime_apt_env",
             "dev_apt_command",
             "dev_apt_deps",
             "runtime_apt_command",

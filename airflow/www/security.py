@@ -72,6 +72,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
@@ -199,6 +200,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 continue
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
+
+    def _get_root_dag_id(self, dag_id):
+        if '.' in dag_id:
+            dm = (
+                self.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
+                .filter(DagModel.dag_id == dag_id)
+                .first()
+            )
+            return dm.root_dag_id or dm.dag_id
+        return dag_id
 
     def init_role(self, role_name, perms):
         """
@@ -340,7 +351,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
-            return self.has_access(action, permissions.resource_name_for_dag(dag_id))
+            root_dag_id = self._get_root_dag_id(dag_id)
+            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
@@ -349,17 +361,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        root_dag_id = self._get_root_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        root_dag_id = self._get_root_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_EDIT, dag_resource_name, user=user)
 
     def can_delete_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG delete access."""
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        root_dag_id = self._get_root_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id):
@@ -370,7 +385,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return permissions.resource_name_for_dag(dag_id)
+        root_dag_id = self._get_root_dag_id(dag_id)
+        return permissions.resource_name_for_dag(root_dag_id)
 
     def is_dag_resource(self, resource_name):
         """Determines if a resource belongs to a DAG or all DAGs."""
@@ -530,7 +546,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+            root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
+            dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
             for action_name in self.DAG_ACTIONS:
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)

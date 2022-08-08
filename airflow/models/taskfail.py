@@ -17,7 +17,7 @@
 # under the License.
 """Taskfail tracks the failed run durations of each task instance"""
 
-from sqlalchemy import Column, ForeignKeyConstraint, Integer
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
@@ -33,12 +33,13 @@ class TaskFail(Base):
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text('-1'))
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
 
     __table_args__ = (
+        Index("idx_task_fail_task_instance", dag_id, task_id, run_id, map_index),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

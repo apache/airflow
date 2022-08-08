@@ -60,7 +60,7 @@ class JiraSensor(BaseSensorOperator):
         jira_result = getattr(resource, self.method_name)(**self.method_params)
         if self.result_processor is None:
             return jira_result
-        return self.result_processor(context, jira_result)
+        return self.result_processor(jira_result)
 
 
 class JiraTicketSensor(JiraSensor):

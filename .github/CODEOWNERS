@@ -59,6 +59,7 @@
 /airflow/providers/google/ @turbaszek
 /airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
 /airflow/providers/cncf/kubernetes @jedcunningham
+/airflow/providers/tabular/ @Fokko
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 
 # Dev tools

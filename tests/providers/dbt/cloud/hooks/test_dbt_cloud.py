@@ -34,14 +34,17 @@ from airflow.utils import db
 
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"
+SINGLE_TENANT_CONN = "single_tenant_conn"
 DEFAULT_ACCOUNT_ID = 11111
 ACCOUNT_ID = 22222
+SINGLE_TENANT_SCHEMA = "single.tenant"
 TOKEN = "token"
 PROJECT_ID = 33333
 JOB_ID = 4444
 RUN_ID = 5555
 
 BASE_URL = "https://cloud.getdbt.com/api/v2/accounts/"
+SINGLE_TENANT_URL = "https://single.tenant.getdbt.com/api/v2/accounts/"
 
 
 class TestDbtCloudJobRunStatus:
@@ -119,15 +122,30 @@ class TestDbtCloudHook:
             password=TOKEN,
         )
 
+        # Connection with `schema` parameter set
+        schema_conn = Connection(
+            conn_id=SINGLE_TENANT_CONN,
+            conn_type=DbtCloudHook.conn_type,
+            login=DEFAULT_ACCOUNT_ID,
+            password=TOKEN,
+            schema=SINGLE_TENANT_SCHEMA,
+        )
+
         db.merge_conn(account_id_conn)
         db.merge_conn(no_account_id_conn)
+        db.merge_conn(schema_conn)
 
-    def test_init_hook(self):
-        hook = DbtCloudHook()
-        assert hook.dbt_cloud_conn_id == "dbt_cloud_default"
-        assert hook.base_url == BASE_URL
+    @pytest.mark.parametrize(
+        argnames="conn_id, url",
+        argvalues=[(ACCOUNT_ID_CONN, BASE_URL), (SINGLE_TENANT_CONN, SINGLE_TENANT_URL)],
+        ids=["multi-tenant", "single-tenant"],
+    )
+    def test_init_hook(self, conn_id, url):
+        hook = DbtCloudHook(conn_id)
         assert hook.auth_type == TokenAuth
         assert hook.method == "POST"
+        assert hook.dbt_cloud_conn_id == conn_id
+        assert hook.base_url == url
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",

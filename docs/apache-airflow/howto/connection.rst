@@ -250,9 +250,7 @@ Here's an example:
         from wtforms import StringField
 
         return {
-            "workspace": StringField(
-                lazy_gettext("Workspace"), widget=BS3TextFieldWidget()
-            ),
+            "workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
             "project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
         }
 
@@ -281,7 +279,7 @@ An example:
             },
         }
 
-Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is this is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
+Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
 
 Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
 and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.
@@ -413,9 +411,7 @@ You can verify a URI is parsed correctly like so:
 
     >>> from airflow.models.connection import Connection
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.login)
     my-login
     >>> print(c.password)
@@ -437,17 +433,13 @@ For example if your password has a ``/``, this fails:
 
 .. code-block:: pycon
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2")
     ValueError: invalid literal for int() with base 10: 'my-pa'
 
 To fix this, you can encode with :func:`~urllib.parse.quote_plus`:
 
 .. code-block:: pycon
 
-    >>> c = Connection(
-    ...     uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2"
-    ... )
+    >>> c = Connection(uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.password)
     my-pa/ssword

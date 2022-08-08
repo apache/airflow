@@ -16,14 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad hook."""
-import sys
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Dict, List, Optional
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
@@ -34,6 +28,7 @@ from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 

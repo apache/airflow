@@ -16,15 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 

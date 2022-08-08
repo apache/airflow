@@ -18,13 +18,13 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ('Secret', 'TEST-RBAC-postgresql'),
     ('Secret', 'TEST-RBAC-airflow-metadata'),
-    ('Secret', 'TEST-RBAC-airflow-result-backend'),
     ('Secret', 'TEST-RBAC-pgbouncer-config'),
     ('Secret', 'TEST-RBAC-pgbouncer-stats'),
     ('ConfigMap', 'TEST-RBAC-airflow-config'),
@@ -105,34 +105,51 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
 
 
 class RBACTest(unittest.TestCase):
-    def test_deployments_no_rbac_no_sa(self):
+    def _get_values_with_version(self, values, version):
+        if version != "default":
+            values["airflowVersion"] = version
+        return values
+
+    def _get_object_count(self, version):
+        # TODO remove default from condition after airflow update
+        if version == "2.3.2" or version == "default":
+            return [
+                ('Secret', 'TEST-RBAC-airflow-result-backend')
+            ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
+        return DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
+
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",
-            values={
-                "fullnameOverride": "TEST-RBAC",
-                "rbac": {"create": False},
-                "cleanup": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "create": False,
+            values=self._get_values_with_version(
+                values={
+                    "fullnameOverride": "TEST-RBAC",
+                    "rbac": {"create": False},
+                    "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
                     },
-                },
-                "pgbouncer": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "create": False,
+                    "pgbouncer": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
                     },
+                    "redis": {"serviceAccount": {"create": False}},
+                    "scheduler": {"serviceAccount": {"create": False}},
+                    "webserver": {"serviceAccount": {"create": False}},
+                    "workers": {"serviceAccount": {"create": False}},
+                    "triggerer": {"serviceAccount": {"create": False}},
+                    "statsd": {"serviceAccount": {"create": False}},
+                    "createUserJob": {"serviceAccount": {"create": False}},
+                    "migrateDatabaseJob": {"serviceAccount": {"create": False}},
+                    "flower": {"enabled": True, "serviceAccount": {"create": False}},
                 },
-                "redis": {"serviceAccount": {"create": False}},
-                "scheduler": {"serviceAccount": {"create": False}},
-                "webserver": {"serviceAccount": {"create": False}},
-                "workers": {"serviceAccount": {"create": False}},
-                "triggerer": {"serviceAccount": {"create": False}},
-                "statsd": {"serviceAccount": {"create": False}},
-                "createUserJob": {"serviceAccount": {"create": False}},
-                "migrateDatabaseJob": {"serviceAccount": {"create": False}},
-                "flower": {"enabled": True, "serviceAccount": {"create": False}},
-            },
+                version=version,
+            ),
         )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
@@ -140,83 +157,93 @@ class RBACTest(unittest.TestCase):
 
         self.assertCountEqual(
             list_of_kind_names_tuples,
-            DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES,
+            self._get_object_count(version),
         )
 
-    def test_deployments_no_rbac_with_sa(self):
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",
-            values={
-                "fullnameOverride": "TEST-RBAC",
-                "rbac": {"create": False},
-                "cleanup": {"enabled": True},
-                "flower": {"enabled": True},
-                "pgbouncer": {"enabled": True},
-            },
+            values=self._get_values_with_version(
+                values={
+                    "fullnameOverride": "TEST-RBAC",
+                    "rbac": {"create": False},
+                    "cleanup": {"enabled": True},
+                    "flower": {"enabled": True},
+                    "pgbouncer": {"enabled": True},
+                },
+                version=version,
+            ),
         )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES + SERVICE_ACCOUNT_NAME_TUPLES
-        self.assertCountEqual(
-            list_of_kind_names_tuples,
-            real_list_of_kind_names,
-        )
-
-    def test_deployments_with_rbac_no_sa(self):
-        k8s_objects = render_chart(
-            "TEST-RBAC",
-            values={
-                "fullnameOverride": "TEST-RBAC",
-                "cleanup": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "create": False,
-                    },
-                },
-                "scheduler": {"serviceAccount": {"create": False}},
-                "webserver": {"serviceAccount": {"create": False}},
-                "workers": {"serviceAccount": {"create": False}},
-                "triggerer": {"serviceAccount": {"create": False}},
-                "flower": {"enabled": True, "serviceAccount": {"create": False}},
-                "statsd": {"serviceAccount": {"create": False}},
-                "redis": {"serviceAccount": {"create": False}},
-                "pgbouncer": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "create": False,
-                    },
-                },
-                "createUserJob": {"serviceAccount": {"create": False}},
-                "migrateDatabaseJob": {"serviceAccount": {"create": False}},
-            },
-        )
-        list_of_kind_names_tuples = [
-            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
-        ]
-        real_list_of_kind_names = DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+        real_list_of_kind_names = self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES
         self.assertCountEqual(
             list_of_kind_names_tuples,
             real_list_of_kind_names,
         )
 
-    def test_deployments_with_rbac_with_sa(self):
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",
-            values={
-                "fullnameOverride": "TEST-RBAC",
-                "cleanup": {"enabled": True},
-                "flower": {"enabled": True},
-                "pgbouncer": {"enabled": True},
-            },
+            values=self._get_values_with_version(
+                values={
+                    "fullnameOverride": "TEST-RBAC",
+                    "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
+                    },
+                    "scheduler": {"serviceAccount": {"create": False}},
+                    "webserver": {"serviceAccount": {"create": False}},
+                    "workers": {"serviceAccount": {"create": False}},
+                    "triggerer": {"serviceAccount": {"create": False}},
+                    "flower": {"enabled": True, "serviceAccount": {"create": False}},
+                    "statsd": {"serviceAccount": {"create": False}},
+                    "redis": {"serviceAccount": {"create": False}},
+                    "pgbouncer": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
+                    },
+                    "createUserJob": {"serviceAccount": {"create": False}},
+                    "migrateDatabaseJob": {"serviceAccount": {"create": False}},
+                },
+                version=version,
+            ),
+        )
+        list_of_kind_names_tuples = [
+            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+        ]
+        real_list_of_kind_names = self._get_object_count(version) + RBAC_ENABLED_KIND_NAME_TUPLES
+        self.assertCountEqual(
+            list_of_kind_names_tuples,
+            real_list_of_kind_names,
+        )
+
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_deployments_with_rbac_with_sa(self, version):
+        k8s_objects = render_chart(
+            "TEST-RBAC",
+            values=self._get_values_with_version(
+                values={
+                    "fullnameOverride": "TEST-RBAC",
+                    "cleanup": {"enabled": True},
+                    "flower": {"enabled": True},
+                    "pgbouncer": {"enabled": True},
+                },
+                version=version,
+            ),
         )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
-            + SERVICE_ACCOUNT_NAME_TUPLES
-            + RBAC_ENABLED_KIND_NAME_TUPLES
+            self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         self.assertCountEqual(
             list_of_kind_names_tuples,

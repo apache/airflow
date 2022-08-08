@@ -30,6 +30,7 @@ from tempfile import NamedTemporaryFile
 from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import jinja2
 import pendulum
@@ -45,7 +46,8 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import dag as dag_decorator
+from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -59,12 +61,13 @@ from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
@@ -697,14 +700,14 @@ class TestDag(unittest.TestCase):
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(4):
+        with assert_queries_count(8):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(4):
+        with assert_queries_count(8):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -723,7 +726,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -742,7 +745,7 @@ class TestDag(unittest.TestCase):
         # Removing all tags
         for dag in dags:
             dag.tags = None
-        with assert_queries_count(5):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -820,6 +823,43 @@ class TestDag(unittest.TestCase):
         # assert that has_import_error is now false
         assert not model.has_import_errors
         session.close()
+
+    def test_bulk_write_to_db_datasets_schedule_on(self):
+        """
+        Ensure that datasets referenced in a dag are correctly loaded into the database.
+        """
+        # todo: clear db
+        dag_id1 = 'test_dataset_dag1'
+        dag_id2 = 'test_dataset_dag2'
+        task_id = 'test_dataset_task'
+        uri1 = 's3://dataset1'
+        d1 = Dataset(uri1, extra={"not": "used"})
+        d2 = Dataset('s3://dataset2')
+        d3 = Dataset('s3://dataset3')
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule_on=[d1])
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
+        session = settings.Session()
+        dag1.clear()
+        DAG.bulk_write_to_db([dag1, dag2], session)
+        session.commit()
+        stored_datasets = {x.uri: x for x in session.query(Dataset).all()}
+        d1 = stored_datasets[d1.uri]
+        d2 = stored_datasets[d2.uri]
+        d3 = stored_datasets[d3.uri]
+        assert stored_datasets[uri1].extra == {"should": "be used"}
+        assert [x.dag_id for x in d1.downstream_dag_references] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in d1.upstream_task_references] == [(task_id, dag_id2)]
+        assert set(
+            session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id)
+            .filter(DatasetTaskRef.dag_id.in_((dag_id1, dag_id2)))
+            .all()
+        ) == {
+            (task_id, dag_id1, d2.id),
+            (task_id, dag_id1, d3.id),
+            (task_id, dag_id2, d1.id),
+        }
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -1363,6 +1403,19 @@ class TestDag(unittest.TestCase):
             run_id="test_create_dagrun_job_id_is_set", state=State.NONE, creating_job_id=job_id
         )
         assert dr.creating_job_id == job_id
+
+    def test_dag_add_task_sets_default_task_group(self):
+        dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", start_date=DEFAULT_DATE)
+        task_without_task_group = EmptyOperator(task_id="task_without_group_id")
+        default_task_group = TaskGroupContext.get_current_task_group(dag)
+        dag.add_task(task_without_task_group)
+        assert default_task_group.get_child_by_label("task_without_group_id") == task_without_task_group
+
+        task_group = TaskGroup(group_id="task_group", dag=dag)
+        task_with_task_group = EmptyOperator(task_id="task_with_task_group", task_group=task_group)
+        dag.add_task(task_with_task_group)
+        assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
+        assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
 
     @parameterized.expand(
         [
@@ -1938,6 +1991,35 @@ class TestDag(unittest.TestCase):
             start_date + 2 * delta,
         ]
 
+    def test_dag_owner_links(self):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            owner_links={"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"},
+        )
+
+        assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        expected_owners = {'dag': {'owner1': 'https://mylink.com', 'owner2': 'mailto:someone@yoursite.com'}}
+        orm_dag_owners = DagOwnerAttributes.get_all(session)
+        assert orm_dag_owners == expected_owners
+
+        # Test dag owner links are removed completely
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+        )
+        dag.sync_to_db(session=session)
+
+        orm_dag_owners = session.query(DagOwnerAttributes).all()
+        assert not orm_dag_owners
+
+        # Check wrong formatted owner link
+        with pytest.raises(AirflowException):
+            DAG('dag', start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
+
 
 class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):
@@ -2156,6 +2238,51 @@ class TestDagDecorator:
         assert dag.dag_id, 'test'
         assert dag.doc_md.strip(), "Regular DAG documentation"
 
+    def test_documentation_template_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            """
+            {% if True %}
+               Regular DAG documentation
+            {% endif %}
+            """
+
+            @task_decorator
+            def return_num(num):
+                return num
+
+            return_num(4)
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'test'
+        assert dag.doc_md.strip(), "Regular DAG documentation"
+
+    def test_resolve_documentation_template_file_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        with NamedTemporaryFile(suffix='.md') as f:
+            f.write(
+                b"""
+            {% if True %}
+               External Markdown DAG documentation
+            {% endif %}
+            """
+            )
+            f.flush()
+            template_file = os.path.basename(f.name)
+
+            with DAG('test-dag', start_date=DEFAULT_DATE, doc_md=template_file) as dag:
+                task = EmptyOperator(task_id='op1')
+
+                task
+
+                assert isinstance(dag, DAG)
+                assert dag.dag_id, 'test'
+                assert dag.doc_md.strip(), "External Markdown DAG documentation"
+
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
 
@@ -2241,6 +2368,32 @@ class TestDagDecorator:
 
         dag = xcom_pass_to_op()
         assert dag.params['value'] == value
+
+
+@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
+def test_dag_timetable_match_schedule_interval(timetable):
+    dag = DAG("my-dag", timetable=timetable)
+    assert dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
+def test_dag_schedule_interval_match_timetable(schedule_interval):
+    dag = DAG("my-dag", schedule_interval=schedule_interval)
+    assert dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("schedule_interval", [None, "@daily", timedelta(days=1)])
+def test_dag_schedule_interval_change_after_init(schedule_interval):
+    dag = DAG("my-dag", timetable=OnceTimetable())
+    dag.schedule_interval = schedule_interval
+    assert not dag._check_schedule_interval_matches_timetable()
+
+
+@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
+def test_dag_timetable_change_after_init(timetable):
+    dag = DAG("my-dag")  # Default is timedelta(days=1).
+    dag.timetable = timetable
+    assert not dag._check_schedule_interval_matches_timetable()
 
 
 @pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ('test-run-id', None)])
@@ -2518,3 +2671,57 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
         EmptyOperator(task_id="do2", start_date=tasks_date[1][0], end_date=tasks_date[1][1])
 
     assert dag._time_restriction == restrict
+
+
+@pytest.mark.parametrize(
+    'tags, should_pass',
+    [
+        pytest.param([], True, id="empty tags"),
+        pytest.param(['a normal tag'], True, id="one tag"),
+        pytest.param(['a normal tag', 'another normal tag'], True, id="two tags"),
+        pytest.param(['a' * 100], True, id="a tag that's of just length 100"),
+        pytest.param(['a normal tag', 'a' * 101], False, id="two tags and one of them is of length > 100"),
+    ],
+)
+def test__tags_length(tags: List[str], should_pass: bool):
+    if should_pass:
+        models.DAG('test-dag', tags=tags)
+    else:
+        with pytest.raises(AirflowException):
+            models.DAG('test-dag', tags=tags)
+
+
+@pytest.fixture()
+def reset_dataset():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
+
+
+def test_get_dataset_triggered_next_run_info(session, reset_dataset):
+    unique_id = str(uuid4())
+    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
+    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
+    dataset3 = Dataset(uri=f"s3://{unique_id}-3")
+    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
+    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
+
+    session.commit()
+    session.bulk_save_objects(
+        [
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
+        ]
+    )
+    session.commit()
+    session.expunge_all()
+
+    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    assert "0 of 1 datasets updated" == info[dag1.dag_id]
+
+    # This time, check both dag2 and dag3 at the same time (tests filtering)
+    info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
+    assert "1 of 2 datasets updated" == info[dag2.dag_id]
+    assert "1 of 3 datasets updated" == info[dag3.dag_id]

@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`5503603cde <https://github.com/apache/airflow/commit/5503603cded8613721ea56599667b5a309190b23>`_  2022-06-05   ``AIP-47 - Migrate livy DAGs to new design #22439 (#24208)``
+=================================================================================================  ===========  ==================================================================================
+
 2.2.3
 .....
 
-Latest change: 2022-03-30
+Latest change: 2022-04-07
 
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `97cf76904a <https://github.com/apache/airflow/commit/97cf76904ac3de6e4f2adfa80afb2790e6413d36>`_  2022-03-30   ``Fix: Add extra headers to all livy API requests instead of only to post_batch (#22510)``
 =================================================================================================  ===========  ==========================================================================================
 

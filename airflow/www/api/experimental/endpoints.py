@@ -70,7 +70,8 @@ def add_deprecation_headers(response: Response):
     return response
 
 
-api_experimental.after_request(add_deprecation_headers)
+# This API is deprecated. We do not care too much about typing here
+api_experimental.after_request(add_deprecation_headers)  # type: ignore[arg-type]
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import io
 import json
 import logging
@@ -24,6 +23,7 @@ import re
 import unittest
 from argparse import ArgumentParser
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -58,7 +58,7 @@ def reset(dag_id):
 
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
-class TestCliTasks(unittest.TestCase):
+class TestCliTasks:
     run_id = 'TEST_RUN_ID'
     dag_id = 'example_python_operator'
     parser: ArgumentParser
@@ -67,7 +67,7 @@ class TestCliTasks(unittest.TestCase):
     dag_run: DagRun
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
@@ -78,7 +78,7 @@ class TestCliTasks(unittest.TestCase):
         )
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         clear_db_runs()
 
     def test_cli_list_tasks(self):
@@ -103,20 +103,34 @@ class TestCliTasks(unittest.TestCase):
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-    def test_test_with_existing_dag_run(self):
+    def test_test_with_existing_dag_run(self, caplog):
         """Test the `airflow test` command"""
         task_id = 'print_the_context'
-
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
-
-        with self.assertLogs('airflow.task', level='INFO') as cm:
+        with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-            assert any(
-                [
-                    f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in log
-                    for log in cm.output
-                ]
-            )
+        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in caplog.text
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    def test_test_filters_secrets(self, capsys):
+        """Test ``airflow test`` does not print secrets to stdout.
+
+        Output should be filtered by SecretsMasker.
+        """
+        password = "somepassword1234!"
+        logging.getLogger("airflow.task").filters[0].add_mask(password)
+        args = self.parser.parse_args(
+            ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
+        )
+
+        with mock.patch("airflow.models.TaskInstance.run", new=lambda *_, **__: print(password)):
+            task_command.task_test(args)
+        assert capsys.readouterr().out.endswith("***\n")
+
+        not_password = "!4321drowssapemos"
+        with mock.patch("airflow.models.TaskInstance.run", new=lambda *_, **__: print(not_password)):
+            task_command.task_test(args)
+        assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
     @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
@@ -229,7 +243,7 @@ class TestCliTasks(unittest.TestCase):
             task0_id,
             run_id,
         ]
-        with self.assertRaises(DagRunNotFound):
+        with pytest.raises(DagRunNotFound):
             task_command.task_run(self.parser.parse_args(args0), dag=dag)
 
     def test_cli_test_with_params(self):
@@ -696,3 +710,32 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 assert captured.output == ["WARNING:foo.bar:not redirected"]
 
         settings.DONOT_MODIFY_HANDLERS = old_value
+
+
+def test_context_with_run():
+    dag_id = "test_parsing_context"
+    task_id = "task1"
+    run_id = "test_run"
+    dag_path = os.path.join(ROOT_FOLDER, "dags", "test_parsing_context.py")
+    reset(dag_id)
+    execution_date = timezone.datetime(2017, 1, 1)
+    execution_date_str = execution_date.isoformat()
+    task_args = ['tasks', 'run', dag_id, task_id, '--local', execution_date_str]
+    parser = cli_parser.get_parser()
+
+    DagBag().get_dag(dag_id).create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+        run_type=DagRunType.MANUAL,
+    )
+    with conf_vars({('core', 'dags_folder'): dag_path}):
+        task_command.task_run(parser.parse_args(task_args))
+
+    context_file = Path("/tmp/airflow_parsing_context")
+    text = context_file.read_text()
+    assert (
+        text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
+        "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
+    )

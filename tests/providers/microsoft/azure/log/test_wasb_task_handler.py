@@ -22,23 +22,25 @@ from azure.common import AzureHttpError
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+DEFAULT_DATE = datetime(2020, 8, 10)
+
 
 class TestWasbTaskHandler:
     @pytest.fixture(autouse=True)
-    def ti(self, create_task_instance):
-        date = datetime(2020, 8, 10)
+    def ti(self, create_task_instance, create_log_template):
+        create_log_template("{try_number}.log")
         ti = create_task_instance(
             dag_id='dag_for_testing_wasb_task_handler',
             task_id='task_for_testing_wasb_log_handler',
-            execution_date=date,
-            start_date=date,
-            dagrun_state=State.RUNNING,
-            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            dagrun_state=TaskInstanceState.RUNNING,
+            state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 1
         ti.hostname = 'localhost'
@@ -52,12 +54,10 @@ class TestWasbTaskHandler:
         self.remote_log_location = 'remote/log/location/1.log'
         self.local_log_location = 'local/log/location'
         self.container_name = "wasb-container"
-        self.filename_template = '{try_number}.log'
         self.wasb_task_handler = WasbTaskHandler(
             base_log_folder=self.local_log_location,
             wasb_log_folder=self.wasb_log_folder,
             wasb_container=self.container_name,
-            filename_template=self.filename_template,
             delete_local_copy=True,
         )
 
@@ -68,9 +68,7 @@ class TestWasbTaskHandler:
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
     def test_hook_raises(self):
-        handler = WasbTaskHandler(
-            self.local_log_location, self.wasb_log_folder, self.container_name, self.filename_template, True
-        )
+        handler = self.wasb_task_handler
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
                 mock_hook.side_effect = AzureHttpError("failed to connect", 404)
@@ -120,15 +118,14 @@ class TestWasbTaskHandler:
             [{'end_of_log': True}],
         )
 
-    def test_wasb_read_raises(self):
-        handler = WasbTaskHandler(
-            self.local_log_location, self.wasb_log_folder, self.container_name, self.filename_template, True
-        )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
+        **{"return_value.read_file.side_effect": AzureHttpError("failed to connect", 404)},
+    )
+    def test_wasb_read_raises(self, mock_hook):
+        handler = self.wasb_task_handler
         with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
-                mock_hook.return_value.read_file.side_effect = AzureHttpError("failed to connect", 404)
-
-                handler.wasb_read(self.remote_log_location, return_error=True)
+            handler.wasb_read(self.remote_log_location, return_error=True)
             mock_error.assert_called_once_with(
                 'Could not read logs from remote/log/location/1.log',
                 exc_info=True,
@@ -164,9 +161,7 @@ class TestWasbTaskHandler:
         )
 
     def test_write_raises(self):
-        handler = WasbTaskHandler(
-            self.local_log_location, self.wasb_log_folder, self.container_name, self.filename_template, True
-        )
+        handler = self.wasb_task_handler
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
                 mock_hook.return_value.load_string.side_effect = AzureHttpError("failed to connect", 404)
