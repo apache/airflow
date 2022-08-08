@@ -201,16 +201,20 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         assert_401(response)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        'url, expected_datasets',
         [
-            ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
-            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", 'wasb://some_dataset_bucket_/key'}),
+            ("api/v1/datasets?uri_pattern=s3%25", {"s3://folder/key"}),
             (
-                "api/v1/datasets?uri_pattern=dataset",
+                "api/v1/datasets?uri_pattern=%25bucket%25",
+                {"gcp://bucket/key", 'wasb://some_dataset_bucket_/key'},
+            ),
+            (
+                "api/v1/datasets?uri_pattern=%25dataset%25",
                 {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
             ),
             (
-                "api/v1/datasets?uri_pattern=",
+                "api/v1/datasets?uri_pattern=%25",
                 {
                     'gcp://bucket/key',
                     's3://folder/key',
@@ -218,7 +222,16 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "wasb://some_dataset_bucket_/key",
                 },
             ),
-        ]
+            (
+                "api/v1/datasets?uri_pattern=%25",
+                {
+                    'gcp://bucket/key',
+                    's3://folder/key',
+                    'somescheme://dataset/key',
+                    "wasb://some_dataset_bucket_/key",
+                },
+            ),
+        ],
     )
     @provide_session
     def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
