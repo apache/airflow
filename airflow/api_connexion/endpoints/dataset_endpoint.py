@@ -70,7 +70,7 @@ def get_datasets(
     total_entries = session.query(func.count(Dataset.id)).scalar()
     query = session.query(Dataset)
     if uri_pattern:
-        query = query.filter(Dataset.uri.ilike(f"%{uri_pattern}%"))
+        query = query.filter(Dataset.uri.ilike(uri_pattern))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = (
         query.options(
