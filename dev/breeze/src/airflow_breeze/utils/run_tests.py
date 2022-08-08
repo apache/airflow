@@ -36,7 +36,7 @@ def verify_an_image(
             f"[error]Error when inspecting {image_type} image: {command_result.returncode}[/]"
         )
         return command_result.returncode, f"Testing {image_type} python {image_name}"
-    pytest_args = ("-n", "auto", "--color=yes")
+    pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     if image_type == 'PROD':
         test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_prod_image.py"
     else:
@@ -64,7 +64,7 @@ def run_docker_compose_tests(
     if command_result.returncode != 0:
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
-    pytest_args = ("-n", "auto", "--color=yes")
+    pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
     env['DOCKER_IMAGE'] = image_name
