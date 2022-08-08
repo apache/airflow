@@ -705,6 +705,7 @@ Here is the detailed set of options for the ``breeze testing`` command.
   :width: 100%
   :alt: Breeze testing
 
+
 Iterate on tests interactively via ``shell`` command
 ....................................................
 
@@ -734,6 +735,8 @@ re-running the test to iterate over the tests. You can also add more flags when 
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
 in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
 on how to run them.
+
+This apply to all kind of tests - all our tests can be run using pytest.
 
 Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
 command and it is not yet available in the new ``breeze`` command):
@@ -768,16 +771,35 @@ Here is the detailed set of options for the ``breeze testing tests`` command.
   :width: 100%
   :alt: Breeze testing tests
 
+Running Helm tests
+..................
+
+You can use Breeze to run all Helm tests. Those tests are run inside the breeze image as there are all
+necessary tools installed there.
+
+.. image:: ./images/breeze/output_testing_helm-tests.svg
+  :width: 100%
+  :alt: Breeze testing helm-tests
+
+You can also iterate over those tests with pytest commands, similarly as in case of regular unit tests.
+The helm tests can be found in ``tests/chart`` folder in the main repo.
+
 Running docker-compose tests
 ............................
 
-You can use Breeze to run docker-compose tests. Those tests are run using Production image
+You can use Breeze to run all docker-compose tests. Those tests are run using Production image
 and they are running test with the Quick-start docker compose we have.
 
 .. image:: ./images/breeze/output_testing_docker-compose-tests.svg
   :width: 100%
   :alt: Breeze testing docker-compose-tests
 
+You can also iterate over those tests with pytest command, but - unlike regular unit tests and
+Helm tests, they need to be run in local virtual environment. They also require to have
+``DOCKER_IMAGE`` environment variable set, pointing to the image to test if you do not run them
+through ``breeze testing docker-compose-tests`` command.
+
+The docker-compose tests are in ``docker-tests/`` folder in the main repo.
 
 Running Kubernetes tests
 ........................
