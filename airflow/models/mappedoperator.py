@@ -214,6 +214,11 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
 
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
         op = MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
@@ -230,6 +235,7 @@ class OperatorPartial:
             is_empty=issubclass(self.operator_class, EmptyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,
@@ -279,6 +285,7 @@ class MappedOperator(AbstractOperator):
     _is_empty: bool
     _task_module: str
     _task_type: str
+    _operator_name: str
 
     dag: Optional["DAG"]
     task_group: Optional["TaskGroup"]
@@ -377,6 +384,10 @@ class MappedOperator(AbstractOperator):
     def task_type(self) -> str:
         """Implementing Operator."""
         return self._task_type
+
+    @property
+    def operator_name(self) -> str:
+        return self._operator_name
 
     @property
     def inherits_from_empty_operator(self) -> bool:
