@@ -26,6 +26,8 @@ field (see connection `wasb_default` for an example).
 
 """
 
+import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -111,6 +113,12 @@ class WasbHook(BaseHook):
         self.conn_id = wasb_conn_id
         self.public_read = public_read
         self.blob_service_client = self.get_conn()
+
+        logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
+        try:
+            logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
+        except ValueError:
+            logger.setLevel(logging.WARNING)
 
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
