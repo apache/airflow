@@ -186,9 +186,7 @@
       "apache-airflow>=2.2.0",
       "clickhouse-driver>=0.2.3"
     ],
-    "cross-providers-deps": [
-      "arangodb"
-    ]
+    "cross-providers-deps": []
   },
   "cloudant": {
     "deps": [

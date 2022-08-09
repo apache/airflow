@@ -59,7 +59,7 @@ operator = ClickHouseOperator(
     task_id='clickhouse_operator',
     sql="SELECT * FROM gettingstarted.clickstream",
     dag=dag,
-    result_processor=lambda cursor: print(cursor)
+    result_processor=lambda cursor: print(cursor),
 )
 
 # [END howto_operator_clickhouse]
@@ -70,7 +70,7 @@ operator_with_database = ClickHouseOperator(
     task_id='clickhouse_operator_with_db',
     sql="SELECT * FROM clickstream",
     dag=dag,
-    result_processor=lambda cursor: print(cursor)
+    result_processor=lambda cursor: print(cursor),
 )
 
 # [END howto_operator_clickhouse_with_database]
@@ -81,8 +81,7 @@ operator_tf = ClickHouseOperator(
     task_id='clickhouse_operator_tf',
     sql="search_all.sql",
     dag=dag,
-    result_processor=lambda cursor: print(cursor)
+    result_processor=lambda cursor: print(cursor),
 )
 
 # [END howto_operator_template_file_clickhouse]
-

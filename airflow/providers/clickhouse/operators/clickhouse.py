@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, Any, Dict
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.clickhouse.hooks.clickhouse import ClickHouseHook

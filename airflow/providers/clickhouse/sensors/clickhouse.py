@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Dict, Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 from airflow.providers.clickhouse.hooks.clickhouse import ClickHouseHook
 from airflow.sensors.sql import SqlSensor
@@ -40,16 +40,18 @@ class ClickHouseSensor(SqlSensor):
 
     ui_color = '#a3985f'
 
-    def __init__(self,
-                 sql: str,
-                 parameters: Optional[Dict[str, Any]] = None,
-                 database: Optional[str] = None,
-                 success: Optional[Callable[[Any], bool]] = None,
-                 failure: Optional[Callable[[Any], bool]] = None,
-                 fail_on_empty: bool = False,
-                 clickhouse_conn_id: str = "clickhouse_default",
-                 *args,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        sql: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        database: Optional[str] = None,
+        success: Optional[Callable[[Any], bool]] = None,
+        failure: Optional[Callable[[Any], bool]] = None,
+        fail_on_empty: bool = False,
+        clickhouse_conn_id: str = "clickhouse_default",
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(
             conn_id=clickhouse_conn_id,
             sql=sql,

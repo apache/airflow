@@ -67,4 +67,3 @@ class TestClickHouseHook(unittest.TestCase):
         assert clickhouse_mock.called
         assert isinstance(clickhouse_hook.client, Mock)
         assert clickhouse_mock.return_value.execute.called
-

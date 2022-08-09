@@ -40,8 +40,9 @@ class ClickHouseHook(BaseHook):
     conn_type = 'clickhouse'
     hook_name = 'ClickHouse'
 
-    def __init__(self, clickhouse_conn_id: str = default_conn_name, database: Optional[str] = None, *args,
-                 **kwargs) -> None:
+    def __init__(
+        self, clickhouse_conn_id: str = default_conn_name, database: Optional[str] = None, *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.clickhouse_conn_id = clickhouse_conn_id
         self.database = database
@@ -98,6 +99,7 @@ class ClickHouseHook(BaseHook):
     @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
         import json
+
         return {
             "relabeling": {
                 'host': 'ClickHouse Host',
@@ -106,7 +108,7 @@ class ClickHouseHook(BaseHook):
                 'login': 'ClickHouse Username',
                 'password': 'ClickHouse Password',
                 'extra': 'extra configs from'
-                         '(https://clickhouse-driver.readthedocs.io/en/latest/api.html#connection)'
+                '(https://clickhouse-driver.readthedocs.io/en/latest/api.html#connection)',
             },
             "placeholders": {
                 'host': 'http://127.0.0.1',
