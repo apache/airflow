@@ -96,8 +96,9 @@ const TaskInstance = ({
     setPreferedTabIndex(index);
   };
 
+  const isMappedTaskSummary = !!isMapped && !isMapIndexDefined;
   const isGroup = !!children;
-  const showLogs = !isGroup && ((!isMapped) || (isMapped && isMapIndexDefined)) && !!instance;
+  const showLogs = !(isGroup || isMappedTaskSummary);
 
   let isPreferedTabDisplayed = false;
 
@@ -106,7 +107,7 @@ const TaskInstance = ({
       isPreferedTabDisplayed = true;
       break;
     case 1:
-      isPreferedTabDisplayed = showLogs;
+      isPreferedTabDisplayed = showLogs || isMappedTaskSummary;
       break;
     default:
       isPreferedTabDisplayed = false;
@@ -143,6 +144,11 @@ const TaskInstance = ({
           <Tab>
             <Text as="strong">Details</Text>
           </Tab>
+          { isMappedTaskSummary && (
+            <Tab>
+              <Text as="strong">Mapped Tasks</Text>
+            </Tab>
+          )}
           { showLogs && (
             <Tab>
               <Text as="strong">Logs</Text>
@@ -179,6 +185,12 @@ const TaskInstance = ({
                   extraLinks={group?.extraLinks || []}
                 />
               )}
+            </Box>
+          </TabPanel>
+
+          {/* Mapped Task Instances Tab */}
+          { isMappedTaskSummary && (
+          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
               {isMapped && taskId && (
                 <MappedInstances
                   dagId={dagId}
@@ -191,8 +203,8 @@ const TaskInstance = ({
                   }
                 />
               )}
-            </Box>
           </TabPanel>
+          )}
 
           {/* Logs Tab */}
           { showLogs && (
@@ -203,7 +215,7 @@ const TaskInstance = ({
               taskId={taskId!}
               mapIndex={mapIndex}
               executionDate={executionDate}
-              tryNumber={instance.tryNumber}
+              tryNumber={instance?.tryNumber}
             />
           </TabPanel>
           )}
