@@ -16,7 +16,6 @@
 # under the License.
 #
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
@@ -256,51 +255,3 @@ class EksNodegroupStateSensor(BaseSensorOperator):
                 )
             )
         return nodegroup_state == self.target_state
-
-
-class EKSClusterStateSensor(EksClusterStateSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSFargateProfileStateSensor(EksFargateProfileStateSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSNodegroupStateSensor(EksNodegroupStateSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

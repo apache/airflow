@@ -418,32 +418,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
     }
 
-    DEPRECATED_CLASSES = {
-        'airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator',
-        'airflow.providers.amazon.aws.operators.batch.AwsBatchOperator',
-        'airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator',
-        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateClusterOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateFargateProfileOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateNodegroupOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteClusterOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteFargateProfileOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteNodegroupOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSPodOperator',
-        'airflow.providers.amazon.aws.operators.glue.AwsGlueJobOperator',
-        'airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerOperator',
-        'airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator',
-        'airflow.providers.amazon.aws.sensors.eks.EKSClusterStateSensor',
-        'airflow.providers.amazon.aws.sensors.eks.EKSFargateProfileStateSensor',
-        'airflow.providers.amazon.aws.sensors.eks.EKSNodegroupStateSensor',
-        'airflow.providers.amazon.aws.sensors.glue.AwsGlueJobSensor',
-        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
-        'airflow.providers.amazon.aws.sensors.glue_crawler.AwsGlueCrawlerSensor',
-        'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
-        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
-        'airflow.providers.amazon.aws.sensors.sqs.SQSSensor',
-    }
-
 
 class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"

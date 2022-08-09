@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook  # noqa
+from airflow.providers.amazon.aws.hooks.sns import SnsHook as AwsSnsHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sns`.",

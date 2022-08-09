@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator  # noqa
+from airflow.providers.amazon.aws.operators.athena import AthenaOperator as AWSAthenaOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.athena`.",

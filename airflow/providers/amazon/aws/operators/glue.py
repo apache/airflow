@@ -17,7 +17,6 @@
 # under the License.
 
 import os.path
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
@@ -154,19 +153,3 @@ class GlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']
-
-
-class AwsGlueJobOperator(GlueJobOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

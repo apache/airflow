@@ -17,7 +17,6 @@
 # under the License.
 
 """This module contains AWS Lambda hook"""
-import warnings
 from typing import Any, List, Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -120,19 +119,3 @@ class LambdaHook(AwsBaseHook):
         return self.conn.create_function(
             **{k: v for k, v in create_function_args.items() if v is not None},
         )
-
-
-class AwsLambdaHook(LambdaHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook  # noqa
+from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook as AWSDataSyncHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.datasync`.",

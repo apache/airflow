@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook  # noqa
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook as AwsDynamoDBHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",

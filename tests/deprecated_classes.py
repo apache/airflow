@@ -128,28 +128,12 @@ HOOKS = [
         "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
     ),
     (
-        "airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook",
-        "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
-    ),
-    (
-        "airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook",
-        "airflow.contrib.hooks.aws_datasync_hook.AWSDataSyncHook",
-    ),
-    (
         "airflow.providers.amazon.aws.hooks.s3.S3Hook",
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
         "airflow.providers.amazon.aws.hooks.sqs.SqsHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
-    ),
-    (
-        "airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook",
-        "airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook",
-    ),
-    (
-        "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
-        "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
     (
         'airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook',
@@ -238,10 +222,6 @@ HOOKS = [
     (
         'airflow.providers.microsoft.azure.hooks.wasb.WasbHook',
         'airflow.contrib.hooks.wasb_hook.WasbHook',
-    ),
-    (
-        'airflow.providers.amazon.aws.hooks.glue_catalog.AwsGlueCatalogHook',
-        'airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook',
     ),
     (
         'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook',
@@ -406,10 +386,6 @@ HOOKS = [
     (
         'airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook',
         'airflow.contrib.hooks.aws_hook.AwsHook',
-    ),
-    (
-        'airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook',
-        'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
         'airflow.providers.sftp.hooks.sftp.SFTPHook',
@@ -964,10 +940,6 @@ OPERATORS = [
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
-        "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
-    ),
-    (
         "airflow.providers.amazon.aws.operators.batch.BatchOperator",
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),
@@ -1034,14 +1006,6 @@ OPERATORS = [
     (
         'airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbDeleteBlobOperator',
         'airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
-        'airflow.contrib.operators.ecs_operator.ECSOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator',
-        'airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator',
     ),
     (
         'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
@@ -1455,10 +1419,6 @@ SENSORS = [
         'airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
-        'airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor',
-    ),
-    (
         'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
         'airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor',
     ),
@@ -1489,10 +1449,6 @@ SENSORS = [
     (
         'airflow.providers.amazon.aws.sensors.s3.S3KeySensor',
         'airflow.sensors.s3_key_sensor.S3KeySensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
-        'airflow.sensors.s3_prefix_sensor.S3PrefixSensor',
     ),
     (
         'airflow.sensors.bash.BashSensor',

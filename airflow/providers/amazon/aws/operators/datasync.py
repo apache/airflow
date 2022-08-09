@@ -19,7 +19,6 @@
 
 import logging
 import random
-import warnings
 from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
@@ -403,19 +402,3 @@ class DataSyncOperator(BaseOperator):
         location_arns = self.get_hook().get_location_arns(location_uri)
         self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
         return location_arns
-
-
-class AWSDataSyncOperator(DataSyncOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.datasync.DataSyncOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. Please use "
-            "`airflow.providers.amazon.aws.operators.datasync.DataSyncHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

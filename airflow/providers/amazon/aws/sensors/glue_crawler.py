@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
@@ -71,19 +70,3 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
         self.hook = GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
-
-
-class AwsGlueCrawlerSensor(GlueCrawlerSensor):
-    """
-    This sensor is deprecated. Please use
-    :class:`airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

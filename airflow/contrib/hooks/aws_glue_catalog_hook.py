@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook  # noqa
+from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook as AwsGlueCatalogHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.glue_catalog`.",

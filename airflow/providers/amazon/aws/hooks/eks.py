@@ -20,7 +20,6 @@ import base64
 import json
 import sys
 import tempfile
-import warnings
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
@@ -499,8 +498,6 @@ class EksHook(AwsBaseHook):
         self,
         eks_cluster_name: str,
         pod_namespace: Optional[str],
-        pod_username: Optional[str] = None,
-        pod_context: Optional[str] = None,
     ) -> Generator[str, None, None]:
         """
         Writes the kubeconfig file given an EKS Cluster.
@@ -508,20 +505,6 @@ class EksHook(AwsBaseHook):
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :param pod_namespace: The namespace to run within kubernetes.
         """
-        if pod_username:
-            warnings.warn(
-                "This pod_username parameter is deprecated, because changing the value does not make any "
-                "visible changes to the user.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if pod_context:
-            warnings.warn(
-                "This pod_context parameter is deprecated, because changing the value does not make any "
-                "visible changes to the user.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         # Set up the client
         eks_client = self.conn
 
@@ -628,18 +611,3 @@ class EksHook(AwsBaseHook):
 
         # remove any base64 encoding padding:
         return 'k8s-aws-v1.' + base64_url.rstrip("=")
-
-
-class EKSHook(EksHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.eks.EksHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.eks.EksHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.compat.functools import cached_property
@@ -131,19 +130,3 @@ class AthenaOperator(BaseOperator):
                         'Polling Athena for query with id %s to reach final state', self.query_execution_id
                     )
                     self.hook.poll_query_status(self.query_execution_id)
-
-
-class AWSAthenaOperator(AthenaOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. Please use "
-            "`airflow.providers.amazon.aws.operators.athena.AthenaOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

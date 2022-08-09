@@ -17,7 +17,6 @@
 # under the License.
 
 """This module contains AWS SQS hook"""
-import warnings
 from typing import Dict, Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -85,18 +84,3 @@ class SqsHook(AwsBaseHook):
             params['MessageGroupId'] = message_group_id
 
         return self.get_conn().send_message(**params)
-
-
-class SQSHook(SqsHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.sqs.SqsHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

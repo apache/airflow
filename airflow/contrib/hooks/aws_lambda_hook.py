@@ -23,7 +23,7 @@ Please use :mod:`airflow.providers.amazon.aws.hooks.lambda_function`.
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook  # noqa
+from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook as AwsLambdaHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.lambda_function`.",

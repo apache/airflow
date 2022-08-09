@@ -28,7 +28,6 @@ AWS Batch service waiters
 
 import json
 import sys
-import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -227,19 +226,3 @@ class BatchWaitersHook(BatchClientHook):
 
         except (botocore.exceptions.ClientError, botocore.exceptions.WaiterError) as err:
             raise AirflowException(err)
-
-
-class AwsBatchWaitersHook(BatchWaitersHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchWaitersHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchWaitersHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

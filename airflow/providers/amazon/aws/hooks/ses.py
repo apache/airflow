@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS SES Hook"""
-import warnings
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -96,18 +95,3 @@ class SesHook(AwsBaseHook):
         return ses_client.send_raw_email(
             Source=mail_from, Destinations=recipients, RawMessage={'Data': message.as_string()}
         )
-
-
-class SESHook(SesHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.ses.SesHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.ses.SesHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
