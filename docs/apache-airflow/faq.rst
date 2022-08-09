@@ -224,7 +224,7 @@ an hour after now as ``now()`` moves along.
 
 
 Previously, we also recommended using rounded ``start_date`` in relation to your
-DAG ``schedule``. This meant an ``@hourly`` would be at ``00:00``
+DAG's ``schedule``. This meant an ``@hourly`` would be at ``00:00``
 minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
 first of the month. This is no longer required. Airflow will now auto align
 the ``start_date`` and the ``schedule``, by using the ``start_date``
@@ -376,7 +376,7 @@ Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 ------------------------------------------------------------------
 
 - When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
-  ``logical_date`` and the DAG's schedule interval (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
+  ``logical_date`` and the DAG's schedule (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
 

@@ -101,7 +101,7 @@ scheduled one interval after ``start_date``.
 
 .. tip::
 
-    If a cron expression or `timedelta` object is not enough to express your DAG's schedule,
+    If a cron expression or timedelta object is not enough to express your DAG's schedule,
     logical date, or data interval, see :doc:`/concepts/timetable`.
     For more information on ``logical date``, see :ref:`concepts:dag-run` and
     :ref:`faq:what-does-execution-date-mean`
