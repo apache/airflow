@@ -1,3 +1,43 @@
 Deprecation of ``schedule_interval`` and ``timetable`` params
 
 We add new DAG parameter ``schedule`` that can accept a cron expression, timedelta object, *timetable* object, or list of dataset objects. Params ``schedule_interval`` and ``timetable`` are  deprecated.
+
+So if you previously used the ``@daily`` cron preset, your dag may have looked like this:
+
+.. code-block:: python
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        schedule_interval='@daily',
+    ) as dag:
+        ...
+
+Going forward, instead you should use the ``schedule`` param instead:
+
+.. code-block:: python
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        schedule='@daily',
+    ) as dag:
+        ...
+
+And the same is true if you used a custom timetable.  Previously you would have used the ``timetable`` param:
+
+.. code-block:: python
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5, 8, 27, tz="America/Chicago")]),
+    ) as dag:
+        ...
+
+Now you should use the ``schedule`` param:
+
+.. code-block:: python
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5, 8, 27, tz="America/Chicago")]),
+    ) as dag:
+        ...

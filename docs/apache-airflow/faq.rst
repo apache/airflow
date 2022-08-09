@@ -41,8 +41,8 @@ There are very many reasons why your task might not be getting scheduled. Here a
   "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
   files collocated with user's DAGs.
 
-- Is your ``start_date`` set properly? The Airflow scheduler won't trigger the task until
-  after the first schedule interval following the start date has passed.
+- Is your ``start_date`` set properly? For time-based dags, the task won't be triggered until the
+  the first schedule interval following the start date has passed.
 
 - Is your ``schedule`` param set properly? The default
   is one day (``datetime.timedelta(1)``). You must specify a different ``schedule``
