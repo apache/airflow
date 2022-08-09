@@ -42,6 +42,7 @@ class ReadyToRescheduleDep(BaseTIDep):
         """
         is_mapped = ti.task.is_mapped
         if not is_mapped and not getattr(ti.task, "reschedule", False):
+            # Mapped sensors don't currently have the reschedule property,
             yield self._passing_status(reason="Task is not in reschedule mode.")
             return
 
@@ -63,6 +64,8 @@ class ReadyToRescheduleDep(BaseTIDep):
             .first()
         )
         if not task_reschedule:
+            # Because mapped sensors don't have the reschedule property, here's the last resort
+            # and we need a slightly different passing reason
             if is_mapped:
                 yield self._passing_status(reason="The task is mapped and not in reschedule mode")
                 return

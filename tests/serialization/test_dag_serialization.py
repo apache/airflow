@@ -1614,7 +1614,7 @@ class TestStringifiedDAGs:
         assert op.deps == serialized_op.deps
 
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
-    def test_serialize_mapped_sensor(self, mode):
+    def test_serialize_mapped_sensor_has_reschedule_dep(self, mode):
         from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
@@ -1626,9 +1626,7 @@ class TestStringifiedDAGs:
         blob = SerializedBaseOperator.serialize_mapped_operator(op)
         assert "deps" in blob
 
-        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
-        assert serialized_op.reschedule == (mode == "reschedule")
-        assert op.deps == serialized_op.deps
+        assert 'airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep' in blob['deps']
 
     @pytest.mark.parametrize(
         "passed_success_callback, expected_value",
