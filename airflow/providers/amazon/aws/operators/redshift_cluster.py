@@ -91,6 +91,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         "cluster_type",
         "node_type",
         "number_of_nodes",
+        "vpc_security_group_ids",
     )
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
