@@ -1833,7 +1833,7 @@ class TestDag:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
 
-    def test_next_dagrun_info_timetable_exception(self):
+    def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
         class FailingTimetable(Timetable):
@@ -1856,16 +1856,16 @@ class TestDag:
                 f"for DAG 'test_next_dagrun_info_timetable_exception'"
             )
 
-        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+        with caplog.at_level(level=logging.ERROR):
             next_info = dag.next_dagrun_info(None)
         assert next_info is None, "failed next_dagrun_info should return None"
-        _check_logs(ctx.records, data_interval=None)
-
+        _check_logs(caplog.records, data_interval=None)
+        caplog.clear()
         data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
-        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+        with caplog.at_level(level=logging.ERROR):
             next_info = dag.next_dagrun_info(data_interval)
         assert next_info is None, "failed next_dagrun_info should return None"
-        _check_logs(ctx.records, data_interval)
+        _check_logs(caplog.records, data_interval)
 
     def test_next_dagrun_after_auto_align(self):
         """
