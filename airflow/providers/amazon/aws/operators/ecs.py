@@ -20,12 +20,6 @@ import sys
 import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
-import time
-from collections import deque
-from datetime import datetime, timedelta
-from logging import Logger
-from threading import Event, Thread
-from typing import Dict, Generator, Optional, Sequence
 
 import boto3
 
@@ -34,7 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 
-# TODO: Remove the following import when EcsProtocol and EcsTaskLogFetcher are deprecated
+# TODO: Remove the following import when EcsProtocol and EcsTaskLogFetcher deprecations are removed.
 from airflow.providers.amazon.aws.hooks import ecs
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import (
