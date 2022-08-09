@@ -164,7 +164,7 @@ class GCSListObjectsOperator(BaseOperator):
     List all objects from the bucket with the given string prefix and delimiter in name.
 
     This operator returns a python list with the name of objects which can be used by
-     `xcom` in the downstream task.
+    XCom in the downstream task.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
     :param prefix: Prefix string which filters objects whose name begin with
