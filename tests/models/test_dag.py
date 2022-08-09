@@ -81,14 +81,14 @@ def session():
         session.rollback()
 
 
-class TestDag(unittest.TestCase):
-    def setUp(self) -> None:
+class TestDag:
+    def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
         self.patcher_dag_code = mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db')
         self.patcher_dag_code.start()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
         self.patcher_dag_code.stop()
@@ -2024,18 +2024,23 @@ class TestDag(unittest.TestCase):
         with pytest.raises(AirflowException):
             DAG('dag', start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
 
-    def test_schedule_dag_param(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"schedule_interval": "@daily", "schedule": "@weekly"},
+            {"timetable": NullTimetable(), "schedule": "@weekly"},
+            {"timetable": NullTimetable(), "schedule_interval": "@daily"},
+        ],
+        ids=[
+            "schedule_interval+schedule",
+            "timetable+schedule",
+            "timetable+schedule_interval",
+        ],
+    )
+    def test_schedule_dag_param(self, kwargs):
         with pytest.raises(ValueError, match='At most one'):
-            with DAG(dag_id='hello', schedule_interval='@daily', schedule='@daily'):
+            with DAG(dag_id='hello', **kwargs):
                 pass
-        with pytest.raises(ValueError, match='At most one'):
-            with DAG(dag_id='hello', timetable=NullTimetable(), schedule=NullTimetable()):
-                pass
-        with pytest.raises(ValueError, match='At most one'):
-            with DAG(dag_id='hello', timetable=NullTimetable(), schedule_interval='@daily'):
-                pass
-        with DAG(dag_id='hello', timetable=NullTimetable(), schedule_interval='@daily'):
-            pass
 
 
 class TestDagModel:
