@@ -22,7 +22,6 @@ import logging
 import os
 import pickle
 import re
-import unittest
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -37,7 +36,6 @@ import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
-from parameterized import parameterized
 from sqlalchemy import inspect
 
 from airflow import models, settings
@@ -72,13 +70,6 @@ from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
-
-
-@pytest.fixture
-def session():
-    with create_session() as session:
-        yield session
-        session.rollback()
 
 
 class TestDag:
@@ -479,7 +470,8 @@ class TestDag:
         jinja_env = dag.get_template_env()
         assert jinja_env.undefined is jinja2.Undefined
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "use_native_obj, force_sandboxed, expected_env",
         [
             (False, True, SandboxedEnvironment),
             (False, False, SandboxedEnvironment),
@@ -756,7 +748,7 @@ class TestDag:
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
-    @parameterized.expand([State.RUNNING, State.QUEUED])
+    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.QUEUED])
     def test_bulk_write_to_db_max_active_runs(self, state):
         """
         Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
@@ -1337,7 +1329,8 @@ class TestDag:
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "schedule_interval_arg, expected_timetable, interval_description",
         [
             (None, NullTimetable(), "Never, external triggers only"),
             ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1349,7 +1342,7 @@ class TestDag:
             ("@once", OnceTimetable(), "Once, as soon as possible"),
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), ""),
             ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
-        ]
+        ],
     )
     def test_timetable_and_description_from_schedule_interval_arg(
         self, schedule_interval_arg, expected_timetable, interval_description
@@ -1365,7 +1358,8 @@ class TestDag:
         assert dag.schedule_interval == 'Dataset'
         assert dag.timetable.description == 'Triggered by datasets'
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "timetable, expected_description",
         [
             (NullTimetable(), "Never, external triggers only"),
             (cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1382,7 +1376,7 @@ class TestDag:
             (OnceTimetable(), "Once, as soon as possible"),
             (delta_timetable(datetime.timedelta(days=1)), ""),
             (cron_timetable("30 21 * * 5 1"), ""),
-        ]
+        ],
     )
     def test_description_from_timetable(self, timetable, expected_description):
         dag = DAG("test_schedule_interval_description", timetable=timetable)
@@ -1423,12 +1417,7 @@ class TestDag:
         assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
         assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state(self, dag_run_state):
         dag_id = 'test_clear_set_dagrun_state'
         self._clean_up(dag_id)
@@ -1472,12 +1461,7 @@ class TestDag:
         dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state_for_mapped_task(self, dag_run_state):
         dag_id = 'test_clear_set_dagrun_state'
         self._clean_up(dag_id)
@@ -1578,12 +1562,7 @@ class TestDag:
 
         return dag, subdag
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state_for_subdag(self, dag_run_state):
         session = settings.Session()
         dag, subdag = self._make_test_subdag(session)
@@ -1608,12 +1587,7 @@ class TestDag:
         assert dagrun.state == dag_run_state
         session.rollback()
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state_for_parent_dag(self, dag_run_state):
         session = settings.Session()
         dag, subdag = self._make_test_subdag(session)
@@ -1637,11 +1611,18 @@ class TestDag:
         )
         assert dagrun.state == dag_run_state
 
-    @parameterized.expand(
-        [(state, State.NONE) for state in State.task_states if state != State.RUNNING]
-        + [(State.RUNNING, State.RESTARTING)]  # type: ignore
+    @pytest.mark.parametrize(
+        "ti_state_begin, ti_state_end",
+        [
+            *((state, None) for state in State.task_states if state != TaskInstanceState.RUNNING),
+            (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING),
+        ],
     )
-    def test_clear_dag(self, ti_state_begin, ti_state_end: Optional[str]):
+    def test_clear_dag(
+        self,
+        ti_state_begin: Optional[TaskInstanceState],
+        ti_state_end: Optional[TaskInstanceState],
+    ):
         dag_id = 'test_clear_dag'
         self._clean_up(dag_id)
         task_id = 't1'
@@ -2158,19 +2139,14 @@ class TestDagModel:
         assert dag.relative_fileloc == expected_relative
 
 
-class TestQueries(unittest.TestCase):
-    def setUp(self) -> None:
+class TestQueries:
+    def setup_method(self) -> None:
         clear_db_runs()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_runs()
 
-    @parameterized.expand(
-        [
-            (3,),
-            (12,),
-        ]
-    )
+    @pytest.mark.parametrize("tasks_count", [3, 12])
     def test_count_number_queries(self, tasks_count):
         dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
         for i in range(tasks_count):
