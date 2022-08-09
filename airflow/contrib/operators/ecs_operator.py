@@ -19,13 +19,29 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.ecs import (  # noqa
-    EcsOperator as ECSOperator,
-    EcsProtocol as ECSProtocol,
-)
+from airflow.providers.amazon.aws.hooks.ecs import EcsProtocol
+from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
+
+__all__ = ["EcsRunTaskOperator", "EcsProtocol"]
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class EcsOperator(EcsRunTaskOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. "
+            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

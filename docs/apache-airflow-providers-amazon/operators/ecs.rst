@@ -33,13 +33,78 @@ Prerequisite Tasks
 Operators
 ---------
 
-.. _howto/operator:EcsOperator:
+.. _howto/operator:EcsCreateClusterOperator:
 
-Run a task definition
+Create an AWS ECS Cluster
+=========================
+
+To create an Amazon ECS cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsCreateClusterOperator`.
+
+All optional parameters to be passed to the Create Cluster API should be
+passed in the 'create_cluster_kwargs' dict.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ecs_create_cluster]
+    :end-before: [END howto_operator_ecs_create_cluster]
+
+.. _howto/operator:EcsDeleteClusterOperator:
+
+Delete an AWS ECS Cluster
+=========================
+
+To delete an Amazon ECS cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeleteClusterOperator`.
+
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ecs_delete_cluster]
+    :end-before: [END howto_operator_ecs_delete_cluster]
+
+.. _howto/operator:EcsRegisterTaskDefinitionOperator:
+
+Register a Task Definition
+==========================
+
+To register a task definition you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsRegisterTaskDefinitionOperator`.
+
+All optional parameters to be passed to the Register Task Definition API should be
+passed in the 'register_task_kwargs' dict.
+
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ecs_register_task_definition]
+    :end-before: [END howto_operator_ecs_register_task_definition]
+
+.. _howto/operator:EcsDeregisterTaskDefinitionOperator:
+
+Deregister a Task Definition
+=============================
+
+To deregister a task definition you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsDeregisterTaskDefinitionOperator`.
+
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ecs_deregister_task_definition]
+    :end-before: [END howto_operator_ecs_deregister_task_definition]
+
+.. _howto/operator:EcsRunTaskOperator:
+
+Run a Task Definition
 =====================
 
 To run a Task Definition defined in an Amazon ECS cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.
 
 You need to have created your ECS Cluster, and have created a Task Definition before you can use this Operator.
 The Task Definition contains details of the containerized application you want to run.
@@ -59,8 +124,8 @@ The parameters you need to configure for this Operator will depend upon which ``
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_ecs]
-    :end-before: [END howto_operator_ecs]
+    :start-after: [START howto_operator_ecs_run_task]
+    :end-before: [END howto_operator_ecs_run_task]
 
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs_fargate.py
@@ -129,6 +194,67 @@ If you plan on streaming Apache Airflow logs into AWS CloudWatch, you need to en
                         ]
                 )
 
+Sensors
+-------
+
+.. _howto/sensor:EcsClusterStateSensor:
+
+AWS ECS Cluster State Sensor
+============================
+
+To poll the cluster state until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsClusterStateSensor`.
+
+Defaults to EcsClusterStates.ACTIVE as a success state and no failure state,
+both can be overridden with provided values.  Raises an AirflowException with
+the failure reason if a failed state is provided and that state is reached
+before the target state.
+
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_ecs_cluster_state]
+    :end-before: [END howto_sensor_ecs_cluster_state]
+
+.. _howto/sensor:EcsTaskDefinitionStateSensor:
+
+AWS ECS Task Definition State Sensor
+=====================================
+
+To poll the task definition state until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsTaskDefinitionStateSensor`.
+
+Valid states are either EcsTaskDefinitionStates.ACTIVE or EcsTaskDefinitionStates.INACTIVE.
+Defaults to EcsTaskDefinitionStates.ACTIVE as the success state, but accepts a parameter
+to change that.  Raises an AirflowException with the failure reason if the failed state
+is reached before the target state.
+
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_ecs_task_definition_state]
+    :end-before: [END howto_sensor_ecs_task_definition_state]
+
+.. _howto/sensor:EcsTaskStateSensor:
+
+AWS ECS Task State Sensor
+=========================
+
+To poll the task state until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.operators.ecs.EcsTaskStateSensor`.
+
+Defaults to EcsTaskStates.RUNNING as the success state and no failure state,
+both can be overridden with provided values.  Raises an AirflowException with
+the failure reason if a failed state is provided and that state is reached
+before the target state.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_ecs_task_state]
+    :end-before: [END howto_sensor_ecs_task_state]
 
 Reference
 ---------
