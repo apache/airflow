@@ -41,10 +41,10 @@ There are very many reasons why your task might not be getting scheduled. Here a
   "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
   files collocated with user's DAGs.
 
-- Is your ``start_date`` set properly? For time-based dags, the task won't be triggered until the
+- Is your ``start_date`` set properly? For time-based DAGs, the task won't be triggered until the
   the first schedule interval following the start date has passed.
 
-- Is your ``schedule`` param set properly? The default
+- Is your ``schedule`` argument set properly? The default
   is one day (``datetime.timedelta(1)``). You must specify a different ``schedule``
   directly to the DAG object you instantiate, not as a ``default_param``, as task instances
   do not override their parent DAG's ``schedule``.
@@ -376,7 +376,7 @@ Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 ------------------------------------------------------------------
 
 - When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
-  ``logical_date`` and the dag's schedule interval (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
+  ``logical_date`` and the DAG's schedule interval (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
 

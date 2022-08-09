@@ -43,8 +43,8 @@ There are two possible terminal states for the DAG Run:
 Cron Presets
 ''''''''''''
 
-You may set your DAG to run on a simple schedule by setting its ``schedule`` param with either a
-`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, or a ``datetime.timedelta`` object,
+You may set your DAG to run on a simple schedule by setting its ``schedule`` argument to either a
+`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, a ``datetime.timedelta`` object,
 or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable </concepts/timetable>`
 
 .. tip::
@@ -116,7 +116,7 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and either a cron expression or timetable, defines a series of intervals which the scheduler turns into individual DAG Runs and executes.
+An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-dataset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
 The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
