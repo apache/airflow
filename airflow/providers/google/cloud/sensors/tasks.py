@@ -76,9 +76,9 @@ class TaskQueueEmptySensor(BaseSensorOperator):
 
         # TODO uncomment page_size once https://issuetracker.google.com/issues/155978649?pli=1 gets fixed
         tasks = hook.list_tasks(
-            location= self.location,
+            location=self.location,
             queue_name=self.queue_name,
-#             page_size=1
+            # page_size=1
         )
 
         self.log.info(f"tasks exhausted in cloud task queue?: {len(tasks)==0}")
