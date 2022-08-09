@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding Authentication to webhdfs sensor  (#25110)``
+
 3.0.1
 .....
 
