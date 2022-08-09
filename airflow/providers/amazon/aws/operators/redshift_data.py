@@ -121,8 +121,6 @@ class RedshiftDataOperator(BaseOperator):
         return resp['Id']
 
     def execute_batch_query(self):
-        if self.sql is None:
-            AirflowException("Missing require param sqls")
         kwargs: Dict[str, Any] = {
             "ClusterIdentifier": self.cluster_identifier,
             "Database": self.database,
