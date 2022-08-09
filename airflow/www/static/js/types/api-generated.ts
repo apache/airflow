@@ -3604,7 +3604,10 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
-        /** If set, only return datasets with uris matching this pattern. */
+        /**
+         * If set, only return datasets with URIs matching this pattern using a string pattern
+         * to be evaluated as a SQL-compliant case-insensive LIKE expression.
+         */
         uri_pattern?: string;
       };
     };

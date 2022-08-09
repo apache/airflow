@@ -1654,7 +1654,8 @@ paths:
             type: string
           required: false
           description: |
-            If set, only return datasets with uris matching this pattern.
+            If set, only return datasets with URIs matching this pattern using a string pattern
+            to be evaluated as a SQL-compliant case-insensive LIKE expression.
       responses:
         '200':
           description: Success.
