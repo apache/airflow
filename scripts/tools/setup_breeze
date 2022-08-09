@@ -18,12 +18,14 @@
 set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../.." && pwd)
 
 BREEZE_BINARY=breeze
 COLOR_RED=$'\e[31m'
+COLOR_GREEN=$'\e[32m'
+COLOR_YELLOW=$'\e[33m'
 COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
-COLOR_YELLOW=$'\e[33m'
 
 function manual_instructions() {
     echo
@@ -31,7 +33,7 @@ function manual_instructions() {
     echo
     echo "    python -m pip install pipx"
     echo "    pipx ensurepath"
-    echo "    pipx install -e '${MY_DIR}/dev/breeze/'"
+    echo "    pipx install -e '${AIRFLOW_SOURCES}/dev/breeze/'"
     echo "    breeze setup autocomplete --force"
     echo
     echo "   After that, both pipx and breeze should be available on your path"
@@ -51,7 +53,7 @@ function check_breeze_installed() {
         if [[ ${pipx_on_path} != 0 ]]; then
             echo "${COLOR_RED}The 'pipx' is not on path. It should be installed and 'pipx' should be available on your PATH.${COLOR_RESET}"
             export TIMEOUT=0
-            if "${MY_DIR}/scripts/tools/confirm" "Installing pipx?"; then
+            if "${MY_DIR}/confirm" "Installing pipx?"; then
                 python -m pip install pipx --upgrade
                 echo
                 echo "${COLOR_YELLOW}Please close and re-open the shell and retry. You might need to add 'pipx' to the PATH!${COLOR_RESET}"
@@ -67,9 +69,9 @@ function check_breeze_installed() {
             echo
             echo "${COLOR_YELLOW}Installing Breeze. This will install breeze via pipx and modify your local rc file for ${SHELL}${COLOR_RESET}"
             echo
-            if "${MY_DIR}/scripts/tools/confirm" "installing and modifying the startup scripts"; then
+            if "${MY_DIR}/confirm" "installing and modifying the startup scripts"; then
                 pipx ensurepath --force
-                pipx install -e "${MY_DIR}/dev/breeze/" --force
+                pipx install -e "${AIRFLOW_SOURCES}/dev/breeze/" --force
                 ${BREEZE_BINARY} setup-autocomplete --force --answer yes
                 echo
                 echo "${COLOR_YELLOW}Please close and re-open the shell and retry. Then rerun your last command!${COLOR_RESET}"
@@ -84,4 +86,6 @@ function check_breeze_installed() {
 
 check_breeze_installed
 
-${BREEZE_BINARY} "${@}"
+echo
+echo "${COLOR_GREEN}Breeze is correctly installed! You can run it via 'breeze' command. Go ahead and develop Airflow.${COLOR_RESET}"
+echo

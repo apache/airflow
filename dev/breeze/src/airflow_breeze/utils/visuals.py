@@ -117,7 +117,7 @@ CHEATSHEET = f"""
 
         [info]* Other options[/]
 
-        Check out `--help` for ./breeze commands. It will show you other options, such as running
+        Check out `--help` for `breeze` command. It will show you other options, such as running
         integration or starting complete Airflow using `start-airflow` command as well as ways
         of cleaning up the installation.
 
@@ -126,7 +126,7 @@ CHEATSHEET = f"""
 
         You can disable this cheatsheet by running:
 
-            ./breeze setup config --no-cheatsheet
+            breeze setup config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"

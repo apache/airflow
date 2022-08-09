@@ -261,8 +261,8 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    ./breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
-    ./breeze build-docs --package-filter apache-airflow
+    breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
+    breeze build-docs --package-filter apache-airflow
 
 Optional provider features
 --------------------------
