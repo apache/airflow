@@ -151,7 +151,7 @@ class RedshiftDataOperator(BaseOperator):
                 self.log.info("Query %s", status)
             sleep(self.poll_interval)
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
         self.log.info("Executing statement: %s", self.sql)
         if isinstance(self.sql, list):
