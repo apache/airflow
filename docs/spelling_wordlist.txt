@@ -730,6 +730,7 @@ delim
 dep
 deploymentUrl
 deps
+deregister
 desc
 deserialization
 deserialize
