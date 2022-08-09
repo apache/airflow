@@ -28,6 +28,7 @@ import boto3
 
 from airflow.compat.functools import cached_property
 from airflow.models.connection import Connection
+from airflow.providers.amazon.aws.utils import get_airflow_version
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -365,6 +366,24 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             connection = self.get_uri_from_secret(secret)
 
         return connection
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id.
+
+        As of Airflow version 2.3.0 this method is deprecated.
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        if get_airflow_version() >= (2, 3):
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+                "in a future release.  Please use method `get_conn_value` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
