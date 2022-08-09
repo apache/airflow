@@ -74,6 +74,7 @@ dependencies:
   - google-cloud-bigtable>=1.0.0,<2.0.0
   - google-cloud-build>=3.0.0
   - google-cloud-container>=2.2.0,<3.0.0
+  - google-cloud-dataform>=0.2.0
   - google-cloud-datacatalog>=3.0.0
   - google-cloud-dataplex>=0.1.0
   - google-cloud-dataproc>=3.1.0
@@ -156,6 +157,11 @@ integrations:
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
+  - integration-name: Google Cloud Dataform
+    external-doc-url: https://cloud.google.com/dataform/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataform.rst
     tags: [google]
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     external-doc-url: https://cloud.google.com/dlp/
@@ -567,6 +573,9 @@ operators:
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
+  - integration-name: Google Cloud Dataform
+    python-modules:
+      - airflow.providers.google.cloud.operators.dataform
 
 sensors:
   - integration-name: Google BigQuery
@@ -617,6 +626,9 @@ sensors:
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.sensors.looker
+  - integration-name: Google Cloud Dataform
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataform
 
 hooks:
   - integration-name: Google Ads
@@ -785,6 +797,9 @@ hooks:
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
+  - integration-name: Google Cloud Dataform
+    python-modules:
+      - airflow.providers.google.cloud.hooks.dataform
 
 transfers:
   - source-integration-name: Presto
@@ -930,6 +945,7 @@ extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+  - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
