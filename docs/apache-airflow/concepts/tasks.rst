@@ -170,7 +170,7 @@ To read more about configuring the emails, see :doc:`/howto/email-config`.
 
 .. note::
 
-    Manually-triggered tasks and tasks in event-driven dags will not be checked for an SLA miss. For more information on DAG ``schedule`` values see :doc:`DAG Run </dag-run>`.
+    Manually-triggered tasks and tasks in event-driven DAGs will not be checked for an SLA miss. For more information on DAG ``schedule`` values see :doc:`DAG Run </dag-run>`.
 
 .. _concepts:sla_miss_callback:
 

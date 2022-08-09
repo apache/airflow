@@ -19,16 +19,16 @@
 Timetables
 ==========
 
-For dags with time-based schedules (as opposed to event-driven), the scheduling
-decisions are driven by its internal "timetable".  The timetable class also
+For DAGs with time-based schedules (as opposed to event-driven), the scheduling
+decisions are driven by its internal "timetable".  The timetable also
 determines the data interval and the logical date of each run created for the DAG.
 
-Even for dags whose scheduling is defined by a cron expression or ``timedelta`` object,
-internally these expressions converted to a timetable.
+DAGs scheduled with a cron expression or ``timedelta`` object are
+internally converted to always use a timetable.
 
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
 to worry about timetables.  But for more complicated scheduling requirements,
-you may create your own timetable class and pass that to the DAG ``schedule`` param.
+you may create your own timetable class and pass that to the DAG's ``schedule`` argument instead.
 
 Some examples:
 
