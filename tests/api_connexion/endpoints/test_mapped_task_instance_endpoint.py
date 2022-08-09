@@ -24,7 +24,6 @@ from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import XComArg
 from airflow.security import permissions
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
@@ -91,7 +90,7 @@ class TestMappedTaskInstanceEndpoint:
             count = dags[dag_id]['success'] + dags[dag_id]['running']
             with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
                 task1 = BaseOperator(task_id="op1")
-                mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
+                mapped = MockOperator.partial(task_id='task_2').expand(arg2=task1.output)
 
             dr = dag_maker.create_dagrun(run_id=f"run_{dag_id}")
 

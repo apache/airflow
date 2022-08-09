@@ -31,7 +31,6 @@ from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -1036,7 +1035,7 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     dag._remove_task('task_2')
 
     with dag:
-        mapped = task_2.expand(arg2=XComArg(t1)).operator
+        mapped = task_2.expand(arg2=t1.output).operator
 
     # At this point, we need to test that the change works on the serialized
     # DAG (which is what the scheduler operates on)
@@ -1667,7 +1666,7 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').expand(arg1=literal, arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg1=literal, arg2=task.output)
 
     dr = dag_maker.create_dagrun()
     query = (
@@ -1686,7 +1685,7 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=task.output)
 
     dr: DagRun = dag_maker.create_dagrun()
     ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
