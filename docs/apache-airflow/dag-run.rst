@@ -116,7 +116,7 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a either a cron expression or timetable, defines a series of intervals which the scheduler turns into individual DAG Runs and executes.
+An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and either a cron expression or timetable, defines a series of intervals which the scheduler turns into individual DAG Runs and executes.
 The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
