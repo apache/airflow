@@ -115,7 +115,6 @@ class WorkerTest(unittest.TestCase):
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "workers": {
                     "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
@@ -130,7 +129,6 @@ class WorkerTest(unittest.TestCase):
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "workers": {
                     "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
                 },

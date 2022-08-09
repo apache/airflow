@@ -2700,7 +2700,7 @@
                     "default": true
                 },
                 "env": {
-                    "description": "Add additional env vars to job.",
+                    "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
                     "default": [],
                     "items": {

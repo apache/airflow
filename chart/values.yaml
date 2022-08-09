@@ -598,7 +598,6 @@ workers:
     #   memory: 128Mi
 
   waitForMigrations:
-    # To add env vars specific to wait-for-migrations init container
     env: []
 
   env: []
