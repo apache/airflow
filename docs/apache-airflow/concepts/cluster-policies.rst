@@ -94,3 +94,5 @@ Here's an example of re-routing tasks that are on their second (or greater) retr
         :language: python
         :start-after: [START example_task_mutation_hook]
         :end-before: [END example_task_mutation_hook]
+
+Note that since priority weight is determined dynamically using weight rules, you cannot alter the ``priority_weight`` of a task instance within the mutation hook.

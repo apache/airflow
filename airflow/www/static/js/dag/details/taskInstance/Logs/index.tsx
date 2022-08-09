@@ -159,7 +159,7 @@ const Logs = ({
               {internalIndexes.map((index) => (
                 <Button
                   key={index}
-                  variant="ghost"
+                  variant={selectedAttempt === index ? 'solid' : 'ghost'}
                   colorScheme="blue"
                   onClick={() => setSelectedAttempt(index)}
                   data-testid={`log-attempt-select-button-${index}`}
