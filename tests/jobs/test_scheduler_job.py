@@ -457,6 +457,7 @@ class TestSchedulerJob:
         ti1.state = State.SCHEDULED
 
         self.scheduler_job._critical_section_enqueue_task_instances(session)
+        session.flush()
         ti1.refresh_from_db(session=session)
         assert State.SCHEDULED == ti1.state
         session.rollback()
@@ -1315,7 +1316,8 @@ class TestSchedulerJob:
 
         with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
             self.scheduler_job._enqueue_task_instances_with_queued_state([ti], session=session)
-        ti.refresh_from_db()
+        session.flush()
+        ti.refresh_from_db(session=session)
         assert ti.state == State.NONE
         mock_queue_command.assert_not_called()
 
