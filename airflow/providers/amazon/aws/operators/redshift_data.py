@@ -18,7 +18,6 @@
 from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-from airflow import AirflowException
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
