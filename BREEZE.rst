@@ -42,9 +42,8 @@ are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-developmen
   documentation mentions when ``./breeze-legacy`` is involved.
 
   The new ``breeze`` after installing is available on your PATH and you should launch it simply as
-  ``breeze <COMMAND> <FLAGS>``. Previously you had to prepend breeze with ``./`` but this is not needed
-  any more. For convenience, we will keep ``./breeze`` script for a while to run the new breeze and you
-  can still use the legacy Breeze with ``./breeze-legacy``.
+  ``breeze <COMMAND> <FLAGS>``. Previously you had to prepend breeze with ``./`` but this is removed now
+  You can still use the legacy Breeze with ``./breeze-legacy``.
 
 Watch the video below about Airflow Breeze. It explains the motivation for Breeze
 and screencast all its uses. The video describes old ``./breeze-legacy`` (in video it still
@@ -298,6 +297,12 @@ You should set up the autocomplete option automatically by running:
 
    breeze setup autocomplete
 
+Automating breeze installation
+------------------------------
+
+Breeze on POSIX-compliant systems (Linux, MacOS) can be automatically installed by running the
+``scripts/tools/setup_breeze`` bash script. This includes checking and installing ``pipx``, setting up
+``breeze`` with it and setting up autocomplete.
 
 Customizing your environment
 ----------------------------
