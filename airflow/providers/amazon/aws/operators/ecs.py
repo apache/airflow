@@ -18,7 +18,6 @@
 import re
 import sys
 import time
-import warnings
 from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
@@ -518,50 +517,3 @@ class EcsOperator(BaseOperator):
             cluster=self.cluster, task=self.arn, reason='Task killed by the user'
         )
         self.log.info(response)
-
-
-class ECSOperator(EcsOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class ECSTaskLogFetcher(EcsTaskLogFetcher):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsTaskLogFetcher`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsTaskLogFetcher`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class ECSProtocol(EcsProtocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.
-    """
-
-    def __init__(self):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )

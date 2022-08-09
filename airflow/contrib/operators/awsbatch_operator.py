@@ -27,9 +27,8 @@ This module is deprecated. Please use:
 
 import warnings
 
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchProtocol
-from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
-from airflow.typing_compat import Protocol, runtime_checkable
+from airflow.providers.amazon.aws.hooks.batch_client import BatchProtocol  # noqa
+from airflow.providers.amazon.aws.operators.batch import BatchOperator
 
 warnings.warn(
     "This module is deprecated. "
@@ -41,35 +40,17 @@ warnings.warn(
 )
 
 
-class AWSBatchOperator(AwsBatchOperator):
+class AWSBatchOperator(BatchOperator):
     """
     This class is deprecated. Please use
-    `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.
+    `airflow.providers.amazon.aws.operators.batch.BatchOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.""",
+            Please use `airflow.providers.amazon.aws.operators.batch.BatchOperator`.""",
             DeprecationWarning,
             stacklevel=2,
         )
         super().__init__(*args, **kwargs)
-
-
-@runtime_checkable
-class BatchProtocol(AwsBatchProtocol, Protocol):
-    """
-    This class is deprecated. Please use
-    `airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol`.
-    """
-
-    # A Protocol cannot be instantiated
-
-    def __new__(cls, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )

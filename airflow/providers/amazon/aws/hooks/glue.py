@@ -17,7 +17,6 @@
 # under the License.
 
 import time
-import warnings
 from typing import Dict, List, Optional
 
 import boto3
@@ -283,19 +282,3 @@ class GlueJobHook(AwsBaseHook):
             except Exception as general_error:
                 self.log.error("Failed to create aws glue job, error: %s", general_error)
                 raise
-
-
-class AwsGlueJobHook(GlueJobHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
