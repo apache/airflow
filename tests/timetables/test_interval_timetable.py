@@ -183,3 +183,41 @@ def test_validate_failure(timetable: Timetable, error_message: str) -> None:
 def test_cron_interval_timezone_from_string():
     timetable = CronDataIntervalTimetable("@hourly", "UTC")
     assert timetable.serialize()['timezone'] == 'UTC'
+
+
+@pytest.mark.parametrize(
+    "last_data_interval, expected_info",
+    [
+        pytest.param(
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            DagRunInfo.interval(
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 9, tzinfo=TIMEZONE),
+            ),
+            id="exact",
+        ),
+        pytest.param(
+            # Previous data interval does not align with the current timetable.
+            # This is possible if the user edits a DAG with existing runs.
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, 1, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, 1, tzinfo=TIMEZONE),
+            ),
+            DagRunInfo.interval(
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 9, tzinfo=TIMEZONE),
+            ),
+            id="changed",
+        ),
+    ],
+)
+def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expected_info: DagRunInfo):
+    timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=last_data_interval,
+        restriction=TimeRestriction(None, None, True),
+    )
+    assert info == expected_info
