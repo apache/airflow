@@ -21,9 +21,7 @@
 
 Operators
 ==========
-You can build your own Operator hook in :class:`~airflow.providers.clickhouse.hooks.ClickHouseHook`,
-
-
+You can build your own Operator using hook in :class:`~airflow.providers.clickhouse.hooks.ClickHouseHook`,
 Use the :class:`~airflow.providers.clickhouse.operators.ClickHouseOperator` to execute
 SQL query in `ClickHouse <https://www.clickhouse.com/>`__.
 
@@ -57,7 +55,6 @@ Sensors
 
 Use the :class:`~airflow.providers.clickhouse.sensors.ClickHouseSensor` to wait for a condition using
 SQL query in `ClickHouse <https://www.clickhouse.com/>`__.
-
 An example for waiting a record **gettingstarted.clickstream** table with **customer_id** as **customer_1** as follows
 
 .. exampleinclude:: /../../airflow/providers/clickhouse/example_dags/example_clickhouse.py

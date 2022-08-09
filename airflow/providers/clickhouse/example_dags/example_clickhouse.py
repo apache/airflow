@@ -68,7 +68,7 @@ operator = ClickHouseOperator(
 
 operator_with_database = ClickHouseOperator(
     task_id='clickhouse_operator_with_db',
-    sql="SELECT * FROM clickstream",    database='gettingstarted',
+    sql="SELECT * FROM clickstream",
     dag=dag,
     result_processor=lambda cursor: print(cursor)
 )
