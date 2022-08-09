@@ -56,7 +56,7 @@ from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -1351,13 +1351,19 @@ class TestDag(unittest.TestCase):
             ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
         ]
     )
-    def test_timetable_and_description_from_schedule_interval(
-        self, schedule_interval, expected_timetable, interval_description
+    def test_timetable_and_description_from_schedule_interval_arg(
+        self, schedule_interval_arg, expected_timetable, interval_description
     ):
-        dag = DAG("test_schedule_interval", schedule=schedule_interval)
+        dag = DAG("test_schedule_interval_arg", schedule=schedule_interval_arg)
         assert dag.timetable == expected_timetable
-        assert dag.schedule_interval == schedule_interval
+        assert dag.schedule_interval == schedule_interval_arg
         assert dag.timetable.description == interval_description
+
+    def test_timetable_and_description_from_dataset(self):
+        dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri='hello')])
+        assert dag.timetable == DatasetTriggeredTimetable()
+        assert dag.schedule_interval == 'Dataset'
+        assert dag.timetable.description == 'Triggered by datasets'
 
     @parameterized.expand(
         [
@@ -2017,6 +2023,19 @@ class TestDag(unittest.TestCase):
         # Check wrong formatted owner link
         with pytest.raises(AirflowException):
             DAG('dag', start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
+
+    def test_schedule_dag_param(self):
+        with pytest.raises(ValueError, match='At most one'):
+            with DAG(dag_id='hello', schedule_interval='@daily', schedule='@daily'):
+                pass
+        with pytest.raises(ValueError, match='At most one'):
+            with DAG(dag_id='hello', timetable=NullTimetable(), schedule=NullTimetable()):
+                pass
+        with pytest.raises(ValueError, match='At most one'):
+            with DAG(dag_id='hello', timetable=NullTimetable(), schedule_interval='@daily'):
+                pass
+        with DAG(dag_id='hello', timetable=NullTimetable(), schedule_interval='@daily'):
+            pass
 
 
 class TestDagModel:
