@@ -142,6 +142,20 @@ def default_config_yaml() -> List[Dict[str, Any]]:
         return yaml.safe_load(config_file)
 
 
+SENSITIVE_CONFIG_VALUES = {
+    ('database', 'sql_alchemy_conn'),
+    ('core', 'fernet_key'),
+    ('celery', 'broker_url'),
+    ('celery', 'flower_basic_auth'),
+    ('celery', 'result_backend'),
+    ('atlas', 'password'),
+    ('smtp', 'smtp_password'),
+    ('webserver', 'secret_key'),
+    # The following options are deprecated
+    ('core', 'sql_alchemy_conn'),
+}
+
+
 class AirflowConfigParser(ConfigParser):
     """Custom Airflow Configparser supporting defaults and deprecated options"""
 
@@ -150,18 +164,8 @@ class AirflowConfigParser(ConfigParser):
     # is to not store password on boxes in text files.
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
-    sensitive_config_values: Set[Tuple[str, str]] = {
-        ('database', 'sql_alchemy_conn'),
-        ('core', 'fernet_key'),
-        ('celery', 'broker_url'),
-        ('celery', 'flower_basic_auth'),
-        ('celery', 'result_backend'),
-        ('atlas', 'password'),
-        ('smtp', 'smtp_password'),
-        ('webserver', 'secret_key'),
-        # The following options are deprecated
-        ('core', 'sql_alchemy_conn'),
-    }
+
+    sensitive_config_values: Set[Tuple[str, str]] = SENSITIVE_CONFIG_VALUES
 
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
@@ -887,6 +891,15 @@ class AirflowConfigParser(ConfigParser):
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.
         """
+        if not display_sensitive:
+            # We want to hide the sensitive values at the appropriate methods
+            # since envs from cmds, secrets can be read at _include_envs method
+            if not all([include_env, include_cmds, include_secret]):
+                raise ValueError(
+                    "If display_sensitive is false, then include_env, "
+                    "include_cmds, include_secret must all be set as True"
+                )
+
         config_sources: ConfigSourcesType = {}
         configs = [
             ('default', self.airflow_defaults),
@@ -921,6 +934,20 @@ class AirflowConfigParser(ConfigParser):
             self._include_secrets(config_sources, display_sensitive, display_source, raw)
         else:
             self._filter_by_source(config_sources, display_source, self._get_secret_option)
+
+        if not display_sensitive:
+            # This ensures the ones from config file is hidden too
+            # if they are not provided through env, cmd and secret
+            hidden = '< hidden >'
+            for (section, key) in self.sensitive_config_values:
+                if not config_sources.get(section):
+                    continue
+                if config_sources[section].get(key, None):
+                    if display_source:
+                        source = config_sources[section][key][1]
+                        config_sources[section][key] = (hidden, source)
+                    else:
+                        config_sources[section][key] = hidden
 
         return config_sources
 
@@ -987,7 +1014,10 @@ class AirflowConfigParser(ConfigParser):
                 log.warning("Ignoring unknown env var '%s'", env_var)
                 continue
             if not display_sensitive and env_var != self._env_var_name('core', 'unit_test_mode'):
-                opt = '< hidden >'
+                # Don't hide cmd/secret values here
+                if not env_var.lower().endswith('cmd') and not env_var.lower().endswith("secret"):
+                    opt = '< hidden >'
+
             elif raw:
                 opt = opt.replace('%', '%%')
             if display_source:
@@ -1504,7 +1534,6 @@ def ensure_secrets_loaded() -> List[BaseSecretsBackend]:
 def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
     """Get Secret Backend if defined in airflow.cfg"""
     secrets_backend_cls = conf.getimport(section='secrets', key='backend')
-
     if secrets_backend_cls:
         try:
             backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
@@ -1512,8 +1541,14 @@ def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
         except JSONDecodeError:
             alternative_secrets_config_dict = {}
 
-        return secrets_backend_cls(**alternative_secrets_config_dict)
+        return _custom_secrets_backend(secrets_backend_cls, **alternative_secrets_config_dict)
     return None
+
+
+@functools.lru_cache(maxsize=2)
+def _custom_secrets_backend(secrets_backend_cls, **alternative_secrets_config_dict):
+    """Separate function to create secrets backend instance to allow caching"""
+    return secrets_backend_cls(**alternative_secrets_config_dict)
 
 
 def initialize_secrets_backends() -> List[BaseSecretsBackend]:

@@ -564,7 +564,8 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for DAGs, ``doc_md`` is the only attribute interpreted.
+Please note that for DAGs, ``doc_md`` is the only attribute interpreted. For DAGs it can contain a string or the reference to a template file. Template references are recognized by str ending in ``.md``.
+If a relative path is supplied it will start from the folder of the DAG file. Also the template file must exist or Airflow will throw a ``jinja2.exceptions.TemplateNotFound`` exception.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:
 

@@ -30,7 +30,6 @@ type TaskState = RunState
 | 'up_for_reschedule'
 | 'upstream_failed'
 | 'skipped'
-| 'sensing'
 | 'deferred'
 | null;
 
@@ -75,16 +74,9 @@ interface Task {
   children?: Task[];
   extraLinks?: string[];
   isMapped?: boolean;
+  operator?: string;
+  hasOutletDatasets?: boolean;
 }
-
-type SnakeToCamelCase<S extends string> =
-  S extends `${infer T}_${infer U}`
-    ? `${T}${Capitalize<SnakeToCamelCase<U>>}`
-    : S;
-
-type SnakeToCamelCaseNested<T> = T extends object ? {
-  [K in keyof T as SnakeToCamelCase<K & string>]: SnakeToCamelCaseNested<T[K]>
-} : T;
 
 export type {
   Dag,
@@ -94,6 +86,4 @@ export type {
   TaskInstance,
   Task,
   API,
-  SnakeToCamelCase,
-  SnakeToCamelCaseNested,
 };

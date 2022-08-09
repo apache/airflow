@@ -43,7 +43,7 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers_manager import ProvidersManager
 from airflow.sensors.external_task import ExternalTaskSensor
@@ -202,11 +202,10 @@ class _XComRef(NamedTuple):
     post-process it in ``deserialize_dag``.
     """
 
-    task_id: str
-    key: str
+    data: dict
 
     def deref(self, dag: DAG) -> XComArg:
-        return XComArg(operator=dag.get_task(self.task_id), key=self.key)
+        return deserialize_xcom_arg(self.data, dag)
 
 
 class _ExpandInputRef(NamedTuple):
@@ -393,7 +392,7 @@ class BaseSerialization:
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
-            return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
+            return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         else:
@@ -440,7 +439,7 @@ class BaseSerialization:
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
-            return cls._deserialize_xcomref(var)
+            return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
         else:
@@ -544,14 +543,6 @@ class BaseSerialization:
                 op_params[k] = Param(v)
 
         return ParamsDict(op_params)
-
-    @classmethod
-    def _serialize_xcomarg(cls, arg: XComArg) -> dict:
-        return {"key": arg.key, "task_id": arg.operator.task_id}
-
-    @classmethod
-    def _deserialize_xcomref(cls, encoded: dict) -> _XComRef:
-        return _XComRef(key=encoded['key'], task_id=encoded['task_id'])
 
 
 class DependencyDetector:
@@ -872,20 +863,30 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> Set['DagDependency']:
         """Detects between DAG dependencies for the operator."""
+
+        def get_custom_dep() -> List[DagDependency]:
+            """
+            If custom dependency detector is configured, use it.
+
+            TODO: Remove this logic in 3.0.
+            """
+            custom_dependency_detector_cls = conf.getimport('scheduler', 'dependency_detector', fallback=None)
+            if not (
+                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
+            ):
+                warnings.warn(
+                    "Use of a custom dependency detector is deprecated. "
+                    "Support will be removed in a future release.",
+                    DeprecationWarning,
+                )
+                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
+                if type(dep) is DagDependency:
+                    return [dep]
+            return []
+
         dependency_detector = DependencyDetector()
-        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
-        deps = set()
-        if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
-            warnings.warn(
-                "Use of a custom dependency detector is deprecated. "
-                "Support will be removed in a future release.",
-                DeprecationWarning,
-            )
-            dep = custom_dependency_detector.detect_task_dependencies(op)
-            if type(dep) is DagDependency:
-                deps.add(dep)
-        deps.update(dependency_detector.detect_task_dependencies(op))
-        deps.update(dependency_detector.detect_dag_dependencies(op.dag))
+        deps = set(dependency_detector.detect_task_dependencies(op))
+        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
@@ -1057,14 +1058,13 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            dag_deps = [
-                t.__dict__
+            dag_deps = {
+                dep
                 for task in dag.task_dict.values()
-                for t in SerializedBaseOperator.detect_dependencies(task)
-                if t is not None
-            ]
-
-            serialized_dag["dag_dependencies"] = dag_deps
+                for dep in SerializedBaseOperator.detect_dependencies(task)
+            }
+            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1249,7 +1249,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         return group
 
 
-@dataclass
+@dataclass(frozen=True)
 class DagDependency:
     """Dataclass for representing dependencies between DAGs.
     These are calculated during serialization and attached to serialized DAGs.
@@ -1269,9 +1269,6 @@ class DagDependency:
         if self.dependency_id:
             val += f":{self.dependency_id}"
         return val
-
-    def __hash__(self):
-        return hash((self.source, self.target, self.dependency_type, self.dependency_id))
 
 
 def _has_kubernetes() -> bool:

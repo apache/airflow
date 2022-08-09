@@ -51,7 +51,7 @@ class SequentialExecutor(BaseExecutor):
         queue: Optional[str] = None,
         executor_config: Optional[Any] = None,
     ) -> None:
-        self.validate_command(command)
+        self.validate_airflow_tasks_run_command(command)
         self.commands_to_run.append((key, command))
 
     def sync(self) -> None:

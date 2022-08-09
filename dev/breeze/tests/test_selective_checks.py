@@ -612,3 +612,54 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
         },
         str(sc),
     )
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("airflow/models/dag.py",),
+            {
+                "upgrade-to-newer-dependencies": "false",
+            },
+            id="Regular source changed",
+        ),
+        pytest.param(
+            ("setup.py",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Setup.py changed",
+        ),
+        pytest.param(
+            ("setup.cfg",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Setup.cfg changed",
+        ),
+        pytest.param(
+            ('airflow/providers/microsoft/azure/provider.yaml',),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Provider.yaml changed",
+        ),
+        pytest.param(
+            ('generated/provider_dependencies.json',),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Generated provider_dependencies changed",
+        ),
+    ],
+)
+def test_upgrade_to_newer_dependencies(files: Tuple[str, ...], expected_outputs: Dict[str, str]):
+    sc = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(sc))

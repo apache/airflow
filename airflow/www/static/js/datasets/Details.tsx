@@ -24,34 +24,86 @@ import {
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
-import Time from 'src/components/Time';
 import { useDatasetEvents, useDataset } from 'src/api';
-import Table from 'src/components/Table';
+import {
+  Table, TimeCell, CodeCell, TaskInstanceLink,
+} from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
+import type { API } from 'src/types';
+import InfoTooltip from 'src/components/InfoTooltip';
+import { getMetaValue } from 'src/utils';
 
 interface Props {
   datasetId: string;
   onBack: () => void;
 }
 
-const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
-const GridLink = ({ cell: { value } }: any) => <Link color="blue.500" href={`/dags/${value}/grid`}>{value}</Link>;
-const RunLink = ({ cell: { value, row } }: any) => {
-  const { sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.500" href={url}>{value}</Link>);
-};
-const TaskInstanceLink = ({ cell: { value, row } }: any) => {
-  const { sourceRunId, sourceDagId } = row.original;
-  const url = `/dags/${sourceDagId}/grid?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
-  return (<Link color="blue.500" href={url}>{value}</Link>);
-};
-const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
+const gridUrl = getMetaValue('grid_url');
+
+const Details = ({
+  dataset: {
+    uri,
+    extra,
+    upstreamTaskReferences,
+    downstreamDagReferences,
+  },
+}: { dataset: API.Dataset }) => (
+  <Box>
+    <Heading my={2} fontWeight="normal">
+      Dataset:
+      {' '}
+      {uri}
+      <ClipboardButton value={uri} iconOnly ml={2} />
+    </Heading>
+    {!!extra && (
+      <Flex>
+        <Text mr={1}>Extra:</Text>
+        <Code>{JSON.stringify(extra)}</Code>
+      </Flex>
+    )}
+    {upstreamTaskReferences && !!upstreamTaskReferences.length && (
+    <Box mb={2}>
+      <Flex alignItems="center">
+        <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
+        <InfoTooltip label="Tasks that will update this dataset." size={14} />
+      </Flex>
+      {upstreamTaskReferences.map(({ dagId, taskId }) => (
+        <Link
+          key={`${dagId}.${taskId}`}
+          color="blue.600"
+          href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
+          display="block"
+        >
+          {`${dagId}.${taskId}`}
+        </Link>
+      ))}
+    </Box>
+    )}
+    {downstreamDagReferences && !!downstreamDagReferences.length && (
+    <Box>
+      <Flex alignItems="center">
+        <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
+        <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
+      </Flex>
+      {downstreamDagReferences.map(({ dagId }) => (
+        <Link
+          key={dagId}
+          color="blue.600"
+          href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
+          display="block"
+        >
+          {dagId}
+        </Link>
+      ))}
+    </Box>
+    )}
+  </Box>
+);
 
 const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'createdAt', desc: true }]);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
 
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
@@ -67,35 +119,20 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'Timestamp',
-        accessor: 'timestamp',
-        Cell: TimeCell,
-      },
-      {
-        Header: 'Source DAG Id',
-        accessor: 'sourceDagId',
-        Cell: GridLink,
-      },
-      {
-        Header: 'Source DAG Run Id',
-        accessor: 'sourceRunId',
-        Cell: RunLink,
-      },
-      {
-        Header: 'Source Task Id',
+        Header: 'Source Task Instance',
         accessor: 'sourceTaskId',
         Cell: TaskInstanceLink,
-      },
-      {
-        Header: 'Source Map Index',
-        accessor: 'sourceMapIndex',
-        Cell: ({ cell: { value } }) => (value > -1 ? value : null),
       },
       {
         Header: 'Extra',
         accessor: 'extra',
         disableSortBy: true,
         Cell: CodeCell,
+      },
+      {
+        Header: 'When',
+        accessor: 'timestamp',
+        Cell: TimeCell,
       },
     ],
     [],
@@ -109,37 +146,14 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
   return (
-    <Box maxWidth="1500px">
-      <Flex mt={3} justifyContent="space-between">
-        {isLoading && <Spinner display="block" />}
-        {!!dataset && (
-          <Box>
-            <Heading mb={2} fontWeight="normal">
-              Dataset:
-              {' '}
-              {dataset.uri}
-              <ClipboardButton value={dataset.uri} iconOnly ml={2} />
-            </Heading>
-            {!!dataset.extra && (
-              <Flex>
-                <Text mr={1}>Extra:</Text>
-                <Code>{JSON.stringify(dataset.extra)}</Code>
-              </Flex>
-            )}
-            <Flex my={2}>
-              <Text mr={1}>Updated At:</Text>
-              <Time dateTime={dataset.updatedAt} />
-            </Flex>
-            <Flex my={2}>
-              <Text mr={1}>Created At:</Text>
-              <Time dateTime={dataset.createdAt} />
-            </Flex>
-          </Box>
-        )}
-        <Button onClick={onBack}>See all datasets</Button>
+    <Box mt={[6, 3]} maxWidth="1500px">
+      <Button onClick={onBack}>See all datasets</Button>
+      {isLoading && <Spinner display="block" />}
+      {!!dataset && (<Details dataset={dataset} />)}
+      <Flex alignItems="center">
+        <Heading size="lg" mt={3} mb={2} fontWeight="normal">Events</Heading>
+        <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
       </Flex>
-      <Heading size="lg" mt={3} mb={2} fontWeight="normal">Upstream Events</Heading>
-      <Text>Whenever a DAG has updated this dataset.</Text>
       <Table
         data={data}
         columns={columns}

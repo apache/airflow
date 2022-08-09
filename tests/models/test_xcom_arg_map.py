@@ -128,9 +128,9 @@ def test_xcom_convert_to_kwargs_fails_task(dag_maker, session):
     tis[("pull", 1)].run()
 
     # But the third one fails because the map() result cannot be used as kwargs.
-    with pytest.raises(TypeError) as ctx:
+    with pytest.raises(ValueError) as ctx:
         tis[("pull", 2)].run()
-    assert str(ctx.value) == "'NoneType' object is not iterable"
+    assert str(ctx.value) == "expand_kwargs() expects a list[dict], not list[None]"
 
     assert [tis[("pull", i)].state for i in range(3)] == [
         TaskInstanceState.SUCCESS,
@@ -257,3 +257,47 @@ def test_xcom_map_nest(dag_maker, session):
     for ti in decision.schedulable_tis:
         ti.run()
     assert results == {"aa", "bb", "cc"}
+
+
+def test_xcom_map_zip_nest(dag_maker, session):
+    results = set()
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c", "d"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2, 3, 4]
+
+        @dag.task
+        def pull(value):
+            results.add(value)
+
+        doubled = push_numbers().map(lambda v: v * 2)
+        combined = doubled.zip(push_letters())
+
+        def convert_zipped(zipped):
+            letter, number = zipped
+            return letter * number
+
+        pull.expand(value=combined.map(convert_zipped))
+
+    dr = dag_maker.create_dagrun()
+
+    # Run "push_letters" and "push_numbers".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis and all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+    session.commit()
+
+    # Run "pull".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert decision.schedulable_tis and all(ti.task_id == "pull" for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    assert results == {"aa", "bbbb", "cccccc", "dddddddd"}

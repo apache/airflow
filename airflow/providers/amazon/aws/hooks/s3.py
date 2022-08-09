@@ -128,12 +128,12 @@ class S3Hook(AwsBaseHook):
         kwargs['client_type'] = 's3'
         kwargs['aws_conn_id'] = aws_conn_id
 
-        if extra_args and not isinstance(extra_args, dict):
-            raise ValueError(f"transfer_config_args '{extra_args!r}' must be of type {dict}")
+        if transfer_config_args and not isinstance(transfer_config_args, dict):
+            raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
         self.transfer_config = TransferConfig(**transfer_config_args or {})
 
         if extra_args and not isinstance(extra_args, dict):
-            raise ValueError(f"extra_args '{extra_args!r}' must be of type {dict}")
+            raise TypeError(f"extra_args expected dict, got {type(extra_args).__name__}.")
         self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
@@ -215,12 +215,9 @@ class S3Hook(AwsBaseHook):
         :return: the bucket object to the bucket name.
         :rtype: boto3.S3.Bucket
         """
-        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
-        # break compatibility, so we set it explicitly to None.
-        session, endpoint_url = self._get_credentials(region_name=None)
-        s3_resource = session.resource(
+        s3_resource = self.get_session().resource(
             "s3",
-            endpoint_url=endpoint_url,
+            endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )
@@ -465,12 +462,9 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
-        # break compatibility, so we set it explicitly to None.
-        session, endpoint_url = self._get_credentials(region_name=None)
-        s3_resource = session.resource(
+        s3_resource = self.get_session().resource(
             "s3",
-            endpoint_url=endpoint_url,
+            endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )

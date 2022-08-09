@@ -349,6 +349,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+RunSubmitTaskSettings
 SFTPClient
 SIGTERM
 SSHClient
@@ -974,6 +975,7 @@ isfile
 ish
 isn
 iterable
+iterables
 iteratively
 iterm
 itertools
@@ -1050,6 +1052,7 @@ lshift
 lxml
 macOS
 macosx
+mailto
 makedirs
 makedsn
 mapred
@@ -1318,6 +1321,7 @@ sanitization
 sas
 sasl
 savedModel
+scala
 scalability
 scalable
 scaler
@@ -1518,6 +1522,7 @@ unittest
 unittests
 unix
 unmanaged
+unmap
 unmappable
 unmapped
 unmapping

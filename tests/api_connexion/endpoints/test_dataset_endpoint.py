@@ -24,6 +24,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets
 
@@ -78,7 +79,8 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         self._create_dataset(session)
         assert session.query(Dataset).count() == 1
 
-        response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
+        with assert_queries_count(5):
+            response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         assert response.json == {
@@ -87,6 +89,8 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
             "extra": {'foo': 'bar'},
             "created_at": self.default_time,
             "updated_at": self.default_time,
+            "downstream_dag_references": [],
+            "upstream_task_references": [],
         }
 
     def test_should_respond_404(self):
@@ -121,7 +125,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(Dataset).count() == 2
 
-        response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
+        with assert_queries_count(8):
+            response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -133,6 +138,8 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
+                    "downstream_dag_references": [],
+                    "upstream_task_references": [],
                 },
                 {
                     "id": 2,
@@ -140,6 +147,8 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
+                    "downstream_dag_references": [],
+                    "upstream_task_references": [],
                 },
             ],
             "total_entries": 2,
@@ -184,6 +193,38 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = self.client.get("/api/v1/datasets")
 
         assert_401(response)
+
+    @parameterized.expand(
+        [
+            ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
+            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", 'wasb://some_dataset_bucket_/key'}),
+            (
+                "api/v1/datasets?uri_pattern=dataset",
+                {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
+            ),
+            (
+                "api/v1/datasets?uri_pattern=",
+                {
+                    'gcp://bucket/key',
+                    's3://folder/key',
+                    'somescheme://dataset/key',
+                    "wasb://some_dataset_bucket_/key",
+                },
+            ),
+        ]
+    )
+    @provide_session
+    def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
+        dataset1 = Dataset("s3://folder/key")
+        dataset2 = Dataset("gcp://bucket/key")
+        dataset3 = Dataset("somescheme://dataset/key")
+        dataset4 = Dataset("wasb://some_dataset_bucket_/key")
+        session.add_all([dataset1, dataset2, dataset3, dataset4])
+        session.commit()
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dataset_urls = {dataset['uri'] for dataset in response.json['datasets']}
+        assert expected_datasets == dataset_urls
 
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
@@ -348,7 +389,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "id": 2,
                     "dataset_id": 2,
                     "dataset_uri": datasets[1].uri,
-                    "extra": None,
+                    "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
                     "source_run_id": "run2",

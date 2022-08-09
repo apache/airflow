@@ -15,26 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime, timedelta
 from typing import List
 
-import freezegun
 import pendulum
 import pytest
+from dateutil.tz import UTC
 
+from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import Dataset, DatasetDagRunQueue
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.www.views import dag_to_grid
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 DAG_ID = 'test'
-CURRENT_TIME = pendulum.DateTime(2021, 9, 7)
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -46,8 +47,10 @@ def examples_dag_bag():
 @pytest.fixture(autouse=True)
 def clean():
     clear_db_runs()
+    clear_db_datasets()
     yield
     clear_db_runs()
+    clear_db_datasets()
 
 
 @pytest.fixture
@@ -69,18 +72,17 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 
 @pytest.fixture
 def dag_with_runs(dag_without_runs):
-    with freezegun.freeze_time(CURRENT_TIME):
-        date = dag_without_runs.dag.start_date
-        run_1 = dag_without_runs.create_dagrun(
-            run_id='run_1', state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
-        )
-        run_2 = dag_without_runs.create_dagrun(
-            run_id='run_2',
-            run_type=DagRunType.SCHEDULED,
-            execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
-        )
+    date = dag_without_runs.dag.start_date
+    run_1 = dag_without_runs.create_dagrun(
+        run_id='run_1', state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+    )
+    run_2 = dag_without_runs.create_dagrun(
+        run_id='run_2',
+        run_type=DagRunType.SCHEDULED,
+        execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
+    )
 
-        yield run_1, run_2
+    yield run_1, run_2
 
 
 def test_no_runs(admin_client, dag_without_runs):
@@ -92,19 +94,23 @@ def test_no_runs(admin_client, dag_without_runs):
             'children': [
                 {
                     'extra_links': [],
+                    'has_outlet_datasets': False,
                     'id': 'task1',
                     'instances': [],
                     'is_mapped': False,
                     'label': 'task1',
+                    'operator': 'EmptyOperator',
                 },
                 {
                     'children': [
                         {
                             'extra_links': [],
+                            'has_outlet_datasets': False,
                             'id': 'group.mapped',
                             'instances': [],
                             'is_mapped': True,
                             'label': 'mapped',
+                            'operator': 'MockOperator',
                         }
                     ],
                     'id': 'group',
@@ -147,13 +153,23 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
     session.flush()
 
     resp = admin_client.get(f'/object/grid_data?dag_id={DAG_ID}', follow_redirects=True)
+
     assert resp.status_code == 200, resp.json
-    assert resp.json == {
+
+    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
+    # Unlike real datetime, when FakeDatetime is used, it coerces to
+    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
+    current_date_placeholder = '2022-01-02T00:00:00+00:00'
+    actual_date_in_json = datetime.fromisoformat(resp.json['dag_runs'][0]['end_date'])
+    assert datetime.now(tz=UTC) - actual_date_in_json < timedelta(minutes=5)
+    res = resp.json
+    res['dag_runs'][0]['end_date'] = current_date_placeholder
+    assert res == {
         'dag_runs': [
             {
                 'data_interval_end': '2016-01-02T00:00:00+00:00',
                 'data_interval_start': '2016-01-01T00:00:00+00:00',
-                'end_date': '2021-09-07T00:00:00+00:00',
+                'end_date': current_date_placeholder,
                 'execution_date': '2016-01-01T00:00:00+00:00',
                 'last_scheduling_decision': None,
                 'run_id': 'run_1',
@@ -177,6 +193,7 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
             'children': [
                 {
                     'extra_links': [],
+                    'has_outlet_datasets': False,
                     'id': 'task1',
                     'instances': [
                         {
@@ -198,11 +215,13 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
                     ],
                     'is_mapped': False,
                     'label': 'task1',
+                    'operator': 'EmptyOperator',
                 },
                 {
                     'children': [
                         {
                             'extra_links': [],
+                            'has_outlet_datasets': False,
                             'id': 'group.mapped',
                             'instances': [
                                 {
@@ -224,6 +243,7 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
                             ],
                             'is_mapped': True,
                             'label': 'mapped',
+                            'operator': 'MockOperator',
                         },
                     ],
                     'id': 'group',
@@ -258,3 +278,80 @@ def test_query_count(dag_with_runs, session):
     run1, run2 = dag_with_runs
     with assert_queries_count(1):
         dag_to_grid(run1.dag, (run1, run2), session)
+
+
+def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypatch):
+    with monkeypatch.context() as m:
+        # Remove global operator links for this test
+        m.setattr('airflow.plugins_manager.global_operator_extra_links', [])
+        m.setattr('airflow.plugins_manager.operator_extra_links', [])
+        m.setattr('airflow.plugins_manager.registered_operator_link_classes', {})
+
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
+            lineagefile = File("/tmp/does_not_exist")
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2", outlets=[lineagefile])
+            EmptyOperator(task_id="task3", outlets=[Dataset('foo'), lineagefile])
+            EmptyOperator(task_id="task4", outlets=[Dataset('foo')])
+
+        m.setattr(app, 'dag_bag', dag_maker.dagbag)
+        resp = admin_client.get(f'/object/grid_data?dag_id={DAG_ID}', follow_redirects=True)
+
+    def _expected_task_details(task_id, has_outlet_datasets):
+        return {
+            'extra_links': [],
+            'has_outlet_datasets': has_outlet_datasets,
+            'id': task_id,
+            'instances': [],
+            'is_mapped': False,
+            'label': task_id,
+            'operator': 'EmptyOperator',
+        }
+
+    assert resp.status_code == 200, resp.json
+    assert resp.json == {
+        'dag_runs': [],
+        'groups': {
+            'children': [
+                _expected_task_details('task1', False),
+                _expected_task_details('task2', False),
+                _expected_task_details('task3', True),
+                _expected_task_details('task4', True),
+            ],
+            'id': None,
+            'instances': [],
+            'label': None,
+        },
+    }
+
+
+def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
+    with monkeypatch.context() as m:
+        datasets = [Dataset(id=i, uri=f's3://bucket/key/{i}') for i in [1, 2]]
+        session.add_all(datasets)
+        session.commit()
+
+        with dag_maker(dag_id=DAG_ID, schedule_on=datasets, serialized=True, session=session):
+            EmptyOperator(task_id='task1')
+
+        m.setattr(app, 'dag_bag', dag_maker.dagbag)
+
+        ddrq = DatasetDagRunQueue(
+            target_dag_id=DAG_ID, dataset_id=1, created_at=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)
+        )
+        session.add(ddrq)
+        session.commit()
+
+        resp = admin_client.get(f'/object/next_run_datasets/{DAG_ID}', follow_redirects=True)
+
+    assert resp.status_code == 200, resp.json
+    assert resp.json == [
+        {'id': 1, 'uri': 's3://bucket/key/1', 'created_at': "2022-08-01T00:00:00+00:00"},
+        {'id': 2, 'uri': 's3://bucket/key/2', 'created_at': None},
+    ]
+
+
+def test_next_run_datasets_404(admin_client):
+    resp = admin_client.get('/object/next_run_datasets/missingdag', follow_redirects=True)
+    assert resp.status_code == 404, resp.json
+    assert resp.json == {'error': "can't find dag missingdag"}

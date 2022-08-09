@@ -39,7 +39,6 @@ from typing import (
     Iterable,
     List,
     NamedTuple,
-    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -59,6 +58,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     and_,
     false,
@@ -86,7 +86,6 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
-    AirflowSmartSensorException,
     AirflowTaskTimeout,
     DagRunNotFound,
     TaskDeferralError,
@@ -429,7 +428,6 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -481,6 +479,9 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
+        PrimaryKeyConstraint(
+            "dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey', mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
@@ -621,7 +622,6 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        # TODO: whether we need sensing here or not (in sensor and task_instance state machine)
         if self.state in State.running:
             return self._try_number
         return self._try_number + 1
@@ -1470,9 +1470,6 @@ class TaskInstance(Base, LoggingMixin):
                 session.merge(self)
                 session.commit()
             return
-        except AirflowSmartSensorException as e:
-            self.log.info(e)
-            return
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1541,7 +1538,7 @@ class TaskInstance(Base, LoggingMixin):
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
                 self.log.debug("downstream dag ids %s", downstream_dag_ids)
                 session.add(
                     DatasetEvent(
@@ -1610,22 +1607,6 @@ class TaskInstance(Base, LoggingMixin):
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
 
-            if self.task.is_smart_sensor_compatible():
-                # Try to register it in the smart sensor service.
-                registered = False
-                try:
-                    registered = self.task.register_in_sensor_service(self, context)
-                except Exception:
-                    self.log.warning(
-                        "Failed to register in sensor service."
-                        " Continue to run task in non smart sensor mode.",
-                        exc_info=True,
-                    )
-
-                if registered:
-                    # Will raise AirflowSmartSensorException to avoid long running execution.
-                    self._update_ti_state_for_sensing()
-
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
@@ -1635,16 +1616,6 @@ class TaskInstance(Base, LoggingMixin):
 
         Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
-
-    @provide_session
-    def _update_ti_state_for_sensing(self, session: Session = NEW_SESSION) -> NoReturn:
-        self.log.info('Submitting %s to sensor service', self)
-        self.state = State.SENSING
-        self.start_date = timezone.utcnow()
-        session.merge(self)
-        session.commit()
-        # Raise exception for sensing state
-        raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
     def _run_finished_callback(
         self, callback: Optional["TaskStateChangeCallback"], context: Context, callback_type: str
@@ -1882,9 +1853,6 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
 
-        if context is None:
-            context = self.get_template_context()
-
         if error:
             if isinstance(error, BaseException):
                 tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
@@ -1896,7 +1864,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f'operator_failures_{self.task.task_type}')
+        Stats.incr(f'operator_failures_{self.operator}')
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
@@ -1905,6 +1873,10 @@ class TaskInstance(Base, LoggingMixin):
             session.add(TaskFail(ti=self))
 
         self.clear_next_method_args()
+
+        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        if context is None and self.task:
+            context = self.get_template_context(session)
 
         if context is not None:
             context['exception'] = error
@@ -1923,7 +1895,8 @@ class TaskInstance(Base, LoggingMixin):
 
         task: Optional[BaseOperator] = None
         try:
-            task = self.task.unmap((context, session))
+            if self.task and context:
+                task = self.task.unmap((context, session))
         except Exception:
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
@@ -1948,7 +1921,7 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
-        if callback:
+        if callback and context:
             self._run_finished_callback(callback, context, callback_type)
 
         if not test_mode:
@@ -1961,6 +1934,9 @@ class TaskInstance(Base, LoggingMixin):
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
+        if not self.task:
+            # Couldn't load the task, don't know number of retries, guess:
+            return self.try_number <= self.max_tries
 
         return self.task.retries and self.try_number <= self.max_tries
 
@@ -2246,7 +2222,6 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
-        # Reuse it for smart sensor to send default email alert
         if task is None:
             task = getattr(self, 'task')
         use_default = task is None
@@ -2635,6 +2610,16 @@ class SimpleTaskInstance:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
+
+    def as_dict(self):
+        new_dict = dict(self.__dict__)
+        for key in new_dict:
+            if key in ['start_date', 'end_date']:
+                val = new_dict[key]
+                if not val or isinstance(val, str):
+                    continue
+                new_dict.update({key: val.isoformat()})
+        return new_dict
 
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":

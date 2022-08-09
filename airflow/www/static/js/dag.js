@@ -21,6 +21,7 @@
 
 import { getMetaValue } from './utils';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
+import openDatasetModal from './openDatasetModal';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -55,6 +56,7 @@ let subdagId = '';
 let dagRunId = '';
 let mapIndex;
 let mapStates = [];
+let extraLinks;
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -144,7 +146,7 @@ document.addEventListener('click', (event) => {
 export function callModal({
   taskId: t,
   executionDate: d,
-  extraLinks,
+  extraLinks: e,
   tryNumber,
   isSubDag,
   dagRunId: drID,
@@ -160,6 +162,7 @@ export function callModal({
   executionDate = d;
   dagRunId = drID;
   mapIndex = mi;
+  extraLinks = e;
   if (isMapped) {
     mapStates = mappedStates;
   }
@@ -269,7 +272,7 @@ export function callModal({
   }
   query.delete('try_number');
 
-  if (extraLinks && extraLinks.length > 0) {
+  if (!isMapped && extraLinks && extraLinks.length > 0) {
     const markupArr = [];
     extraLinks.sort();
     $.each(extraLinks, (i, link) => {
@@ -318,6 +321,7 @@ $(document).on('click', '.map_index_item', function mapItem() {
       taskId,
       executionDate,
       dagRunId,
+      extraLinks,
       mapIndex: -1,
       isMapped: true,
       mappedStates: mapStates,
@@ -327,6 +331,7 @@ $(document).on('click', '.map_index_item', function mapItem() {
       taskId,
       executionDate,
       dagRunId,
+      extraLinks,
       mapIndex: mi,
     });
   }
@@ -394,4 +399,9 @@ $('#next-run').on('mouseover', () => {
     }
     return newTitle;
   });
+});
+
+$('.next-dataset-triggered').on('click', (e) => {
+  const summary = $(e.target).data('summary');
+  openDatasetModal(dagId, summary || '');
 });

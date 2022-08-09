@@ -30,8 +30,7 @@ import {
   Td,
 } from '@chakra-ui/react';
 
-import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
-import { RiArrowGoBackFill } from 'react-icons/ri';
+import { MdOutlineAccountTree } from 'react-icons/md';
 
 import { useGridData } from 'src/api';
 import { appendSearchParams, getMetaValue } from 'src/utils';
@@ -40,11 +39,13 @@ import { SimpleStatus } from 'src/dag/StatusBox';
 import { ClipboardText } from 'src/components/Clipboard';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
+import RunTypeIcon from 'src/components/RunTypeIcon';
 
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
+import UpstreamEvents from './UpstreamEvents';
 
 const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
@@ -114,11 +115,8 @@ const DagRun = ({ runId }: Props) => {
           <Tr>
             <Td>Run type</Td>
             <Td>
-              {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
-              {runType === 'backfill' && <RiArrowGoBackFill style={{ display: 'inline' }} />}
-              {runType === 'scheduled' && <MdOutlineSchedule style={{ display: 'inline' }} />}
+              <RunTypeIcon runType={runType} />
               {runType}
-
             </Td>
           </Tr>
           <Tr>
@@ -169,6 +167,9 @@ const DagRun = ({ runId }: Props) => {
           )}
         </Tbody>
       </Table>
+      {runType === 'dataset_triggered' && (
+        <UpstreamEvents runId={runId} />
+      )}
     </>
   );
 };
