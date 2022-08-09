@@ -38,6 +38,6 @@ Now you should use the ``schedule`` param:
     with DAG(
         dag_id='my_example',
         start_date=datetime(2021, 1, 1),
-        timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
+        schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
     ) as dag:
         ...
