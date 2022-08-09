@@ -24,6 +24,7 @@ from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+
 class TaskQueueEmptySensor(BaseSensorOperator):
     """Pulls tasks count from a cloud task queue.
     Always waits for queue returning tasks count as 0.
@@ -64,7 +65,6 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         self.queue_name = queue_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-
 
     def poke(self, context: "Context") -> bool:
         # self.log.info('Sensor checks existence of tasks in, %s', self.queue_name)
