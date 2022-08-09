@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
+import datetime
+
 import jinja2.nativetypes
 import jinja2.sandbox
 
@@ -44,29 +48,34 @@ class SandboxedEnvironment(_AirflowEnvironmentMixin, jinja2.sandbox.SandboxedEnv
     """SandboxedEnvironment for Airflow task templates."""
 
 
-def ds_filter(value):
-    if value is not None:
-        return value.strftime('%Y-%m-%d')
+def ds_filter(value: datetime.date | datetime.time | None) -> str | None:
+    if value is None:
+        return None
+    return value.strftime('%Y-%m-%d')
 
 
-def ds_nodash_filter(value):
-    if value is not None:
-        return value.strftime('%Y%m%d')
+def ds_nodash_filter(value: datetime.date | datetime.time | None) -> str | None:
+    if value is None:
+        return None
+    return value.strftime('%Y%m%d')
 
 
-def ts_filter(value):
-    if value is not None:
-        return value.isoformat()
+def ts_filter(value: datetime.date | datetime.time | None) -> str | None:
+    if value is None:
+        return None
+    return value.isoformat()
 
 
-def ts_nodash_filter(value):
-    if value is not None:
-        return value.strftime('%Y%m%dT%H%M%S')
+def ts_nodash_filter(value: datetime.date | datetime.time | None) -> str | None:
+    if value is None:
+        return None
+    return value.strftime('%Y%m%dT%H%M%S')
 
 
-def ts_nodash_with_tz_filter(value):
-    if value is not None:
-        return value.isoformat().replace('-', '').replace(':', '')
+def ts_nodash_with_tz_filter(value: datetime.date | datetime.time | None) -> str | None:
+    if value is None:
+        return None
+    return value.isoformat().replace('-', '').replace(':', '')
 
 
 FILTERS = {
