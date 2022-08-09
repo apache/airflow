@@ -37,7 +37,7 @@ class RedshiftDataOperator(BaseOperator):
         :ref:`howto/operator:RedshiftDataOperator`
 
     :param database: the name of the database
-    :param sql: the SQL statement text to run
+    :param sql: the SQL statement or list of  SQL statement to run
     :param cluster_identifier: unique identifier of a cluster
     :param db_user: the database username
     :param parameters: the parameters for the SQL statement
