@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
@@ -44,8 +44,6 @@ class RedshiftDataOperator(BaseOperator):
     :param secret_arn: the name or ARN of the secret that enables db access
     :param statement_name: the name of the SQL statement
     :param with_event: indicates whether to send an event to EventBridge
-    :param enable_batch_execution: Enable executing multiple query.
-    :param sqls: List of sql statement. This is required when ``enable_batch_execution`` is ``true``
     :param await_result: indicates whether to wait for a result, if True wait, if False don't wait
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
@@ -68,15 +66,13 @@ class RedshiftDataOperator(BaseOperator):
     def __init__(
         self,
         database: str,
-        sql: Optional[str] = None,
+        sql: Union[str, List],
         cluster_identifier: Optional[str] = None,
         db_user: Optional[str] = None,
         parameters: Optional[list] = None,
         secret_arn: Optional[str] = None,
         statement_name: Optional[str] = None,
         with_event: bool = False,
-        enable_batch_execution: bool = False,
-        sqls: Optional[List[str]] = None,
         await_result: bool = True,
         poll_interval: int = 10,
         aws_conn_id: str = 'aws_default',
@@ -92,8 +88,6 @@ class RedshiftDataOperator(BaseOperator):
         self.secret_arn = secret_arn
         self.statement_name = statement_name
         self.with_event = with_event
-        self.enable_batch_execution = enable_batch_execution
-        self.sqls = sqls
         self.await_result = await_result
         if poll_interval > 0:
             self.poll_interval = poll_interval
@@ -127,12 +121,12 @@ class RedshiftDataOperator(BaseOperator):
         return resp['Id']
 
     def execute_batch_query(self):
-        if self.sqls is None:
+        if self.sql is None:
             AirflowException("Missing require param sqls")
         kwargs: Dict[str, Any] = {
             "ClusterIdentifier": self.cluster_identifier,
             "Database": self.database,
-            "Sqls": self.sqls,
+            "Sqls": self.sql,
             "DbUser": self.db_user,
             "Parameters": self.parameters,
             "WithEvent": self.with_event,
@@ -157,10 +151,10 @@ class RedshiftDataOperator(BaseOperator):
                 self.log.info("Query %s", status)
             sleep(self.poll_interval)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: 'Context') -> str:
         """Execute a statement against Amazon Redshift"""
         self.log.info("Executing statement: %s", self.sql)
-        if self.enable_batch_execution:
+        if isinstance(self.sql, list):
             self.statement_id = self.execute_batch_query()
         else:
             self.statement_id = self.execute_query()
