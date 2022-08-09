@@ -83,7 +83,6 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
-from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
@@ -1076,7 +1075,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             PrevDagrunDep(),
             TriggerRuleDep(),
             NotPreviouslySkippedDep(),
-            ReadyToRescheduleDep(),
         }
     )
     """

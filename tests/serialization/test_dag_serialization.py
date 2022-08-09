@@ -45,6 +45,7 @@ from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
+from airflow.sensors.bash import BashSensor
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     DagDependency,
@@ -1325,7 +1326,6 @@ class TestStringifiedDAGs:
             'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
             'airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep',
             'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
-            'airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep',
             'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
             'test_plugin.CustomTestTriggerRule',
         ]
@@ -1336,7 +1336,6 @@ class TestStringifiedDAGs:
             '<TIDep(Not In Retry Period)>',
             '<TIDep(Not Previously Skipped)>',
             '<TIDep(Previous Dagrun State)>',
-            '<TIDep(Ready To Reschedule)>',
             '<TIDep(Trigger Rule)>',
         ]
 
@@ -1608,7 +1607,24 @@ class TestStringifiedDAGs:
         op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
 
         blob = SerializedBaseOperator.serialize_operator(op)
-        assert op.deps == BaseOperator.deps
+        assert "deps" in blob
+
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        assert serialized_op.reschedule == (mode == "reschedule")
+        assert op.deps == serialized_op.deps
+
+    @pytest.mark.parametrize("mode", ["poke", "reschedule"])
+    def test_serialize_mapped_sensor(self, mode):
+        from airflow.sensors.base import BaseSensorOperator
+
+        class DummySensor(BaseSensorOperator):
+            def poke(self, context: Context):
+                return False
+
+        op = DummySensor.partial(task_id='dummy', mode=mode).expand(poke_interval=[23])
+
+        blob = SerializedBaseOperator.serialize_mapped_operator(op)
+        assert "deps" in blob
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
         assert serialized_op.reschedule == (mode == "reschedule")
@@ -1979,6 +1995,17 @@ def test_operator_expand_deserialized_unmap():
     mapped = BashOperator.partial(task_id='a', executor_config={"a": "b"}).expand(bash_command=[1, 2])
 
     serialize = SerializedBaseOperator._serialize
+    deserialize = SerializedBaseOperator.deserialize_operator
+    assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
+
+
+def test_sensor_expand_deserialized_unmap():
+    """Unmap a deserialized mapped sensor should be similar to deserializing a non-mapped sensor"""
+    normal = BashSensor(task_id='a', bash_command=[1, 2], mode='reschedule')
+    mapped = BashSensor.partial(task_id='a', mode='reschedule').expand(bash_command=[1, 2])
+
+    serialize = SerializedBaseOperator._serialize
+
     deserialize = SerializedBaseOperator.deserialize_operator
     assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
 
