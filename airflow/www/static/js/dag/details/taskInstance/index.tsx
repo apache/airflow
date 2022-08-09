@@ -132,6 +132,7 @@ const TaskInstance = ({
           taskId={taskId}
           runId={runId}
           isMapped={isMapped}
+          mapIndex={mapIndex}
           executionDate={executionDate}
           operator={operator}
         />
