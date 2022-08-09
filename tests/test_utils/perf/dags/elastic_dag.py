@@ -175,7 +175,7 @@ for dag_no in range(1, DAG_COUNT + 1):
                     f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
                     f"TASKS_COUNT=${TASKS_COUNT}",
                     f"START_DATE=${START_DATE_ENV}",
-                    f"schedule=${SCHEDULE_INTERVAL_ENV}",
+                    f"SCHEDULE=${SCHEDULE_INTERVAL_ENV}",
                 ]
             )
         ),
