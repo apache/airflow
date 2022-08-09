@@ -43,6 +43,7 @@ import TaskNav from './Nav';
 import Details from './Details';
 import MappedInstances from './MappedInstances';
 import TaskActions from './taskActions';
+import BackToTaskSummary from './BackToTaskSummary';
 
 const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
 
@@ -148,9 +149,16 @@ const TaskInstance = ({
             </Tab>
           )}
         </TabList>
+
+        <BackToTaskSummary
+          isMapIndexDefined={isMapIndexDefined}
+          onClick={() => onSelect({ runId, taskId })}
+        />
+
         <TabPanels>
+
           {/* Details Tab */}
-          <TabPanel>
+          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
             <Box py="4px">
               {!isGroup && (
               <TaskActions
@@ -185,9 +193,10 @@ const TaskInstance = ({
               )}
             </Box>
           </TabPanel>
+
           {/* Logs Tab */}
           { showLogs && (
-          <TabPanel>
+          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
             <Logs
               dagId={dagId}
               dagRunId={runId}
