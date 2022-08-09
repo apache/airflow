@@ -157,7 +157,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             result_channel.send(result)
 
         try:
-            DAG_PROCESSOR_LOG_TARGET: str = conf.get('logging', 'DAG_PROCESSOR_LOG_TARGET')
+            DAG_PROCESSOR_LOG_TARGET = conf.get_mandatory_value('logging', 'DAG_PROCESSOR_LOG_TARGET')
             if DAG_PROCESSOR_LOG_TARGET == "stdout":
                 with Stats.timer() as timer:
                     _handle_dag_file_processing()
