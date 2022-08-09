@@ -27,7 +27,7 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
-    GKEStartPodOperator,
+    GKEPodOperator,
 )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -57,7 +57,7 @@ with models.DAG(
     )
     # [END howto_operator_gke_create_cluster]
 
-    pod_task = GKEStartPodOperator(
+    pod_task = GKEPodOperator(
         task_id="pod_task",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
@@ -70,7 +70,7 @@ with models.DAG(
     )
 
     # [START howto_operator_gke_start_pod_xcom]
-    pod_task_xcom = GKEStartPodOperator(
+    pod_task_xcom = GKEPodOperator(
         task_id="pod_task_xcom",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,

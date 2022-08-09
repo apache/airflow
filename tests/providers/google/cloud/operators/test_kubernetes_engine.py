@@ -30,7 +30,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
-    GKEStartPodOperator,
+    GKEPodOperator,
 )
 
 TEST_GCP_PROJECT_ID = 'test-id'
@@ -182,7 +182,7 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
 
 class TestGKEPodOperator(unittest.TestCase):
     def setUp(self):
-        self.gke_op = GKEStartPodOperator(
+        self.gke_op = GKEPodOperator(
             project_id=TEST_GCP_PROJECT_ID,
             location=PROJECT_LOCATION,
             cluster_name=CLUSTER_NAME,
@@ -197,7 +197,7 @@ class TestGKEPodOperator(unittest.TestCase):
         )
 
     def test_template_fields(self):
-        assert set(KubernetesPodOperator.template_fields).issubset(GKEStartPodOperator.template_fields)
+        assert set(KubernetesPodOperator.template_fields).issubset(GKEPodOperator.template_fields)
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
@@ -284,7 +284,7 @@ class TestGKEPodOperator(unittest.TestCase):
 
     def test_config_file_throws_error(self):
         with pytest.raises(AirflowException):
-            GKEStartPodOperator(
+            GKEPodOperator(
                 project_id=TEST_GCP_PROJECT_ID,
                 location=PROJECT_LOCATION,
                 cluster_name=CLUSTER_NAME,

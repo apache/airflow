@@ -28,7 +28,7 @@ you to create and run Pods on a Kubernetes cluster.
 .. note::
   If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
   using the
-  :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
+  :ref:`GKEPodOperator <howto/operator:GKEPodOperator>` operator as it
   simplifies the Kubernetes authorization process.
 
 .. note::

@@ -81,7 +81,7 @@ GKE works with containerized applications, such as those created on Docker, and 
 These are called workloads, and when deployed on the cluster they leverage the CPU and memory resources of the cluster
 to run effectively.
 
-.. _howto/operator:GKEStartPodOperator:
+.. _howto/operator:GKEPodOperator:
 
 Run a Pod on a GKE cluster
 """"""""""""""""""""""""""
@@ -89,11 +89,11 @@ Run a Pod on a GKE cluster
 There are two operators available in order to run a pod on a GKE cluster:
 
 * :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
-* :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
+* :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEPodOperator`
 
-``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
+``GKEPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
 There is no need to manage the ``kube_config`` file, as it will be generated automatically.
-All Kubernetes parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
+All Kubernetes parameters (except ``config_file``) are also valid for the ``GKEPodOperator``.
 For more information on ``KubernetesPodOperator``, please look at: :ref:`howto/operator:KubernetesPodOperator` guide.
 
 Using with Private cluster
@@ -104,7 +104,7 @@ Airflow use to communicate with your cluster master. The endpoint is displayed i
 output of ``gcloud container clusters describe`` in the endpoint field.
 
 Private clusters have two unique endpoint values: ``privateEndpoint``, which is an internal IP address, and
-``publicEndpoint``, which is an external one. Running ``GKEStartPodOperator`` against a private cluster
+``publicEndpoint``, which is an external one. Running ``GKEPodOperator`` against a private cluster
 sets the external IP address as the endpoint by default. If you prefer to use the internal IP as the
 endpoint, you need to set ``use_internal_ip`` parameter to ``True``.
 

@@ -25,7 +25,7 @@ submitting a pull request. The sections below capture this knowledge.
 Google Cloud SDK installation
 -----------------------------
 
-Some operators, such as :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
+Some operators, such as :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEPodOperator`,
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`, require
 the installation of `Google Cloud SDK <https://cloud.google.com/sdk>`__ (includes ``gcloud``).
 You can also run these commands with BashOperator.
