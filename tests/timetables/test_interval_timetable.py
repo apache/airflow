@@ -186,6 +186,37 @@ def test_cron_interval_timezone_from_string():
 
 
 @pytest.mark.parametrize(
+    "trigger_at, expected_interval",
+    [
+        # Arbitrary trigger time.
+        pytest.param(
+            pendulum.DateTime(2022, 8, 8, 1, tzinfo=TIMEZONE),
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            id="adhoc",
+        ),
+        # Trigger time falls exactly on interval boundary.
+        pytest.param(
+            pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            id="exact",
+        ),
+    ],
+)
+def test_cron_infer_manual_data_interval_alignment(
+    trigger_at: pendulum.DateTime,
+    expected_interval: DataInterval,
+) -> None:
+    timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
+    assert timetable.infer_manual_data_interval(run_after=trigger_at) == expected_interval
+
+
+@pytest.mark.parametrize(
     "last_data_interval, expected_info",
     [
         pytest.param(

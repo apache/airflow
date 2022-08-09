@@ -159,7 +159,7 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         # Get the last complete period before run_after, e.g. if a DAG run is
         # scheduled at each midnight, the data interval of a manually triggered
         # run at 1am 25th is between 0am 24th and 0am 25th.
-        end = self._get_prev(self._align_to_next(run_after))
+        end = self._align_to_prev(run_after)
         return DataInterval(start=self._get_prev(end), end=end)
 
 
