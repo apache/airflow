@@ -44,11 +44,7 @@ securityContext: {}
 # Detailed default security context for airflow deployments
 securityContexts:
   pod: {}
-  containers:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  containers: {}
 
 # Airflow home directory
 # Used for mount paths
