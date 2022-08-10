@@ -135,9 +135,9 @@ class StatsdTest(unittest.TestCase):
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
-                            'runAsGroup': 1000,
+                            'runAsGroup': 1001,
                             'runAsNonRoot': "true",
-                            'runAsUser': 1000,
+                            'runAsUser': 2000,
                         },
                         "container": {
                             "allowPrivilegeEscalation": "false",
@@ -148,17 +148,13 @@ class StatsdTest(unittest.TestCase):
             },
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        assert "false" == jmespath.search(
-            "spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation", docs[0]
-        )
-        assert "true" == jmespath.search(
-            "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", docs[0]
+        assert {"allowPrivilegeEscalation": False,  "readOnlyRootFilesystem": True} == jmespath.search(
+            "spec.template.spec.containers[0].securityContext", docs[0]
         )
 
-        assert 1000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
-        assert 1000 == jmespath.search("spec.template.spec.securityContext.runAsGroup", docs[0])
-        assert 1000 == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[0])
-        assert "true" == jmespath.search("spec.template.spec.securityContext.runAsNonRoot", docs[0])
+        assert {"runAsUser": 2000,  "runAsGroup": 1001,  "fsGroup": 1000,  "runAsNonRoot": True} == jmespath.search(
+            "spec.template.spec.securityContext", docs[0]
+        )
 
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(
