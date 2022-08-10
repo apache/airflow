@@ -16,72 +16,145 @@
 # under the License.
 ---
 mappings:
-  # Map dot separated stats to labels
-  - match: airflow.dagrun.dependency-check.*.*
-    name: "airflow_dagrun_dependency_check"
-    labels:
-      dag_id: "$1"
-
-  - match: airflow.operator_successes_(.*)
+  # regex
+  # <job_name>_start
+  - match: airflow.(.*)_start
+    name: "airflow_job_start"
     match_type: regex
-    name: "airflow_operator_successes"
     labels:
-      operator: "$1"
+      job_name: "$1"
 
+  # <job_name>_end
+  - match: airflow.(.*)_end
+    name: "airflow_job_end"
+    match_type: regex
+    labels:
+      job_name: "$1"
+
+  # <job_name>_heartbeat_failure
+  - match: airflow.(.*)_heartbeat_failure
+    name: "airflow_job_heartbeat_failure"
+    match_type: regex
+    labels:
+      job_name: "$1"
+
+  # operator_failures_<operator_name>
   - match: airflow.operator_failures_(.*)
-    match_type: regex
     name: "airflow_operator_failures"
-    labels:
-      operator: "$1"
-
-  - match: airflow.scheduler_heartbeat
     match_type: regex
-    name: "airflow_scheduler_heartbeat"
     labels:
-      type: counter
+      operator_name: "$1"
 
-  - match: airflow.dag.*.*.duration
-    name: "airflow_task_duration"
+  # operator_successes_<operator_name>
+  - match: airflow.operator_successes_(.*)
+    name: "airflow_operator_successes"
+    match_type: regex
+    labels:
+      operator_name: "$1"
+
+  # glob
+  # ti.start.<dag_id>.<task_id>
+  - match: airflow.ti.start.*.*
+    name: "airflow_task_start"
     labels:
       dag_id: "$1"
       task_id: "$2"
 
+  # ti.finish.<dag_id>.<task_id>.<state>
+  - match: airflow.ti.finish.*.*.*
+    name: "airflow_task_finish"
+    labels:
+      dag_id: "$1"
+      task_id: "$2"
+      state: "$3"
+
+  # task_removed_from_dag.<dag_id>
+  - match: airflow.task_removed_from_dag.*
+    name: "airflow_task_removed_from_dag"
+    labels:
+      dag_id: "$1"
+
+  # task_restored_to_dag.<dag_id>
+  - match: airflow.task_restored_to_dag.*
+    name: "airflow_task_restored_to_dag"
+    labels:
+      dag_id: "$1"
+
+  # task_instance_created-<operator_name>
+  - match: airflow.task_instance_created-.*
+    name: "airflow_task_instance_created"
+    labels:
+      operator_name: "$1"
+
+  # dag_processing.last_run.seconds_ago.<dag_file>
+  - match: airflow.dag_processing.last_run.seconds_ago.*
+    name: "airflow_dag_processing_last_run_seconds_ago"
+    labels:
+      dag_file: "$3"
+
+  # pool.open_slots.<pool_name>
+  - match: airflow.pool.open_slots.*
+    name: "airflow_pool_open_slots"
+    labels:
+      pool_name: "$1"
+
+  # pool.queued_slots.<pool_name>
+  - match: airflow.pool.queued_slots.*
+    name: "airflow_pool_queued_slots"
+    labels:
+      pool_name: "$1"
+
+  # pool.running_slots.<pool_name>
+  - match: airflow.pool.running_slots.*
+    name: "airflow_pool_running_slots"
+    labels:
+      pool_name: "$1"
+
+  # pool.starving_tasks.<pool_name>
+  - match: airflow.pool.starving_tasks.*
+    name: "airflow_pool_starving_tasks"
+    labels:
+      pool_name: "$1"
+
+  # dagrun.dependency-check.<dag_id>
+  - match: airflow.dagrun.dependency-check.*
+    name: "airflow_dagrun_dependency_check"
+    labels:
+      dag_id: "$1"
+
+  # dag.<dag_id>.<task_id>.duration
+  - match: airflow.dag.*.*.duration
+    name: "airflow_task_duration"
+    labels:
+      dag_id: "$3"
+      task_id: "$4"
+
+  # dag_processing.last_duration.<dag_file>
+  - match: airflow.dag_processing.last_duration.*
+    name: "airflow_dag_processing_last_duration"
+    labels:
+      dag_file: "$1"
+
+  # dagrun.duration.success.<dag_id>
   - match: airflow.dagrun.duration.success.*
-    name: "airflow_dagrun_duration"
+    name: "airflow_dagrun_duration_success"
     labels:
       dag_id: "$1"
 
+  # dagrun.duration.failed.<dag_id>
   - match: airflow.dagrun.duration.failed.*
-    name: "airflow_dagrun_failed"
+    name: "airflow_dagrun_duration_failed"
     labels:
       dag_id: "$1"
 
+  # dagrun.schedule_delay.<dag_id>
   - match: airflow.dagrun.schedule_delay.*
     name: "airflow_dagrun_schedule_delay"
     labels:
       dag_id: "$1"
 
-  - match: airflow.dag_processing.last_runtime.*
-    name: "airflow_dag_processing_last_runtime"
+  # dagrun.<dag_id>.first_task_scheduling_delay
+  - match: airflow.dagrun.*.first_task_scheduling_delay
+    name: "airflow_dagrun_first_task_scheduling_delay"
     labels:
-      dag_file: "$1"
-
-  - match: airflow.dag_processing.last_run.seconds_ago.*
-    name: "airflow_dag_processing_last_run_seconds_ago"
-    labels:
-      dag_file: "$1"
-
-  - match: airflow.pool.open_slots.*
-    name: "airflow_pool_open_slots"
-    labels:
-      pool: "$1"
-
-  - match: airflow.pool.used_slots.*
-    name: "airflow_pool_used_slots"
-    labels:
-      pool: "$1"
-
-  - match: airflow.pool.starving_tasks.*
-    name: "airflow_pool_starving_tasks"
-    labels:
-      pool: "$1"
+      dag_id: "$1"
