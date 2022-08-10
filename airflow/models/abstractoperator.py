@@ -156,13 +156,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def node_id(self) -> str:
         return self.task_id
 
-    @property
-    def output(self):
-        """Returns reference to XCom pushed by current operator"""
-        from airflow.models.xcom_arg import XComArg
-
-        return XComArg(operator=self)
-
     def get_template_env(self) -> "jinja2.Environment":
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
         # This is imported locally since Jinja2 is heavy and we don't need it
