@@ -321,13 +321,11 @@ def dag_to_grid(dag, dag_runs, session):
                             record['state'] = state
                             break
                     if None in record['mapped_states']:
-                        # When turnong the dict into JSON we can't have None as a key, so use the string that
-                        # the UI does
+                        # When turning the dict into JSON we can't have None as a key,
+                        # so use the string that the UI does.
                         record['mapped_states']['no_status'] = record['mapped_states'].pop(None)
 
                 for ti_summary in ti_summaries:
-                    if ti_summary.state is None:
-                        ti_summary.state == 'no_status'
                     if run_id != ti_summary.run_id:
                         run_id = ti_summary.run_id
                         if record:
