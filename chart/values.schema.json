@@ -1955,7 +1955,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                            "description": "Container security context definition for the scheduler.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
