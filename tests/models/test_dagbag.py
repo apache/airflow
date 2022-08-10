@@ -25,6 +25,7 @@ import zipfile
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
+from typing import Iterator
 from unittest import mock
 from unittest.mock import patch
 
@@ -57,14 +58,12 @@ def db_clean_up():
 
 
 class TestDagBag:
-    @classmethod
-    def setup_class(cls):
-        cls.empty_dir = mkdtemp()
+    def setup_class(self):
+        self.empty_dir = mkdtemp()
         db_clean_up()
 
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls.empty_dir)
+    def teardown_class(self):
+        shutil.rmtree(self.empty_dir)
         db_clean_up()
 
     def test_get_existing_dag(self):
@@ -263,7 +262,7 @@ class TestDagBag:
         return os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
 
     @pytest.fixture()
-    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> str:
+    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> Iterator[str]:
         zipped = os.path.join(tmp_path, "test_zip_invalid_cron.zip")
         with zipfile.ZipFile(zipped, "w") as zf:
             zf.write(invalid_cron_dag, os.path.basename(invalid_cron_dag))
