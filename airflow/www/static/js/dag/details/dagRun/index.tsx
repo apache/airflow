@@ -45,7 +45,7 @@ import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
-import UpstreamEvents from './UpstreamEvents';
+import DatasetTriggerEvents from './DatasetTriggerEvents';
 
 const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
@@ -168,7 +168,7 @@ const DagRun = ({ runId }: Props) => {
         </Tbody>
       </Table>
       {runType === 'dataset_triggered' && (
-        <UpstreamEvents runId={runId} />
+        <DatasetTriggerEvents runId={runId} />
       )}
     </>
   );

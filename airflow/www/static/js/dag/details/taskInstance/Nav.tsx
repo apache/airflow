@@ -27,7 +27,7 @@ import { getMetaValue, appendSearchParams } from 'src/utils';
 import LinkButton from 'src/components/LinkButton';
 import type { Task, DagRun } from 'src/types';
 
-const dagId = getMetaValue('dag_id') || '';
+const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
@@ -37,7 +37,7 @@ const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const xcomUrl = getMetaValue('xcom_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
-const gridUrl = getMetaValue('grid_url') || '';
+const gridUrl = getMetaValue('grid_url');
 const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
 interface Props {

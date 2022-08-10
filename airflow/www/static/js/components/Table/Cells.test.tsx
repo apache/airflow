@@ -37,7 +37,7 @@ describe('Test TaskInstanceLink', () => {
     jest.spyOn(utils, 'getMetaValue').mockImplementation(
       (meta) => {
         if (meta === 'grid_url') return '/dags/__DAG_ID__/grid';
-        return null;
+        return '';
       },
     );
 
@@ -67,7 +67,7 @@ describe('Test TaskInstanceLink', () => {
       (meta) => {
         if (meta === 'dag_id') return originalDagId;
         if (meta === 'grid_url') return `/dags/${originalDagId}/grid`;
-        return null;
+        return '';
       },
     );
 

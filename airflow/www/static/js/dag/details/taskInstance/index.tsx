@@ -167,7 +167,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
-                  dagId={dagId || ''}
+                  dagId={dagId}
                   executionDate={executionDate}
                   extraLinks={group?.extraLinks || []}
                 />
