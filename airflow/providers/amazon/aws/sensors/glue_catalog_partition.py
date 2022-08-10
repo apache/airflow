@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
@@ -89,19 +88,3 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
 
         self.hook = GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook
-
-
-class AwsGlueCatalogPartitionSensor(GlueCatalogPartitionSensor):
-    """
-    This sensor is deprecated. Please use
-    :class:`airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor`.",  # noqa: 501
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
