@@ -115,16 +115,13 @@ const DatasetsList = ({ onSelect }: Props) => {
         </Button>
       </Flex>
       {!datasets.length && !isLoading && (
-        <Box mt={5}>
-          <Heading fontWeight="normal" size="md">No Datasets found.</Heading>
-          <Text>
-            Looks like you do not have any datasets yet. Check out the
-            {' '}
-            <Link color="blue" href={docsUrl} isExternal>docs</Link>
-            {' '}
-            to learn how to create a dataset.
-          </Text>
-        </Box>
+        <Text>
+          Looks like you do not have any datasets yet. Check out the
+          {' '}
+          <Link color="blue" href={docsUrl} isExternal>docs</Link>
+          {' '}
+          to learn how to create a dataset.
+        </Text>
       )}
       <Box borderWidth={1}>
         <Table
