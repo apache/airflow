@@ -27,7 +27,7 @@ DAG_ID = "slack_example_dag"
 # [START slack_operator_howto_guide]
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     default_args={'slack_conn_id': 'slack', 'channel': '#general', 'initial_comment': 'Hello World!'},
     max_active_runs=1,

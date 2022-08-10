@@ -589,7 +589,7 @@ class DependencyDetector:
     @staticmethod
     def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.schedule_on:
+        if dag and dag.dataset_triggers:
             return [
                 DagDependency(
                     source="dataset",
@@ -597,7 +597,7 @@ class DependencyDetector:
                     dependency_type="dataset",
                     dependency_id=x.uri,
                 )
-                for x in dag.schedule_on
+                for x in dag.dataset_triggers
             ]
         else:
             return []
@@ -1111,7 +1111,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k == "schedule_on":
+            elif k == "dataset_triggers":
                 v = cls._deserialize(v)
             # else use v as it is
 

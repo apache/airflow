@@ -22,7 +22,6 @@ import logging
 import os
 import pickle
 import re
-import unittest
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -37,7 +36,6 @@ import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
-from parameterized import parameterized
 from sqlalchemy import inspect
 
 from airflow import models, settings
@@ -56,7 +54,7 @@ from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -74,21 +72,14 @@ from tests.test_utils.timetables import cron_timetable, delta_timetable
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 
-@pytest.fixture
-def session():
-    with create_session() as session:
-        yield session
-        session.rollback()
-
-
-class TestDag(unittest.TestCase):
-    def setUp(self) -> None:
+class TestDag:
+    def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
         self.patcher_dag_code = mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db')
         self.patcher_dag_code.start()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
         self.patcher_dag_code.stop()
@@ -231,7 +222,7 @@ class TestDag(unittest.TestCase):
     def test_dag_topological_sort_include_subdag_tasks(self):
         child_dag = DAG(
             'parent_dag.child_dag',
-            schedule_interval='@daily',
+            schedule='@daily',
             start_date=DEFAULT_DATE,
         )
 
@@ -241,7 +232,7 @@ class TestDag(unittest.TestCase):
 
         parent_dag = DAG(
             'parent_dag',
-            schedule_interval='@daily',
+            schedule='@daily',
             start_date=DEFAULT_DATE,
         )
 
@@ -479,7 +470,8 @@ class TestDag(unittest.TestCase):
         jinja_env = dag.get_template_env()
         assert jinja_env.undefined is jinja2.Undefined
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "use_native_obj, force_sandboxed, expected_env",
         [
             (False, True, SandboxedEnvironment),
             (False, False, SandboxedEnvironment),
@@ -539,7 +531,7 @@ class TestDag(unittest.TestCase):
         utc = timezone.convert_to_utc(start)
         assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
+        dag = DAG('tz_dag', start_date=start, schedule='*/5 * * * *')
         _next = dag.following_schedule(utc)
         next_local = local_tz.convert(_next)
 
@@ -566,7 +558,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+        dag = DAG('tz_dag', start_date=start, schedule='0 3 * * *')
 
         prev = dag.previous_schedule(utc)
         prev_local = local_tz.convert(prev)
@@ -595,7 +587,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+        dag = DAG('tz_dag', start_date=start, schedule='0 3 * * *')
 
         prev = dag.previous_schedule(utc)
         prev_local = local_tz.convert(prev)
@@ -621,7 +613,7 @@ class TestDag(unittest.TestCase):
         """
         dag_id = "test_schedule_dag_relativedelta"
         delta = relativedelta(hours=+1)
-        dag = DAG(dag_id=dag_id, schedule_interval=delta)
+        dag = DAG(dag_id=dag_id, schedule=delta)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
         _next = dag.following_schedule(TEST_DATE)
@@ -634,7 +626,7 @@ class TestDag(unittest.TestCase):
         # Check that we don't get an AttributeError 'name' for self.timezone
 
         start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
-        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        dag = DAG('tz_dag', start_date=start, schedule='@hourly')
         when = dag.previous_schedule(start)
         assert when.isoformat() == "2018-03-25T01:00:00+00:00"
 
@@ -642,7 +634,7 @@ class TestDag(unittest.TestCase):
         # Check that we don't get an AttributeError 'name' for self.timezone
 
         start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
-        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        dag = DAG('tz_dag', start_date=start, schedule='@hourly')
         when = dag.following_schedule(start)
         assert when.isoformat() == "2018-03-25T03:00:00+00:00"
 
@@ -666,7 +658,7 @@ class TestDag(unittest.TestCase):
                 return self.__class__._name
 
         start = datetime.datetime(2018, 3, 25, 10, tzinfo=UTC0530())
-        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        dag = DAG('tz_dag', start_date=start, schedule='@hourly')
         when = dag.following_schedule(start)
         assert when.isoformat() == "2018-03-25T05:30:00+00:00"
 
@@ -756,7 +748,7 @@ class TestDag(unittest.TestCase):
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
-    @parameterized.expand([State.RUNNING, State.QUEUED])
+    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.QUEUED])
     def test_bulk_write_to_db_max_active_runs(self, state):
         """
         Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
@@ -824,7 +816,7 @@ class TestDag(unittest.TestCase):
         assert not model.has_import_errors
         session.close()
 
-    def test_bulk_write_to_db_datasets_schedule_on(self):
+    def test_bulk_write_to_db_datasets(self):
         """
         Ensure that datasets referenced in a dag are correctly loaded into the database.
         """
@@ -836,7 +828,7 @@ class TestDag(unittest.TestCase):
         d1 = Dataset(uri1, extra={"not": "used"})
         d2 = Dataset('s3://dataset2')
         d3 = Dataset('s3://dataset3')
-        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule_on=[d1])
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
         EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
@@ -1201,7 +1193,7 @@ class TestDag(unittest.TestCase):
         """
         delta = datetime.timedelta(hours=1)
         dag_id = "test_schedule_dag_fake_scheduled_previous"
-        dag = DAG(dag_id=dag_id, schedule_interval=delta, start_date=DEFAULT_DATE)
+        dag = DAG(dag_id=dag_id, schedule=delta, start_date=DEFAULT_DATE)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=DEFAULT_DATE))
 
         dag.create_dagrun(
@@ -1227,7 +1219,7 @@ class TestDag(unittest.TestCase):
         it is called, and not scheduled the second.
         """
         dag_id = "test_schedule_dag_once"
-        dag = DAG(dag_id=dag_id, schedule_interval="@once")
+        dag = DAG(dag_id=dag_id, schedule="@once")
         assert isinstance(dag.timetable, OnceTimetable)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
@@ -1250,7 +1242,7 @@ class TestDag(unittest.TestCase):
         Tests if fractional seconds are stored in the database
         """
         dag_id = "test_fractional_seconds"
-        dag = DAG(dag_id=dag_id, schedule_interval="@once")
+        dag = DAG(dag_id=dag_id, schedule="@once")
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
         start_date = timezone.utcnow()
@@ -1337,7 +1329,8 @@ class TestDag(unittest.TestCase):
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "schedule_interval_arg, expected_timetable, interval_description",
         [
             (None, NullTimetable(), "Never, external triggers only"),
             ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1349,17 +1342,24 @@ class TestDag(unittest.TestCase):
             ("@once", OnceTimetable(), "Once, as soon as possible"),
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), ""),
             ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
-        ]
+        ],
     )
-    def test_timetable_and_description_from_schedule_interval(
-        self, schedule_interval, expected_timetable, interval_description
+    def test_timetable_and_description_from_schedule_interval_arg(
+        self, schedule_interval_arg, expected_timetable, interval_description
     ):
-        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+        dag = DAG("test_schedule_interval_arg", schedule=schedule_interval_arg)
         assert dag.timetable == expected_timetable
-        assert dag.schedule_interval == schedule_interval
+        assert dag.schedule_interval == schedule_interval_arg
         assert dag.timetable.description == interval_description
 
-    @parameterized.expand(
+    def test_timetable_and_description_from_dataset(self):
+        dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri='hello')])
+        assert dag.timetable == DatasetTriggeredTimetable()
+        assert dag.schedule_interval == 'Dataset'
+        assert dag.timetable.description == 'Triggered by datasets'
+
+    @pytest.mark.parametrize(
+        "timetable, expected_description",
         [
             (NullTimetable(), "Never, external triggers only"),
             (cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1376,7 +1376,7 @@ class TestDag(unittest.TestCase):
             (OnceTimetable(), "Once, as soon as possible"),
             (delta_timetable(datetime.timedelta(days=1)), ""),
             (cron_timetable("30 21 * * 5 1"), ""),
-        ]
+        ],
     )
     def test_description_from_timetable(self, timetable, expected_description):
         dag = DAG("test_schedule_interval_description", timetable=timetable)
@@ -1417,12 +1417,7 @@ class TestDag(unittest.TestCase):
         assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
         assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state(self, dag_run_state):
         dag_id = 'test_clear_set_dagrun_state'
         self._clean_up(dag_id)
@@ -1466,12 +1461,7 @@ class TestDag(unittest.TestCase):
         dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state_for_mapped_task(self, dag_run_state):
         dag_id = 'test_clear_set_dagrun_state'
         self._clean_up(dag_id)
@@ -1572,12 +1562,7 @@ class TestDag(unittest.TestCase):
 
         return dag, subdag
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state_for_subdag(self, dag_run_state):
         session = settings.Session()
         dag, subdag = self._make_test_subdag(session)
@@ -1602,12 +1587,7 @@ class TestDag(unittest.TestCase):
         assert dagrun.state == dag_run_state
         session.rollback()
 
-    @parameterized.expand(
-        [
-            (State.QUEUED,),
-            (State.RUNNING,),
-        ]
-    )
+    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_set_dagrun_state_for_parent_dag(self, dag_run_state):
         session = settings.Session()
         dag, subdag = self._make_test_subdag(session)
@@ -1631,11 +1611,18 @@ class TestDag(unittest.TestCase):
         )
         assert dagrun.state == dag_run_state
 
-    @parameterized.expand(
-        [(state, State.NONE) for state in State.task_states if state != State.RUNNING]
-        + [(State.RUNNING, State.RESTARTING)]  # type: ignore
+    @pytest.mark.parametrize(
+        "ti_state_begin, ti_state_end",
+        [
+            *((state, None) for state in State.task_states if state != TaskInstanceState.RUNNING),
+            (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING),
+        ],
     )
-    def test_clear_dag(self, ti_state_begin, ti_state_end: Optional[str]):
+    def test_clear_dag(
+        self,
+        ti_state_begin: Optional[TaskInstanceState],
+        ti_state_end: Optional[TaskInstanceState],
+    ):
         dag_id = 'test_clear_dag'
         self._clean_up(dag_id)
         task_id = 't1'
@@ -1678,9 +1665,7 @@ class TestDag(unittest.TestCase):
         self._clean_up(dag_id)
 
     def test_next_dagrun_info_once(self):
-        dag = DAG(
-            'test_scheduler_dagrun_once', start_date=timezone.datetime(2015, 1, 1), schedule_interval="@once"
-        )
+        dag = DAG('test_scheduler_dagrun_once', start_date=timezone.datetime(2015, 1, 1), schedule="@once")
 
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2015, 1, 1)
@@ -1698,7 +1683,7 @@ class TestDag(unittest.TestCase):
         start_date = DEFAULT_DATE
         end_date = start_date + (runs - 1) * delta
         dag_id = "test_schedule_dag_start_end_dates"
-        dag = DAG(dag_id=dag_id, start_date=start_date, end_date=end_date, schedule_interval=delta)
+        dag = DAG(dag_id=dag_id, start_date=start_date, end_date=end_date, schedule=delta)
         dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
 
         # Create and schedule the dag runs
@@ -1721,14 +1706,14 @@ class TestDag(unittest.TestCase):
         Test to check that a DAG with catchup = False only schedules beginning now, not back to the start date
         """
 
-        def make_dag(dag_id, schedule_interval, start_date, catchup):
+        def make_dag(dag_id, schedule, start_date, catchup):
             default_args = {
                 'owner': 'airflow',
                 'depends_on_past': False,
             }
             dag = DAG(
                 dag_id,
-                schedule_interval=schedule_interval,
+                schedule=schedule,
                 start_date=start_date,
                 catchup=catchup,
                 default_args=default_args,
@@ -1750,7 +1735,7 @@ class TestDag(unittest.TestCase):
 
         dag1 = make_dag(
             dag_id='dag_without_catchup_ten_minute',
-            schedule_interval='*/10 * * * *',
+            schedule='*/10 * * * *',
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
@@ -1761,7 +1746,7 @@ class TestDag(unittest.TestCase):
 
         dag2 = make_dag(
             dag_id='dag_without_catchup_hourly',
-            schedule_interval='@hourly',
+            schedule='@hourly',
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
@@ -1774,7 +1759,7 @@ class TestDag(unittest.TestCase):
 
         dag3 = make_dag(
             dag_id='dag_without_catchup_once',
-            schedule_interval='@once',
+            schedule='@once',
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
@@ -1792,7 +1777,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             'test_scheduler_dagrun_once_with_timedelta_and_catchup_false',
             start_date=timezone.datetime(2015, 1, 1),
-            schedule_interval=timedelta(days=1),
+            schedule=timedelta(days=1),
             catchup=False,
         )
 
@@ -1812,7 +1797,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             'test_scheduler_dagrun_once_with_timedelta_and_catchup_true',
             start_date=timezone.datetime(2020, 5, 1),
-            schedule_interval=timedelta(days=1),
+            schedule=timedelta(days=1),
             catchup=True,
         )
 
@@ -1829,7 +1814,7 @@ class TestDag(unittest.TestCase):
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
 
-    def test_next_dagrun_info_timetable_exception(self):
+    def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
         class FailingTimetable(Timetable):
@@ -1852,16 +1837,16 @@ class TestDag(unittest.TestCase):
                 f"for DAG 'test_next_dagrun_info_timetable_exception'"
             )
 
-        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+        with caplog.at_level(level=logging.ERROR):
             next_info = dag.next_dagrun_info(None)
         assert next_info is None, "failed next_dagrun_info should return None"
-        _check_logs(ctx.records, data_interval=None)
-
+        _check_logs(caplog.records, data_interval=None)
+        caplog.clear()
         data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
-        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+        with caplog.at_level(level=logging.ERROR):
             next_info = dag.next_dagrun_info(data_interval)
         assert next_info is None, "failed next_dagrun_info should return None"
-        _check_logs(ctx.records, data_interval)
+        _check_logs(caplog.records, data_interval)
 
     def test_next_dagrun_after_auto_align(self):
         """
@@ -1873,7 +1858,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_auto_align_1',
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
-            schedule_interval="4 5 * * *",
+            schedule="4 5 * * *",
         )
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -1883,7 +1868,7 @@ class TestDag(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_auto_align_2',
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
-            schedule_interval="10 10 * * *",
+            schedule="10 10 * * *",
         )
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -1902,7 +1887,7 @@ class TestDag(unittest.TestCase):
             """
             dag_subdag = DAG(
                 dag_id=f'{parent_dag_name}.{child_dag_name}',
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args=args,
             )
 
@@ -1915,7 +1900,7 @@ class TestDag(unittest.TestCase):
             dag_id='test_subdag_operator',
             start_date=datetime.datetime(2019, 1, 1),
             max_active_runs=1,
-            schedule_interval=timedelta(minutes=1),
+            schedule=timedelta(minutes=1),
         ) as dag:
             section_1 = SubDagOperator(
                 task_id='section-1',
@@ -1951,7 +1936,7 @@ class TestDag(unittest.TestCase):
         assert dag.access_control == updated_permissions
 
     def test_validate_params_on_trigger_dag(self):
-        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag = models.DAG('dummy-dag', schedule=None, params={'param1': Param(type="string")})
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
@@ -1959,7 +1944,7 @@ class TestDag(unittest.TestCase):
                 execution_date=TEST_DATE,
             )
 
-        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag = models.DAG('dummy-dag', schedule=None, params={'param1': Param(type="string")})
         with pytest.raises(
             ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
         ):
@@ -1970,7 +1955,7 @@ class TestDag(unittest.TestCase):
                 conf={"param1": None},
             )
 
-        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag = models.DAG('dummy-dag', schedule=None, params={'param1': Param(type="string")})
         dag.create_dagrun(
             run_id="test_dagrun_missing_param",
             state=State.RUNNING,
@@ -1982,7 +1967,7 @@ class TestDag(unittest.TestCase):
         start_date = TEST_DATE
         delta = timedelta(days=1)
 
-        dag = models.DAG('dummy-dag', schedule_interval=delta)
+        dag = models.DAG('dummy-dag', schedule=delta)
         dag_dates = dag.date_range(start_date=start_date, num=3)
 
         assert dag_dates == [
@@ -2019,6 +2004,24 @@ class TestDag(unittest.TestCase):
         # Check wrong formatted owner link
         with pytest.raises(AirflowException):
             DAG('dag', start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"schedule_interval": "@daily", "schedule": "@weekly"},
+            {"timetable": NullTimetable(), "schedule": "@weekly"},
+            {"timetable": NullTimetable(), "schedule_interval": "@daily"},
+        ],
+        ids=[
+            "schedule_interval+schedule",
+            "timetable+schedule",
+            "timetable+schedule_interval",
+        ],
+    )
+    def test_schedule_dag_param(self, kwargs):
+        with pytest.raises(ValueError, match='At most one'):
+            with DAG(dag_id='hello', **kwargs):
+                pass
 
 
 class TestDagModel:
@@ -2136,19 +2139,14 @@ class TestDagModel:
         assert dag.relative_fileloc == expected_relative
 
 
-class TestQueries(unittest.TestCase):
-    def setUp(self) -> None:
+class TestQueries:
+    def setup_method(self) -> None:
         clear_db_runs()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_runs()
 
-    @parameterized.expand(
-        [
-            (3,),
-            (12,),
-        ]
-    )
+    @pytest.mark.parametrize("tasks_count", [3, 12])
     def test_count_number_queries(self, tasks_count):
         dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
         for i in range(tasks_count):
@@ -2378,7 +2376,7 @@ def test_dag_timetable_match_schedule_interval(timetable):
 
 @pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
 def test_dag_schedule_interval_match_timetable(schedule_interval):
-    dag = DAG("my-dag", schedule_interval=schedule_interval)
+    dag = DAG("my-dag", schedule=schedule_interval)
     assert dag._check_schedule_interval_matches_timetable()
 
 
@@ -2566,7 +2564,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     ids=["in-dag-restriction", "out-of-dag-restriction"],
 )
 def test_iter_dagrun_infos_between(start_date, expected_infos):
-    dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly")
+    dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule="@hourly")
     EmptyOperator(task_id='dummy', dag=dag)
 
     iterator = dag.iter_dagrun_infos_between(
@@ -2636,7 +2634,7 @@ def test_get_next_data_interval(
     data_interval_end,
     expected_data_interval,
 ):
-    dag = DAG(dag_id="test_get_next_data_interval", schedule_interval="@daily")
+    dag = DAG(dag_id="test_get_next_data_interval", schedule="@daily")
     dag_model = DagModel(
         dag_id="test_get_next_data_interval",
         next_dagrun=logical_date,
@@ -2703,9 +2701,9 @@ def test_get_dataset_triggered_next_run_info(session, reset_dataset):
     dataset1 = Dataset(uri=f"s3://{unique_id}-1")
     dataset2 = Dataset(uri=f"s3://{unique_id}-2")
     dataset3 = Dataset(uri=f"s3://{unique_id}-3")
-    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule_on=[dataset2])
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1, dataset2, dataset3])
+    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule=[dataset2])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule=[dataset1, dataset2, dataset3])
     DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
 
     session.commit()

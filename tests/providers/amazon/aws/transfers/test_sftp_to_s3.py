@@ -52,7 +52,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
         hook.no_host_key_check = True
         dag = DAG(
             f'{TEST_DAG_ID}test_schedule_dag_once',
-            schedule_interval="@once",
+            schedule="@once",
             start_date=DEFAULT_DATE,
         )
 

@@ -331,7 +331,7 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         session.add_all(datasets)
         session.commit()
 
-        with dag_maker(dag_id=DAG_ID, schedule_on=datasets, serialized=True, session=session):
+        with dag_maker(dag_id=DAG_ID, schedule=datasets, serialized=True, session=session):
             EmptyOperator(task_id='task1')
 
         m.setattr(app, 'dag_bag', dag_maker.dagbag)

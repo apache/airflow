@@ -96,7 +96,7 @@ class _DataIntervalTimetable(Timetable):
 class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     """Timetable that schedules data intervals with a cron expression.
 
-    This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
+    This corresponds to ``schedule=<cron>``, where ``<cron>`` is either
     a five/six-segment representation, or one of ``cron_presets``.
 
     The implementation extends on croniter to add timezone awareness. This is
@@ -151,7 +151,7 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     """Timetable that schedules data intervals with a time delta.
 
-    This corresponds to ``schedule_interval=<delta>``, where ``<delta>`` is
+    This corresponds to ``schedule=<delta>``, where ``<delta>`` is
     either a ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta``
     instance.
     """
