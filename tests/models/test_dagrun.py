@@ -853,7 +853,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule=schedule_interval)
         dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:
@@ -1381,8 +1381,8 @@ def test_dataset_dagruns_triggered(session):
     dag1 = DAG(dag_id=f"datasets-{unique_id}-1", start_date=timezone.utcnow())
     dataset1 = Dataset(uri=f"s3://{unique_id}-1")
     dataset2 = Dataset(uri=f"s3://{unique_id}-2")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule=[dataset1])
     task = BashOperator(task_id="task", bash_command="echo 1", dag=dag1, outlets=[dataset1])
     # BashOperator(task_id="task", bash_command="echo 1", dag=dag2)
     # BashOperator(task_id="task", bash_command="echo 1", dag=dag3)

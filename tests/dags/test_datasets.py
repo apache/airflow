@@ -35,7 +35,7 @@ dag_with_skip_task = DAG(
     dag_id='dag_with_skip_task',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
+    schedule='@daily',
     tags=['upstream-skipping'],
 )
 PythonOperator(
@@ -49,7 +49,7 @@ with DAG(
     dag_id='dag_that_follows_dag_with_skip',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_on=[skip_task_dag_dataset],
+    schedule=[skip_task_dag_dataset],
     tags=['downstream-skipped'],
 ) as dag_that_follows_dag_with_skip:
     BashOperator(
@@ -66,7 +66,7 @@ dag_with_fail_task = DAG(
     dag_id='dag_with_fail_task',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
+    schedule='@daily',
     tags=['upstream-skipping'],
 )
 PythonOperator(
@@ -80,7 +80,7 @@ with DAG(
     dag_id='dag_that_follows_dag_with_fail',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_on=[fail_task_dag_dataset],
+    schedule=[fail_task_dag_dataset],
     tags=['downstream-failed'],
 ) as dag_that_follows_dag_with_fail:
     BashOperator(

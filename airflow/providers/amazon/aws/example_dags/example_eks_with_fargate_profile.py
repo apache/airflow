@@ -47,7 +47,6 @@ VPC_CONFIG = {
 
 with DAG(
     dag_id='example_eks_with_fargate_profile',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

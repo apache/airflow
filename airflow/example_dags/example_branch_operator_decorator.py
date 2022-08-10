@@ -34,7 +34,7 @@ with DAG(
     dag_id='example_branch_python_operator_decorator',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval="@daily",
+    schedule="@daily",
     tags=['example', 'example2'],
 ) as dag:
     run_this_first = EmptyOperator(task_id='run_this_first')

@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.0
+.....
+
+Latest change: 2022-07-26
+
+=================================================================================================  ===========  =======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================
+`c8af0592c0 <https://github.com/apache/airflow/commit/c8af0592c08017ee48f69f608ad4a6529ee14292>`_  2022-07-26   ``Improve taskflow type hints with ParamSpec (#25173)``
+=================================================================================================  ===========  =======================================================
+
 5.0.0
 .....
 
-Latest change: 2022-07-08
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `3f9414d0fd <https://github.com/apache/airflow/commit/3f9414d0fd67a2c508e105651de1105955f307bf>`_  2022-07-08   ``Correct parameter typing in 'SalesforceBulkOperator' (#24927)``
 `b6a2759417 <https://github.com/apache/airflow/commit/b6a27594174c888af31d3fc71ea5f8b589883a12>`_  2022-07-05   ``Add support for Salesforce bulk api (#24473)``
 `9c995523f2 <https://github.com/apache/airflow/commit/9c995523f28150de3153d7cb16d605a43dbed09d>`_  2022-07-03   ``Remove Tableau from Salesforce provider (#23747)``

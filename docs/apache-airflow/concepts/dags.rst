@@ -39,7 +39,7 @@ which will add the DAG to anything inside it implicitly::
 
     with DAG(
         "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        schedule_interval="@daily", catchup=False
+        schedule="@daily", catchup=False
     ) as dag:
         op = EmptyOperator(task_id="task")
 
@@ -47,13 +47,13 @@ Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
     my_dag = DAG("my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-                 schedule_interval="@daily", catchup=False)
+                 schedule="@daily", catchup=False)
     op = EmptyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
     @dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-         schedule_interval="@daily", catchup=False)
+         schedule="@daily", catchup=False)
     def generate_dag():
         op = EmptyOperator(task_id="task")
 
@@ -145,21 +145,21 @@ DAGs will run in one of two ways:
  - When they are *triggered* either manually or via the API
  - On a defined *schedule*, which is defined as part of the DAG
 
-DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule_interval`` argument, like this::
+DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule`` argument, like this::
 
-    with DAG("my_daily_dag", schedule_interval="@daily"):
+    with DAG("my_daily_dag", schedule="@daily"):
         ...
 
-The ``schedule_interval`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
+The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
-    with DAG("my_daily_dag", schedule_interval="0 * * * *"):
+    with DAG("my_daily_dag", schedule="0 * * * *"):
         ...
 
 .. tip::
 
-    For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
+    For more information on ``schedule`` values, see :doc:`DAG Run </dag-run>`.
 
-    If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
+    If ``schedule`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
     For more information on ``logical date``, see :ref:`data-interval` and
     :ref:`faq:what-does-execution-date-mean`.
 
@@ -222,7 +222,7 @@ Often, many Operators inside a DAG need the same set of default arguments (such 
     with DAG(
         dag_id='my_dag',
         start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
-        schedule_interval='@daily',
+        schedule='@daily',
         catchup=False,
         default_args={'retries': 2},
     ) as dag:
@@ -408,7 +408,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
         dag = DAG(
             dag_id="branch_without_trigger",
-            schedule_interval="@once",
+            schedule="@once",
             start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
         )
 
@@ -496,7 +496,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
     with DAG(
         dag_id='dag1',
         start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
-        schedule_interval="@daily",
+        schedule="@daily",
         catchup=False,
         default_args={'retries': 1},
     ):
@@ -579,7 +579,7 @@ This is especially useful if your tasks are built dynamically from configuration
     dag = DAG(
         "my_dag",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        schedule_interval="@daily",
+        schedule="@daily",
         catchup=False,
     )
     dag.doc_md = __doc__

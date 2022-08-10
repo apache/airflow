@@ -487,7 +487,7 @@ class TestStringifiedDAGs:
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
-        fields_to_check = dag.get_serialized_fields() - {
+        exclusion_list = {
             # Doesn't implement __eq__ properly. Check manually.
             'timetable',
             'timezone',
@@ -496,6 +496,7 @@ class TestStringifiedDAGs:
             "_task_group",
             'params',
         }
+        fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(
                 dag, field
@@ -1423,7 +1424,7 @@ class TestStringifiedDAGs:
         d3 = Dataset('d3')
         d4 = Dataset('d4')
         execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=execution_date, schedule_on=[d1]) as dag:
+        with DAG(dag_id="test", start_date=execution_date, schedule=[d1]) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",

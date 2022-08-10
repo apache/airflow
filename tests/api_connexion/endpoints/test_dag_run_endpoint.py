@@ -121,7 +121,7 @@ class TestDagRunEndpoint:
         dag_instance = DagModel(dag_id=dag_id)
         with create_session() as session:
             session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule_interval=None)
+        dag = DAG(dag_id=dag_id, schedule=None)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
@@ -1044,7 +1044,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_dag_run_id = f"manual__{expected_logical_date}"
         else:
             expected_dag_run_id = dag_run_id
-        assert {
+        assert response.json == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
@@ -1058,7 +1058,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-        } == response.json
+        }
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
@@ -1499,7 +1499,7 @@ def test__get_upstream_dataset_events_no_prior(configured_app):
     session = settings.Session()
     dataset1a = Dataset(uri=f"s3://{unique_id}-1a")
     dataset1b = Dataset(uri=f"s3://{unique_id}-1b")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1a, dataset1b])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1a, dataset1b])
     DAG.bulk_write_to_db(dags=[dag2], session=session)
     session.add_all([dataset1a, dataset1b])
     session.commit()
@@ -1534,7 +1534,7 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     session = settings.Session()
     dataset1a = Dataset(uri=f"s3://{unique_id}-1a")
     dataset1b = Dataset(uri=f"s3://{unique_id}-1b")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1a, dataset1b])
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1a, dataset1b])
     DAG.bulk_write_to_db(dags=[dag2], session=session)
     session.add_all([dataset1a, dataset1b])
     session.commit()
