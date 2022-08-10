@@ -60,7 +60,7 @@ const TaskInstance = ({
   taskId, runId, mapIndex, onSelect,
 }: Props) => {
   const isMapIndexDefined = !(mapIndex === undefined);
-  const selectedRows: number[] = isMapIndexDefined ? [mapIndex] : [];
+  const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
   const { data: { dagRuns, groups } } = useGridData();
 
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
@@ -119,7 +119,7 @@ const TaskInstance = ({
 
   let taskActionsTitle = 'Task Actions';
   if (isMapped) {
-    taskActionsTitle += ` for ${selectedRows.length || 'all'} mapped task${selectedRows.length !== 1 ? 's' : ''}`;
+    taskActionsTitle += ` for ${actionsMapIndexes.length || 'all'} mapped task${actionsMapIndexes.length !== 1 ? 's' : ''}`;
   }
 
   const onRowClicked = (rowMapIndex: number, mappedTaskInstances: TaskInstanceType[]) => {
@@ -173,7 +173,7 @@ const TaskInstance = ({
                 taskId={taskId}
                 dagId={dagId}
                 executionDate={executionDate}
-                mapIndexes={selectedRows}
+                mapIndexes={actionsMapIndexes}
               />
               )}
               {instance && <Details instance={instance} group={group} />}
@@ -188,24 +188,6 @@ const TaskInstance = ({
             </Box>
           </TabPanel>
 
-          {/* Mapped Task Instances Tab */}
-          { isMappedTaskSummary && (
-          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
-              {isMapped && taskId && (
-                <MappedInstances
-                  dagId={dagId}
-                  runId={runId}
-                  taskId={taskId}
-                  onRowClicked={onRowClicked}
-                  mapIndex={mapIndex}
-                  onMappedInstancesFetch={
-                    (taskInstances) => setInstanceForMappedIndex(mapIndex, taskInstances)
-                  }
-                />
-              )}
-          </TabPanel>
-          )}
-
           {/* Logs Tab */}
           { showLogs && (
           <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
@@ -219,6 +201,22 @@ const TaskInstance = ({
             />
           </TabPanel>
           )}
+
+          {/* Mapped Task Instances Tab */}
+          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
+            {isMapped && taskId && (
+            <MappedInstances
+              dagId={dagId}
+              runId={runId}
+              taskId={taskId}
+              onRowClicked={onRowClicked}
+              mapIndex={mapIndex}
+              onMappedInstancesFetch={
+                    (taskInstances) => setInstanceForMappedIndex(mapIndex, taskInstances)
+                  }
+            />
+            )}
+          </TabPanel>
         </TabPanels>
       </Tabs>
     </Box>

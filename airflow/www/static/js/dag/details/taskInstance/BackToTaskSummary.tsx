@@ -30,19 +30,16 @@ const BackToTaskSummary = ({ isMapIndexDefined, onClick }: Props) => {
 
   return (
     <div>
-      {isMapIndexDefined && (
-        <Flex justifyContent="right">
-          <Button
-            variant="ghost"
-            colorScheme="blue"
-            onClick={onClick}
-            size="lg"
-          >
-            Back to Dynamic Task Summary
-          </Button>
-        </Flex>
-
-      )}
+      <Flex justifyContent="right">
+        <Button
+          variant="ghost"
+          colorScheme="blue"
+          onClick={onClick}
+          size="lg"
+        >
+          Back to Dynamic Task Summary
+        </Button>
+      </Flex>
     </div>
   );
 };

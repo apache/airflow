@@ -158,7 +158,7 @@ const Logs = ({
 
   return (
     <>
-      {tryNumber !== undefined && tryNumber > 0 && (
+      {tryNumber !== undefined && (
         <>
           <Text as="span"> (by attempts)</Text>
           <Flex my={1} justifyContent="space-between">
