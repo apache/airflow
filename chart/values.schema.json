@@ -101,12 +101,12 @@
             ]
         },
         "securityContexts": {
-            "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
+            "description": "Security context definition for the scheduler.",
             "type": "object",
             "x-docsSection": "Kubernetes",
             "properties": {
                 "pod": {
-                    "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                    "description": "Pod security context definition for the scheduler.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -120,11 +120,16 @@
                     ]
                 },
                 "container": {
-                    "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                    "description": "Container security context definition for the scheduler.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                     "default": {},
-                    "x-docsSection": "Kubernetes"
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false
+                        }
+                    ]
                 }
             }
         },
@@ -1959,7 +1964,12 @@
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
-                            "x-docsSection": "Kubernetes"
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false
+                                }
+                            ]
                         }
                     }
                 },
@@ -3107,12 +3117,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+                    "description": "Security context definition for the scheduler.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                            "description": "Pod security context definition for the scheduler.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -3126,11 +3136,16 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                            "description": "Container security context definition for the scheduler.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
-                            "x-docsSection": "Kubernetes"
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false
+                                }
+                            ]
                         }
                     }
                 },
@@ -3870,12 +3885,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+                    "description": "Security context definition for the scheduler.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods",
+                            "description": "Pod security context definition for the scheduler.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -3889,11 +3904,16 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                            "description": "Container security context definition for the scheduler.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
-                            "x-docsSection": "Kubernetes"
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false
+                                }
+                            ]
                         }
                     }
                 }
