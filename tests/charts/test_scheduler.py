@@ -324,11 +324,8 @@ class SchedulerTest(unittest.TestCase):
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert "false" == jmespath.search(
-            "spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation", docs[0]
-        )
-        assert "true" == jmespath.search(
-            "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", docs[0]
+        assert {"allowPrivilegeEscalation": False,  "readOnlyRootFilesystem": True} == jmespath.search(
+            "spec.template.spec.containers[0].securityContext", docs[0]
         )
 
         assert 1000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
