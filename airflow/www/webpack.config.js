@@ -55,7 +55,7 @@ Foundation (http://www.apache.org/).
 
 const config = {
   entry: {
-    airflowBootstrapTheme: `${CSS_DIR}/airflow_bootstrap_theme.css`,
+    airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
     chart: [`${CSS_DIR}/chart.css`],
     dag: `${JS_DIR}/dag.js`,
