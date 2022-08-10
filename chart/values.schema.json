@@ -101,7 +101,7 @@
             ]
         },
         "securityContexts": {
-            "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container",
+            "description": "Security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
             "type": "object",
             "x-docsSection": "Kubernetes",
             "properties": {
