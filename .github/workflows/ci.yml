@@ -921,7 +921,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-helm:
     timeout-minutes: 80
-    name: "Python unit tests for helm chart"
+    name: "Python unit tests for Helm chart"
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-ci-images]
     env:
@@ -957,9 +957,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: Helm"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing helm-tests
         env:
-          PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
@@ -974,13 +973,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           name: container-logs-helm
           path: "./files/container_logs*"
-          retention-days: 7
-      - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v3
-        if: needs.build-info.outputs.run-coverage == 'true'
-        with:
-          name: coverage-helm
-          path: "./files/coverage*.xml"
           retention-days: 7
       - name: "Fix ownership"
         run: breeze ci fix-ownership

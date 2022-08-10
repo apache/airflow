@@ -292,7 +292,7 @@ class TriggererTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
@@ -400,7 +400,7 @@ class TriggererTest(unittest.TestCase):
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_dags_gitsync_sidecar_and_init_container(self):

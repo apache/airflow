@@ -18,6 +18,7 @@ import io
 import json
 import zipfile
 from datetime import datetime
+from typing import List, Optional, Tuple
 
 import boto3
 
@@ -26,7 +27,7 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.lambda_function import AwsLambdaInvokeFunctionOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
 
 DAG_ID = 'example_lambda'
 
@@ -42,7 +43,7 @@ def test(*args):
 
 
 # Create a zip file containing one file "lambda_function.py" to deploy to the lambda function
-def create_zip(content):
+def create_zip(content: str):
     zip_output = io.BytesIO()
     with zipfile.ZipFile(zip_output, "w", zipfile.ZIP_DEFLATED) as zip_file:
         info = zipfile.ZipInfo("lambda_function.py")
@@ -53,7 +54,7 @@ def create_zip(content):
 
 
 @task
-def create_lambda(function_name, role_arn):
+def create_lambda(function_name: str, role_arn: str):
     client = boto3.client('lambda')
     client.create_function(
         FunctionName=function_name,
@@ -68,18 +69,27 @@ def create_lambda(function_name, role_arn):
 
 
 @task
-def await_lambda(function_name):
+def await_lambda(function_name: str):
     client = boto3.client('lambda')
     waiter = client.get_waiter('function_active_v2')
     waiter.wait(FunctionName=function_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_lambda(function_name):
+def delete_lambda(function_name: str):
     client = boto3.client('lambda')
     client.delete_function(
         FunctionName=function_name,
     )
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_logs(function_name: str) -> None:
+    generated_log_groups: List[Tuple[str, Optional[str]]] = [
+        (f'/aws/lambda/{function_name}', None),
+    ]
+
+    purge_logs(test_logs=generated_log_groups, force_delete=True, retry=True)
 
 
 with models.DAG(
@@ -110,6 +120,7 @@ with models.DAG(
         invoke_lambda_function,
         # TEST TEARDOWN
         delete_lambda(lambda_function_name),
+        delete_logs(lambda_function_name),
     )
 
     from tests.system.utils.watcher import watcher

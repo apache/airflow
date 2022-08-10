@@ -23,6 +23,48 @@
 Changelog
 ---------
 
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add description method in BigQueryCursor class (#25366)``
+* ``Add project_id as a templated variable in two BQ operators (#24768)``
+* ``Remove deprecated modules in Amazon provider (#25543)``
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+* ``Dataform operators (#25587)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GCSListObjectsOperator docstring (#25614)``
+* ``Fix BigQueryInsertJobOperator cancel_on_kill (#25342)``
+* ``Fix BaseSQLToGCSOperator approx_max_file_size_bytes (#25469)``
+* ``Fix PostgresToGCSOperat bool dtype (#25475)``
+* ``Fix Vertex AI Custom Job training issue (#25367)``
+* ``Fix Flask Login user setting for Flask 2.2 and Flask-Login 0.6.2 (#25318)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Google example trino_to_gcs to new design AIP-47 (#25420)``
+   * ``Migrate Google example automl_nl_text_extraction to new design AIP-47 (#25418)``
+   * ``Memorystore assets & system tests migration (AIP-47) (#25361)``
+   * ``Translate system tests migration (AIP-47) (#25340)``
+   * ``Migrate Google example life_sciences to new design AIP-47 (#25264)``
+   * ``Migrate Google example natural_language to new design AIP-47 (#25262)``
+   * ``Delete redundant system test bigquery_to_bigquery (#25261)``
+   * ``Migrate Google example bigquery_to_mssql to new design AIP-47 (#25174)``
+   * ``Migrate Google example compute_igm to new design AIP-47 (#25132)``
+   * ``Migrate Google example automl_vision to new design AIP-47 (#25152)``
+   * ``Migrate Google example gcs_to_sftp to new design AIP-47 (#25107)``
+   * ``Migrate Google campaign manager example to new design AIP-47 (#25069)``
+   * ``Migrate Google analytics example to new design AIP-47 (#25006)``
+
 8.2.0
 .....
 
