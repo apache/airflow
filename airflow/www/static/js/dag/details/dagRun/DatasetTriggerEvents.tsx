@@ -63,7 +63,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   return (
     <Box mt={3} flexGrow={1}>
       <Heading size="md">Dataset Events</Heading>
-      <Text>Dataset events that triggered this DAG run.</Text>
+      <Text>Dataset updates that triggered this DAG run.</Text>
       <Table
         data={data}
         columns={columns}
