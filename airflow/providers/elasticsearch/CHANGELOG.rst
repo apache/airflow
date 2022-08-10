@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Improve ElasticsearchTaskHandler (#21942)``
+
+
 4.1.0
 .....
 

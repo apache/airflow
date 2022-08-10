@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Optimize log when using VerticaOperator (#25566)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
 3.1.0
 .....
 

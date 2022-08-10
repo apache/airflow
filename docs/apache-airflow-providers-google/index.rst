@@ -75,7 +75,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 8.2.0
+Release: 8.3.0
 
 Provider package
 ----------------
@@ -97,7 +97,7 @@ Requirements
 PIP package                              Version required
 =======================================  ===================
 ``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``
+``apache-airflow-providers-common-sql``  ``>=1.1.0``
 ``PyOpenSSL``
 ``google-ads``                           ``>=15.1.1``
 ``google-api-core``                      ``>=2.7.0,<3.0.0``
@@ -110,6 +110,7 @@ PIP package                              Version required
 ``google-cloud-bigtable``                ``>=1.0.0,<2.0.0``
 ``google-cloud-build``                   ``>=3.0.0``
 ``google-cloud-container``               ``>=2.2.0,<3.0.0``
+``google-cloud-dataform``                ``>=0.2.0``
 ``google-cloud-datacatalog``             ``>=3.0.0``
 ``google-cloud-dataplex``                ``>=0.1.0``
 ``google-cloud-dataproc``                ``>=3.1.0``
@@ -184,7 +185,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 8.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 8.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 8.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 8.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.3.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/google/CHANGELOG.rst

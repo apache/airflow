@@ -24,6 +24,20 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+
+Features
+~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
 3.1.0
 .....
 

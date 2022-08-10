@@ -24,6 +24,55 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Avoid requirement that AWS Secret Manager JSON values be urlencoded. (#25432)``
+* ``Remove deprecated modules (#25543)``
+* ``Resolve Amazon Hook's 'region_name' and 'config' in wrapper (#25336)``
+* ``Resolve and validate AWS Connection parameters in wrapper (#25256)``
+* ``Standardize AwsLambda (#25100)``
+* ``Refactor monolithic ECS Operator into Operators, Sensors, and a Hook (#25413)``
+* ``Remove deprecated modules from Amazon provider package (#25609)``
+
+Features
+~~~~~~~~
+
+* ``Add EMR Serverless Operators and Hooks (#25324)``
+* ``Hide unused fields for Amazon Web Services connection (#25416)``
+* ``Enable Auto-incrementing Transform job name in SageMakerTransformOperator (#25263)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``SQSPublishOperator should allow sending messages to a FIFO Queue (#25171)``
+* ``Glue Job Driver logging (#25142)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix S3Hook transfer config arguments validation (#25544)``
+* ``Fix BatchOperator links on wait_for_completion = True (#25228)``
+* ``Makes changes to SqlToS3Operator method _fix_int_dtypes (#25083)``
+* ``refactor: Deprecate parameter 'host' as an extra attribute for the connection. Depreciation is happening in favor of 'endpoint_url' in extra. (#25494)``
+* ``Get boto3.session.Session by appropriate method (#25569)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System test for EMR Serverless  (#25559)``
+   * ``Convert Local to S3 example DAG to System Test (AIP-47) (#25345)``
+   * ``Convert ECS Fargate Sample DAG to System Test (#25316)``
+   * ``Sagemaker System Tests - Part 3 of 3 - example_sagemaker_endpoint.py (AIP-47) (#25134)``
+   * ``Convert RDS Export Sample DAG to System Test (AIP-47) (#25205)``
+   * ``AIP-47 - Migrate redshift DAGs to new design #22438 (#24239)``
+   * ``Convert Glue Sample DAG to System Test (#25136)``
+   * ``Convert the batch sample dag to system tests (AIP-47) (#24448)``
+   * ``Migrate datasync sample dag to system tests (AIP-47) (#24354)``
+   * ``Sagemaker System Tests - Part 2 of 3 - example_sagemaker.py (#25079)``
+   * ``Migrate lambda sample dag to system test (AIP-47) (#24355)``
+   * ``SageMaker system tests - Part 1 of 3 - Prep Work (AIP-47) (#25078)``
+
 4.1.0
 .....
 

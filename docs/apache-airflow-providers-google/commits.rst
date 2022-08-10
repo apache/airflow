@@ -35,14 +35,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.0
+.....
+
+Latest change: 2022-08-09
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`2e2d4bffd5 <https://github.com/apache/airflow/commit/2e2d4bffd53a94fda04e7d88843545f7070b6f32>`_  2022-08-09   ``Dataform operators (#25587)``
+`c8c4a42723 <https://github.com/apache/airflow/commit/c8c4a4272354d090ebf01a5cf7a9f49026e65511>`_  2022-08-08   ``Fix GCSListObjectsOperator docstring (#25614)``
+`029e3ae96f <https://github.com/apache/airflow/commit/029e3ae96f50074e9b524f0b820573741432f44a>`_  2022-08-05   ``Remove deprecated modules (#25543)``
+`7d2c2ee879 <https://github.com/apache/airflow/commit/7d2c2ee879656faf47829d1ad89fc4441e19a66e>`_  2022-08-04   ``add description method in BigQueryCursor class (#25366)``
+`e84d753015 <https://github.com/apache/airflow/commit/e84d753015e5606c29537741cdbe8ae08012c3b6>`_  2022-08-04   ``Fix BigQueryInsertJobOperator cancel_on_kill (#25342)``
+`803c0e252f <https://github.com/apache/airflow/commit/803c0e252fc78a424a181a34a93e689fa9aaaa09>`_  2022-08-03   ``Fix BaseSQLToGCSOperator approx_max_file_size_bytes (#25469)``
+`faf3c4fe47 <https://github.com/apache/airflow/commit/faf3c4fe474733965ab301465f695e3cc311169c>`_  2022-08-02   ``Fix PostgresToGCSOperat bool dtype (#25475)``
+`c8cacad4d6 <https://github.com/apache/airflow/commit/c8cacad4d63361b52b5790b4a75c8f928f1eca83>`_  2022-08-02   ``Migrate Google example trino_to_gcs to new design AIP-47 (#25420)``
+`d2900022a2 <https://github.com/apache/airflow/commit/d2900022a27373b09a3a2a68f8bbc26fbba4a64e>`_  2022-08-02   ``Migrate Google example automl_nl_text_extraction to new design AIP-47 (#25418)``
+`acab8f52dd <https://github.com/apache/airflow/commit/acab8f52dd8d90fd6583779127895dd343780f79>`_  2022-07-29   ``Move all "old" SQL operators to common.sql providers (#25350)``
+`f6b48ac6df <https://github.com/apache/airflow/commit/f6b48ac6dfaf931a5433ec16369302f68f038c65>`_  2022-07-28   ``Memorystore assets & system tests migration (AIP-47) (#25361)``
+`f4b93cc097 <https://github.com/apache/airflow/commit/f4b93cc097dab95437c9c4b37474f792f80fd14e>`_  2022-07-28   ``Translate system tests migration (AIP-47) (#25340)``
+`a8e4519815 <https://github.com/apache/airflow/commit/a8e451981572fa09a96660992e68e046c4baa75f>`_  2022-07-28   ``Fix Vertex AI Custom Job training issue (#25367)``
+`5d4abbd58c <https://github.com/apache/airflow/commit/5d4abbd58c33e7dfa8505e307d43420459d3df55>`_  2022-07-27   ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+`8bc147192c <https://github.com/apache/airflow/commit/8bc147192c8e7174f9e0c9b55b2f5461f7227bcf>`_  2022-07-27   ``Fix Flask Login user setting for Flask 2.2 and Flask-Login 0.6.2 (#25318)``
+`28db8c10b2 <https://github.com/apache/airflow/commit/28db8c10b2422d99217658a039cc6dc45a38ff51>`_  2022-07-26   ``Migrate Google example life_sciences to new design AIP-47 (#25264)``
+`10c9a3697a <https://github.com/apache/airflow/commit/10c9a3697a52ba54996df42740d1e929b3a78d43>`_  2022-07-26   ``Migrate Google example natural_language to new design AIP-47 (#25262)``
+`b288bf4da4 <https://github.com/apache/airflow/commit/b288bf4da44301d91ae62131976eb2925decd0aa>`_  2022-07-26   ``Delete redundant system test bigquery_to_bigquery (#25261)``
+`c8af0592c0 <https://github.com/apache/airflow/commit/c8af0592c08017ee48f69f608ad4a6529ee14292>`_  2022-07-26   ``Improve taskflow type hints with ParamSpec (#25173)``
+`df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+`66b3ca1d28 <https://github.com/apache/airflow/commit/66b3ca1d2837610e01cf1d2314fadcc4be0a111c>`_  2022-07-21   ``Migrate Google example bigquery_to_mssql to new design AIP-47 (#25174)``
+`9644451676 <https://github.com/apache/airflow/commit/96444516761a3be34616b773d5108795ea514fdb>`_  2022-07-19   ``Migrate Google example compute_igm to new design AIP-47 (#25132)``
+`3a80b36ed9 <https://github.com/apache/airflow/commit/3a80b36ed98be62dd42ede0f4afab0f16a8306be>`_  2022-07-19   ``Migrate Google example automl_vision to new design AIP-47 (#25152)``
+`c0ce8a8375 <https://github.com/apache/airflow/commit/c0ce8a83757043110025b57d7fdc3825454d54d2>`_  2022-07-18   ``Migrate Google example gcs_to_sftp to new design AIP-47 (#25107)``
+`e32e9c5880 <https://github.com/apache/airflow/commit/e32e9c58802fe9363cc87ea283a59218df7cec3a>`_  2022-07-18   ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+`4473b27d08 <https://github.com/apache/airflow/commit/4473b27d089ff28d3d73af7c4a8bc6e011134b50>`_  2022-07-16   ``Migrate Google campaign manager example to new design AIP-47 (#25069)``
+`9b7e4a7324 <https://github.com/apache/airflow/commit/9b7e4a732496e60ef1c275c1ac17c7ed05b27b54>`_  2022-07-16   ``Migrate Google analytics example to new design AIP-47 (#25006)``
+`77626b7fc8 <https://github.com/apache/airflow/commit/77626b7fc8ad57e71b3e93f81429424bdfa002a3>`_  2022-07-13   ``Add project_id as a templated variable in two BQ operators (#24768)``
+=================================================================================================  ===========  ==================================================================================
+
 8.2.0
 .....
 
-Latest change: 2022-07-12
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `93992f2361 <https://github.com/apache/airflow/commit/93992f2361a24bad61fc71a6078fa553cd66b302>`_  2022-07-12   ``PubSub assets & system tests migration (AIP-47) (#24867)``
 `a13c51e224 <https://github.com/apache/airflow/commit/a13c51e224e6299387d8b704e12cb7b4c8f61718>`_  2022-07-12   ``Migrate Google sheets example to new design AIP-47 (#24975)``
 `a038b52b5a <https://github.com/apache/airflow/commit/a038b52b5a3bd4a0c97edf9f95da25b2316d305e>`_  2022-07-12   ``Migrate Google ads example to new design AIP-47 (#24941)``

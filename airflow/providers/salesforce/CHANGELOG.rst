@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+
+
 5.0.0
 .....
 

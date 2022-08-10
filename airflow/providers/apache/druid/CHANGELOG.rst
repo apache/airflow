@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+
+
 3.1.0
 .....
 

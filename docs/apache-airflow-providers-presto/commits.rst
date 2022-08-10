@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2022-08-02
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`1fd702e5e5 <https://github.com/apache/airflow/commit/1fd702e5e55cabb40fe7e480bc47e70d9a036944>`_  2022-08-02   ``Remove 'PrestoToSlackOperator' (#25425)``
+`5d4abbd58c <https://github.com/apache/airflow/commit/5d4abbd58c33e7dfa8505e307d43420459d3df55>`_  2022-07-27   ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+`df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+=================================================================================================  ===========  ============================================================================
+
 3.1.0
 .....
 
-Latest change: 2022-07-07
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `13908c2c91 <https://github.com/apache/airflow/commit/13908c2c914cf08f9d962a4d3b6ae54fbdf1d223>`_  2022-06-29   ``Adding generic 'SqlToSlackOperator' (#24663)``

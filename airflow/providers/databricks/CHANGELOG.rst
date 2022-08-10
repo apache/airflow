@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Databricks: update user-agent string (#25578)``
+* ``More improvements in the Databricks operators (#25260)``
+* ``Improved telemetry for Databricks provider (#25115)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: fix test_connection implementation (#25114)``
+* ``Do not convert boolean values to string in deep_string_coerce function (#25394)``
+* ``Correctly handle output of the failed tasks (#25427)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``updated documentation for databricks operator (#24599)``
+
 3.1.0
 .....
 

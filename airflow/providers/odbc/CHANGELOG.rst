@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix odbc hook sqlalchemy_scheme docstring (#25421)``
+
 3.1.0
 .....
 

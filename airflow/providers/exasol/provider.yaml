@@ -22,6 +22,7 @@ description: |
     `Exasol <https://docs.exasol.com/home.htm>`__
 
 versions:
+  - 4.0.0
   - 3.1.0
   - 3.0.0
   - 2.1.3

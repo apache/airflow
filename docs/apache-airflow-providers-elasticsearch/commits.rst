@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2022-07-22
+
+=================================================================================================  ===========  =============================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================
+`a25f8c36ec <https://github.com/apache/airflow/commit/a25f8c36ec5971199f7e540e87e6196ad547d53b>`_  2022-07-22   ``Improve ElasticsearchTaskHandler (#21942)``
+=================================================================================================  ===========  =============================================
+
 4.1.0
 .....
 
-Latest change: 2022-07-11
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `ef79a0d1c4 <https://github.com/apache/airflow/commit/ef79a0d1c4c0a041d7ebf83b93cbb25aa3778a70>`_  2022-07-11   ``Only assert stuff for mypy when type checking (#24937)``
 `2ddc100405 <https://github.com/apache/airflow/commit/2ddc1004050464c112c18fee81b03f87a7a11610>`_  2022-07-08   ``Adding ElasticserachPythonHook - ES Hook With The Python Client (#24895)``
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``

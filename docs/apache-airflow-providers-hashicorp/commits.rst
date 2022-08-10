@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.0
+.....
+
+Latest change: 2022-07-28
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`ad0a4965aa <https://github.com/apache/airflow/commit/ad0a4965aaf0702f0e8408660b912e87d3c75c22>`_  2022-07-28   ``Use newer kubernetes authentication method in internal vault client (#25351)``
+=================================================================================================  ===========  ================================================================================
+
 3.0.1
 .....
 
-Latest change: 2022-06-29
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 `9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``

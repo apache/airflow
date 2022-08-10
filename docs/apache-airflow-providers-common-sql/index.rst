@@ -64,7 +64,7 @@ Package apache-airflow-providers-common-sql
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -78,5 +78,14 @@ Installation
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-sql``
+
+Requirements
+------------
+
+=============  ==================
+PIP package    Version required
+=============  ==================
+``sqlparse``   ``>=0.4.2``
+=============  ==================
 
 .. include:: ../../airflow/providers/common/sql/CHANGELOG.rst

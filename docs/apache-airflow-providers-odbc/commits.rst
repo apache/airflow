@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.1
+.....
+
+Latest change: 2022-08-02
+
+=================================================================================================  ===========  ======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================
+`0f931c77c7 <https://github.com/apache/airflow/commit/0f931c77c75b49656e3709c649cd3ad70fe547fd>`_  2022-08-02   ``Fix odbc hook sqlalchemy_scheme docstring (#25421)``
+=================================================================================================  ===========  ======================================================
+
 3.1.0
 .....
 
-Latest change: 2022-07-07
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``

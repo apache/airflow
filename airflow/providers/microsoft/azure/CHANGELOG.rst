@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to AzureContainerInstanceHook (#25362)``
+* ``Add test_connection to Azure Batch hook (#25235)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Implement Azure Service Bus (Update and Receive) Subscription Operator (#25029)``
+* ``Set default wasb Azure http logging level to warning; fixes #16224 (#18896)``
+
 4.1.0
 .....
 

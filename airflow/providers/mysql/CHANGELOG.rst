@@ -27,6 +27,15 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
 3.1.0
 .....
 
