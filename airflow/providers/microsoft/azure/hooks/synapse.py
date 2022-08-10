@@ -44,15 +44,11 @@ class AzureSynapseSparkBatchRunStatus:
     TERMINAL_STATUSES = {SUCCESS, DEAD, KILLED, ERROR}
 
 
-# class AzureDataFactoryPipelineRunException(AirflowException):
-#     """An exception that indicates a pipeline run failed to complete."""
-
-
 class AzureSynapseHook(BaseHook):
     """
     A hook to interact with Azure Synapse.
 
-    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:adf>`.
+    :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
     """
 
     conn_type: str = 'azure_synapse'
@@ -137,7 +133,8 @@ class AzureSynapseHook(BaseHook):
     ):
         """
         Run a job in an Apache Spark pool.
-        :param payload: The Spark Job configuration.
+
+        :param payload: Livy compatible payload which represents the spark job that a user wants to submit.
         """
         job = self.get_conn().spark_batch.create_spark_batch_job(payload)
         self.job_id = job.id
@@ -148,13 +145,9 @@ class AzureSynapseHook(BaseHook):
         job_id: int,
     ):
         """
-        Get the pipeline run.
+        Get the job run status.
 
         :param job_id: The job identifier.
-        :param resource_group_name: The resource group name.
-        :param factory_name: The factory name.
-        :param config: Extra parameters for the ADF client.
-        :return: The pipeline run.
         """
         job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=job_id).state
         return job_run_status
@@ -163,27 +156,19 @@ class AzureSynapseHook(BaseHook):
         self,
         job_id: int,
         expected_statuses: Union[str, Set[str]],
-        # resource_group_name: Optional[str] = None,
-        # factory_name: Optional[str] = None,
         check_interval: int = 60,
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
         Waits for a pipeline run to match an expected status.
 
-        :param job_id: The pipeline run identifier.
-        :param expected_statuses: The desired status(es) to check against a pipeline run's current status.
-        :param resource_group_name: The resource group name.
-        :param factory_name: The factory name.
-        :param check_interval: Time in seconds to check on a pipeline run's status.
-        :param timeout: Time in seconds to wait for a pipeline to reach a terminal status or the expected
+        :param job_id: The job run identifier.
+        :param expected_statuses: The desired status(es) to check against a job run's current status.
+        :param check_interval: Time in seconds to check on a job run's status.
+        :param timeout: Time in seconds to wait for a job to reach a terminal status or the expected
             status.
-        :return: Boolean indicating if the pipeline run has reached the ``expected_status``.
         """
         job_run_status = self.get_job_run_status(job_id)
-        print("job_run_status is...", job_run_status)
-        print("expected status is...", expected_statuses)
-
         start_time = time.monotonic()
 
         while (
