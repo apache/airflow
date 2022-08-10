@@ -25,7 +25,6 @@ import warnings
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
-    GKEPodOperator,
 )
 
 warnings.warn(
