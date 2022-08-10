@@ -36,6 +36,8 @@ Latest change: 2022-08-10
 =================================================================================================  ===========  ==========================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================================================================
+`358593c6b6 <https://github.com/apache/airflow/commit/358593c6b65620807103ae16946825e0bfad974f>`_  2022-08-10   ``Enable multiple query execution in RedshiftDataOperator (#25619)``
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
 `8a1b7d43e0 <https://github.com/apache/airflow/commit/8a1b7d43e05e38576a728f2c49e75a63093f9103>`_  2022-08-10   ``Refactor monolithic ECS Operator into Operators, Sensors, and a Hook (#25413)``
 `85137f3763 <https://github.com/apache/airflow/commit/85137f376373876267675f606cffdb788caa4818>`_  2022-08-09   ``Remove deprecated modules from Amazon provider package (#25609)``
 `a0212a3593 <https://github.com/apache/airflow/commit/a0212a35930f44d88e12f19e83ec5c9caa0af82a>`_  2022-08-08   ``refactor: Deprecate parameter 'host' as an extra attribute for the connection. Depreciation is happening in favor of 'endpoint_url' in extra. (#25494)``

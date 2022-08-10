@@ -43,5 +43,15 @@ Commit                                                                          
 `5d4abbd58c <https://github.com/apache/airflow/commit/5d4abbd58c33e7dfa8505e307d43420459d3df55>`_  2022-07-27   ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
 `df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
 `be7cb1e837 <https://github.com/apache/airflow/commit/be7cb1e837b875f44fcf7903329755245dd02dc3>`_  2022-07-22   ``Common SQLCheckOperators Various Functionality Update (#25164)``
-`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
 =================================================================================================  ===========  ============================================================================
+
+1.0.0
+.....
+
+Latest change: 2022-07-07
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
+=================================================================================================  ===========  ========================================================

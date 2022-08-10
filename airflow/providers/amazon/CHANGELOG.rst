@@ -48,6 +48,7 @@ Features
 * ``SQSPublishOperator should allow sending messages to a FIFO Queue (#25171)``
 * ``Glue Job Driver logging (#25142)``
 * ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Enable multiple query execution in RedshiftDataOperator (#25619)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -72,6 +73,7 @@ Bug Fixes
    * ``Sagemaker System Tests - Part 2 of 3 - example_sagemaker.py (#25079)``
    * ``Migrate lambda sample dag to system test (AIP-47) (#24355)``
    * ``SageMaker system tests - Part 1 of 3 - Prep Work (AIP-47) (#25078)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
 
 4.1.0
 .....

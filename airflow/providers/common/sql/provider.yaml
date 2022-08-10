@@ -23,6 +23,7 @@ description: |
 
 versions:
   - 1.1.0
+  - 1.0.0
 
 dependencies:
   - sqlparse>=0.4.2
