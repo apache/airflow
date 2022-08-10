@@ -22,21 +22,17 @@ import {
 } from '@chakra-ui/react';
 
 import {
-  CodeCell, DatasetLink, Table, TimeCell,
+  DatasetLink, Table, TaskInstanceLink, TimeCell,
 } from 'src/components/Table';
-import { useDatasetEvents } from 'src/api';
+import { useUpstreamDatasetEvents } from 'src/api';
 import type { DagRun as DagRunType } from 'src/types';
-import { getMetaValue } from 'src/utils';
 
 interface Props {
   runId: DagRunType['runId'];
-  taskId: string;
 }
 
-const dagId = getMetaValue('dag_id') || undefined;
-
-const DownstreamEvents = ({ runId, taskId }: Props) => {
-  const { data: { datasetEvents }, isLoading } = useDatasetEvents({ runId, taskId, dagId });
+const DatasetTriggerEvents = ({ runId }: Props) => {
+  const { data: { datasetEvents }, isLoading } = useUpstreamDatasetEvents({ runId });
 
   const columns = useMemo(
     () => [
@@ -46,10 +42,9 @@ const DownstreamEvents = ({ runId, taskId }: Props) => {
         Cell: DatasetLink,
       },
       {
-        Header: 'Extra',
-        accessor: 'extra',
-        disableSortBy: true,
-        Cell: CodeCell,
+        Header: 'Source Task Instance',
+        accessor: 'sourceTaskId',
+        Cell: TaskInstanceLink,
       },
       {
         Header: 'When',
@@ -67,8 +62,8 @@ const DownstreamEvents = ({ runId, taskId }: Props) => {
 
   return (
     <Box mt={3} flexGrow={1}>
-      <Heading size="md">Downstream Dataset Events</Heading>
-      <Text>Dataset updates created by this task instance</Text>
+      <Heading size="md">Dataset Events</Heading>
+      <Text>Dataset updates that triggered this DAG run.</Text>
       <Table
         data={data}
         columns={columns}
@@ -78,4 +73,4 @@ const DownstreamEvents = ({ runId, taskId }: Props) => {
   );
 };
 
-export default DownstreamEvents;
+export default DatasetTriggerEvents;

@@ -19,14 +19,14 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Box, Heading, Text, Code, Flex, Spinner, Button, Link,
+  Box, Heading, Flex, Text, Spinner, Button, Link,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { SortingRule } from 'react-table';
 
 import { useDatasetEvents, useDataset } from 'src/api';
 import {
-  Table, TimeCell, CodeCell, TaskInstanceLink,
+  Table, TimeCell, TaskInstanceLink,
 } from 'src/components/Table';
 import { ClipboardButton } from 'src/components/Clipboard';
 import type { API } from 'src/types';
@@ -43,7 +43,6 @@ const gridUrl = getMetaValue('grid_url');
 const Details = ({
   dataset: {
     uri,
-    extra,
     upstreamTaskReferences,
     downstreamDagReferences,
   },
@@ -55,12 +54,6 @@ const Details = ({
       {uri}
       <ClipboardButton value={uri} iconOnly ml={2} />
     </Heading>
-    {!!extra && (
-      <Flex>
-        <Text mr={1}>Extra:</Text>
-        <Code>{JSON.stringify(extra)}</Code>
-      </Flex>
-    )}
     {upstreamTaskReferences && !!upstreamTaskReferences.length && (
     <Box mb={2}>
       <Flex alignItems="center">
@@ -124,12 +117,6 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
         Cell: TaskInstanceLink,
       },
       {
-        Header: 'Extra',
-        accessor: 'extra',
-        disableSortBy: true,
-        Cell: CodeCell,
-      },
-      {
         Header: 'When',
         accessor: 'timestamp',
         Cell: TimeCell,
@@ -150,10 +137,10 @@ const DatasetDetails = ({ datasetId, onBack }: Props) => {
       <Button onClick={onBack}>See all datasets</Button>
       {isLoading && <Spinner display="block" />}
       {!!dataset && (<Details dataset={dataset} />)}
-      <Flex alignItems="center">
-        <Heading size="lg" mt={3} mb={2} fontWeight="normal">Events</Heading>
-        <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
-      </Flex>
+      <Box>
+        <Heading size="lg" mt={3} mb={2} fontWeight="normal">History</Heading>
+        <Text>Whenever a DAG has updated this dataset.</Text>
+      </Box>
       <Table
         data={data}
         columns={columns}
