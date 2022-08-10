@@ -184,9 +184,14 @@ If you want to map over the result of a classic operator, you should explicitly 
 
 .. code-block:: python
 
-    task = MyOperator(task_id="source")
+    # Create a list of data inputs.
+    extract = ExtractOperator(task_id="extract")
 
-    downstream = MyOperator2.partial(task_id="consumer").expand(input=task.output)
+    # Expand the operator to transform each input.
+    transform = TransformOperator.partial(task_id="transform").expand(input=extract.output)
+
+    # Collect the transformed inputs, expand the operator to load each one of them to the target.
+    load = LoadOperator.partial(task_id="load").expand(input=transform.output)
 
 
 Mixing TaskFlow and classic operators
