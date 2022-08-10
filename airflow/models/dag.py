@@ -240,13 +240,6 @@ class DAG(LoggingMixin):
     :param schedule: Defines the rules according to which DAG runs are scheduled. Can
         accept cron string, timedelta object, Timetable, or list of Dataset objects.
         See also :doc:`/howto/timetable`.
-    :param schedule_interval: Defines how often that DAG runs, this
-        timedelta object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-        Note: deprecated in Airflow 2.4; use `schedule` instead.
-    :param timetable: Specify which timetable to use (in which case schedule_interval
-        must not be set). See :doc:`/howto/timetable` for more information
-        Note: deprecated in Airflow 2.4; use `schedule` instead.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
