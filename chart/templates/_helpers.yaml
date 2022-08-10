@@ -703,14 +703,14 @@ Create the name of the cleanup service account to use
 {{- end -}}
 
 {{/*
-Set the default value for securityContext
-If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid.
+Set the default value for pod securityContext
+If no value is passed for securityContext.pod or <node>.securityContext.pod, defaults to global uid and gid.
 
     +------------------------+      +-----------------+      +-------------------------+
-    | <node>.securityContext |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    | <node>.securityContext.pod |  ->  | securityContext.pod |  ->  | Values.uid + Values.gid |
     +------------------------+      +-----------------+      +-------------------------+
 
-Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext,
+Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext.pod,
 any extra values set to securityContext or uid+gid will be ignored.
 
 The template can be called like so:
@@ -721,10 +721,10 @@ Where `.` is the global variables scope and `.Values.webserver` the local variab
 {{- define "airflowSecurityContext" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
-    {{- if .securityContext -}}
-{{ toYaml .securityContext | print }}
-    {{- else if $.Values.securityContext -}}
-{{ toYaml $.Values.securityContext | print }}
+    {{- if .securityContext.pod -}}
+{{ toYaml .securityContext.pod | print }}
+    {{- else if $.Values.securityContext.pod -}}
+{{ toYaml $.Values.securityContext.pod | print }}
     {{- else -}}
 runAsUser: {{ $.Values.uid }}
 fsGroup: {{ $.Values.gid }}
@@ -733,11 +733,11 @@ fsGroup: {{ $.Values.gid }}
 {{- end -}}
 
 {{/*
-Set the default value for securityContext
-If no value is passed for securityContext or <node>.securityContext, defaults to UID in the local node.
+Set the default value for pod securityContext
+If no value is passed for securityContext.pod or <node>.securityContext.pod, defaults to UID in the local node.
 
     +------------------------+     +-------------+
-    | <node>.securityContext |  >  | <node>.uid  |
+    | <node>.securityContext.pod |  >  | <node>.uid  |
     +------------------------+     +-------------+
 
 The template can be called like so:
@@ -746,8 +746,8 @@ The template can be called like so:
 It is important to pass the local variables scope to this template as it is used to determine the local node value for uid.
 */}}
 {{- define "localSecurityContext" -}}
-  {{- if .securityContext -}}
-{{ toYaml .securityContext | print }}
+  {{- if .securityContext.pod -}}
+{{ toYaml .securityContext.pod | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -755,14 +755,14 @@ runAsUser: {{ .uid }}
 
 {{/*
 Set the default value for workers chown for persistent storage
-If no value is passed for securityContext or <node>.securityContext, defaults to global uid and gid.
+If no value is passed for pod securityContext.pod or <node>.securityContext.pod, defaults to global uid and gid.
 The template looks for `runAsUser` and `fsGroup` specifically, any other parameter will be ignored.
 
     +------------------------+      +-----------------+      +-------------------------+
-    | <node>.securityContext |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    | <node>.securityContext.pod |  ->  | securityContext.pod |  ->  | Values.uid + Values.gid |
     +------------------------+      +-----------------+      +-------------------------+
 
-Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext,
+Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContext.pod,
 any extra values set to securityContext or uid+gid will be ignored.
 
 The template can be called like so:
@@ -773,12 +773,42 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
 {{- define "airflowSecurityContextIds" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
-    {{- if .securityContext -}}
-{{ pluck "runAsUser" .securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContext | first | default $.Values.gid }}
-    {{- else if $.Values.securityContext -}}
-{{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
+    {{- if .securityContext.pod -}}
+{{ pluck "runAsUser" .securityContext.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContext.pod | first | default $.Values.gid }}
+    {{- else if $.Values.securityContext.pod -}}
+{{ pluck "runAsUser" $.Values.securityContext.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext.pod | first | default $.Values.gid }}
     {{- else -}}
 {{ $.Values.uid }}:{{ $.Values.gid }}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Set the default value for container securityContext
+If no value is passed for securityContext.container or <node>.securityContext.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+
+    +------------------------+      +-----------------+      +-------------------------+
+    | <node>.securityContext.container |  ->  | securityContext.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+    +------------------------+      +-----------------+      +-------------------------+
+
+
+The template can be called like so:
+   include "airflowSecurityContextContainer" (list . .Values.webserver)
+
+Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+*/}}
+{{- define "airflowSecurityContextContainer" -}}
+  {{- $ := index . 0 -}}
+  {{- with index . 1 }}
+    {{- if .securityContext.container -}}
+{{ toYaml .securityContext.container | print }}
+    {{- else if $.Values.securityContext.container -}}
+{{ toYaml $.Values.securityContext.container | print }}
+    {{- else -}}
+allowPrivilegeEscalation: false
+capabilities:
+  drop:
+    - ALL
     {{- end -}}
   {{- end -}}
 {{- end -}}
