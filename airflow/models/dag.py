@@ -115,7 +115,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, List["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Sequence["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -483,25 +483,18 @@ class DAG(LoggingMixin):
                 DeprecationWarning,
                 stacklevel=2,
             )
+
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: Optional[List[Dataset]] = None
+        self.dataset_triggers: Optional[Sequence[Dataset]] = None
 
-        if isinstance(schedule, List):
-            # if List, only support List[Dataset]
-            if any(isinstance(x, Dataset) for x in schedule):
-                if not all(isinstance(x, Dataset) for x in schedule):
-                    raise ValueError(
-                        "If scheduling DAG with List[Dataset], all elements must be Dataset."
-                    )
-                self.dataset_triggers = list(schedule)
-            else:
-                raise ValueError(
-                    "Use of List object with `schedule` param is only supported for List[Dataset]."
-                )
+        if isinstance(schedule, Sequence) and not isinstance(schedule, str):
+            if not all(isinstance(x, Dataset) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be datasets")
+            self.dataset_triggers = schedule
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        elif schedule is not None:
+        else:
             schedule_interval = schedule
 
         if self.dataset_triggers:
