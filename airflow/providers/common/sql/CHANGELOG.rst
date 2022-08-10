@@ -27,7 +27,21 @@ Changelog
 1.1.0
 .....
 
+Features
+~~~~~~~~
 
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``Common SQLCheckOperators Various Functionality Update (#25164)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow Legacy SqlSensor to use the common.sql providers (#25293)``
+* ``Fix fetch_all_handler & db-api tests for it (#25430)``
+* ``Align Common SQL provider logo location (#25538)``
 
 1.0.0
 .....
