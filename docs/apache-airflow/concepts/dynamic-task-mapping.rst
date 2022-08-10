@@ -180,7 +180,7 @@ It is possible to use ``partial`` and ``expand`` with classic style operators as
 Mapping over result of classic operators
 ----------------------------------------
 
-If you want to map over the result of a classic operator, you need to explicitly reference the *output*, instead of the operator itself.
+If you want to map over the result of a classic operator, you should explicitly reference the *output*, instead of the operator itself.
 
 .. code-block:: python
 
