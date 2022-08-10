@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use only public AwsHook's methods during IAM authorization (#25424)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
 5.1.0
 .....
 
