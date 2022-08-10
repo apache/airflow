@@ -32,7 +32,7 @@ const DAG_ID_PARAM = 'dag_id';
 
 // dagId comes from dag.html
 const dagId = getMetaValue(DAG_ID_PARAM);
-const gridDataUrl = getMetaValue('grid_data_url') || '';
+const gridDataUrl = getMetaValue('grid_data_url');
 const urlRoot = getMetaValue('root');
 
 interface GridData {
