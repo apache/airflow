@@ -52,7 +52,6 @@ DATA = {
 
 with models.DAG(
     "example_dataprep",
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:

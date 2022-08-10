@@ -55,7 +55,7 @@ def check_notebook(inlets, execution_date):
 
 with DAG(
     dag_id='example_papermill_operator_verify',
-    schedule_interval=SCHEDULE_INTERVAL,
+    schedule=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,

@@ -23,7 +23,7 @@ from airflow.sensors.date_time import DateTimeSensor
 from airflow.utils import timezone
 
 with DAG(
-    dag_id='test_sensor', start_date=datetime.datetime(2022, 1, 1), catchup=False, schedule_interval='@once'
+    dag_id='test_sensor', start_date=datetime.datetime(2022, 1, 1), catchup=False, schedule='@once'
 ) as dag:
 
     @task

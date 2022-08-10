@@ -32,7 +32,7 @@ with DAG(
     dag_id="example_nested_branch_dag",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval="@daily",
+    schedule="@daily",
     tags=["example"],
 ) as dag:
 

@@ -44,7 +44,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
-        schedule_interval="@daily",
+        schedule="@daily",
     )
 
     for i in range(2):
@@ -62,7 +62,7 @@ with DAG(
     start_date=datetime(2019, 1, 1),
     max_active_runs=1,
     default_args=DEFAULT_TASK_ARGS,
-    schedule_interval=timedelta(minutes=1),
+    schedule=timedelta(minutes=1),
 ) as dag:
 
     start = EmptyOperator(

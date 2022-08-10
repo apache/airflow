@@ -19,16 +19,18 @@
 Timetables
 ==========
 
-A DAG's scheduling strategy is determined by its internal "timetable". This
-timetable can be created by specifying the DAG's ``schedule_interval`` argument,
-as described in :doc:`DAG Run </dag-run>`, or by passing a ``timetable`` argument
-directly. The timetable also dictates the data interval and the logical time of each
-run created for the DAG.
+For DAGs with time-based schedules (as opposed to event-driven), the scheduling
+decisions are driven by its internal "timetable".  The timetable also
+determines the data interval and the logical date of each run created for the DAG.
 
-Cron expressions and timedeltas are still supported (using
-`CronDataIntervalTimetable`_ and `DeltaDataIntervalTimetable`_ under the hood
-respectively), however, there are situations where they cannot properly express
-the schedule. Some examples are:
+DAGs scheduled with a cron expression or ``timedelta`` object are
+internally converted to always use a timetable.
+
+If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
+to worry about timetables.  But for more complicated scheduling requirements,
+you may create your own timetable class and pass that to the DAG's ``schedule`` argument instead.
+
+Some examples:
 
 * Data intervals with "holes" between. (Instead of continuous, as both the cron
   expression and ``timedelta`` schedules represent.)
@@ -49,7 +51,7 @@ As such, Airflow allows for custom timetables to be written in plugins and used 
 DAGs. An example demonstrating a custom timetable can be found in the
 :doc:`/howto/timetable` how-to guide.
 
-Built In Timetables
+Built-in Timetables
 -------------------
 
 Airflow comes with several common timetables built in to cover the most common use cases. Additional timetables
@@ -104,11 +106,11 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Schedules data intervals with a time delta. Can be selected by providing a
-:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
+:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule`` parameter of a DAG.
 
 .. code-block:: python
 
-    @dag(schedule_interval=datetime.timedelta(minutes=30))
+    @dag(schedule=datetime.timedelta(minutes=30))
     def example_dag():
         pass
 
@@ -122,12 +124,12 @@ trigger points, and triggers a DAG run at the end of each data interval.
 
 .. seealso:: `Differences between the two cron timetables`_
 
-This can be selected by providing a string that is a valid cron expression to the ``schedule_interval``
+This can be selected by providing a string that is a valid cron expression to the ``schedule``
 parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
 
 .. code-block:: python
 
-    @dag(schedule_interval="0 1 * * 3")  # At 01:00 on Wednesday.
+    @dag(schedule="0 1 * * 3")  # At 01:00 on Wednesday.
     def example_dag():
         pass
 

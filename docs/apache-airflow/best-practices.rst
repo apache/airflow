@@ -130,7 +130,7 @@ Bad example:
 
   with DAG(
       dag_id="example_python_operator",
-      schedule_interval=None,
+      schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
@@ -158,7 +158,7 @@ Good example:
 
   with DAG(
       dag_id="example_python_operator",
-      schedule_interval=None,
+      schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
@@ -289,7 +289,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 
     with DAG(
         dag_id="watcher_example",
-        schedule_interval="@once",
+        schedule="@once",
         start_date=datetime(2021, 1, 1),
         catchup=False,
     ) as dag:
@@ -499,7 +499,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
     def dag():
         with DAG(
             dag_id=TEST_DAG_ID,
-            schedule_interval="@daily",
+            schedule="@daily",
             start_date=DATA_INTERVAL_START,
         ) as dag:
             MyCustomOperator(

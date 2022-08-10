@@ -21,7 +21,7 @@ Customizing DAG Scheduling with Timetables
 
 For our example, let's say a company wants to run a job after each weekday to
 process data collected during the work day. The first intuitive answer to this
-would be ``schedule_interval="0 0 * * 1-5"`` (midnight on Monday to Friday), but
+would be ``schedule="0 0 * * 1-5"`` (midnight on Monday to Friday), but
 this means data collected on Friday will *not* be processed right after Friday
 ends, but on the next Monday, and that run's interval would be from midnight
 Friday to midnight *Monday*. What we want is:

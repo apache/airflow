@@ -63,7 +63,7 @@ with DAG(
     },
     # [END default_args]
     description='A simple tutorial DAG',
-    schedule_interval=timedelta(days=1),
+    schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

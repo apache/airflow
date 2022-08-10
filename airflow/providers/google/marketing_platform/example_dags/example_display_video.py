@@ -86,7 +86,6 @@ START_DATE = datetime(2021, 1, 1)
 
 with models.DAG(
     "example_display_video",
-    schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
 ) as dag1:
@@ -129,7 +128,6 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_misc",
-    schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
 ) as dag2:
@@ -163,7 +161,6 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_sdf",
-    schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
 ) as dag3:

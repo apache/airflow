@@ -31,7 +31,7 @@ dag1 = DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-    schedule_interval="@daily",
+    schedule="@daily",
 )
 
 # [START howto_branch_datetime_operator]
@@ -57,7 +57,7 @@ dag2 = DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-    schedule_interval="@daily",
+    schedule="@daily",
 )
 # [START howto_branch_datetime_operator_next_day]
 empty_task_12 = EmptyOperator(task_id='date_in_range', dag=dag2)

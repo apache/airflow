@@ -52,7 +52,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         dag = DAG(
             f'{TEST_DAG_ID}test_schedule_dag_once',
             start_date=DEFAULT_DATE,
-            schedule_interval='@once',
+            schedule='@once',
         )
 
         self.hook = hook

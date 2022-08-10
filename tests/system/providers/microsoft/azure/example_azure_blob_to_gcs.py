@@ -37,7 +37,7 @@ DAG_ID = "example_azure_blob_to_gcs"
 # [START how_to_azure_blob_to_gcs]
 with DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME},
 ) as dag:

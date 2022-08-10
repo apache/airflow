@@ -38,7 +38,6 @@ with models.DAG(
     dag_id="example_gcp_dataflow_sql",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_sql:
     # [START howto_operator_start_sql_job]

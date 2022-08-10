@@ -31,7 +31,6 @@ DRIVE_FOLDER = Path("test-folder")
 
 with models.DAG(
     "example_local_to_drive",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],

@@ -63,7 +63,7 @@ def pull_value_from_bash_push(ti=None):
 
 with DAG(
     'example_xcom',
-    schedule_interval="@once",
+    schedule="@once",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],

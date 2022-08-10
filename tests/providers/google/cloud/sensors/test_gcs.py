@@ -88,14 +88,14 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
 class TestTsFunction(TestCase):
     def test_should_support_datetime(self):
         context = {
-            'dag': DAG(dag_id=TEST_DAG_ID, schedule_interval=timedelta(days=5)),
+            'dag': DAG(dag_id=TEST_DAG_ID, schedule=timedelta(days=5)),
             'execution_date': datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
         assert datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc) == result
 
     def test_should_support_cron(self):
-        dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule_interval='@weekly')
+        dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule='@weekly')
 
         context = {
             'dag': dag,
@@ -203,7 +203,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
     def setUp(self):
         self.dag = DAG(
             TEST_DAG_ID + 'test_schedule_dag_once',
-            schedule_interval="@once",
+            schedule="@once",
             start_date=DEFAULT_DATE,
         )
 

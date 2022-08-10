@@ -25,7 +25,7 @@ DAG_ID = "example_salesforce_bulk"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

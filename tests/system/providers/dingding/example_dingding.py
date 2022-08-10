@@ -54,7 +54,7 @@ def failure_callback(context):
 with DAG(
     dag_id=DAG_ID,
     default_args={'retries': 3, 'on_failure_callback': failure_callback},
-    schedule_interval='@once',
+    schedule='@once',
     dagrun_timeout=timedelta(minutes=60),
     start_date=datetime(2021, 1, 1),
     tags=['example'],

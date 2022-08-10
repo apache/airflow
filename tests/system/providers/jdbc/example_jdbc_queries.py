@@ -34,7 +34,7 @@ DAG_ID = "example_jdbc_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],

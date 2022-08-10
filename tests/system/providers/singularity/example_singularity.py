@@ -29,7 +29,7 @@ DAG_ID = "singularity_sample"
 with DAG(
     DAG_ID,
     default_args={'retries': 1},
-    schedule_interval=timedelta(minutes=10),
+    schedule=timedelta(minutes=10),
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

@@ -57,7 +57,7 @@ class TestDmsDescribeTasksOperator(unittest.TestCase):
             "start_date": DEFAULT_DATE,
         }
 
-        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule_interval="@once")
+        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule="@once")
 
     def test_init(self):
         dms_operator = DmsDescribeTasksOperator(

@@ -74,7 +74,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
                 'start_date': datetime.datetime.today(),
                 'end_date': datetime.datetime.today() + datetime.timedelta(days=1),
             },
-            schedule_interval='@daily',
+            schedule='@daily',
         )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')

@@ -30,7 +30,7 @@ DAG_ID = "aci_example"
 with DAG(
     dag_id=DAG_ID,
     default_args={'retries': 1},
-    schedule_interval=timedelta(days=1),
+    schedule=timedelta(days=1),
     start_date=datetime(2018, 11, 1),
     catchup=False,
     tags=['example'],

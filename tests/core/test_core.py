@@ -123,7 +123,7 @@ class TestCore:
         execution_ds = execution_date.strftime('%Y-%m-%d')
         execution_ds_nodash = execution_ds.replace('-', '')
 
-        with dag_maker(schedule_interval=timedelta(weeks=1)):
+        with dag_maker(schedule=timedelta(weeks=1)):
             task = EmptyOperator(task_id='test_externally_triggered_dag_context')
         dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -150,7 +150,7 @@ class TestCore:
         TI = TaskInstance
 
         with dag_maker(
-            schedule_interval=timedelta(weeks=1),
+            schedule=timedelta(weeks=1),
             params={'key_1': 'value_1', 'key_2': 'value_2_old'},
         ):
             task1 = EmptyOperator(

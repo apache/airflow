@@ -36,7 +36,7 @@ from tests.system.providers.apache.beam.utils import (
 with models.DAG(
     "example_beam_native_go",
     start_date=START_DATE,
-    schedule_interval="@once",
+    schedule="@once",
     catchup=False,
     default_args=DEFAULT_ARGS,
     tags=['example'],

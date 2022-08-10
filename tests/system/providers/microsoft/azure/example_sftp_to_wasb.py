@@ -44,7 +44,7 @@ def delete_sftp_file():
 
 with DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
 ) as dag:

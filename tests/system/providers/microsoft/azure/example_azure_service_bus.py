@@ -43,7 +43,7 @@ SUBSCRIPTION_NAME = "sb_mgmt_subscription"
 with DAG(
     dag_id="example_azure_service_bus",
     start_date=datetime(2021, 8, 13),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     default_args={
         "execution_timeout": timedelta(hours=EXECUTION_TIMEOUT),

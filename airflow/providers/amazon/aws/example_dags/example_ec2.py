@@ -26,7 +26,6 @@ INSTANCE_ID = os.getenv("INSTANCE_ID", "instance-id")
 
 with DAG(
     dag_id='example_ec2',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

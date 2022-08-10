@@ -37,11 +37,11 @@ Then reference the dataset as a task outlet:
     :start-after: [START task_outlet]
     :end-before: [END task_outlet]
 
-Finally, define a DAG and reference this dataset in the DAG's ``schedule_on`` parameter:
+Finally, define a DAG and reference this dataset in the DAG's ``schedule`` argument:
 
 .. exampleinclude:: /../../airflow/example_dags/example_datasets.py
     :language: python
     :start-after: [START dag_dep]
     :end-before: [END dag_dep]
 
-You can reference multiple datasets in the DAG's ``schedule_on`` param.  Once there has been an update to all of the upstream datasets, the DAG will be triggered.  This means that the DAG will run as frequently as its least-frequently-updated dataset.
+You can reference multiple datasets in the DAG's ``schedule`` argument.  Once there has been an update to all of the upstream datasets, the DAG will be triggered.  This means that the DAG will run as frequently as its least-frequently-updated dataset.

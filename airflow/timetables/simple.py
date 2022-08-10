@@ -51,7 +51,7 @@ class _TrivialTimetable(Timetable):
 class NullTimetable(_TrivialTimetable):
     """Timetable that never schedules anything.
 
-    This corresponds to ``schedule_interval=None``.
+    This corresponds to ``schedule=None``.
     """
 
     description: str = "Never, external triggers only"
@@ -72,7 +72,7 @@ class NullTimetable(_TrivialTimetable):
 class OnceTimetable(_TrivialTimetable):
     """Timetable that schedules the execution once as soon as possible.
 
-    This corresponds to ``schedule_interval="@once"``.
+    This corresponds to ``schedule="@once"``.
     """
 
     description: str = "Once, as soon as possible"
@@ -103,8 +103,7 @@ class OnceTimetable(_TrivialTimetable):
 class DatasetTriggeredTimetable(NullTimetable):
     """Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG specifies
-    ``schedule_on`` and is triggered by a dataset.
+    This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
 
     :meta private:
     """

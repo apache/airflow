@@ -39,7 +39,7 @@ with DAG(
     dag_id=DAG_ID,
     default_args={"dbt_cloud_conn_id": "dbt", "account_id": 39151},
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
 ) as dag:
     begin = EmptyOperator(task_id="begin")

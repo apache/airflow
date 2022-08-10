@@ -94,7 +94,7 @@ def delete_logs(function_name: str) -> None:
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

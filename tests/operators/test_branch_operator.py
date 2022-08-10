@@ -54,7 +54,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag = DAG(
             'branch_operator_test',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)

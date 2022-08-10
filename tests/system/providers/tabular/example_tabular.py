@@ -37,7 +37,7 @@ with DAG(
         "email_on_retry": False,
     },
     start_date=datetime(2021, 1, 1),
-    schedule_interval=timedelta(1),
+    schedule=timedelta(1),
     catchup=False,
 ) as dag:
     # This also works for the SparkSubmit operator

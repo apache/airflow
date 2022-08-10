@@ -1104,7 +1104,7 @@ class TestTaskInstance:
 
         ti = create_task_instance(
             dag_id='test_xcom',
-            schedule_interval='@monthly',
+            schedule='@monthly',
             task_id='test_xcom',
             pool='test_xcom',
         )
@@ -1135,7 +1135,7 @@ class TestTaskInstance:
 
         ti = create_task_instance(
             dag_id='test_xcom',
-            schedule_interval='@monthly',
+            schedule='@monthly',
             task_id='test_xcom',
             pool='test_xcom',
         )
@@ -1160,7 +1160,7 @@ class TestTaskInstance:
 
         ti = create_task_instance(
             dag_id='test_xcom',
-            schedule_interval='@monthly',
+            schedule='@monthly',
             task_id='test_xcom',
             pool='test_xcom',
         )
@@ -1637,7 +1637,7 @@ class TestTaskInstance:
         dag_maker,
     ) -> list:
         dag_id = 'test_previous_dates'
-        with dag_maker(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup):
+        with dag_maker(dag_id=dag_id, schedule=schedule_interval, catchup=catchup):
             task = EmptyOperator(task_id='task')
 
         def get_test_ti(execution_date: pendulum.DateTime, state: str) -> TI:
@@ -1731,7 +1731,7 @@ class TestTaskInstance:
         """
         Test that get_previous_start_date() can handle TaskInstance with no start_date.
         """
-        with dag_maker("test_get_previous_start_date_none", schedule_interval=None) as dag:
+        with dag_maker("test_get_previous_start_date_none", schedule=None) as dag:
             task = EmptyOperator(task_id="op")
 
         day_1 = DEFAULT_DATE
@@ -1764,7 +1764,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id='test_pendulum_template_dates',
             task_id='test_pendulum_template_dates_task',
-            schedule_interval='0 12 * * *',
+            schedule='0 12 * * *',
         )
 
         template_context = ti.get_template_context()
@@ -1776,7 +1776,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id="test_template_render",
             task_id="test_template_render_task",
-            schedule_interval="0 12 * * *",
+            schedule="0 12 * * *",
         )
         template_context = ti.get_template_context()
         result = ti.task.render_template("Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context)
@@ -1786,7 +1786,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id="test_template_render",
             task_id="test_template_render_task",
-            schedule_interval="0 12 * * *",
+            schedule="0 12 * * *",
         )
         template_context = ti.get_template_context()
         with pytest.deprecated_call():
@@ -2008,7 +2008,7 @@ class TestTaskInstance:
         mock_on_retry_1 = mock.MagicMock()
         dag, task1 = create_dummy_dag(
             dag_id="test_handle_failure",
-            schedule_interval=None,
+            schedule=None,
             start_date=start_date,
             task_id="test_handle_failure_on_failure",
             with_dagrun_type=DagRunType.MANUAL,

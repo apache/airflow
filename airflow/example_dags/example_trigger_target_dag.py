@@ -42,7 +42,7 @@ with DAG(
     dag_id="example_trigger_target_dag",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval=None,
+    schedule=None,
     tags=['example'],
 ) as dag:
     run_this = run_this_func()

@@ -82,7 +82,7 @@ class DataSyncTestCaseBase(unittest.TestCase):
         self.dag = DAG(
             TEST_DAG_ID + "test_schedule_dag_once",
             default_args=args,
-            schedule_interval="@once",
+            schedule="@once",
         )
 
         self.client = boto3.client("datasync", region_name="us-east-1")

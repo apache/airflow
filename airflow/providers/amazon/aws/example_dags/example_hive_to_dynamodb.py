@@ -105,7 +105,6 @@ def configure_hive_connection():
 
 with DAG(
     dag_id='example_hive_to_dynamodb',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

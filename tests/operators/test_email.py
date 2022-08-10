@@ -39,7 +39,7 @@ class TestEmailOperator(unittest.TestCase):
         self.dag = DAG(
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.addCleanup(self.dag.clear)
 

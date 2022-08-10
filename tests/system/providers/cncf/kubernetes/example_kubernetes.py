@@ -103,7 +103,7 @@ DAG_ID = "example_kubernetes_operator"
 
 with DAG(
     dag_id='example_kubernetes_operator',
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
 ) as dag:

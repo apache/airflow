@@ -701,7 +701,7 @@ class DagRun(Base, LoggingMixin):
                     self.log.warning("Could not find serialized DAG %s", target_dag_id)
                     continue
                 dag = row.dag
-                if dag.schedule_on:
+                if dag.dataset_triggers:
                     dag.create_dagrun(
                         run_type=DagRunType.DATASET_TRIGGERED,
                         run_id=self.generate_run_id(

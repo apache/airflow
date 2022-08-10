@@ -31,7 +31,6 @@ S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://test-bucket/key.json")
 
 with DAG(
     dag_id="example_google_api_sheets_to_s3",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

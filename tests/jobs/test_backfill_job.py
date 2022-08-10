@@ -94,7 +94,7 @@ class TestBackfillJob:
         task_id='op',
         **kwargs,
     ):
-        with dag_maker_fixture(dag_id=dag_id, schedule_interval='@daily', **kwargs) as dag:
+        with dag_maker_fixture(dag_id=dag_id, schedule='@daily', **kwargs) as dag:
             EmptyOperator(task_id=task_id, pool=pool, max_active_tis_per_dag=max_active_tis_per_dag)
 
         return dag
@@ -677,7 +677,7 @@ class TestBackfillJob:
 
     def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
 
-        with dag_maker(dag_id='test_backfill_rerun_upstream_failed', schedule_interval='@daily') as dag:
+        with dag_maker(dag_id='test_backfill_rerun_upstream_failed', schedule='@daily') as dag:
             op1 = EmptyOperator(task_id='test_backfill_rerun_upstream_failed_task-1')
             op2 = EmptyOperator(task_id='test_backfill_rerun_upstream_failed_task-2')
             op1.set_upstream(op2)
@@ -743,7 +743,7 @@ class TestBackfillJob:
     def test_backfill_retry_intermittent_failed_task(self, dag_maker):
         with dag_maker(
             dag_id='test_intermittent_failure_job',
-            schedule_interval="@daily",
+            schedule="@daily",
             default_args={
                 'retries': 2,
                 'retry_delay': datetime.timedelta(seconds=0),
@@ -770,7 +770,7 @@ class TestBackfillJob:
     def test_backfill_retry_always_failed_task(self, dag_maker):
         with dag_maker(
             dag_id='test_always_failure_job',
-            schedule_interval="@daily",
+            schedule="@daily",
             default_args={
                 'retries': 1,
                 'retry_delay': datetime.timedelta(seconds=0),
@@ -797,7 +797,7 @@ class TestBackfillJob:
 
         with dag_maker(
             dag_id='test_backfill_ordered_concurrent_execute',
-            schedule_interval="@daily",
+            schedule="@daily",
         ) as dag:
             op1 = EmptyOperator(task_id='leave1')
             op2 = EmptyOperator(task_id='leave2')
@@ -942,7 +942,7 @@ class TestBackfillJob:
     ):
         with dag_maker_fixture(
             dag_id=dag_id,
-            schedule_interval="@hourly",
+            schedule="@hourly",
             max_active_runs=max_active_runs,
             **kwargs,
         ) as dag:
@@ -1418,7 +1418,7 @@ class TestBackfillJob:
 
     def test_dag_dagrun_infos_between(self, dag_maker):
         with dag_maker(
-            dag_id='dagrun_infos_between', start_date=DEFAULT_DATE, schedule_interval="@hourly"
+            dag_id='dagrun_infos_between', start_date=DEFAULT_DATE, schedule="@hourly"
         ) as test_dag:
             EmptyOperator(
                 task_id='dummy',
@@ -1545,7 +1545,7 @@ class TestBackfillJob:
         with dag_maker(
             dag_id=dag_id,
             start_date=DEFAULT_DATE,
-            schedule_interval='@daily',
+            schedule='@daily',
             session=session,
         ) as dag:
             EmptyOperator(task_id=task_id, dag=dag)
@@ -1574,7 +1574,7 @@ class TestBackfillJob:
 
     def test_job_id_is_assigned_to_dag_run(self, dag_maker):
         dag_id = 'test_job_id_is_assigned_to_dag_run'
-        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily') as dag:
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule='@daily') as dag:
             EmptyOperator(task_id="dummy_task", dag=dag)
 
         job = BackfillJob(

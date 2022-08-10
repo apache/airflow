@@ -36,7 +36,7 @@ DAG_ID = "example_cassandra_operator"
 # [START howto_operator_cassandra_sensors]
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     default_args={'table': 'keyspace_name.table_name'},
     catchup=False,

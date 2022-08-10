@@ -218,7 +218,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             )
 
     def test_external_dag_sensor(self):
-        other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
+        other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule='@once')
         other_dag.create_dagrun(
             run_id='test', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.SUCCESS
         )
@@ -231,7 +231,7 @@ class TestExternalTaskSensor(unittest.TestCase):
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_dag_sensor_soft_fail_as_skipped(self):
-        other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
+        other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule='@once')
         other_dag.create_dagrun(
             run_id='test', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.SUCCESS
         )
@@ -266,7 +266,7 @@ fi
 exit 0
 """
         dag_external_id = TEST_DAG_ID + '_external'
-        dag_external = DAG(dag_external_id, default_args=self.args, schedule_interval=timedelta(seconds=1))
+        dag_external = DAG(dag_external_id, default_args=self.args, schedule=timedelta(seconds=1))
         task_external_with_failure = BashOperator(
             task_id="task_external_with_failure", bash_command=bash_command_code, retries=0, dag=dag_external
         )
@@ -303,7 +303,7 @@ exit 0
                 raise e
 
         dag_id = TEST_DAG_ID
-        dag = DAG(dag_id, default_args=self.args, schedule_interval=timedelta(minutes=1))
+        dag = DAG(dag_id, default_args=self.args, schedule=timedelta(minutes=1))
         task_without_failure = ExternalTaskSensor(
             task_id='task_without_failure',
             external_dag_id=dag_external_id,
@@ -555,14 +555,14 @@ def dag_bag_ext():
 
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
-    dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None)
+    dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule=None)
     task_a_0 = EmptyOperator(task_id="task_a_0", dag=dag_0)
     task_b_0 = ExternalTaskMarker(
         task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3, dag=dag_0
     )
     task_a_0 >> task_b_0
 
-    dag_1 = DAG("dag_1", start_date=DEFAULT_DATE, schedule_interval=None)
+    dag_1 = DAG("dag_1", start_date=DEFAULT_DATE, schedule=None)
     task_a_1 = ExternalTaskSensor(
         task_id="task_a_1", external_dag_id=dag_0.dag_id, external_task_id=task_b_0.task_id, dag=dag_1
     )
@@ -571,7 +571,7 @@ def dag_bag_ext():
     )
     task_a_1 >> task_b_1
 
-    dag_2 = DAG("dag_2", start_date=DEFAULT_DATE, schedule_interval=None)
+    dag_2 = DAG("dag_2", start_date=DEFAULT_DATE, schedule=None)
     task_a_2 = ExternalTaskSensor(
         task_id="task_a_2", external_dag_id=dag_1.dag_id, external_task_id=task_b_1.task_id, dag=dag_2
     )
@@ -580,7 +580,7 @@ def dag_bag_ext():
     )
     task_a_2 >> task_b_2
 
-    dag_3 = DAG("dag_3", start_date=DEFAULT_DATE, schedule_interval=None)
+    dag_3 = DAG("dag_3", start_date=DEFAULT_DATE, schedule=None)
     task_a_3 = ExternalTaskSensor(
         task_id="task_a_3", external_dag_id=dag_2.dag_id, external_task_id=task_b_2.task_id, dag=dag_3
     )
@@ -618,7 +618,7 @@ def dag_bag_parent_child():
 
     day_1 = DEFAULT_DATE
 
-    with DAG("parent_dag_0", start_date=day_1, schedule_interval=None) as dag_0:
+    with DAG("parent_dag_0", start_date=day_1, schedule=None) as dag_0:
         task_0 = ExternalTaskMarker(
             task_id="task_0",
             external_dag_id="child_dag_1",
@@ -627,7 +627,7 @@ def dag_bag_parent_child():
             recursion_depth=3,
         )
 
-    with DAG("child_dag_1", start_date=day_1, schedule_interval=None) as dag_1:
+    with DAG("child_dag_1", start_date=day_1, schedule=None) as dag_1:
         ExternalTaskSensor(
             task_id="task_1",
             external_dag_id=dag_0.dag_id,
@@ -817,7 +817,7 @@ def dag_bag_cyclic():
 
         dags = []
 
-        with DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+        with DAG("dag_0", start_date=DEFAULT_DATE, schedule=None) as dag:
             dags.append(dag)
             task_a_0 = EmptyOperator(task_id="task_a_0")
             task_b_0 = ExternalTaskMarker(
@@ -826,7 +826,7 @@ def dag_bag_cyclic():
             task_a_0 >> task_b_0
 
         for n in range(1, depth):
-            with DAG(f"dag_{n}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+            with DAG(f"dag_{n}", start_date=DEFAULT_DATE, schedule=None) as dag:
                 dags.append(dag)
                 task_a = ExternalTaskSensor(
                     task_id=f"task_a_{n}",
@@ -842,7 +842,7 @@ def dag_bag_cyclic():
                 task_a >> task_b
 
         # Create the last dag which loops back
-        with DAG(f"dag_{depth}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+        with DAG(f"dag_{depth}", start_date=DEFAULT_DATE, schedule=None) as dag:
             dags.append(dag)
             task_a = ExternalTaskSensor(
                 task_id=f"task_a_{depth}",
@@ -906,8 +906,8 @@ def dag_bag_multiple():
     Create a DagBag containing two DAGs, linked by multiple ExternalTaskMarker.
     """
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
-    daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
-    agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
+    daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule="@daily")
+    agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule="@daily")
     dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
     dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
 
@@ -962,7 +962,7 @@ def dag_bag_head_tail():
     """
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
-    with DAG("head_tail", start_date=DEFAULT_DATE, schedule_interval="@daily") as dag:
+    with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
         head = ExternalTaskSensor(
             task_id='head',
             external_dag_id=dag.dag_id,

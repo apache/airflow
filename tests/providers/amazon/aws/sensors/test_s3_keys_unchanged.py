@@ -32,9 +32,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 
 class TestS3KeysUnchangedSensor(TestCase):
     def setUp(self):
-        self.dag = DAG(
-            f'{TEST_DAG_ID}test_schedule_dag_once', start_date=DEFAULT_DATE, schedule_interval="@once"
-        )
+        self.dag = DAG(f'{TEST_DAG_ID}test_schedule_dag_once', start_date=DEFAULT_DATE, schedule="@once")
 
         self.sensor = S3KeysUnchangedSensor(
             task_id='sensor_1',

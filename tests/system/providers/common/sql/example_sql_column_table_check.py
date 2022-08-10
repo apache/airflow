@@ -35,7 +35,7 @@ with DAG(
     description="Example DAG for SQLColumnCheckOperator and SQLTableCheckOperator.",
     default_args=connection_args,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
 ) as dag:
     """

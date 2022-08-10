@@ -28,7 +28,6 @@ INGESTION_ID = os.getenv("INGESTION_ID", "ingestion-id")
 
 with DAG(
     dag_id="example_quicksight",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=["example"],
     catchup=False,

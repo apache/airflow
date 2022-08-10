@@ -24,7 +24,7 @@ from airflow.operators.python import PythonOperator
 with DAG(
     "test_invalid_param",
     start_date=datetime(2021, 1, 1),
-    schedule_interval="@once",
+    schedule="@once",
     params={
         # a mandatory str param
         "str_param": Param(type="string", minLength=2, maxLength=4),

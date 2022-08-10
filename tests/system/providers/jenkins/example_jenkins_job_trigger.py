@@ -37,7 +37,7 @@ with DAG(
         "max_active_runs": 8,
     },
     start_date=datetime(2017, 6, 1),
-    schedule_interval=None,
+    schedule=None,
 ) as dag:
     job_trigger = JenkinsJobTriggerOperator(
         task_id="trigger_job",

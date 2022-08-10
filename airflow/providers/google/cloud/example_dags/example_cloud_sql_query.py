@@ -270,7 +270,6 @@ tasks = []
 
 with models.DAG(
     dag_id='example_gcp_sql_query',
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

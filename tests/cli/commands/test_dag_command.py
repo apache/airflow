@@ -352,11 +352,11 @@ class TestCliDags(unittest.TestCase):
 
     def test_next_execution(self):
         dag_ids = [
-            'example_bash_operator',  # schedule_interval is '0 0 * * *'
-            'latest_only',  # schedule_interval is timedelta(hours=4)
-            'example_python_operator',  # schedule_interval=None
-            'example_xcom',
-        ]  # schedule_interval="@once"
+            'example_bash_operator',  # schedule='0 0 * * *'
+            'latest_only',  # schedule=timedelta(hours=4)
+            'example_python_operator',  # schedule=None
+            'example_xcom',  # schedule="@once"
+        ]
 
         # Delete DagRuns
         with create_session() as session:

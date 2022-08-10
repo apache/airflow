@@ -28,7 +28,7 @@ from airflow.operators.empty import EmptyOperator
 
 with DAG(
     dag_id='example_bash_operator',
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     dagrun_timeout=datetime.timedelta(minutes=60),

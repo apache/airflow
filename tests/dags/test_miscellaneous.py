@@ -31,7 +31,7 @@ args = {
 dag = DAG(
     dag_id='miscellaneous_test_dag',
     default_args=args,
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     start_date=datetime.datetime(2022, 1, 1),
     dagrun_timeout=datetime.timedelta(minutes=60),
     tags=['example', 'example2'],

@@ -44,7 +44,7 @@ works.
     dag = DAG(
         dag_id="example_lineage",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        schedule_interval="0 0 * * *",
+        schedule="0 0 * * *",
         catchup=False,
         dagrun_timeout=datetime.timedelta(minutes=60),
     )

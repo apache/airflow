@@ -26,7 +26,7 @@ from airflow.operators.latest_only import LatestOnlyOperator
 
 with DAG(
     dag_id='latest_only',
-    schedule_interval=dt.timedelta(hours=4),
+    schedule=dt.timedelta(hours=4),
     start_date=dt.datetime(2021, 1, 1),
     catchup=False,
     tags=['example2', 'example3'],

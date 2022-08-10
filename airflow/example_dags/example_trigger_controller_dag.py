@@ -30,7 +30,7 @@ with DAG(
     dag_id="example_trigger_controller_dag",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    schedule_interval="@once",
+    schedule="@once",
     tags=['example'],
 ) as dag:
     trigger = TriggerDagRunOperator(

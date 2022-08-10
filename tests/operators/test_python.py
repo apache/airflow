@@ -388,7 +388,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag = DAG(
             'branch_operator_test',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
@@ -596,7 +596,7 @@ class TestShortCircuitOperator:
         self.dag = DAG(
             "short_circuit_op_test",
             start_date=DEFAULT_DATE,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         with self.dag:
@@ -843,7 +843,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
             template_searchpath=TEMPLATE_SEARCHPATH,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -1303,7 +1303,7 @@ def test_virtualenv_serializable_context_fields(create_task_instance):
     ti = create_task_instance(
         dag_id="test_virtualenv_serializable_context_fields",
         task_id="test_virtualenv_serializable_context_fields_task",
-        schedule_interval=None,
+        schedule=None,
     )
     context = ti.get_template_context()
 

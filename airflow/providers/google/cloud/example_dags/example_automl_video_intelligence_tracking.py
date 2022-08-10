@@ -63,7 +63,6 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 # Example DAG for AutoML Video Intelligence Object Tracking
 with models.DAG(
     "example_automl_video_tracking",
-    schedule_interval=None,  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},

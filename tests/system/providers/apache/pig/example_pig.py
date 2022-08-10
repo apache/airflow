@@ -29,7 +29,7 @@ DAG_ID = "example_adf_run_pipeline"
 
 with DAG(
     dag_id='example_pig_operator',
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

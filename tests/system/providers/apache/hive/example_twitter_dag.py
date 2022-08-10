@@ -78,7 +78,7 @@ with DAG(
         'owner': 'Ekhtiar',
         'retries': 1,
     },
-    schedule_interval="@daily",
+    schedule="@daily",
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

@@ -166,7 +166,7 @@ Here is an example of a task with both features:
 
     with DAG(
         dag_id="example_pod_template_file",
-        schedule_interval=None,
+        schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=["example3"],

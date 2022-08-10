@@ -36,7 +36,7 @@ After that, define a task that will use this owner, and the link in the DAGs vie
 
   dag = DAG(
       dag_id="example_dag_owners",
-      schedule_interval="0 0 * * *",
+      schedule="0 0 * * *",
       start_date=datetime(2022, 8, 5),
       owner_links={"airflow": "https://airflow.apache.org/"},
   )

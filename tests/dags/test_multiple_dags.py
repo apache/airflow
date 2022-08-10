@@ -27,7 +27,7 @@ def create_dag(suffix):
     dag = DAG(
         dag_id=f'test_multiple_dags__{suffix}',
         default_args=args,
-        schedule_interval='0 0 * * *',
+        schedule='0 0 * * *',
         dagrun_timeout=datetime.timedelta(minutes=60),
     )
 

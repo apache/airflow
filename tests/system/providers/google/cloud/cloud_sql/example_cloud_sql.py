@@ -141,7 +141,7 @@ db_patch_body = {"charset": "utf16", "collation": "utf16_general_ci"}
 
 with models.DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "cloud_sql"],

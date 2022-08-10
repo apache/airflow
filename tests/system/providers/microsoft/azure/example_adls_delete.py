@@ -31,7 +31,7 @@ DAG_ID = "example_adls_delete"
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     tags=['example'],
 ) as dag:
 
