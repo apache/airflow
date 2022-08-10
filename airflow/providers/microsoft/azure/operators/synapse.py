@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from azure.synapse.spark.models import SparkBatchJobOptions
 
@@ -29,15 +29,11 @@ if TYPE_CHECKING:
 class AzureSynapseRunSparkBatchOperator(BaseOperator):
     """
     Executes a Spark job on Azure Synapse.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AzureSynapseRunSparkBatchOperator`
-
-    :param azure_synapse_conn_id: The connection identifier for connecting to Azure Data Factory.
-    :param wait_for_termination: Flag to wait on a pipeline run's termination.  By default, this feature is
-        enabled but could be disabled to perform an asynchronous wait for a long-running pipeline execution
-        using the ``AzureDataFactoryPipelineRunSensor``.
+    :param azure_synapse_conn_id: The connection identifier for connecting to Azure Synapse.
+    :param wait_for_termination: Flag to wait on a job run's termination.
     :param spark_pool: The target synapse spark pool used to submit the job
     :param payload: Livy compatible payload which represents the spark job that a user wants to submit
     :param timeout: Time in seconds to wait for a job to reach a terminal status for non-asynchronous
@@ -59,7 +55,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         *,
         azure_synapse_conn_id: str = AzureSynapseHook.default_conn_name,
         wait_for_termination: bool = True,
-        spark_pool: Optional[str] = None,
+        spark_pool: str = '',
         payload: SparkBatchJobOptions,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
@@ -74,13 +70,15 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         self.check_interval = check_interval
 
     def execute(self, context: "Context") -> None:
-        self.hook = AzureSynapseHook(azure_synapse_conn_id=self.azure_synapse_conn_id)
+        self.hook = AzureSynapseHook(
+            azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool
+        )
         self.log.info("Executing the Synapse spark job.")
         response = self.hook.run_spark_job(payload=self.payload)
         self.log.info(response)
         self.job_id = vars(response)["id"]
-        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
-        # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
+        # Push the ``job_id`` value to XCom regardless of what happens during execution. This allows for
+        # retrieval the executed job's ``id`` for downstream tasks especially if performing an
         # asynchronous wait.
         context["ti"].xcom_push(key="job_id", value=self.job_id)
 

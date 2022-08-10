@@ -22,6 +22,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.spark import SparkClient
 from azure.synapse.spark.models import SparkBatchJobOptions
 
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
@@ -47,8 +48,8 @@ class AzureSynapseSparkBatchRunStatus:
 class AzureSynapseHook(BaseHook):
     """
     A hook to interact with Azure Synapse.
-
     :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
+    :param spark_pool: The Apache Spark pool used to submit the job
     """
 
     conn_type: str = 'azure_synapse'
@@ -70,9 +71,6 @@ class AzureSynapseHook(BaseHook):
             "extra__azure_synapse__subscriptionId": StringField(
                 lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_synapse__spark_pool": StringField(
-                lazy_gettext('Spark Pool'), widget=BS3TextFieldWidget()
-            ),
         }
 
     @staticmethod
@@ -83,9 +81,10 @@ class AzureSynapseHook(BaseHook):
             "relabeling": {'login': 'Client ID', 'password': 'Secret', 'host': 'Synapse Workspace URL'},
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name):
+    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ''):
         self._conn: Optional[SparkClient] = None
         self.conn_id = azure_synapse_conn_id
+        self.spark_pool = spark_pool
         super().__init__()
 
     def get_conn(self) -> SparkClient:
@@ -94,7 +93,7 @@ class AzureSynapseHook(BaseHook):
 
         conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get('extra__azure_synapse__tenantId')
-        spark_pool = conn.extra_dejson.get('extra__azure_synapse__spark_pool')
+        spark_pool = self.spark_pool
         livy_api_version = "2022-02-22-preview"
 
         try:
@@ -133,7 +132,6 @@ class AzureSynapseHook(BaseHook):
     ):
         """
         Run a job in an Apache Spark pool.
-
         :param payload: Livy compatible payload which represents the spark job that a user wants to submit.
         """
         job = self.get_conn().spark_batch.create_spark_batch_job(payload)
@@ -146,7 +144,6 @@ class AzureSynapseHook(BaseHook):
     ):
         """
         Get the job run status.
-
         :param job_id: The job identifier.
         """
         job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=job_id).state
@@ -160,8 +157,7 @@ class AzureSynapseHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a pipeline run to match an expected status.
-
+        Waits for a job run to match an expected status.
         :param job_id: The job run identifier.
         :param expected_statuses: The desired status(es) to check against a job run's current status.
         :param check_interval: Time in seconds to check on a job run's status.
@@ -175,11 +171,13 @@ class AzureSynapseHook(BaseHook):
             job_run_status not in AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES
             and job_run_status not in expected_statuses
         ):
-            # Check if the pipeline-run duration has exceeded the ``timeout`` configured.
+            # Check if the job-run duration has exceeded the ``timeout`` configured.
             if start_time + timeout < time.monotonic():
-                raise Exception(f"Job {job_id} has not reached a terminal status after {timeout} seconds.")
+                raise AirflowTaskTimeout(
+                    f"Job {job_id} has not reached a terminal status after {timeout} seconds."
+                )
 
-            # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
+            # Wait to check the status of the job run based on the ``check_interval`` configured.
             self.log.info("Sleeping for %s seconds", str(check_interval))
             time.sleep(check_interval)
 
@@ -194,7 +192,6 @@ class AzureSynapseHook(BaseHook):
     ) -> None:
         """
         Cancel the spark job run.
-
         :param job_id: The synapse spark job identifier.
         """
         self.get_conn().spark_batch.cancel_spark_batch_job(job_id)
