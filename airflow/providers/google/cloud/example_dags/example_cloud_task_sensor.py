@@ -22,10 +22,8 @@ Example Airflow DAG that sense a cloud task queue being empty.
 This DAG relies on the following OS environment variables
 
 * GCP_PROJECT_ID - Google Cloud project where the Compute Engine instance exists.
-* GCE_ZONE - Google Cloud zone where the instance exists.
-* GCE_INSTANCE - Name of the Compute Engine instance.
-* GCE_SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
-    See https://cloud.google.com/compute/docs/machine-types
+* GCP_ZONE - Google Cloud zone where the cloud task queue exists.
+* QUEUE_NAME - Name of the cloud task queue.
 """
 
 import os
