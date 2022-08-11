@@ -42,6 +42,7 @@ def kerberos(args):
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
 
             with ctx:

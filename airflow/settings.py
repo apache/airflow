@@ -640,3 +640,5 @@ DASHBOARD_UIALERTS: List["UIAlert"] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
+
+DAEMON_UMASK: str = conf.get('core', 'daemon_umask', fallback='0o077')

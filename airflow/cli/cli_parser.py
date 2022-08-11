@@ -671,7 +671,6 @@ ARG_CELERY_HOSTNAME = Arg(
 ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
-    default=conf.get('celery', 'worker_umask'),
 )
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),

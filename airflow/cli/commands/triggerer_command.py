@@ -48,6 +48,7 @@ def triggerer(args):
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 job.run()
