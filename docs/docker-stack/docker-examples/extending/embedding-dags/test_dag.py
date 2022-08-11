@@ -31,7 +31,7 @@ DAG_NAME = 'test_dag_v1'
 
 dag = DAG(
     DAG_NAME,
-    schedule_interval='*/10 * * * *',
+    schedule='*/10 * * * *',
     default_args={'depends_on_past': True},
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,

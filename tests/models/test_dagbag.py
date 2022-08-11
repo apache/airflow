@@ -398,7 +398,7 @@ class TestDagBag:
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
-            schedule_interval=None,
+            schedule=None,
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")

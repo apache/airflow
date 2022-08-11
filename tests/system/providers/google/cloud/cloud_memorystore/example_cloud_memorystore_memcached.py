@@ -50,7 +50,7 @@ MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',  # Override to match your needs
+    schedule='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

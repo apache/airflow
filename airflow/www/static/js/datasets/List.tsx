@@ -30,10 +30,11 @@ import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import { Table, CodeCell } from 'src/components/Table';
+import { Table } from 'src/components/Table';
 import type { API } from 'src/types';
 import { MdOutlineAccountTree } from 'react-icons/md';
 import InfoTooltip from 'src/components/InfoTooltip';
+import { getMetaValue } from 'src/utils';
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -70,20 +71,16 @@ const DatasetsList = ({ onSelect }: Props) => {
         accessor: 'uri',
       },
       {
-        Header: 'Extra',
-        accessor: 'extra',
-        disableSortBy: true,
-        Cell: CodeCell,
-      },
-      {
         Header: UpstreamHeader,
         accessor: 'upstreamTaskReferences',
         Cell: ({ cell: { value } }: any) => value.length,
+        disableSortBy: true,
       },
       {
         Header: DownstreamHeader,
         accessor: 'downstreamDagReferences',
         Cell: ({ cell: { value } }: any) => value.length,
+        disableSortBy: true,
       },
     ],
     [],
@@ -98,10 +95,12 @@ const DatasetsList = ({ onSelect }: Props) => {
     if (row.original.id) onSelect(row.original.id.toString());
   };
 
+  const docsUrl = getMetaValue('datasets_docs');
+
   return (
     <Box maxWidth="1500px">
       <Flex justifyContent="space-between" alignItems="center">
-        <Heading mt={3} mb={2} fontWeight="normal" title="View Dag-Dataset Dependencies">
+        <Heading mt={3} mb={2} fontWeight="normal">
           Datasets
         </Heading>
         <Button
@@ -109,11 +108,21 @@ const DatasetsList = ({ onSelect }: Props) => {
           variant="outline"
           colorScheme="blue"
           href="/dag-dependencies"
+          title="View Dag-Dataset Dependencies"
           leftIcon={<MdOutlineAccountTree />}
         >
           Graph
         </Button>
       </Flex>
+      {!datasets.length && !isLoading && (
+        <Text>
+          Looks like you do not have any datasets yet. Check out the
+          {' '}
+          <Link color="blue" href={docsUrl} isExternal>docs</Link>
+          {' '}
+          to learn how to create a dataset.
+        </Text>
+      )}
       <Box borderWidth={1}>
         <Table
           data={data}
