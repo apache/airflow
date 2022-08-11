@@ -362,6 +362,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if git_source is not None:
             self.json['git_source'] = git_source
 
+        if 'dbt_task' in self.json and 'git_source' not in self.json:
+            raise AirflowException('git_source is required for dbt_task')
+
         self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
