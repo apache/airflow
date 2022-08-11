@@ -47,6 +47,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    executor: {{ .Values.executor }}
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
