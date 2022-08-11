@@ -75,6 +75,7 @@ class TestKerberosCommand(unittest.TestCase):
                 pidfile=mock_pid_file.return_value,
                 stderr=mock_open.return_value,
                 stdout=mock_open.return_value,
+                umask=0o077,
             ),
             mock.call.DaemonContext().__enter__(),
             mock.call.DaemonContext().__exit__(None, None, None),

@@ -72,6 +72,7 @@ def flower(args):
                 pidfile=TimeoutPIDLockFile(pidfile, -1),
                 stdout=stdout,
                 stderr=stderr,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 celery_app.start(options)
@@ -180,6 +181,8 @@ def worker(args):
         with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
             if args.umask:
                 umask = args.umask
+            else:
+                umask = conf.get('celery', 'worker_umask', fallback=settings.DAEMON_UMASK)
 
             ctx = daemon.DaemonContext(
                 files_preserve=[handle],
