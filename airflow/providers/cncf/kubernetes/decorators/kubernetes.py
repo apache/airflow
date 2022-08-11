@@ -23,17 +23,23 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
 
-#from kubernetes import client 
-
 from kubernetes.client import models as k8s
-
-#from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-#from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
+from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
+    remove_task_decorator,
+    write_python_script,
+)
 
-from airflow.providers.cncf.kubernetes.python_kubernetes_script import remove_task_decorator, write_python_script
+# from kubernetes import client
+
+
+# from kubernetes.client import models as k8s
+
+
+# from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -105,7 +111,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             write_python_script(
                 jinja_context=jinja_context,
                 filename=script_filename,
-                #template_file='python_kubernetes_script.jinja2',
+                # template_file='python_kubernetes_script.jinja2',
             )
 
             self.env_vars.append(

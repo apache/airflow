@@ -23,7 +23,6 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.providers.cncf.kubernetes.decorators.kubernetes import kubernetes_task
 
 with DAG(
     dag_id='example_kubernetes_decorator',
@@ -34,14 +33,15 @@ with DAG(
 ) as dag:
 
     @task.kubernetes(
-        image='python:3.8-slim-buster', 
-        name='k8s_test', 
+        image='python:3.8-slim-buster',
+        name='k8s_test',
         namespace='default',
         in_cluster=False,
-        config_file="/Users/jeff/.kube/config"
+        config_file="/Users/jeff/.kube/config",
     )
     def execute_in_k8s_pod():
         import time
+
         print("Hello from k8s pod")
         time.sleep(2)
 
@@ -49,7 +49,7 @@ with DAG(
         image='python:3.8-slim-buster',
         namespace='default',
         in_cluster=False,
-        config_file="/Users/jeff/.kube/config"
+        config_file="/Users/jeff/.kube/config",
     )
     def print_pattern():
         n = 5
@@ -62,7 +62,6 @@ with DAG(
 
             # ending line after each row
             print("\r")
-
 
     execute_in_k8s_pod_instance = execute_in_k8s_pod()
     print_pattern_instance = print_pattern()

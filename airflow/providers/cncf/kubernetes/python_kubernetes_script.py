@@ -18,10 +18,12 @@
 #
 """Utilities for using the kubernetes decorator"""
 import os
-import jinja2
 from collections import deque
 
-#from airflow.utils.process_utils import execute_in_subprocess
+import jinja2
+
+# from airflow.utils.process_utils import execute_in_subprocess
+
 
 def _balance_parens(after_decorator):
     num_paren = 1
@@ -34,6 +36,7 @@ def _balance_parens(after_decorator):
         elif current == ")":
             num_paren = num_paren - 1
     return ''.join(after_decorator)
+
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
@@ -50,6 +53,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     if after_decorator[0] == "\n":
         after_decorator = after_decorator[1:]
     return before_decorator + after_decorator
+
 
 def write_python_script(
     jinja_context: dict,

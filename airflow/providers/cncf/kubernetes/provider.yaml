@@ -94,4 +94,4 @@ connection-types:
 
 task-decorators:
   - class-name: airflow.providers.cncf.kubernetes.decorators.kubernetes.kubernetes_task
-    name: kubernetes    
+    name: kubernetes
