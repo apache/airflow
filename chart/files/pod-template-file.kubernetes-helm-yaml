@@ -59,7 +59,7 @@ spec:
 {{- include "standard_airflow_environment" . | indent 6}}
 {{- include "custom_airflow_environment" . | indent 6 }}
 {{- if .Values.workers.env }}
-{{ tpl (toYaml .Values.workers.env) $ | indent 12 }}
+{{ tpl (toYaml .Values.workers.env) $ | indent 8 }}
 {{- end }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}

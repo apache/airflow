@@ -127,6 +127,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+{{- if .Values.dagProcessor.waitForMigrations.env }}
+{{ tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
@@ -134,9 +137,6 @@ spec:
         {{- if .Values.dagProcessor.extraInitContainers }}
         {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
         {{- end }}
-{{- if .Values.dagProcessor.waitForMigrations.env }}
-{{ tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | indent 12 }}
-{{- end }}
       containers:
         - name: dag-processor
           image: {{ template "airflow_image" . }}

@@ -217,6 +217,9 @@ spec:
               value: "0"
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.workers.env }}
+{{ tpl (toYaml .Values.workers.env) $ | indent 12 }}
+{{- end }}
           {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}
@@ -226,9 +229,6 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
-{{- if .Values.workers.env }}
-{{ tpl (toYaml .Values.workers.env) $ | indent 12 }}
-{{- end }}
 {{- if $persistence }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
