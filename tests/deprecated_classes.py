@@ -472,10 +472,6 @@ OPERATORS = [
         "airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.kubernetes_engine.GKEPodOperator",
-        "airflow.contrib.operators.gcp_container_operator.GKEPodOperator",
-    ),
-    (
         "airflow.providers.google.cloud.operators.dlp.CloudDLPCancelDLPJobOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCancelDLPJobOperator",
     ),
