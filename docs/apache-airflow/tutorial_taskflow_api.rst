@@ -175,7 +175,7 @@ Below is an example of how you can reuse a decorated task in multiple DAGs:
     from datetime import datetime
 
 
-    @task
+    @task()
     def add_task(x, y):
         print(f"Task args: x={x}, y={y}")
         return x + y
@@ -272,7 +272,7 @@ Tasks can also infer multiple outputs by using dict Python typing.
 
 .. code-block:: python
 
-   @task
+   @task()
    def identity_dict(x: int, y: int) -> Dict[str, int]:
        return {"x": x, "y": y}
 
@@ -359,7 +359,7 @@ to a TaskFlow function which parses the response as JSON.
     )
 
 
-    @task
+    @task()
     def parse_results(api_results):
         return json.loads(api_results)
 
@@ -438,7 +438,7 @@ With explicit arguments:
 
 .. code-block:: python
 
-   @task
+   @task()
    def my_python_callable(ti=None, next_ds=None):
        pass
 
@@ -446,7 +446,7 @@ With kwargs:
 
 .. code-block:: python
 
-   @task
+   @task()
    def my_python_callable(**kwargs):
        ti = kwargs["ti"]
        next_ds = kwargs["next_ds"]
