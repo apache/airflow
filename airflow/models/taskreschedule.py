@@ -112,6 +112,7 @@ class TaskReschedule(Base):
             TR.dag_id == task_instance.dag_id,
             TR.task_id == task_instance.task_id,
             TR.run_id == task_instance.run_id,
+            TR.map_index == task_instance.map_index,
             TR.try_number == try_number,
         )
         if descending:
