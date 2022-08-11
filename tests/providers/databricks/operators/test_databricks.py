@@ -153,7 +153,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
     def test_init_with_dbt_task_mixed_parameters(self):
         """
-        Test the initializer with the mixed parameters.
+        Test the initializer with mixed parameters.
         """
         git_source = {
             'git_url': 'https://github.com/dbt-labs/jaffle_shop',
