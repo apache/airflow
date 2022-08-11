@@ -234,6 +234,14 @@ class DAG(LoggingMixin):
     Note that if you plan to use time zones all the dates provided should be pendulum
     dates. See :ref:`timezone_aware_dags`.
 
+    .. versionadded:: 2.4
+        The *schedule* argument to specify either time-based scheduling logic
+        (timetable), or dataset-driven triggers.
+
+    .. deprecated:: 2.4
+        The arguments *schedule_interval* and *timetable*. Their functionalities
+        are merged into the new *schedule* argument.
+
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
