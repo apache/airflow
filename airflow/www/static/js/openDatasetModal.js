@@ -21,7 +21,7 @@
 
 import { getMetaValue } from './utils';
 
-function openDatasetModal(dagId, summary) {
+export function openDatasetModal(dagId, summary) {
   const datasetsUrl = getMetaValue('datasets_url');
   let nextRunUrl = getMetaValue('next_run_datasets_url');
   $('#datasets_tbody').empty();
@@ -64,4 +64,32 @@ function openDatasetModal(dagId, summary) {
   }
 }
 
-export default openDatasetModal;
+export function getDatasetTooltipInfo(dagId, run) {
+  let nextRunUrl = getMetaValue('next_run_datasets_url');
+  if (dagId) {
+    if (nextRunUrl.includes('__DAG_ID__')) {
+      nextRunUrl = nextRunUrl.replace('__DAG_ID__', dagId);
+    }
+    $.get(nextRunUrl)
+      .done(
+        (datasets) => {
+          let count = 0;
+          let title = 'Pending datasets:<br>';
+          datasets.forEach((d) => {
+            if (!d.created_at) {
+              if (count < 1) title += `${d.uri}<br>`;
+              count += 1;
+            }
+          });
+          if (count >= 1) {
+            count -= 1;
+            title += `<br>And ${count - 1} more.`;
+          }
+          title += '<br>Click to see more details.';
+          $(run).attr('data-original-title', () => title);
+        },
+      ).fail(() => {
+        console.log('eror');
+      });
+  }
+}
