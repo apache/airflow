@@ -390,6 +390,13 @@ You can also pass the token as `--github-token` option in the script.
 You can also generate the token by following
 [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
 
+If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+```
+
+
 ## Prepare voting email for Providers release candidate
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/providers/
