@@ -37,7 +37,7 @@ with DAG(
         name='k8s_test',
         namespace='default',
         in_cluster=False,
-        config_file="/Users/jeff/.kube/config",
+        config_file="/path/to/.kube/config",
     )
     def execute_in_k8s_pod():
         import time
@@ -49,7 +49,7 @@ with DAG(
         image='python:3.8-slim-buster',
         namespace='default',
         in_cluster=False,
-        config_file="/Users/jeff/.kube/config",
+        config_file="/path/to/.kube/config",
     )
     def print_pattern():
         n = 5
