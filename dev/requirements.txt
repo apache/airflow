@@ -10,4 +10,5 @@ pyyaml
 packaging
 rich
 rich_click
+semver
 tabulate
