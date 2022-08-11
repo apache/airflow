@@ -522,7 +522,17 @@ class AirflowConfigParser(ConfigParser):
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
 
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:  # type: ignore[override]
+
+        ...
+
+    @overload  # type: ignore[override]
     def get(self, section: str, key: str, **kwargs) -> Optional[str]:  # type: ignore[override]
+
+        ...
+
+    def get(self, section: str, key: str, **kwargs) -> Optional[str]:  # type: ignore[override, misc]
         section = str(section).lower()
         key = str(key).lower()
 
