@@ -155,7 +155,7 @@ class GoogleDriveHook(GoogleBaseHook):
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
-        :param include_trashed: Whether to include 'trashed' objects or not, default True as in Google API.
+        :param include_trashed: Whether to include objects in trash or not, default True as in Google API.
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
         :return: Google Drive file id if the file exists, otherwise None
         :rtype: str if file exists else None
