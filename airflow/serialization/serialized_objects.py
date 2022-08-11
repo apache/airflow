@@ -590,7 +590,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
+        serialized_op = cls._serialize_node(op, include_deps=op.deps != MappedOperator.deps_for(BaseOperator))
 
         # Handle mapped_kwargs and mapped_op_kwargs.
         serialized_op[op._expansion_kwargs_attr] = cls._serialize(op._get_expansion_kwargs())

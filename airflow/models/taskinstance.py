@@ -1865,6 +1865,7 @@ class TaskInstance(Base, LoggingMixin):
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
+                self.map_index,
             )
         )
 
