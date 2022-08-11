@@ -196,6 +196,8 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
                 print("Hello World")
                 print("This is DAG: {}".format(str(dag_number)))
 
+            t1 = hello_world()
+
         return dag
 
 
@@ -409,7 +411,7 @@ upstream task.
     from airflow.utils.trigger_rule import TriggerRule
 
 
-    @task
+    @task()
     def a_func():
         raise AirflowException
 
