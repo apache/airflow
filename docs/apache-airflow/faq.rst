@@ -196,7 +196,7 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
                 print("Hello World")
                 print("This is DAG: {}".format(str(dag_number)))
 
-            t1 = hello_world()
+            hello_world()
 
         return dag
 
