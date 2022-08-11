@@ -1204,6 +1204,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable liveness probe for celery workers.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before liveness probes are initiated.",
                             "type": "integer",

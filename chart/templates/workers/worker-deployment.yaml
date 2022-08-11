@@ -175,6 +175,7 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
+          {{- if .Values.workers.livenessProbe.enabled }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.workers.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.workers.livenessProbe.timeoutSeconds }}
@@ -189,6 +190,7 @@ spec:
                   - -c
                   - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.executors.celery_executor.app inspect ping -d celery@$(hostname)
                   {{- end }}
+          {{- end }}
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}

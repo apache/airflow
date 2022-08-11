@@ -324,6 +324,17 @@ class WorkerTest(unittest.TestCase):
             },
         }
 
+    def test_disable_livenessprobe(self):
+        docs = render_chart(
+            values={
+                "workers": {"livenessProbe": {"enabled": False}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        assert livenessprobe is None
+
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
