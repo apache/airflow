@@ -18,7 +18,7 @@
  */
 
 import React, {
-  useState, useMemo, useEffect,
+  useState, useMemo,
 } from 'react';
 import {
   Flex,
@@ -26,34 +26,25 @@ import {
   Box,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
-import type { SortingRule } from 'react-table';
+import type { Row, SortingRule } from 'react-table';
 
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import { useMappedInstances } from 'src/api';
 import { SimpleStatus } from 'src/dag/StatusBox';
 import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
-import type { API, TaskInstance } from 'src/types';
+import type { TaskInstance } from 'src/types';
 
 interface Props {
   dagId: string;
   runId: string;
   taskId: string;
-  onRowClicked: (rowMapIndex: number, taskInstances: TaskInstance[]) => void;
+  onRowClicked: (row: Row) => void;
   mapIndex?: TaskInstance['mapIndex'];
-  onMappedInstancesFetch: (mappedTaskInstances: TaskInstance[]) => void;
 }
 
-/* GridData.TaskInstance and API.TaskInstance are not compatible at the moment.
- * Remove this function when changing the api response for grid_data_url to comply
- * with API.TaskInstance.
- */
-const convertTaskInstances = (taskInstances: API.TaskInstance[]) => taskInstances.map(
-  (ti) => ({ ...ti, runId: ti.dagRunId }) as TaskInstance,
-);
-
 const MappedInstances = ({
-  dagId, runId, taskId, onRowClicked, onMappedInstancesFetch, mapIndex,
+  dagId, runId, taskId, onRowClicked, mapIndex,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -69,15 +60,6 @@ const MappedInstances = ({
   } = useMappedInstances({
     dagId, runId, taskId, limit, offset, order,
   });
-
-  const convertedTaskInstances = useMemo(
-    () => convertTaskInstances(taskInstances),
-    [taskInstances],
-  );
-
-  useEffect(() => {
-    onMappedInstancesFetch(convertedTaskInstances);
-  }, [mapIndex, onMappedInstancesFetch, convertedTaskInstances]);
 
   const data = useMemo(() => taskInstances.map((mi) => ({
     ...mi,
@@ -141,9 +123,7 @@ const MappedInstances = ({
           sortBy,
         }}
         isLoading={isLoading}
-        onRowClicked={
-          (row) => onRowClicked(row.values.mapIndex, convertedTaskInstances)
-        }
+        onRowClicked={onRowClicked}
       />
     </Box>
   );

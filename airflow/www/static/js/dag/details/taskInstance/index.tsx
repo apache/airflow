@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Text,
@@ -30,7 +30,7 @@ import {
   TabPanel,
 } from '@chakra-ui/react';
 
-import { useGridData } from 'src/api';
+import { useGridData, useTaskInstance } from 'src/api';
 import { getMetaValue, getTask } from 'src/utils';
 import type {
   Task, DagRun, TaskInstance as TaskInstanceType,
@@ -66,39 +66,25 @@ const TaskInstance = ({
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
-  const [instance, setInstance] = useState<TaskInstanceType>();
-
   const group = getTask({ taskId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
-  useEffect(() => {
-    if (!isMapIndexDefined) {
-      setInstance(group?.instances.find((ti) => ti.runId === runId));
-    }
-  }, [group, runId, isMapIndexDefined]);
+  const { children, isMapped, operator } = group || {};
 
-  const setInstanceForMappedIndex = useCallback((
-    rowMapIndex: number | undefined,
-    mappedTaskInstances: TaskInstanceType[],
-  ) => {
-    const taskInstance = mappedTaskInstances.find((ti) => ti.mapIndex === rowMapIndex);
-    if (taskInstance) {
-      setInstance(taskInstance);
-    }
-  }, [setInstance]);
+  const isMappedTaskSummary = !!isMapped && !isMapIndexDefined;
+  const isGroup = !!children;
+  const isGroupOrMappedTaskSummary = (isGroup || isMappedTaskSummary);
 
-  if (!group || !run) return null;
-
-  const { children, isMapped, operator } = group;
+  const { data: instance } = useTaskInstance({
+    dagId, dagRunId: runId, taskId, mapIndex, enabled: !isGroupOrMappedTaskSummary,
+  });
 
   const handleTabsChange = (index: number) => {
     localStorage.setItem(detailsPanelActiveTabIndex, index.toString());
     setPreferedTabIndex(index);
   };
 
-  const isMappedTaskSummary = !!isMapped && !isMapIndexDefined;
-  const isGroup = !!children;
-  const showLogs = !(isGroup || isMappedTaskSummary);
+  if (!group || !run) return null;
 
   let isPreferedTabDisplayed = false;
 
@@ -107,7 +93,7 @@ const TaskInstance = ({
       isPreferedTabDisplayed = true;
       break;
     case 1:
-      isPreferedTabDisplayed = showLogs || isMappedTaskSummary;
+      isPreferedTabDisplayed = !isGroup;
       break;
     default:
       isPreferedTabDisplayed = false;
@@ -121,11 +107,6 @@ const TaskInstance = ({
   if (isMapped) {
     taskActionsTitle += ` for ${actionsMapIndexes.length || 'all'} mapped task${actionsMapIndexes.length !== 1 ? 's' : ''}`;
   }
-
-  const onRowClicked = (rowMapIndex: number, mappedTaskInstances: TaskInstanceType[]) => {
-    setInstanceForMappedIndex(rowMapIndex, mappedTaskInstances);
-    onSelect({ runId, taskId, mapIndex: rowMapIndex });
-  };
 
   return (
     <Box py="4px">
@@ -149,7 +130,7 @@ const TaskInstance = ({
               <Text as="strong">Mapped Tasks</Text>
             </Tab>
           )}
-          { showLogs && (
+          {!isGroupOrMappedTaskSummary && (
             <Tab>
               <Text as="strong">Logs</Text>
             </Tab>
@@ -189,7 +170,7 @@ const TaskInstance = ({
           </TabPanel>
 
           {/* Logs Tab */}
-          { showLogs && (
+          {!isGroupOrMappedTaskSummary && (
           <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
             <Logs
               dagId={dagId}
@@ -209,11 +190,8 @@ const TaskInstance = ({
               dagId={dagId}
               runId={runId}
               taskId={taskId}
-              onRowClicked={onRowClicked}
+              onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
               mapIndex={mapIndex}
-              onMappedInstancesFetch={
-                    (taskInstances) => setInstanceForMappedIndex(mapIndex, taskInstances)
-                  }
             />
             )}
           </TabPanel>
