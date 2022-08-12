@@ -1202,6 +1202,9 @@ flower:
   #Labels specific to flower app
   labels: {}
 
+  #Labels specific to flower app
+  labels: {}
+
   # Command to use when running flower (templated).
   command: ~
   # Args to use when running flower (templated).
@@ -1344,7 +1347,6 @@ pgbouncer:
   # Enable PgBouncer
   enabled: false
   # Max number of old replicasets to retain
-  revisionHistoryLimit: ~
   # Labels specific to pgbouncer
   labels: {}
   # Command to use for PgBouncer(templated).
