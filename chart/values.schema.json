@@ -101,12 +101,12 @@
             ]
         },
         "securityContexts": {
-            "description": "Security context definition for the scheduler.",
+            "description": "Security context definition for the scheduler. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
             "type": "object",
             "x-docsSection": "Kubernetes",
             "properties": {
                 "pod": {
-                    "description": "Pod security context definition for the scheduler.",
+                    "description": "Pod security context definition for the scheduler. The values in this parameter will be used when `securityContexts` is not defined for specific Pods.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -120,7 +120,7 @@
                     ]
                 },
                 "container": {
-                    "description": "Container security context definition for the scheduler.",
+                    "description": "Container security context definition for the scheduler. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                     "default": {},
@@ -1941,7 +1941,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the scheduler.",
+                    "description": "Security context definition for the scheduler. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
@@ -3117,12 +3117,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the scheduler.",
+                    "description": "Security context definition for the webserver. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the scheduler.",
+                            "description": "Pod security context definition for the webserver.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -3136,7 +3136,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the scheduler.",
+                            "description": "Container security context definition for the webserver.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -3885,12 +3885,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the scheduler.",
+                    "description": "Security context definition for the statsd. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition for the scheduler.",
+                            "description": "Pod security context definition for the statsd.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -3904,7 +3904,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition for the scheduler.",
+                            "description": "Container security context definition for the statsd.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
