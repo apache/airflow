@@ -25,7 +25,7 @@
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -132,7 +132,7 @@ spec:
           command:
             - chown
             - -R
-            - "{{ include "airflowSecurityContextIds" (list . .Values.workers) }}"
+            - "{{ include "airflowPodSecurityContextIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
           securityContext:
             runAsUser: 0

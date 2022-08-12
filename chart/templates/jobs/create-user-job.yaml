@@ -23,7 +23,7 @@
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.createUserJob) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.createUserJob) }}
 apiVersion: batch/v1
 kind: Job
 metadata:

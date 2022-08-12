@@ -19,7 +19,7 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
 apiVersion: v1
 kind: Pod
 metadata:
