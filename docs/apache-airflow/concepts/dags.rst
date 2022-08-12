@@ -132,6 +132,8 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
+    To consider ``dir_name`` or ``file_name`` have ``dag`` keyword files. disable the ``DAG_DISCOVERY_SKIP_CHECK_NAME`` configuration flag.
+
 You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 

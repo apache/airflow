@@ -95,6 +95,7 @@ class DagBag(LoggingMixin):
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
         load_op_links: bool = True,
+        skip_check_name: bool = conf.getboolean('core', 'DAG_DISCOVERY_SKIP_CHECK_NAME'),
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
@@ -129,6 +130,7 @@ class DagBag(LoggingMixin):
             dag_folder=dag_folder,
             include_examples=include_examples,
             safe_mode=safe_mode,
+            skip_check_name=skip_check_name,
         )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
@@ -254,7 +256,7 @@ class DagBag(LoggingMixin):
         self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
         self.dags_hash[dag.dag_id] = row.dag_hash
 
-    def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+    def process_file(self, filepath, only_if_updated=True, safe_mode=True, skip_check_name=True):
         """
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
@@ -280,17 +282,17 @@ class DagBag(LoggingMixin):
             return []
 
         if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
-            mods = self._load_modules_from_file(filepath, safe_mode)
+            mods = self._load_modules_from_file(filepath, safe_mode, skip_check_name)
         else:
-            mods = self._load_modules_from_zip(filepath, safe_mode)
+            mods = self._load_modules_from_zip(filepath, safe_mode, skip_check_name)
 
         found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
-    def _load_modules_from_file(self, filepath, safe_mode):
-        if not might_contain_dag(filepath, safe_mode):
+    def _load_modules_from_file(self, filepath, safe_mode, skip_check_name):
+        if not might_contain_dag(filepath, safe_mode, skip_check_name):
             # Don't want to spam user with skip messages
             if not self.has_logged:
                 self.has_logged = True
@@ -342,7 +344,7 @@ class DagBag(LoggingMixin):
         with timeout(dagbag_import_timeout, error_message=timeout_msg):
             return parse(mod_name, filepath)
 
-    def _load_modules_from_zip(self, filepath, safe_mode):
+    def _load_modules_from_zip(self, filepath, safe_mode, skip_check_name):
         mods = []
         with zipfile.ZipFile(filepath) as current_zip_file:
             for zip_info in current_zip_file.infolist():
@@ -358,7 +360,7 @@ class DagBag(LoggingMixin):
 
                 self.log.debug("Reading %s from %s", zip_info.filename, filepath)
 
-                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file, skip_check_name):
                     # todo: create ignore list
                     # Don't want to spam user with skip messages
                     if not self.has_logged:
@@ -483,6 +485,7 @@ class DagBag(LoggingMixin):
         only_if_updated: bool = True,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        skip_check_name: bool = conf.getboolean('core', 'DAG_DISCOVERY_SKIP_CHECK_NAME'),
     ):
         """
         Given a file path or a folder, this method looks for python modules,
@@ -510,6 +513,7 @@ class DagBag(LoggingMixin):
         for filepath in list_py_file_paths(
             dag_folder,
             safe_mode=safe_mode,
+            skip_check_name=skip_check_name,
             include_examples=include_examples,
         ):
             try:
@@ -642,11 +646,11 @@ class DagBag(LoggingMixin):
             for permission_name in DAG_ACTIONS:
                 if not (
                     session.query(Permission)
-                    .join(Action)
-                    .join(Resource)
-                    .filter(Action.name == permission_name)
-                    .filter(Resource.name == dag_resource_name)
-                    .one_or_none()
+                        .join(Action)
+                        .join(Resource)
+                        .filter(Action.name == permission_name)
+                        .filter(Resource.name == dag_resource_name)
+                        .one_or_none()
                 ):
                     return True
             return False

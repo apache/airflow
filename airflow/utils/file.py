@@ -278,6 +278,7 @@ def find_path_from_directory(
 def list_py_file_paths(
     directory: Union[str, "pathlib.Path"],
     safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
+    skip_check_name: bool = conf.getboolean('core', 'DAG_DISCOVERY_SKIP_CHECK_NAME', fallback=True),
     include_examples: Optional[bool] = None,
 ):
     """
@@ -288,6 +289,10 @@ def list_py_file_paths(
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
+    :param skip_check_name: skip check dir_name, file_name have `dag` keyword
+        If not provided, use the
+        core.DAG_DISCOVERY_SKIP_CHECK_NAME configuration setting.
+        default: True
     :param include_examples: include example DAGs
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
@@ -300,16 +305,18 @@ def list_py_file_paths(
     elif os.path.isfile(directory):
         file_paths = [str(directory)]
     elif os.path.isdir(directory):
-        file_paths.extend(find_dag_file_paths(directory, safe_mode))
+        file_paths.extend(find_dag_file_paths(directory, safe_mode, skip_check_name))
     if include_examples:
         from airflow import example_dags
 
         example_dag_folder = example_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, include_examples=False))
+        file_paths.extend(
+            list_py_file_paths(example_dag_folder, safe_mode, skip_check_name, include_examples=False))
     return file_paths
 
 
-def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) -> List[str]:
+def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool, skip_check_name: bool) -> \
+    List[str]:
     """Finds file paths of all DAG files."""
     file_paths = []
 
@@ -320,7 +327,7 @@ def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) 
             _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
             if file_ext != '.py' and not zipfile.is_zipfile(file_path):
                 continue
-            if not might_contain_dag(file_path, safe_mode):
+            if not might_contain_dag(file_path, safe_mode, skip_check_name):
                 continue
 
             file_paths.append(file_path)
@@ -333,13 +340,36 @@ def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) 
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfile.ZipFile] = None):
+def name_index(file_path: str, index: int):
+    arr = file_path.split("/")
+
+    if len(arr) < index:
+        return None
+
+    return arr[-index]
+
+
+def name_dir(file_path: str):
+    return name_index(file_path, 2)
+
+
+def name_file(file_path: str):
+    return name_index(file_path, 1)
+
+
+def might_contain_dag(
+    file_path: str,
+    safe_mode: bool, zip_file:
+    Optional[zipfile.ZipFile] = None,
+    skip_check_name: bool = True
+):
     """
     Heuristic that guesses whether a Python file contains an Airflow DAG definition.
 
     :param file_path: Path to the file to be checked.
     :param safe_mode: Is safe mode active?. If no, this function always returns True.
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
+    :param skip_check_name: skip check dir_name, file_name have `dag` keyword
     :return: True, if file might contain DAGs.
     """
     if not safe_mode:
@@ -352,5 +382,16 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
             return True
         with open(file_path, 'rb') as dag_file:
             content = dag_file.read()
+
     content = content.lower()
-    return all(s in content for s in (b'dag', b'airflow'))
+    if all(s in content for s in (b'dag', b'airflow')):
+        return True
+
+    if skip_check_name:
+        return False
+
+    for name in (name_dir(file_path), name_file(file_path)):
+        if 'dag' in name.lower():
+            return True
+
+    return False

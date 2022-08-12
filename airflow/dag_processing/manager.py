@@ -737,7 +737,7 @@ class DagFileProcessorManager(LoggingMixin):
                             [
                                 os.path.join(fileloc, info.filename)
                                 for info in z.infolist()
-                                if might_contain_dag(info.filename, True, z)
+                                if might_contain_dag(info.filename, True, z, True)
                             ]
                         )
                 else:
