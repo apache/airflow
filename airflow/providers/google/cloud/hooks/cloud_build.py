@@ -167,6 +167,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
+
         operation.result()
 
         self.log.info("Build has been created: %s.", id_)

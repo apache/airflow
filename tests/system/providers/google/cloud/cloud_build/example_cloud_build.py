@@ -21,7 +21,7 @@ Example Airflow DAG that displays interactions with Google Cloud Build.
 
 This DAG relies on the following OS environment variables:
 
-* GCP_PROJECT_ID - Google Cloud Project to use for the Cloud Function.
+* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 * GCP_CLOUD_BUILD_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage.
     This object must be a gzipped archive file (.tar.gz) containing source to build.
 * GCP_CLOUD_BUILD_REPOSITORY_NAME - Name of the Cloud Source Repository.
@@ -37,6 +37,7 @@ import yaml
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildCancelBuildOperator,
@@ -54,13 +55,10 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_cloud_build"
 
-BUCKET_NAME = f"bucket_{DAG_ID}-{ENV_ID}"
-BUCKET_NAME_SRC = f"test-bucket_{DAG_ID}-{ENV_ID}"
+BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
 
 GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", f"gs://{BUCKET_NAME_SRC}/file.tar.gz")
-GCP_SOURCE_REPOSITORY_NAME = os.environ.get(
-    "GCP_CLOUD_BUILD_REPOSITORY_NAME", "breeze-cloud-build-test-build--repo"
-)
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
@@ -91,7 +89,6 @@ with models.DAG(
     tags=["example"],
 ) as dag:
 
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
     create_bucket_src = GCSCreateBucketOperator(task_id="create_bucket_src", bucket_name=BUCKET_NAME_SRC)
 
     upload_file = LocalFilesystemToGCSOperator(
@@ -175,33 +172,27 @@ with models.DAG(
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
-    )
-
     delete_bucket_src = GCSDeleteBucketOperator(
         task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    (
+    chain(
         # TEST SETUP
-        create_bucket_src
-        >> upload_file
-        >> create_bucket
+        create_bucket_src,
+        upload_file,
         # TEST BODY
-        >> create_build_from_storage
-        >> create_build_from_storage_result
-        >> create_build_from_repo
-        >> create_build_from_repo_result
-        >> list_builds
-        >> create_build_without_wait
-        >> cancel_build
-        >> retry_build
-        >> get_build
-        >> create_build_from_file
+        create_build_from_storage,
+        create_build_from_storage_result,
+        create_build_from_repo,
+        create_build_from_repo_result,
+        list_builds,
+        create_build_without_wait,
+        cancel_build,
+        retry_build,
+        get_build,
+        create_build_from_file,
         # TEST TEARDOWN
-        >> delete_bucket
-        >> delete_bucket_src
+        delete_bucket_src,
     )
 
     from tests.system.utils.watcher import watcher

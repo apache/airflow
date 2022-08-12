@@ -18,14 +18,8 @@
 
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
-
 This DAG relies on the following OS environment variables:
-
-* GCP_PROJECT_ID - Google Cloud Project to use for the Cloud Function.
-* GCP_CLOUD_BUILD_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage.
-    This object must be a gzipped archive file (.tar.gz) containing source to build.
-* GCP_CLOUD_BUILD_REPOSITORY_NAME - Name of the Cloud Source Repository.
-
+* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 """
 
 import os
@@ -43,15 +37,12 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildUpdateBuildTriggerOperator,
 )
 
-# START_DATE = datetime(2021, 1, 1)
-
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = "0123_example_gcp_cloud_build_trigger"
+DAG_ID = "example_gcp_cloud_build_trigger"
 
-GCP_SOURCE_REPOSITORY_NAME = os.environ.get("GCP_CLOUD_BUILD_REPOSITORY_NAME", "test-cloud-build-repo")
-
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
 
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {
@@ -65,6 +56,7 @@ create_build_trigger_body = {
 }
 # [END howto_operator_gcp_create_build_trigger_body]
 
+# [START howto_operator_gcp_update_build_trigger_body]
 update_build_trigger_body = {
     "name": "test-cloud-build-trigger",
     "trigger_template": {
@@ -74,6 +66,7 @@ update_build_trigger_body = {
     },
     "filename": "example_cloud_build.yaml",
 }
+# [END START howto_operator_gcp_update_build_trigger_body]
 
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body: Dict[str, Any] = {
@@ -106,14 +99,14 @@ with models.DAG(
     )
     # [END howto_operator_run_build_trigger]
 
-    # [START howto_operator_create_build_trigger]
+    # [START howto_operator_update_build_trigger]
     update_build_trigger = CloudBuildUpdateBuildTriggerOperator(
         task_id="update_build_trigger",
         project_id=PROJECT_ID,
         trigger_id=create_build_trigger.output['id'],
         trigger=update_build_trigger_body,
     )
-    # [END howto_operator_create_build_trigger]
+    # [END howto_operator_update_build_trigger]
 
     # [START howto_operator_get_build_trigger]
     get_build_trigger = CloudBuildGetBuildTriggerOperator(
@@ -145,6 +138,7 @@ with models.DAG(
         delete_build_trigger,
         list_build_triggers,
     )
+
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure

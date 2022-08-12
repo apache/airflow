@@ -30,7 +30,7 @@ BUILD_LIST_LINK = BUILD_BASE_LINK + "/builds?project={project_id}"
 
 BUILD_TRIGGERS_LIST_LINK = BUILD_BASE_LINK + "/triggers?project={project_id}"
 
-BUILD_TRIGGERS_DETAILS_LINK = BUILD_BASE_LINK + "/triggers/edit/{trigger_id}?project={project_id}"
+BUILD_TRIGGER_DETAILS_LINK = BUILD_BASE_LINK + "/triggers/edit/{trigger_id}?project={project_id}"
 
 
 class CloudBuildLink(BaseGoogleLink):
@@ -53,7 +53,7 @@ class CloudBuildLink(BaseGoogleLink):
 
 
 class CloudBuildListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build link"""
+    """Helper class for constructing Cloud Build List link"""
 
     name = "Cloud Builds List"
     key = "cloud_build_list_key"
@@ -75,7 +75,7 @@ class CloudBuildListLink(BaseGoogleLink):
 
 
 class CloudBuildTriggersListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build link"""
+    """Helper class for constructing Cloud Build Triggers List link"""
 
     name = "Cloud Build Triggers List"
     key = "cloud_build_triggers_list_key"
@@ -97,11 +97,11 @@ class CloudBuildTriggersListLink(BaseGoogleLink):
 
 
 class CloudBuildTriggerDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build link"""
+    """Helper class for constructing Cloud Build Trigger Details link"""
 
     name = "Cloud Build Triggers Details"
     key = "cloud_build_triggers_details_key"
-    format_str = BUILD_TRIGGERS_DETAILS_LINK
+    format_str = BUILD_TRIGGER_DETAILS_LINK
 
     @staticmethod
     def persist(

@@ -768,7 +768,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id")
-    operator_extra_links = (CloudBuildTriggerDetailsLink(),)
+    operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
         self,
@@ -807,11 +807,11 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildTriggerDetailsLink.persist(
+        CloudBuildLink.persist(
             context=context,
             task_instance=self,
             project_id=self.project_id or hook.project_id,
-            trigger_id=result.id,
+            build_id=result.id,
         )
         return Build.to_dict(result)
 
