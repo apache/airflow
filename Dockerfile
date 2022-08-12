@@ -1218,7 +1218,9 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3"
+# * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
+#   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
