@@ -1477,8 +1477,8 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      downstream_dag_references?: components["schemas"]["DatasetDagRef"][];
-      upstream_task_references?: components["schemas"]["DatasetTaskRef"][];
+      consuming_dags?: components["schemas"]["DatasetDagRef"][];
+      producing_tasks?: components["schemas"]["DatasetTaskRef"][];
     };
     /**
      * @description A datasets reference to an upstream task.

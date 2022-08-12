@@ -3519,11 +3519,11 @@ components:
           type: string
           description: The dataset update time
           nullable: false
-        downstream_dag_references:
+        consuming_dags:
             type: array
             items:
               $ref: '#/components/schemas/DatasetDagRef'
-        upstream_task_references:
+        producing_tasks:
             type: array
             items:
               $ref: '#/components/schemas/DatasetTaskRef'
