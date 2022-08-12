@@ -32,15 +32,6 @@ from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
 )
 
-# from kubernetes import client
-
-
-# from kubernetes.client import models as k8s
-
-
-# from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
-
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

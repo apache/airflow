@@ -22,8 +22,6 @@ from collections import deque
 
 import jinja2
 
-# from airflow.utils.process_utils import execute_in_subprocess
-
 
 def _balance_parens(after_decorator):
     num_paren = 1
