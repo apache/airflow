@@ -46,7 +46,7 @@ billiard==3.6.4.0
 blinker==1.5
 cachelib==0.9.0
 cachetools==5.2.0
-cattrs==1.10.0
+cattrs==22.1.0
 celery==5.2.7
 certifi==2022.6.15
 cffi==1.15.1
