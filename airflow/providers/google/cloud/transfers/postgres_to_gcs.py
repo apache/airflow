@@ -145,7 +145,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             if value.tzinfo is None:
                 return iso_format_value
             return pendulum.parse(iso_format_value).float_timestamp
-        if isinstance(value, datetime.date):
+        if self.export_format != "parquet" and isinstance(value, datetime.date):
             return value.isoformat()
         if isinstance(value, datetime.time):
             formatted_time = time.strptime(str(value), "%H:%M:%S")
