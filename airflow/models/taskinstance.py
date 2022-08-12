@@ -1894,7 +1894,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, BaseException] = None,
+        error: Union[None, str, Exception, KeyboardInterrupt],
         test_mode: Optional[bool] = None,
         force_fail: bool = False,
         error_file: Optional[str] = None,
