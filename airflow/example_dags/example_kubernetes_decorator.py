@@ -25,17 +25,17 @@ from airflow import DAG
 from airflow.decorators import task
 
 with DAG(
-    dag_id='example_kubernetes_decorator',
+    dag_id="example_kubernetes_decorator",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
     @task.kubernetes(
-        image='python:3.8-slim-buster',
-        name='k8s_test',
-        namespace='default',
+        image="python:3.8-slim-buster",
+        name="k8s_test",
+        namespace="default",
         in_cluster=False,
         config_file="/path/to/.kube/config",
     )
@@ -46,8 +46,8 @@ with DAG(
         time.sleep(2)
 
     @task.kubernetes(
-        image='python:3.8-slim-buster',
-        namespace='default',
+        image="python:3.8-slim-buster",
+        namespace="default",
         in_cluster=False,
         config_file="/path/to/.kube/config",
     )
