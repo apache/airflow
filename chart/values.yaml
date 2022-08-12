@@ -910,7 +910,7 @@ webserver:
   #  fsGroup: 0
   #  runAsGroup: 0
 
-  # Detailed default security contexts for webserver deployments  for container and pod level
+  # Detailed default security contexts for webserver deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
