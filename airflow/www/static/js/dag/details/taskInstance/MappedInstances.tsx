@@ -33,18 +33,16 @@ import { useMappedInstances } from 'src/api';
 import { SimpleStatus } from 'src/dag/StatusBox';
 import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
-import type { TaskInstance } from 'src/types';
 
 interface Props {
   dagId: string;
   runId: string;
   taskId: string;
   onRowClicked: (row: Row) => void;
-  mapIndex?: TaskInstance['mapIndex'];
 }
 
 const MappedInstances = ({
-  dagId, runId, taskId, onRowClicked, mapIndex,
+  dagId, runId, taskId, onRowClicked,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -102,8 +100,6 @@ const MappedInstances = ({
     ],
     [],
   );
-
-  if (mapIndex !== undefined) { return null; }
 
   return (
     <Box>

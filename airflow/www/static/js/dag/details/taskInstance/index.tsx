@@ -69,22 +69,28 @@ const TaskInstance = ({
   const group = getTask({ taskId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
-  const { children, isMapped, operator } = group || {};
+  const children = group?.children;
+  const isMapped = group?.isMapped;
+  const operator = group?.operator;
 
-  const isMappedTaskSummary = !!isMapped && !isMapIndexDefined;
+  const isMappedTaskSummary = !!isMapped && !isMapIndexDefined && taskId;
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = (isGroup || isMappedTaskSummary);
 
-  const { data: instance } = useTaskInstance({
-    dagId, dagRunId: runId, taskId, mapIndex, enabled: !isGroupOrMappedTaskSummary,
+  const { data: mappedTaskInstance } = useTaskInstance({
+    dagId, dagRunId: runId, taskId, mapIndex, enabled: isMapIndexDefined,
   });
+
+  const instance = isMapIndexDefined
+    ? mappedTaskInstance
+    : group?.instances.find((ti) => ti.runId === runId);
 
   const handleTabsChange = (index: number) => {
     localStorage.setItem(detailsPanelActiveTabIndex, index.toString());
     setPreferedTabIndex(index);
   };
 
-  if (!group || !run) return null;
+  if (!group || !run || !instance) return null;
 
   let isPreferedTabDisplayed = false;
 
@@ -125,7 +131,7 @@ const TaskInstance = ({
           <Tab>
             <Text as="strong">Details</Text>
           </Tab>
-          { isMappedTaskSummary && (
+          {isMappedTaskSummary && (
             <Tab>
               <Text as="strong">Mapped Tasks</Text>
             </Tab>
@@ -148,16 +154,16 @@ const TaskInstance = ({
           <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
             <Box py="4px">
               {!isGroup && (
-              <TaskActions
-                title={taskActionsTitle}
-                runId={runId}
-                taskId={taskId}
-                dagId={dagId}
-                executionDate={executionDate}
-                mapIndexes={actionsMapIndexes}
-              />
+                <TaskActions
+                  title={taskActionsTitle}
+                  runId={runId}
+                  taskId={taskId}
+                  dagId={dagId}
+                  executionDate={executionDate}
+                  mapIndexes={actionsMapIndexes}
+                />
               )}
-              {instance && <Details instance={instance} group={group} />}
+              <Details instance={instance} group={group} />
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
@@ -171,30 +177,31 @@ const TaskInstance = ({
 
           {/* Logs Tab */}
           {!isGroupOrMappedTaskSummary && (
-          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
-            <Logs
-              dagId={dagId}
-              dagRunId={runId}
-              taskId={taskId!}
-              mapIndex={mapIndex}
-              executionDate={executionDate}
-              tryNumber={instance?.tryNumber}
-            />
-          </TabPanel>
+            <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
+              <Logs
+                dagId={dagId}
+                dagRunId={runId}
+                taskId={taskId!}
+                mapIndex={mapIndex}
+                executionDate={executionDate}
+                tryNumber={instance?.tryNumber}
+              />
+            </TabPanel>
           )}
 
           {/* Mapped Task Instances Tab */}
-          <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
-            {isMapped && taskId && (
-            <MappedInstances
-              dagId={dagId}
-              runId={runId}
-              taskId={taskId}
-              onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
-              mapIndex={mapIndex}
-            />
-            )}
-          </TabPanel>
+          {
+            isMappedTaskSummary && (
+            <TabPanel>
+              <MappedInstances
+                dagId={dagId}
+                runId={runId}
+                taskId={taskId}
+                onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
+              />
+            </TabPanel>
+            )
+          }
         </TabPanels>
       </Tabs>
     </Box>
