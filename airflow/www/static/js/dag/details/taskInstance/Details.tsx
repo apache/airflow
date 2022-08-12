@@ -34,7 +34,7 @@ import { SimpleStatus } from 'src/dag/StatusBox';
 import Time from 'src/components/Time';
 import { ClipboardText } from 'src/components/Clipboard';
 import type { Task, TaskInstance, TaskState } from 'src/types';
-import DownstreamEvents from './DownstreamEvents';
+import DatasetUpdateEvents from './DatasetUpdateEvents';
 
 interface Props {
   instance: TaskInstance;
@@ -170,7 +170,7 @@ const Details = ({ instance, group }: Props) => {
         </Tbody>
       </Table>
       {hasOutletDatasets && (
-        <DownstreamEvents taskId={taskId} runId={runId} />
+        <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
     </Flex>
   );

@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix xcom_sidecar stuck problem (#24993)``
+
 4.2.0
 .....
 

@@ -28,14 +28,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.0
+.....
+
+Latest change: 2022-08-07
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`52f2f5bfa8 <https://github.com/apache/airflow/commit/52f2f5bfa8ac83b5514f82ba22c710d659dc0b2f>`_  2022-08-07   ``Databricks: update user-agent string (#25578)``
+`0255a0a5e7 <https://github.com/apache/airflow/commit/0255a0a5e7b93f2daa3a51792cd38d19d6a373c0>`_  2022-08-04   ``Do not convert boolean values to string in deep_string_coerce function (#25394)``
+`679a85325a <https://github.com/apache/airflow/commit/679a85325a73fac814c805c8c34d752ae7a94312>`_  2022-08-03   ``Correctly handle output of the failed tasks (#25427)``
+`82f842ffc5 <https://github.com/apache/airflow/commit/82f842ffc56817eb039f1c4f1e2c090e6941c6af>`_  2022-07-28   ``updated documentation for databricks operator (#24599)``
+`54a8c4fd2a <https://github.com/apache/airflow/commit/54a8c4fd2a1d1af6166f43d588dca8ce24bd058b>`_  2022-07-27   ``More improvements in the Databricks operators (#25260)``
+`7438707747 <https://github.com/apache/airflow/commit/7438707747db20ace6afa38900d111df8611c558>`_  2022-07-26   ``Improved telemetry for Databricks provider (#25115)``
+`df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+`2f70daf5ac <https://github.com/apache/airflow/commit/2f70daf5ac36100ff0bbd4ac66ce921a2bc6dea0>`_  2022-07-18   ``Databricks: fix test_connection implementation (#25114)``
+=================================================================================================  ===========  ===================================================================================
+
 3.1.0
 .....
 
-Latest change: 2022-07-11
+Latest change: 2022-07-13
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `8dfe7bf5ff <https://github.com/apache/airflow/commit/8dfe7bf5ff090a675353a49da21407dffe2fc15e>`_  2022-07-11   ``Added databricks_conn_id as templated field (#24945)``
 `acaa0635c8 <https://github.com/apache/airflow/commit/acaa0635c8477c98ab78da9f6d86e6f1bad2737d>`_  2022-07-08   ``Automatically detect if non-lazy logging interpolation is used (#24910)``
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``

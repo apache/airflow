@@ -24,7 +24,7 @@ from airflow.operators.empty import EmptyOperator
 dag = DAG(
     dag_id='test_example_bash_operator',
     default_args={'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022, 1, 1)},
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     dagrun_timeout=datetime.timedelta(minutes=60),
 )
 

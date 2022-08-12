@@ -55,7 +55,7 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         with dag_maker(dag_id="test_dataset_upstream_schema", serialized=True, session=session):
             EmptyOperator(task_id="task1", outlets=[dataset])
         with dag_maker(
-            dag_id="test_dataset_downstream_schema", schedule_on=[dataset], serialized=True, session=session
+            dag_id="test_dataset_downstream_schema", schedule=[dataset], serialized=True, session=session
         ):
             EmptyOperator(task_id="task2")
         session.flush()

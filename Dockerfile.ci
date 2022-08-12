@@ -775,9 +775,11 @@ EXTRA_PYTEST_ARGS=(
 )
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
+    echo "Running tests with ${_cpus} CPUs in parallel"
     # Enable parallelism
     EXTRA_PYTEST_ARGS+=(
-        "-n" "auto"
+        "-n" "${_cpus}"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -1052,7 +1054,7 @@ ARG RUNTIME_APT_DEPS="\
       xxd"
 
 # Install Helm
-ARG HELM_VERSION="v3.6.3"
+ARG HELM_VERSION="v3.9.2"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
