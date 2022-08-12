@@ -129,7 +129,7 @@ class GoogleDriveHook(GoogleBaseHook):
         return request
 
     def exists(
-        self, folder_id: str, file_name: str, include_trashed: bool = True, drive_id: Optional[str] = None
+        self, folder_id: str, file_name: str, drive_id: Optional[str] = None, *, include_trashed: bool = True
     ):
         """
         Checks to see if a file exists within a Google Drive folder
@@ -148,7 +148,7 @@ class GoogleDriveHook(GoogleBaseHook):
         )
 
     def get_file_id(
-        self, folder_id: str, file_name: str, include_trashed: bool = True, drive_id: Optional[str] = None
+        self, folder_id: str, file_name: str, drive_id: Optional[str] = None, *, include_trashed: bool = True
     ):
         """
         Returns the file id of a Google Drive file
