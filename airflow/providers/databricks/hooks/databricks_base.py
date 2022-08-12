@@ -141,9 +141,6 @@ class BaseDatabricksHook(BaseHook):
         package_name = manager.hooks[BaseDatabricksHook.conn_type].package_name  # type: ignore[union-attr]
         provider = manager.providers[package_name]
         version = provider.version
-        if provider.is_source:
-            version += "-source"
-
         python_version = platform.python_version()
         system = platform.system().lower()
         ua_string = (
