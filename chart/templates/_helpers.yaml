@@ -776,7 +776,7 @@ The template can be called like so:
 
 Where `.` is the global variables scope and `.Values.workers` the local variables scope for the workers template.
 */}}
-{{- define "localPodSecurityContextsIds" -}}
+{{- define "airflowPodSecurityContextsIds" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContexts.pod -}}
