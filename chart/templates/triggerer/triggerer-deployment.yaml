@@ -102,7 +102,7 @@ spec:
         {{- toYaml $topologySpreadConstraints | nindent 8 }}
       {{- if .Values.triggerer.hostAliases }}
       hostAliases:
-        {{ toYaml .Values.triggerer.hostAliases | nindent 8 }}
+        {{ toYaml .Values.triggerer.hostAliases | indent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
       restartPolicy: Always
