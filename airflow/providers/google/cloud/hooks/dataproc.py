@@ -977,7 +977,7 @@ class DataprocHook(GoogleBaseHook):
 
 class DataprocAsyncHook(GoogleBaseHook):
     """
-    Asynchronuous Hook for Google Cloud Dataproc APIs.
+    Asynchronous Hook for Google Cloud Dataproc APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
