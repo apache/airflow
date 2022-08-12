@@ -39,7 +39,7 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 from airflow.utils.warnings import warn_list_secrets_alternative_backend
 
-CUSTOM_BACKEND: bool = True if get_custom_secret_backend() else False
+CUSTOM_BACKEND = bool(get_custom_secret_backend())
 
 
 def _connection_mapper(conn: Connection) -> Dict[str, Any]:
