@@ -567,7 +567,20 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
                             }
                         }
                     }
@@ -1576,7 +1589,20 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
                             }
                         }
                     }
@@ -1586,7 +1612,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -1937,7 +1976,20 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
                             }
                         }
                     }
@@ -1947,7 +1999,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -2220,7 +2285,20 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
                             }
                         }
                     }
@@ -2230,7 +2308,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -2503,7 +2594,20 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
                             }
                         }
                     }
@@ -2513,7 +2617,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -2704,7 +2821,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -3375,7 +3505,20 @@
                             "type": "array",
                             "default": [],
                             "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
                             }
                         }
                     }
@@ -3385,7 +3528,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -3723,7 +3879,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -4754,7 +4923,20 @@
                     "type": "array",
                     "default": [],
                     "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
