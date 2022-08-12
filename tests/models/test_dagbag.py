@@ -112,11 +112,7 @@ class TestDagBag:
         """With safe mode enabled, a file matching the discovery heuristics
         should be discovered.
         """
-        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as f:
-            f.write(b"# airflow")
-            f.write(b"# DAG")
-            f.flush()
-
+        with NamedTemporaryFile(dir=self.empty_dir, suffix="dag.py") as f:
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):
                 dagbag = models.DagBag(include_examples=False, safe_mode=True)
 
@@ -137,6 +133,36 @@ class TestDagBag:
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as f:
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):
                 dagbag = models.DagBag(include_examples=False, safe_mode=False)
+            assert len(dagbag.dagbag_stats) == 1
+            assert dagbag.dagbag_stats[0].file == f"/{os.path.basename(f.name)}"
+
+    def test_skip_check_name_dir_enabled(self):
+        """With skip_check_name enabled (dir)"""
+        with NamedTemporaryFile(dir=mkdtemp(suffix="dag"), suffix=".py"):
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=True, skip_check_name=True)
+            assert len(dagbag.dagbag_stats) == 0
+
+    def test_skip_check_name_dir_disabled(self):
+        """With skip_check_name disabled (dir)"""
+        with NamedTemporaryFile(dir=mkdtemp(suffix="dag"), suffix=".py") as f:
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=True, skip_check_name=False)
+            assert len(dagbag.dagbag_stats) == 1
+            assert dagbag.dagbag_stats[0].file == f"/{os.path.basename(f.name)}"
+
+    def test_skip_check_name_file_enabled(self):
+        """With skip_check_name enabled (file)"""
+        with NamedTemporaryFile(dir=self.empty_dir, suffix="dag.py"):
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=True, skip_check_name=True)
+            assert len(dagbag.dagbag_stats) == 0
+
+    def test_skip_check_name_file_disabled(self):
+        """With skip_check_name disabled (file)"""
+        with NamedTemporaryFile(dir=self.empty_dir, suffix="dag.py") as f:
+            with conf_vars({('core', 'dags_folder'): self.empty_dir}):
+                dagbag = models.DagBag(include_examples=False, safe_mode=True, skip_check_name=False)
             assert len(dagbag.dagbag_stats) == 1
             assert dagbag.dagbag_stats[0].file == f"/{os.path.basename(f.name)}"
 
@@ -468,7 +494,6 @@ class TestDagBag:
             #              -> subdag_1.task
 
             with dag:
-
                 def subdag_0():
                     subdag_0 = DAG('parent.op_subdag_0', default_args=default_args)
                     EmptyOperator(task_id='subdag_0.task', dag=subdag_0)
@@ -529,7 +554,6 @@ class TestDagBag:
             #                     -> subdag_d.task
 
             with dag:
-
                 def subdag_a():
                     subdag_a = DAG('parent.op_subdag_0.opSubdag_A', default_args=default_args)
                     EmptyOperator(task_id='subdag_a.task', dag=subdag_a)
@@ -652,7 +676,6 @@ class TestDagBag:
             #                     -> subdag_d.task
 
             with dag:
-
                 def subdag_a():
                     subdag_a = DAG('nested_cycle.op_subdag_0.opSubdag_A', default_args=default_args)
                     EmptyOperator(task_id='subdag_a.task', dag=subdag_a)
