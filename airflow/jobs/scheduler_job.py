@@ -46,7 +46,7 @@ from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetEvent, DatasetEventDagRun
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetEvent
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -1129,8 +1129,8 @@ class SchedulerJob(BaseJob):
                     .filter(*dataset_event_filters)
                     .all()
                 )
-                for de in dataset_events:
-                    session.add(DatasetEventDagRun(dag_run_id=dag_run.id, dataset_event_id=de.id))
+
+                dag_run.dataset_events.extend(dataset_events)
                 session.query(DatasetDagRunQueue).filter(
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
                 ).delete()

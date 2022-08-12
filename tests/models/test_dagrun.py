@@ -27,12 +27,9 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.datasets import Dataset
 from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator

@@ -27,13 +27,11 @@ from tempfile import mkdtemp
 from typing import Deque, Generator, Optional
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
 
 import psutil
 import pytest
 from freezegun import freeze_time
 from sqlalchemy import func
-from airflow.datasets import Dataset
 
 import airflow.example_dags
 from airflow import settings
@@ -41,6 +39,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackR
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
@@ -49,7 +48,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest, Pool, TaskInstance
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
@@ -3028,7 +3027,8 @@ class TestSchedulerJob:
 
         assert dag.get_last_dagrun().creating_job_id == self.scheduler_job.id
 
-    def test_create_dag_runs_datasets(self, dag_maker):
+    @pytest.mark.need_serialized_dag
+    def test_create_dag_runs_datasets(self, session, dag_maker):
         """
         Test various invariants of _create_dag_runs.
 
@@ -3040,22 +3040,32 @@ class TestSchedulerJob:
         dataset1 = Dataset(uri="ds1")
         dataset2 = Dataset(uri="ds2")
 
-        with dag_maker(dag_id="datasets-1", start_date=timezone.utcnow()):
+        with dag_maker(dag_id="datasets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.state = TaskInstanceState.SUCCESS
 
-        with dag_maker(dag_id="datasets-2", schedule=[dataset1, dataset2]):
+        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+
+        event = DatasetEvent(
+            dataset_id=ds1_id,
+            source_task_id=ti.task_id,
+            source_dag_id=ti.dag_id,
+            source_run_id=ti.run_id,
+            source_map_index=ti.map_index,
+        )
+        session.add(event)
+
+        with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]):
             pass
         dag2 = dag_maker.dag
-        with dag_maker(dag_id="datasets-3", schedule=[dataset1]):
+        with dag_maker(dag_id="datasets-consumer-single", schedule=[dataset1]):
             pass
         dag3 = dag_maker.dag
 
         session = dag_maker.session
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-        session.bulk_save_objects(
+        session.add_all(
             [
                 DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
                 DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
@@ -3073,6 +3083,7 @@ class TestSchedulerJob:
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one()
         assert created_run.state == State.QUEUED
         assert created_run.start_date is None
+        assert created_run.dataset_events == [event]
         # dag3 DDRQ record should still be there since the dag run was *not* triggered
         assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag3.dag_id).one() is not None
         # dag2 should not be triggered since it depends on both dataset 1  and 2

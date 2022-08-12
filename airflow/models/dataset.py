@@ -20,7 +20,17 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Table,
+    text,
+)
 from sqlalchemy.orm import relationship
 
 from airflow.datasets import Dataset
@@ -217,6 +227,16 @@ class DatasetDagRunQueue(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
+association_table = Table(
+    "dagrun_dataset_event",
+    Base.metadata,
+    Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dagrun_dataset_events_dag_run_id", "dag_run_id"),
+    Index("idx_dagrun_dataset_events_event_id", "event_id"),
+)
+
+
 class DatasetEvent(Base):
     """
     A table to store datasets events.
@@ -246,6 +266,12 @@ class DatasetEvent(Base):
     __table_args__ = (
         Index('idx_dataset_id_timestamp', dataset_id, timestamp),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
+    )
+
+    created_dagruns = relationship(
+        "DagRun",
+        secondary=association_table,
+        backref="dataset_events",
     )
 
     source_task_instance = relationship(
@@ -304,38 +330,3 @@ class DatasetEvent(Base):
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
-
-
-class DatasetEventDagRun(Base):
-    """Records the dataset events that belong to a dag run."""
-
-    dag_run_id = Column(Integer, primary_key=True)
-    dataset_event_id = Column(Integer, primary_key=True)
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-
-    __tablename__ = "dataset_event_dag_run"
-    __table_args__ = (
-        ForeignKeyConstraint(
-            (dag_run_id,),
-            ["dag_run.id"],
-            name='dedr_dag_run_fkey',
-            ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (dataset_event_id,),
-            ["dataset_event.id"],
-            name='dedr_dataset_event_fkey',
-            ondelete="CASCADE",
-        ),
-    )
-
-    dag_run = relationship(
-        "DagRun",
-        lazy="select",
-        uselist=False,
-    )
-    dataset_event = relationship(
-        DatasetEvent,
-        lazy="select",
-        uselist=False,
-    )
