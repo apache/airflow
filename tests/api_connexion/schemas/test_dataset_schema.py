@@ -67,14 +67,14 @@ class TestDatasetSchema(TestDatasetSchemaBase):
             "extra": {'foo': 'bar'},
             "created_at": self.timestamp,
             "updated_at": self.timestamp,
-            "downstream_dag_references": [
+            "consuming_dags": [
                 {
                     "dag_id": "test_dataset_downstream_schema",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 }
             ],
-            "upstream_task_references": [
+            "producing_tasks": [
                 {
                     "task_id": "task1",
                     "dag_id": "test_dataset_upstream_schema",
@@ -110,8 +110,8 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
-                    "downstream_dag_references": [],
-                    "upstream_task_references": [],
+                    "consuming_dags": [],
+                    "producing_tasks": [],
                 },
                 {
                     "id": 2,
@@ -119,8 +119,8 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
-                    "downstream_dag_references": [],
-                    "upstream_task_references": [],
+                    "consuming_dags": [],
+                    "producing_tasks": [],
                 },
             ],
             "total_entries": 2,

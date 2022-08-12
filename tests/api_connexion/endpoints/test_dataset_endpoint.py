@@ -89,8 +89,8 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
             "extra": {'foo': 'bar'},
             "created_at": self.default_time,
             "updated_at": self.default_time,
-            "downstream_dag_references": [],
-            "upstream_task_references": [],
+            "consuming_dags": [],
+            "producing_tasks": [],
         }
 
     def test_should_respond_404(self):
@@ -138,8 +138,8 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
-                    "downstream_dag_references": [],
-                    "upstream_task_references": [],
+                    "consuming_dags": [],
+                    "producing_tasks": [],
                 },
                 {
                     "id": 2,
@@ -147,8 +147,8 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "extra": {'foo': 'bar'},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
-                    "downstream_dag_references": [],
-                    "upstream_task_references": [],
+                    "consuming_dags": [],
+                    "producing_tasks": [],
                 },
             ],
             "total_entries": 2,
