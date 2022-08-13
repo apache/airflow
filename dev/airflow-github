@@ -173,6 +173,11 @@ def is_core_commit(files: List[str]) -> bool:
         for ignore in non_core_files:
             if file.startswith(ignore):
                 break
+            # Handle renaming. Form: {old_name => new_name}somename.py
+            elif file.startswith("{"):
+                new_files = file[1:].split(" => ")
+                if any(n.strip().startswith(ignore) for n in new_files):
+                    break
         else:
             return True
     return False

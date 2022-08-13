@@ -1538,8 +1538,8 @@ class TaskInstance(Base, LoggingMixin):
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
-                self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
+                self.log.debug("consuming dag ids %s", consuming_dag_ids)
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
@@ -1549,7 +1549,7 @@ class TaskInstance(Base, LoggingMixin):
                         source_map_index=self.map_index,
                     )
                 )
-                for dag_id in downstream_dag_ids:
+                for dag_id in consuming_dag_ids:
                     session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
@@ -1844,7 +1844,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, BaseException],
+        error: Union[None, str, Exception, KeyboardInterrupt],
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,

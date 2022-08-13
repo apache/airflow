@@ -42,7 +42,7 @@ def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
     dataset = (
         session.query(Dataset)
-        .options(joinedload(Dataset.downstream_dag_references), joinedload(Dataset.upstream_task_references))
+        .options(joinedload(Dataset.consuming_dags), joinedload(Dataset.producing_tasks))
         .get(id)
     )
     if not dataset:
@@ -73,9 +73,7 @@ def get_datasets(
         query = query.filter(Dataset.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = (
-        query.options(
-            subqueryload(Dataset.downstream_dag_references), subqueryload(Dataset.upstream_task_references)
-        )
+        query.options(subqueryload(Dataset.consuming_dags), subqueryload(Dataset.producing_tasks))
         .offset(offset)
         .limit(limit)
         .all()

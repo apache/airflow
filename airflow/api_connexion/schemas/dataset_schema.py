@@ -64,8 +64,8 @@ class DatasetSchema(SQLAlchemySchema):
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
-    upstream_task_references = fields.List(fields.Nested(DatasetTaskRefSchema))
-    downstream_dag_references = fields.List(fields.Nested(DatasetDagRefSchema))
+    producing_tasks = fields.List(fields.Nested(DatasetTaskRefSchema))
+    consuming_dags = fields.List(fields.Nested(DatasetDagRefSchema))
 
 
 class DatasetCollection(NamedTuple):
