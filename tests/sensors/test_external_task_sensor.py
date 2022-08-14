@@ -27,7 +27,6 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
@@ -66,7 +65,7 @@ class TestExternalTaskSensor(unittest.TestCase):
         target_states = [State.SUCCESS] * 2 if target_states is None else target_states
         with self.dag as dag:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
-                _ = [DummyOperator(task_id=f"task{i}") for i in range(len(target_states))]
+                _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
