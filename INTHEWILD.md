@@ -382,6 +382,7 @@ Currently, **officially** using Airflow:
 1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 1. [Sentry.io](https://www.sentry.io) [[@tiopi](https://github.com/tiopi)]
 1. [ShopBack](https://www.shopback.sg/) [[@shopback](https://github.com/shopback)]
+1. [Shopify](https://shopify.com/) [[@shopify](https://github.com/Shopify)]
 1. [Shopkick](https://shopkick.com/) [[@shopkick](https://github.com/shopkick)]
 1. [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
 1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
