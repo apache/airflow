@@ -29,8 +29,13 @@ An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, tha
 Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers. Some popular operators from core include:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
-- :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
+
+Use the ``@task`` decorator to execute an arbitary Python function
+
+.. warning::
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    to execute Python callables.
 
 For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.
 
@@ -95,13 +100,11 @@ You can also use Jinja templating with nested fields, as long as these nested fi
 
         # [additional code here...]
 
+    @task(task_id="transform_data")
+    def transform_data(data_transformer):
+        pass
 
-    t = PythonOperator(
-        task_id="transform_data",
-        python_callable=transform_data,
-        op_args=[MyDataReader("/tmp/{{ ds }}/my_file")],
-        dag=dag,
-    )
+    t = transform_data([MyDataReader("/tmp/{{ ds }}/my_file")])
 
 .. note:: The ``template_fields`` property can equally be a class variable or an instance variable.
 
@@ -126,13 +129,11 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
 
         # [additional code here...]
 
+    @task(task_id="transform_data")
+    def transform_data(data_transformer):
+        pass
 
-    t = PythonOperator(
-        task_id="transform_data",
-        python_callable=transform_data,
-        op_args=[MyDataTransformer(MyDataReader("/tmp/{{ ds }}/my_file"))],
-        dag=dag,
-    )
+    t = transform_data([MyDataTransformer(MyDataReader("/tmp/{{ ds }}/my_file"))])
 
 You can pass custom options to the Jinja ``Environment`` when creating your DAG. One common usage is to avoid Jinja from dropping a trailing newline from a template string:
 
@@ -162,11 +163,7 @@ Now, when the following task is run, ``order_data`` argument is passed a string,
 
 .. code-block:: python
 
-    transform = PythonOperator(
-        task_id="transform",
-        op_kwargs={"order_data": "{{ti.xcom_pull('extract')}}"},
-        python_callable=transform,
-    )
+    transform = transform(order_data="{{ti.xcom_pull('extract')}}")
 
 
 If you instead want the rendered template field to return a Native Python object (``dict`` in our example),
@@ -183,11 +180,13 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
     )
 
 
+    @task(task_id="extract")
     def extract():
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
         return json.loads(data_string)
 
 
+    @task(task_id="transform")
     def transform(order_data):
         print(type(order_data))
         for value in order_data.values():
@@ -195,13 +194,9 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         return {"total_order_value": total_order_value}
 
 
-    extract_task = PythonOperator(task_id="extract", python_callable=extract)
+    extract_task = extract()
 
-    transform_task = PythonOperator(
-        task_id="transform",
-        op_kwargs={"order_data": "{{ti.xcom_pull('extract')}}"},
-        python_callable=transform,
-    )
+    transform_task = transform(order_data="{{ti.xcom_pull('extract')}}")
 
     extract_task >> transform_task
 
