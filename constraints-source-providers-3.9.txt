@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-08-13T15:44:17Z
+# This constraints file was automatically generated on 2022-08-14T06:21:35Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -42,7 +42,7 @@ Rx==3.2.0
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.3
 SQLAlchemy==1.4.27
-SecretStorage==3.3.2
+SecretStorage==3.3.3
 Sphinx==5.1.1
 Unidecode==1.3.4
 WTForms==2.3.3
@@ -157,7 +157,7 @@ entrypoints==0.4
 eventlet==0.33.1
 exceptiongroup==1.0.0rc8
 execnet==1.9.0
-executing==0.9.1
+executing==0.10.0
 facebook-business==14.0.0
 fastavro==1.5.4
 fastjsonschema==2.16.1
@@ -467,7 +467,7 @@ sqlalchemy-redshift==0.8.11
 sqlparse==0.4.2
 sshpubkeys==3.3.1
 sshtunnel==0.4.0
-stack-data==0.3.0
+stack-data==0.4.0
 starkbank-ecdsa==2.0.3
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
