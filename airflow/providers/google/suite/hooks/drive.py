@@ -128,31 +128,47 @@ class GoogleDriveHook(GoogleBaseHook):
         request = service.files().get_media(fileId=file_id)
         return request
 
-    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+    def exists(
+        self, folder_id: str, file_name: str, drive_id: Optional[str] = None, *, include_trashed: bool = True
+    ):
         """
         Checks to see if a file exists within a Google Drive folder
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
+        :param include_trashed: Whether to include objects in trash or not, default True as in Google API.
+
         :return: True if the file exists, False otherwise
         :rtype: bool
         """
-        return bool(self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id))
+        return bool(
+            self.get_file_id(
+                folder_id=folder_id, file_name=file_name, include_trashed=include_trashed, drive_id=drive_id
+            )
+        )
 
-    def get_file_id(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+    def get_file_id(
+        self, folder_id: str, file_name: str, drive_id: Optional[str] = None, *, include_trashed: bool = True
+    ):
         """
         Returns the file id of a Google Drive file
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
+        :param include_trashed: Whether to include objects in trash or not, default True as in Google API.
+
         :return: Google Drive file id if the file exists, otherwise None
         :rtype: str if file exists else None
         """
         query = f"name = '{file_name}'"
         if folder_id:
             query += f" and parents in '{folder_id}'"
+
+        if not include_trashed:
+            query += " and trashed=false"
+
         service = self.get_conn()
         if drive_id:
             files = (
