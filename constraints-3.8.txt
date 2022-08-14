@@ -382,7 +382,7 @@ mypy-boto3-appflow==1.24.36.post1
 mypy-boto3-rds==1.24.51
 mypy-boto3-redshift-data==1.24.36.post1
 mypy-extensions==0.4.3
-mypy==0.950
+mypy==0.971
 mysql-connector-python==8.0.30
 mysqlclient==2.1.1
 nbclient==0.6.6
