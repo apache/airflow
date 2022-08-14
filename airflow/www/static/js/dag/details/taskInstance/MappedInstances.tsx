@@ -17,51 +17,32 @@
  * under the License.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, {
+  useState, useMemo,
+} from 'react';
 import {
   Flex,
   Text,
   Box,
-  Link,
-  IconButton,
-  IconButtonProps,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
-import {
-  MdDetails, MdCode, MdSyncAlt, MdReorder,
-} from 'react-icons/md';
-import type { SortingRule } from 'react-table';
+import type { Row, SortingRule } from 'react-table';
 
-import { getMetaValue } from 'src/utils';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import { useMappedInstances } from 'src/api';
 import { SimpleStatus } from 'src/dag/StatusBox';
 import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
 
-const canEdit = getMetaValue('can_edit') === 'True';
-const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
-const logUrl = getMetaValue('log_url');
-const taskUrl = getMetaValue('task_url');
-const xcomUrl = getMetaValue('xcom_url');
-
-interface IconLinkProps extends IconButtonProps {
-  href: string;
-}
-
-const IconLink = (props: IconLinkProps) => (
-  <IconButton as={Link} variant="ghost" colorScheme="blue" fontSize="3xl" {...props} />
-);
-
 interface Props {
   dagId: string;
   runId: string;
   taskId: string;
-  selectRows: (selectedRows: number[]) => void;
+  onRowClicked: (row: Row) => void;
 }
 
 const MappedInstances = ({
-  dagId, runId, taskId, selectRows,
+  dagId, runId, taskId, onRowClicked,
 }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
@@ -78,41 +59,18 @@ const MappedInstances = ({
     dagId, runId, taskId, limit, offset, order,
   });
 
-  const data = useMemo(
-    () => taskInstances.map((mi) => {
-      const params = new URLSearchParams({
-        dag_id: dagId.toString(),
-        task_id: mi.taskId || '',
-        execution_date: mi.executionDate || '',
-        map_index: (mi.mapIndex || -1).toString(),
-      }).toString();
-      const detailsLink = `${taskUrl}&${params}`;
-      const renderedLink = `${renderedTemplatesUrl}&${params}`;
-      const logLink = `${logUrl}&${params}`;
-      const xcomLink = `${xcomUrl}&${params}`;
-      return {
-        ...mi,
-        state: (
-          <Flex alignItems="center">
-            <SimpleStatus state={mi.state === undefined || mi.state === 'none' ? null : mi.state} mx={2} />
-            {mi.state || 'no status'}
-          </Flex>
-        ),
-        duration: mi.duration && formatDuration(getDuration(mi.startDate, mi.endDate)),
-        startDate: <Time dateTime={mi.startDate} />,
-        endDate: <Time dateTime={mi.endDate} />,
-        links: (
-          <Flex alignItems="center">
-            <IconLink mr={1} title="Details" aria-label="Details" icon={<MdDetails />} href={detailsLink} />
-            <IconLink mr={1} title="Rendered Templates" aria-label="Rendered Templates" icon={<MdCode />} href={renderedLink} />
-            <IconLink mr={1} title="Log" aria-label="Log" icon={<MdReorder />} href={logLink} />
-            <IconLink title="XCom" fontWeight="bold" aria-label="XCom" icon={<MdSyncAlt />} href={xcomLink} />
-          </Flex>
-        ),
-      };
-    }),
-    [dagId, taskInstances],
-  );
+  const data = useMemo(() => taskInstances.map((mi) => ({
+    ...mi,
+    state: (
+      <Flex alignItems="center">
+        <SimpleStatus state={mi.state === undefined || mi.state === 'none' ? null : mi.state} mx={2} />
+        {mi.state || 'no status'}
+      </Flex>
+    ),
+    duration: mi.duration && formatDuration(getDuration(mi.startDate, mi.endDate)),
+    startDate: <Time dateTime={mi.startDate} />,
+    endDate: <Time dateTime={mi.endDate} />,
+  })), [taskInstances]);
 
   const columns = useMemo(
     () => [
@@ -139,10 +97,6 @@ const MappedInstances = ({
         accessor: 'endDate',
         disableSortBy: true,
       },
-      {
-        disableSortBy: true,
-        accessor: 'links',
-      },
     ],
     [],
   );
@@ -165,7 +119,7 @@ const MappedInstances = ({
           sortBy,
         }}
         isLoading={isLoading}
-        selectRows={canEdit ? selectRows : undefined}
+        onRowClicked={onRowClicked}
       />
     </Box>
   );

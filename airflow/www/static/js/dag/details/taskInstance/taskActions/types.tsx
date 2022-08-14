@@ -17,31 +17,12 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Box,
-  Heading,
-} from '@chakra-ui/react';
+import type { Dag, DagRun, TaskInstance } from 'src/types';
 
-interface Props {
-  label: string;
-  value: React.ReactNode;
+export interface CommonActionProps {
+  runId: DagRun['runId'],
+  taskId: TaskInstance['taskId'] | null,
+  dagId: Dag['id'],
+  executionDate: DagRun['executionDate'],
+  mapIndexes: number[]
 }
-
-const BreadcrumbText = ({ label, value }: Props) => (
-  <Box position="relative">
-    <Heading
-      as="h5"
-      size="sm"
-      color="gray.300"
-      position="absolute"
-      top="-12px"
-      whiteSpace="nowrap"
-    >
-      {label}
-    </Heading>
-    <Heading as="h3" size="md">{value}</Heading>
-  </Box>
-);
-
-export default BreadcrumbText;

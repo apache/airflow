@@ -78,6 +78,43 @@ describe('Test Logs Component.', () => {
       { exact: false },
     )).toBeDefined();
     expect(getByText('AIRFLOW_CTX_DAG_ID=test_ui_grid', { exact: false })).toBeDefined();
+
+    expect(useTaskLogMock).toHaveBeenLastCalledWith({
+      dagId: 'dummyDagId',
+      dagRunId: 'dummyDagRunId',
+      fullContent: false,
+      taskId: 'dummyTaskId',
+      taskTryNumber: 1,
+    });
+  });
+
+  test('Test Logs Content Mapped Task', () => {
+    const tryNumber = 2;
+    const { getByText } = render(
+      <Logs
+        dagId="dummyDagId"
+        dagRunId="dummyDagRunId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+        mapIndex={1}
+        tryNumber={tryNumber}
+      />,
+    );
+    expect(getByText('[2022-06-04, 00:00:01 UTC] {taskinstance.py:1329} INFO -', { exact: false })).toBeDefined();
+    expect(getByText(
+      '[2022-06-04, 00:00:01 UTC] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group',
+      { exact: false },
+    )).toBeDefined();
+    expect(getByText('AIRFLOW_CTX_DAG_ID=test_ui_grid', { exact: false })).toBeDefined();
+
+    expect(useTaskLogMock).toHaveBeenLastCalledWith({
+      dagId: 'dummyDagId',
+      dagRunId: 'dummyDagRunId',
+      fullContent: false,
+      mapIndex: 1,
+      taskId: 'dummyTaskId',
+      taskTryNumber: 1,
+    });
   });
 
   test('Test Logs Attempt Select Button', () => {

@@ -18,38 +18,53 @@
  */
 
 import axios, { AxiosResponse } from 'axios';
+import type { API, TaskInstance } from 'src/types';
 import { useQuery } from 'react-query';
 import { useAutoRefresh } from 'src/context/autorefresh';
 
 import { getMetaValue } from 'src/utils';
 
-const taskLogApi = getMetaValue('task_log_api');
+/* GridData.TaskInstance and API.TaskInstance are not compatible at the moment.
+ * Remove this function when changing the api response for grid_data_url to comply
+ * with API.TaskInstance.
+ */
+const convertTaskInstance = (
+  ti:
+  API.TaskInstance,
+) => ({ ...ti, runId: ti.dagRunId }) as TaskInstance;
 
-const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent,
+const taskInstanceApi = getMetaValue('task_instance_api');
+
+const useTaskInstance = ({
+  dagId, dagRunId, taskId, mapIndex, enabled,
 }: {
   dagId: string,
   dagRunId: string,
-  taskId: string,
-  taskTryNumber: number,
+  taskId: string | null,
   mapIndex?: number,
-  fullContent: boolean,
+  enabled: boolean
 }) => {
   let url: string = '';
-  if (taskLogApi) {
-    url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber.toString());
+  if (taskInstanceApi) {
+    url = taskInstanceApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId || '');
+  }
+
+  if (mapIndex !== undefined && mapIndex >= 0) {
+    url += `/${mapIndex.toString()}`;
   }
 
   const { isRefreshOn } = useAutoRefresh();
 
   return useQuery(
-    ['taskLogs', dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent],
-    () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { map_index: mapIndex, full_content: fullContent } }),
+    ['taskIntance', dagId, dagRunId, taskId, mapIndex],
+    () => axios.get<AxiosResponse, API.TaskInstance>(url, { headers: { Accept: 'text/plain' } }),
     {
-      placeholderData: '',
+      placeholderData: {},
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      enabled,
+      select: convertTaskInstance,
     },
   );
 };
 
-export default useTaskLog;
+export default useTaskInstance;

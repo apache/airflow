@@ -18,30 +18,28 @@
  */
 
 import React from 'react';
-import {
-  Box,
-  Heading,
-} from '@chakra-ui/react';
+import { Button, Flex } from '@chakra-ui/react';
 
 interface Props {
-  label: string;
-  value: React.ReactNode;
+  isMapIndexDefined: boolean;
+  onClick: () => void;
 }
 
-const BreadcrumbText = ({ label, value }: Props) => (
-  <Box position="relative">
-    <Heading
-      as="h5"
-      size="sm"
-      color="gray.300"
-      position="absolute"
-      top="-12px"
-      whiteSpace="nowrap"
-    >
-      {label}
-    </Heading>
-    <Heading as="h3" size="md">{value}</Heading>
-  </Box>
-);
+const BackToTaskSummary = ({ isMapIndexDefined, onClick }: Props) => {
+  if (!isMapIndexDefined) return null;
 
-export default BreadcrumbText;
+  return (
+    <Flex justifyContent="right">
+      <Button
+        variant="ghost"
+        colorScheme="blue"
+        onClick={onClick}
+        size="lg"
+      >
+        Back to Dynamic Task Summary
+      </Button>
+    </Flex>
+  );
+};
+
+export default BackToTaskSummary;

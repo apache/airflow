@@ -46,16 +46,18 @@ interface Props {
   executionDate: string;
   operator?: string;
   isMapped?: boolean;
+  mapIndex?: number;
 }
 
 const Nav = ({
-  runId, taskId, executionDate, operator, isMapped = false,
+  runId, taskId, executionDate, operator, isMapped = false, mapIndex,
 }: Props) => {
   if (!taskId) return null;
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
-  }).toString();
+    map_index: mapIndex?.toString() ?? '-1',
+  });
   const detailsLink = `${taskUrl}&${params}`;
   const renderedLink = `${renderedTemplatesUrl}&${params}`;
   const logLink = `${logUrl}&${params}`;
@@ -90,7 +92,7 @@ const Nav = ({
   return (
     <>
       <Flex flexWrap="wrap">
-        {!isMapped && (
+        {(!isMapped || mapIndex !== undefined) && (
         <>
           <LinkButton href={detailsLink}>Task Instance Details</LinkButton>
           <LinkButton href={renderedLink}>Rendered Template</LinkButton>
