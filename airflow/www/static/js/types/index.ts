@@ -63,6 +63,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   },
+  mapIndex?: number;
   tryNumber?: number;
 }
 

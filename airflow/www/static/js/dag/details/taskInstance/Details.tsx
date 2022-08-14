@@ -52,6 +52,7 @@ const Details = ({ instance, group }: Props) => {
     endDate,
     state,
     mappedStates,
+    mapIndex,
   } = instance;
 
   const {
@@ -142,6 +143,12 @@ const Details = ({ instance, group }: Props) => {
             <Td>Run ID</Td>
             <Td><Text whiteSpace="nowrap"><ClipboardText value={runId} /></Text></Td>
           </Tr>
+          {mapIndex !== undefined && (
+            <Tr>
+              <Td>Map Index</Td>
+              <Td>{mapIndex}</Td>
+            </Tr>
+          )}
           {operator && (
             <Tr>
               <Td>Operator</Td>
