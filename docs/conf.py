@@ -30,9 +30,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 """Configuration of Airflow Docs"""
-import glob
 import json
 import os
+import pathlib
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -198,17 +198,17 @@ else:
     exclude_patterns = []
 
 
-def _get_rst_filepath_from_path(filepath: str):
-    if os.path.isdir(filepath):
+def _get_rst_filepath_from_path(filepath: pathlib.Path):
+    if filepath.is_dir():
         result = filepath
-    elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
-        result = filepath.rpartition("/")[0]
     else:
-        result = filepath.rpartition(".")[0]
-    result += "/index.rst"
+        if filepath.name == '__init__.py':
+            result = filepath.parent
+        else:
+            result = filepath.with_name(filepath.stem)
+        result /= "index.rst"
 
-    result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
-    return result
+    return f"_api/{result.relative_to(ROOT_DIR)}"
 
 
 if PACKAGE_NAME == 'apache-airflow':
@@ -216,26 +216,35 @@ if PACKAGE_NAME == 'apache-airflow':
     # do not exclude these top-level modules from the doc build:
     _allowed_top_level = ("exceptions.py",)
 
-    for path in glob.glob(f"{ROOT_DIR}/airflow/*"):
-        name = os.path.basename(path)
-        if os.path.isfile(path) and not path.endswith(_allowed_top_level):
-            exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
-        browsable_packages = [
-            "hooks",
-            "example_dags",
-            "executors",
-            "models",
-            "operators",
-            "providers",
-            "secrets",
-            "sensors",
-            "timetables",
-        ]
-        if os.path.isdir(path) and name not in browsable_packages:
-            exclude_patterns.append(f"_api/airflow/{name}")
+    browsable_packages = {
+        "hooks",
+        "example_dags",
+        "executors",
+        "models",
+        "operators",
+        "providers",
+        "secrets",
+        "sensors",
+        "timetables",
+        "utils",
+    }
+    browseable_utils = {"dag_parsing_context.py"}
+
+    root = pathlib.Path(ROOT_DIR) / "airflow"
+    for path in root.iterdir():
+        if path.is_file() and path.name not in _allowed_top_level:
+            exclude_patterns.append(_get_rst_filepath_from_path(path))
+        if path.is_dir() and path.name not in browsable_packages:
+            exclude_patterns.append(f"_api/airflow/{path.name}")
+
+    # Don't include all of utils, just the specific ones we include in python-api-ref
+    for path in (root / "utils").iterdir():
+        if path.name not in browseable_utils:
+            exclude_patterns.append(_get_rst_filepath_from_path(path))
 else:
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in glob.glob(f"{PACKAGE_DIR}/**/example_dags/**/*.py")
+        _get_rst_filepath_from_path(f)
+        for f in pathlib.Path(str(PACKAGE_DIR)).glob("/**/example_dags/**/*.py")
     )
 
 # Add any paths that contain templates here, relative to this directory.
