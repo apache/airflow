@@ -27,6 +27,14 @@ import * as useTaskLogModule from 'src/api/useTaskLog';
 
 import Logs from './index';
 
+declare global {
+  namespace NodeJS {
+    interface Global {
+      defaultWrap: boolean;
+    }
+  }
+}
+
 const mockTaskLog = `
 5d28cfda3219
 *** Reading local file: /root/airflow/logs/dag_id=test_ui_grid/run_id=scheduled__2022-06-03T00:00:00+00:00/task_id=section_1.get_entry_group/attempt=1.log
@@ -86,6 +94,34 @@ describe('Test Logs Component.', () => {
       taskId: 'dummyTaskId',
       taskTryNumber: 1,
     });
+  });
+
+  test.each([
+    { defaultWrap: true },
+    { defaultWrap: false },
+  ])('Test wrap checkbox initial value $defaultWrap', ({ defaultWrap }) => {
+    const originalDefaultWrapValue = global.defaultWrap;
+    global.defaultWrap = defaultWrap;
+
+    const tryNumber = 2;
+    const { getByTestId } = render(
+      <Logs
+        dagId="dummyDagId"
+        dagRunId="dummyDagRunId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+        mapIndex={1}
+        tryNumber={tryNumber}
+      />,
+    );
+
+    const wrapCheckbox = getByTestId('wrap-checkbox');
+    if (defaultWrap) {
+      expect(wrapCheckbox).toHaveAttribute('data-checked');
+    } else {
+      expect(wrapCheckbox.getAttribute('data-checked')).toBeNull();
+    }
+    global.defaultWrap = originalDefaultWrapValue;
   });
 
   test('Test Logs Content Mapped Task', () => {

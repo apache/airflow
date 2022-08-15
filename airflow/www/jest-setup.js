@@ -54,5 +54,6 @@ global.stateColors = {
 };
 
 global.defaultDagRunDisplayNumber = 245;
+global.defaultWrap = true;
 
 global.moment = moment;

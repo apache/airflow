@@ -40,6 +40,8 @@ import MultiSelect from 'src/components/MultiSelect';
 import LogLink from './LogLink';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
 
+declare const defaultWrap: boolean;
+
 interface LogLevelOption {
   label: LogLevel;
   value: LogLevel;
@@ -100,7 +102,7 @@ const Logs = ({
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
-  const [wrap, setWrap] = useState(false);
+  const [wrap, setWrap] = useState(defaultWrap);
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
@@ -216,8 +218,10 @@ const Logs = ({
             </Flex>
             <Flex alignItems="center">
               <Checkbox
+                isChecked={wrap}
                 onChange={() => setWrap((previousState) => !previousState)}
                 px={4}
+                data-testid="wrap-checkbox"
               >
                 <Text as="strong">Wrap</Text>
               </Checkbox>
