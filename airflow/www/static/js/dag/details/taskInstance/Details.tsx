@@ -20,7 +20,6 @@
 import React from 'react';
 import {
   Text,
-  Box,
   Flex,
   Table,
   Tbody,
@@ -84,12 +83,17 @@ const Details = ({ instance, group }: Props) => {
     if (key > 0) {
       summary.push(
         // eslint-disable-next-line react/no-array-index-key
-        <Flex key={val} ml="10px" alignItems="center">
-          <SimpleStatus state={val as TaskState} mx={2} />
-          {val}
-          {': '}
-          {key}
-        </Flex>,
+        <Tr key={val}>
+          <Td />
+          <Td>
+            <Flex alignItems="center">
+              <SimpleStatus state={val as TaskState} mx={2} />
+              {val}
+              {': '}
+              {key}
+            </Flex>
+          </Td>
+        </Tr>,
       );
     }
   });
@@ -100,29 +104,13 @@ const Details = ({ instance, group }: Props) => {
 
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
-      <Box>
-        {tooltip && (
-          <>
-            <Text>{tooltip}</Text>
-            <br />
-          </>
-        )}
-        {mappedStates && numMapped > 0 && (
-          <Text>
-            {numMapped}
-            {' '}
-            {numMapped === 1 ? 'Task ' : 'Tasks '}
-            Mapped
-          </Text>
-        )}
-        {summary.length > 0 && (
-          summary
-        )}
-      </Box>
-      <br />
-      <br />
       <Table variant="striped">
         <Tbody>
+          {tooltip && (
+            <Tr>
+              <Td colSpan={2}>{tooltip}</Td>
+            </Tr>
+          )}
           <Tr>
             <Td>
               {isOverall}
@@ -135,6 +123,19 @@ const Details = ({ instance, group }: Props) => {
               </Flex>
             </Td>
           </Tr>
+          {mappedStates && numMapped > 0 && (
+            <Tr>
+              <Td colSpan={2}>
+                {numMapped}
+                {' '}
+                {numMapped === 1 ? 'Task ' : 'Tasks '}
+                Mapped
+              </Td>
+            </Tr>
+          )}
+          {summary.length > 0 && (
+            summary
+          )}
           <Tr>
             <Td>{taskIdTitle}</Td>
             <Td><ClipboardText value={taskId} /></Td>
