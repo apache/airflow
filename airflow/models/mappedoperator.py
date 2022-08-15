@@ -730,10 +730,11 @@ class MappedOperator(AbstractOperator):
             return None
 
     def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Since the mapped kwargs are already resolved during unmapping,
-        # they must be removed from the list of templated fields to avoid
-        # being rendered again (which breaks escaping).
-        return set(self.template_fields).difference(expanded)
+        # Mapped kwargs from XCom are already resolved during unmapping, so they
+        # must be removed from the list of templated fields to avoid being
+        # rendered again.
+        unexpanded_keys = {k for k, _ in self._get_specified_expand_input().iter_parse_time_resolved_kwargs()}
+        return set(self.template_fields).difference(k for k in expanded if k not in unexpanded_keys)
 
     def render_template_fields(
         self,

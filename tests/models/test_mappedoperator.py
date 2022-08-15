@@ -313,6 +313,24 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     assert op.arg2 == "a"
 
 
+def test_mapped_render_nested_template_fields(dag_maker, session):
+    with dag_maker(session=session):
+        MockOperator.partial(task_id="t").expand(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
+
+    dr = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions()
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert len(tis) == 2
+
+    ti = tis[("t", 0)]
+    ti.run(session=session)
+    assert ti.task.arg1 == "t"
+
+    ti = tis[("t", 1)]
+    ti.run(session=session)
+    assert ti.task.arg1 == ["s", "t"]
+
+
 @pytest.mark.parametrize(
     ["num_existing_tis", "expected"],
     (
