@@ -77,6 +77,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.login == 'is url encoded'
         assert conn.password == 'not url encoded'
         assert conn.host == 'not%20idempotent'
+        assert conn.conn_id == 'test_postgres'
 
         # Remove URL encoding
         secrets_manager_backend.are_secret_values_urlencoded = False
@@ -85,7 +86,7 @@ class TestSecretsManagerBackend(TestCase):
         assert conn.login == 'is%20url%20encoded'
         assert conn.password == 'not url encoded'
         assert conn.host == 'not%2520idempotent'
-
+        assert conn.conn_id == 'test_postgres'
         assert conn.extra_dejson['foo'] == 'bar'
 
     @mock_secretsmanager
