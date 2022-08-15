@@ -57,13 +57,18 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
+{{- if or .Values.statsd.extraMappings .Values.airflowPodAnnotations .Values.statsd.podAnnotations }}
       annotations:
         {{- if .Values.statsd.extraMappings }}
         checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
         {{- end }}
-        {{- if or (.Values.airflowPodAnnotations) (.Values.statsd.podAnnotations) }}
-        {{- mustMerge .Values.statsd.podAnnotations .Values.airflowPodAnnotations | toYaml | nindent 8 }}
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.statsd.podAnnotations }}
+        {{- toYaml .Values.statsd.podAnnotations | nindent 8 }}
+        {{- end }}
+{{- end }}
     spec:
       {{- if .Values.statsd.priorityClassName }}
       priorityClassName: {{ .Values.statsd.priorityClassName }}
