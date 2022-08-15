@@ -1348,6 +1348,7 @@ class SchedulerJob(BaseJob):
 
         zombies = (
             session.query(TaskInstance, DagModel.fileloc)
+            .with_hint(TI, 'USE INDEX (ti_state)', dialect_name='mysql')
             .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
             .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
             .filter(TaskInstance.state == TaskInstanceState.RUNNING)
