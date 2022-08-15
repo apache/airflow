@@ -98,7 +98,13 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DatasetDagRef,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    DatasetTaskRef,
+)
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3548,6 +3554,66 @@ class Airflow(AirflowBaseView):
             htmlsafe_json_dumps(data, separators=(',', ':'), dumps=flask.json.dumps),
             {'Content-Type': 'application/json; charset=utf-8'},
         )
+
+    @expose('/object/list_datasets')
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+    # @format_parameters({'limit': check_limit})
+    def get_datasets(
+        self,
+    ):
+        """Get datasets"""
+        allowed_attrs = ['uri', 'last_dataset_update']
+
+        limit = request.args.get("limit")
+        offset = int(request.args.get("offset", 0))
+        order_by = request.args.get("order_by", "id")
+        lstriped_orderby = order_by.lstrip('-')
+        if allowed_attrs and lstriped_orderby not in allowed_attrs:
+            raise BadRequest(
+                detail=f"Ordering with '{lstriped_orderby}' is disallowed or "
+                f"the attribute does not exist on the model"
+            )
+
+        if lstriped_orderby == "uri":
+            if order_by[0] == "-":
+                order_by = getattr(DatasetModel, lstriped_orderby).desc()
+            else:
+                order_by = getattr(DatasetModel, lstriped_orderby).asc()
+        if lstriped_orderby == "last_dataset_update":
+            if order_by[0] == "-":
+                order_by = func.max(DatasetEvent.timestamp).desc()
+            else:
+                order_by = func.max(DatasetEvent.timestamp).asc()
+
+        with create_session() as session:
+            total_entries = session.query(func.count(DatasetModel.id)).scalar()
+            datasets = [
+                dict(dataset)
+                for dataset in (
+                    session.query(
+                        DatasetModel.id,
+                        DatasetModel.uri,
+                        func.max(DatasetEvent.timestamp).label("last_dataset_update"),
+                        func.count(DatasetEvent.id).label("total_updates"),
+                        func.count(DatasetModel.producing_tasks).label("producing_task_count"),
+                        func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
+                    )
+                    .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+                    .outerjoin(DatasetDagRef)
+                    .outerjoin(DatasetTaskRef)
+                    .group_by(DatasetModel.id)
+                    .order_by(order_by)
+                    .offset(offset)
+                    .limit(limit)
+                    .all()
+                )
+            ]
+            data = ({"datasets": datasets, "total_entries": total_entries},)
+
+            return (
+                htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+                {'Content-Type': 'application/json; charset=utf-8'},
+            )
 
     @expose('/robots.txt')
     @action_logging
