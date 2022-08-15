@@ -19,19 +19,35 @@
 
 /* global describe, test, expect */
 
+import type { AxiosError } from 'axios';
 import { getErrorDescription } from './useErrorToast';
 
 describe('Test getErrorDescription()', () => {
   test('Returns expected results', () => {
     let description;
 
-    // is response.data is defined
-    description = getErrorDescription({ response: { data: 'uh oh' } });
-    expect(description).toBe('uh oh');
+    // @ts-ignore
+    const axiosError: AxiosError = new Error('Error message');
 
-    // if it is not, use default message
-    description = getErrorDescription({ response: { data: '' } });
-    expect(description).toBe('Something went wrong.');
+    axiosError.toJSON = () => ({});
+    axiosError.response = {
+      data: 'Not available for this Executor',
+      status: 400,
+      statusText: 'BadRequest',
+      headers: {},
+      config: {},
+    };
+    axiosError.isAxiosError = true;
+
+    // if response.data is defined
+    description = getErrorDescription(axiosError);
+    expect(description).toBe('Not available for this Executor');
+
+    axiosError.response.data = '';
+
+    // if it is not, use the error message
+    description = getErrorDescription(axiosError);
+    expect(description).toBe('Error message');
 
     // if error object, return the message
     description = getErrorDescription(new Error('no no'));

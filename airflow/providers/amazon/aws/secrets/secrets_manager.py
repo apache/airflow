@@ -197,6 +197,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 port = int(data['port'])
 
             return Connection(
+                conn_id=conn_id,
                 login=data['user'],
                 password=data['password'],
                 host=data['host'],

@@ -42,6 +42,11 @@ Bug Fixes
 * ``Allow Legacy SqlSensor to use the common.sql providers (#25293)``
 * ``Fix fetch_all_handler & db-api tests for it (#25430)``
 * ``Align Common SQL provider logo location (#25538)``
+* ``Fix SQL split string to include ';-less' statements (#25713)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix CHANGELOG for common.sql provider and add amazon commit (#25636)``
 
 1.0.0
 .....
