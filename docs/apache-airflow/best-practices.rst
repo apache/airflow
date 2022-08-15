@@ -142,6 +142,8 @@ Bad example:
           print(a)
           return a
 
+      print_array()
+
 Good example:
 
 .. code-block:: python
@@ -166,6 +168,8 @@ Good example:
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
+
+      print_array()
 
 Dynamic DAG Generation
 ----------------------
