@@ -22,10 +22,11 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
+from airflow.datasets import Dataset
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import Dataset, DatasetDagRunQueue
+from airflow.models.dataset import DatasetDagRunQueue
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup

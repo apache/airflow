@@ -25,7 +25,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_event_schema,
     dataset_schema,
 )
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
@@ -46,7 +46,7 @@ class TestDatasetSchemaBase:
 
 class TestDatasetSchema(TestDatasetSchemaBase):
     def test_serialize(self, dag_maker, session):
-        dataset = Dataset(
+        dataset = DatasetModel(
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
@@ -89,7 +89,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
 
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i+1}",
                 extra={"foo": "bar"},
             )
@@ -129,7 +129,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-        d = Dataset('s3://abc')
+        d = DatasetModel('s3://abc')
         session.add(d)
         session.commit()
         event = DatasetEvent(

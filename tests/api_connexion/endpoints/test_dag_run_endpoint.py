@@ -25,7 +25,8 @@ from parameterized import parameterized
 
 from airflow import settings
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models import DAG, DagModel, DagRun, Dataset
+from airflow.datasets import Dataset
+from airflow.models import DAG, DagModel, DagRun, DatasetModel
 from airflow.models.dataset import DatasetEvent
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -1611,7 +1612,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         created_at = pendulum.now('UTC')
         # make sure whatever is returned by this func is what comes out in response.
         d = DatasetEvent(dataset_id=1, timestamp=created_at)
-        d.dataset = Dataset(id=1, uri='hello', created_at=created_at, updated_at=created_at)
+        d.dataset = DatasetModel(id=1, uri='hello', created_at=created_at, updated_at=created_at)
         mock_get_events.return_value = [d]
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
