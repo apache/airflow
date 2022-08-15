@@ -60,7 +60,7 @@ Take a look at the following snippet of code:
 Here you see:
 
 - A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
-- Two tasks, a BashOperator running a Bash script and a python function defined using the ``@task`` decorator
+- Two tasks, a BashOperator running a Bash script and a Python function defined using the ``@task`` decorator
 - ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
 
 Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
