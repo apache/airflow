@@ -71,7 +71,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         )
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
-    PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
+    PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER['package-dir'])
     PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
     SYSTEM_TESTS_DIR = CURRENT_PROVIDER['system-tests-dir']
 elif PACKAGE_NAME == 'apache-airflow-providers':
@@ -420,7 +420,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     def _load_config():
         file_path = PACKAGE_DIR / 'config_templates' / 'config.yml'
-        if file_path.exists():
+        if not file_path.exists():
             return {}
 
         with file_path.open() as f:
