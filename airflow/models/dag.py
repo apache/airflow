@@ -2675,8 +2675,13 @@ class DAG(LoggingMixin):
 
         # store datasets
         stored_datasets = {}
-        for dataset in all_datasets.keys():
-            stored_datasets[dataset.uri] = session.merge(dataset)
+        for dataset in all_datasets:
+            stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
+            if stored_dataset:
+                stored_datasets[stored_dataset.uri] = stored_dataset
+            else:
+                session.add(dataset)
+                stored_datasets[dataset.uri] = dataset
 
         session.flush()  # this is required to ensure each dataset has its PK loaded
 
