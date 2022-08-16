@@ -20,7 +20,6 @@ import datetime
 from typing import Mapping, Optional
 from unittest import mock
 from unittest.mock import call
-from uuid import uuid4
 
 import pendulum
 import pytest
@@ -28,19 +27,11 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.datasets import Dataset
 from airflow.decorators import task
-from airflow.models import (
-    DAG,
-    DagBag,
-    DagModel,
-    DagRun,
-    TaskInstance,
-    TaskInstance as TI,
-    clear_task_instances,
-)
+from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dataset import Dataset, DatasetDagRunQueue
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
@@ -1375,36 +1366,35 @@ def test_mapped_task_upstream_failed(dag_maker, session):
     assert dr.state == DagRunState.FAILED
 
 
-def test_dataset_dagruns_triggered(session):
-    unique_id = str(uuid4())
-    session = settings.Session()
-    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", start_date=timezone.utcnow())
-    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
-    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule=[dataset1])
-    task = BashOperator(task_id="task", bash_command="echo 1", dag=dag1, outlets=[dataset1])
-    # BashOperator(task_id="task", bash_command="echo 1", dag=dag2)
-    # BashOperator(task_id="task", bash_command="echo 1", dag=dag3)
-    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
-    session.commit()
-    dr = DagRun(dag1.dag_id, run_id=unique_id, run_type='anything')
-    dr.dag = dag1
-    session.add(dr)
-    session.add(TaskInstance(task=task, run_id=unique_id, state=State.SUCCESS))
-    session.commit()
+@pytest.mark.need_serialized_dag
+def test_dataset_dagruns_triggered(dag_maker):
+    dataset1 = Dataset(uri="ds1")
+    dataset2 = Dataset(uri="ds2")
 
+    with dag_maker(dag_id="datasets-1", start_date=timezone.utcnow()):
+        BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset1])
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[0]
+    ti.state = TaskInstanceState.SUCCESS
+
+    with dag_maker(dag_id="datasets-2", schedule=[dataset1, dataset2]):
+        pass
+    dag2 = dag_maker.dag
+    with dag_maker(dag_id="datasets-3", schedule=[dataset1]):
+        pass
+    dag3 = dag_maker.dag
+
+    session = dag_maker.session
+    ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
     session.bulk_save_objects(
         [
-            *[SerializedDagModel(dag) for dag in [dag1, dag2, dag3]],
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
         ]
     )
-    session.commit()
-    session.expunge_all()
+    session.flush()
     dr.update_state(session=session)
-    session.commit()
+    session.flush()
 
     # dag3 should be triggered since it only depends on dataset1, and it's been queued
     assert session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one() is not None

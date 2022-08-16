@@ -21,7 +21,7 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
-from airflow.models.dataset import Dataset, DatasetDagRef, DatasetEvent, DatasetTaskRef
+from airflow.models.dataset import DatasetDagRef, DatasetEvent, DatasetModel, DatasetTaskRef
 
 
 class DatasetTaskRefSchema(SQLAlchemySchema):
@@ -57,7 +57,7 @@ class DatasetSchema(SQLAlchemySchema):
     class Meta:
         """Meta"""
 
-        model = Dataset
+        model = DatasetModel
 
     id = auto_field()
     uri = auto_field()
@@ -71,7 +71,7 @@ class DatasetSchema(SQLAlchemySchema):
 class DatasetCollection(NamedTuple):
     """List of Datasets with meta"""
 
-    datasets: List[Dataset]
+    datasets: List[DatasetModel]
     total_entries: int
 
 

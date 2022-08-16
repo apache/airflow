@@ -26,7 +26,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
-from airflow.models.dataset import Dataset
+from airflow.models.dataset import DatasetModel
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ImportError
 from airflow.models.log import Log
@@ -59,7 +59,7 @@ __all__ = [
     "DagRun",
     "DagTag",
     "DagOwnerAttributes",
-    "Dataset",
+    "DatasetModel",
     "DbCallbackRequest",
     "ImportError",
     "Log",

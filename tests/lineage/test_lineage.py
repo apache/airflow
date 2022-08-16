@@ -23,6 +23,7 @@ from airflow.lineage.entities import File
 from airflow.models import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
@@ -39,8 +40,8 @@ class TestLineage:
         f1s = "/tmp/does_not_exist_1-{}"
         f2s = "/tmp/does_not_exist_2-{}"
         f3s = "/tmp/does_not_exist_3"
-        file1 = File(f1s.format("{{ execution_date }}"))
-        file2 = File(f2s.format("{{ execution_date }}"))
+        file1 = File(f1s.format("{{ ds }}"))
+        file2 = File(f2s.format("{{ ds }}"))
         file3 = File(f3s)
 
         with dag_maker(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE) as dag:
@@ -64,11 +65,10 @@ class TestLineage:
         dag.clear()
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = {"ti": TI(task=op1, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
-        ctx2 = {"ti": TI(task=op2, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
-        ctx3 = {"ti": TI(task=op3, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
-        ctx5 = {"ti": TI(task=op5, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+        ctx1 = Context({"ti": TI(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx2 = Context({"ti": TI(task=op2, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx3 = Context({"ti": TI(task=op3, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx5 = Context({"ti": TI(task=op5, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
 
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)
@@ -106,13 +106,13 @@ class TestLineage:
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
         f1s = "/tmp/does_not_exist_1-{}"
-        file1 = File(f1s.format("{{ execution_date }}"))
+        file1 = File(f1s.format("{{ ds }}"))
 
         op1.inlets.append(file1)
         op1.outlets.append(file1)
 
         # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = {"ti": TI(task=op1, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+        ctx1 = Context({"ti": TI(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
 
         op1.pre_execute(ctx1)
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
@@ -140,7 +140,7 @@ class TestLineage:
         op1.outlets.append(file1)
 
         (ti,) = dag_run.task_instances
-        ctx1 = {"ti": ti, "execution_date": DEFAULT_DATE}
+        ctx1 = Context({"ti": ti, "ds": DEFAULT_DATE})
 
         prep = prepare_lineage(func)
         prep(op1, ctx1)

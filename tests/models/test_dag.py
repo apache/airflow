@@ -29,7 +29,6 @@ from tempfile import NamedTemporaryFile
 from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
-from uuid import uuid4
 
 import jinja2
 import pendulum
@@ -40,12 +39,13 @@ from sqlalchemy import inspect
 
 from airflow import models, settings
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
-from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -65,7 +65,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
@@ -836,7 +836,7 @@ class TestDag:
         dag1.clear()
         DAG.bulk_write_to_db([dag1, dag2], session)
         session.commit()
-        stored_datasets = {x.uri: x for x in session.query(Dataset).all()}
+        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
         d1 = stored_datasets[d1.uri]
         d2 = stored_datasets[d2.uri]
         d3 = stored_datasets[d3.uri]
@@ -2689,32 +2689,32 @@ def test__tags_length(tags: List[str], should_pass: bool):
             models.DAG('test-dag', tags=tags)
 
 
-@pytest.fixture()
-def reset_dataset():
-    clear_db_datasets()
-    yield
-    clear_db_datasets()
+@pytest.mark.need_serialized_dag
+def test_get_dataset_triggered_next_run_info(dag_maker):
+    dataset1 = Dataset(uri="ds1")
+    dataset2 = Dataset(uri="ds2")
+    dataset3 = Dataset(uri="ds3")
+    with dag_maker(dag_id="datasets-1", schedule=[dataset2]):
+        pass
+    dag1 = dag_maker.dag
 
+    with dag_maker(dag_id="datasets-2", schedule=[dataset1, dataset2]):
+        pass
+    dag2 = dag_maker.dag
 
-def test_get_dataset_triggered_next_run_info(session, reset_dataset):
-    unique_id = str(uuid4())
-    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
-    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
-    dataset3 = Dataset(uri=f"s3://{unique_id}-3")
-    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", schedule=[dataset2])
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule=[dataset1, dataset2, dataset3])
-    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
+    with dag_maker(dag_id="datasets-3", schedule=[dataset1, dataset2, dataset3]):
+        pass
+    dag3 = dag_maker.dag
 
-    session.commit()
+    session = dag_maker.session
+    ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
     session.bulk_save_objects(
         [
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
         ]
     )
-    session.commit()
-    session.expunge_all()
+    session.flush()
 
     info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
     assert "0 of 1 datasets updated" == info[dag1.dag_id]

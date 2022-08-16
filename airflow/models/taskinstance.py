@@ -1529,12 +1529,13 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
-        from airflow.models import Dataset
+        from airflow.datasets import Dataset
+        from airflow.models.dataset import DatasetModel
 
-        for obj in getattr(self.task, '_outlets', []):
+        for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             if isinstance(obj, Dataset):
-                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
+                dataset = session.query(DatasetModel).filter(DatasetModel.uri == obj.uri).one_or_none()
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue

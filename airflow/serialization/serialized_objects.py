@@ -33,8 +33,8 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, SerializationError
-from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
