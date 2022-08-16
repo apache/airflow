@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
+from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
@@ -129,7 +130,7 @@ with DAG(
         query=query_drop_table,
         database=athena_database,
         output_location=f's3://{s3_bucket}/',
-        trigger_rule="all_done",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     drop_database = AthenaOperator(
@@ -137,14 +138,14 @@ with DAG(
         query=query_drop_database,
         database=athena_database,
         output_location=f's3://{s3_bucket}/',
-        trigger_rule="all_done",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_s3_bucket = S3DeleteBucketOperator(
         task_id='delete_s3_bucket',
         bucket_name=s3_bucket,
         force_delete=True,
-        trigger_rule="all_done",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
