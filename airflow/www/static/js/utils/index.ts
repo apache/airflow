@@ -25,9 +25,9 @@ const hoverDelay = 200;
 function getMetaValue(name: string) {
   const elem = document.querySelector(`meta[name="${name}"]`);
   if (!elem) {
-    return null;
+    return '';
   }
-  return elem.getAttribute('content');
+  return elem.getAttribute('content') || '';
 }
 
 const finalStatesMap = () => new Map([

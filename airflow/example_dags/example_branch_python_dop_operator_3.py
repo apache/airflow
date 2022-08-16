@@ -47,7 +47,7 @@ def should_run(**kwargs):
 
 with DAG(
     dag_id='example_branch_dop_operator_v3',
-    schedule_interval='*/1 * * * *',
+    schedule='*/1 * * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     default_args={'depends_on_past': True},

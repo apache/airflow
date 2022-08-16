@@ -54,7 +54,6 @@ CONFIGURATION_OVERRIDES_ARG = {
 
 with DAG(
     dag_id='example_emr_eks',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

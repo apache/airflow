@@ -48,7 +48,7 @@ def ctx(create_task_instance):
     ti = create_task_instance(
         dag_id=DAG_ID,
         task_id=TASK_ID,
-        schedule_interval="0 12 * * *",
+        schedule="0 12 * * *",
     )
     yield {"task_instance": ti}
 

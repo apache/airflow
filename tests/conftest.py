@@ -621,7 +621,7 @@ def dag_maker(request):
                     if not dag_ids:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
-                    self.session.flush()
+                    self.session.rollback()
 
                     self.session.query(SerializedDagModel).filter(
                         SerializedDagModel.dag_id.in_(dag_ids)

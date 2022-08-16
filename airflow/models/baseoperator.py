@@ -1508,7 +1508,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if cls.mapped_arguments_validated_by_init:
             cls(**kwargs, _airflow_from_mapped=True, _airflow_mapped_validation_only=True)
 
-    def unmap(self, ctx: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
         return self
 
@@ -1762,21 +1762,16 @@ class BaseOperatorLink(metaclass=ABCMeta):
     @property
     @abstractmethod
     def name(self) -> str:
-        """
-        Name of the link. This will be the button name on the task UI.
-
-        :return: link name
-        """
+        """Name of the link. This will be the button name on the task UI."""
 
     @abstractmethod
-    def get_link(self, operator: AbstractOperator, *, ti_key: "TaskInstanceKey") -> str:
-        """
-        Link to external system.
+    def get_link(self, operator: BaseOperator, *, ti_key: "TaskInstanceKey") -> str:
+        """Link to external system.
 
         Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
         supported at runtime but is deprecated.
 
-        :param operator: airflow operator
-        :param ti_key: TaskInstance ID to return link for
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """

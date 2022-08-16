@@ -589,7 +589,7 @@ class DependencyDetector:
     @staticmethod
     def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.schedule_on:
+        if dag and dag.dataset_triggers:
             return [
                 DagDependency(
                     source="dataset",
@@ -597,7 +597,7 @@ class DependencyDetector:
                     dependency_type="dataset",
                     dependency_id=x.uri,
                 )
-                for x in dag.schedule_on
+                for x in dag.dataset_triggers
             ]
         else:
             return []
@@ -642,8 +642,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
-
+        serialized_op = cls._serialize_node(op, include_deps=op.deps != MappedOperator.deps_for(BaseOperator))
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
         serialized_op[op._expand_input_attr] = {
@@ -863,20 +862,30 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> Set['DagDependency']:
         """Detects between DAG dependencies for the operator."""
+
+        def get_custom_dep() -> List[DagDependency]:
+            """
+            If custom dependency detector is configured, use it.
+
+            TODO: Remove this logic in 3.0.
+            """
+            custom_dependency_detector_cls = conf.getimport('scheduler', 'dependency_detector', fallback=None)
+            if not (
+                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
+            ):
+                warnings.warn(
+                    "Use of a custom dependency detector is deprecated. "
+                    "Support will be removed in a future release.",
+                    DeprecationWarning,
+                )
+                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
+                if type(dep) is DagDependency:
+                    return [dep]
+            return []
+
         dependency_detector = DependencyDetector()
-        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
-        deps = set()
-        if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
-            warnings.warn(
-                "Use of a custom dependency detector is deprecated. "
-                "Support will be removed in a future release.",
-                DeprecationWarning,
-            )
-            dep = custom_dependency_detector.detect_task_dependencies(op)
-            if type(dep) is DagDependency:
-                deps.add(dep)
-        deps.update(dependency_detector.detect_task_dependencies(op))
-        deps.update(dependency_detector.detect_dag_dependencies(op.dag))
+        deps = set(dependency_detector.detect_task_dependencies(op))
+        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
@@ -1048,14 +1057,13 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            dag_deps = [
-                t.__dict__
+            dag_deps = {
+                dep
                 for task in dag.task_dict.values()
-                for t in SerializedBaseOperator.detect_dependencies(task)
-                if t is not None
-            ]
-
-            serialized_dag["dag_dependencies"] = dag_deps
+                for dep in SerializedBaseOperator.detect_dependencies(task)
+            }
+            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1102,7 +1110,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k == "schedule_on":
+            elif k == "dataset_triggers":
                 v = cls._deserialize(v)
             # else use v as it is
 
@@ -1240,7 +1248,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         return group
 
 
-@dataclass
+@dataclass(frozen=True)
 class DagDependency:
     """Dataclass for representing dependencies between DAGs.
     These are calculated during serialization and attached to serialized DAGs.
@@ -1260,9 +1268,6 @@ class DagDependency:
         if self.dependency_id:
             val += f":{self.dependency_id}"
         return val
-
-    def __hash__(self):
-        return hash((self.source, self.target, self.dependency_type, self.dependency_id))
 
 
 def _has_kubernetes() -> bool:

@@ -50,7 +50,7 @@ with DAG(
     dag_id='example_dataset_dag1',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_interval='@daily',
+    schedule='@daily',
     tags=['upstream'],
 ) as dag1:
     # [START task_outlet]
@@ -61,7 +61,7 @@ with DAG(
     dag_id='example_dataset_dag2',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_interval=None,
+    schedule=None,
     tags=['upstream'],
 ) as dag2:
     BashOperator(outlets=[dag2_dataset], task_id='upstream_task_2', bash_command="sleep 5")
@@ -71,7 +71,7 @@ with DAG(
     dag_id='example_dataset_dag3_req_dag1',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_on=[dag1_dataset],
+    schedule=[dag1_dataset],
     tags=['downstream'],
 ) as dag3:
     # [END dag_dep]
@@ -85,7 +85,7 @@ with DAG(
     dag_id='example_dataset_dag4_req_dag1_dag2',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_on=[dag1_dataset, dag2_dataset],
+    schedule=[dag1_dataset, dag2_dataset],
     tags=['downstream'],
 ) as dag4:
     BashOperator(
@@ -98,7 +98,7 @@ with DAG(
     dag_id='example_dataset_dag5_req_dag1_D',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_on=[
+    schedule=[
         dag1_dataset,
         Dataset('s3://this-dataset-doesnt-get-triggered'),
     ],
@@ -114,7 +114,7 @@ with DAG(
     dag_id='example_dataset_dag6_req_DD',
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule_on=[
+    schedule=[
         Dataset('s3://unrelated/dataset3.txt'),
         Dataset('s3://unrelated/dataset_other_unknown.txt'),
     ],

@@ -44,7 +44,7 @@ If the operator you need isn't installed with Airflow by default, you can probab
 - :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`
 - :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
-- :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`
+- :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`
 - :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
@@ -176,7 +176,7 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
 
     dag = DAG(
         dag_id="example_template_as_python_object",
-        schedule_interval=None,
+        schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         render_template_as_native_obj=True,

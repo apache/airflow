@@ -229,13 +229,13 @@ kinds of test types:
 
   .. code-block:: bash
 
-       ./breeze-legacy --test-type Core  --db-reset tests
+       breeze testing tests --test-type Core  --db-reset tests
 
   Runs all provider tests:
 
   .. code-block:: bash
 
-       ./breeze-legacy --test-type Providers --db-reset tests
+       breeze testing tests --test-type Providers --db-reset tests
 
 * Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
   marks and for those you need to select the type using test-type switch. If you want to run such tests
@@ -247,13 +247,13 @@ kinds of test types:
 
   .. code-block:: bash
 
-       ./breeze-legacy --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
+       breeze testing tests --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
 
   Run all Quarantined tests:
 
   .. code-block:: bash
 
-       ./breeze-legacy --test-type Quarantined tests --db-reset
+       breeze testing tests --test-type Quarantined tests --db-reset
 
 Helm Unit Tests
 ===============
@@ -297,11 +297,44 @@ Example test here:
             dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
             assert "dags" == dep.spec.template.spec.volumes[1].name
 
-To run tests using breeze run the following command
+
+To execute all Helm tests using breeze command and utilize parallel pytest tests, you can run the
+following command (but it takes quite a long time even in a multi-processor machine).
 
 .. code-block:: bash
 
-    ./breeze-legacy --test-type Helm tests
+    breeze testing helm-tests
+
+You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
+tests with pytest as you would do with regular unit tests (you can add ``-n auto`` command to run Helm
+tests in parallel - unlike most of the regular unit tests of ours that require a database, the Helm tests are
+perfectly safe to be run in parallel (and if you have multiple processors, you can gain significant
+speedups when using parallel runs):
+
+.. code-block:: bash
+
+    breeze
+
+This enters breeze container.
+
+.. code-block:: bash
+
+    pytest tests/chart -n auto
+
+This runs all chart tests using all processors you have available.
+
+.. code-block:: bash
+
+    pytest tests/charts/test_airflow_common.py -n auto
+
+This will run all tests from ``tests_airflow_common.py`` file using all processors you have available.
+
+.. code-block:: bash
+
+    pytest tests/charts/test_airflow_common.py
+
+This will run all tests from ``tests_airflow_common.py`` file sequentially.
+
 
 Airflow Integration Tests
 =========================

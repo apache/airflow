@@ -517,7 +517,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         self.dag = DAG(
             "sql_branch_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)

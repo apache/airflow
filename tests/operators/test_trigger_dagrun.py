@@ -42,7 +42,7 @@ DAG_SCRIPT = (
     "dag = DAG(\n"
     'dag_id="{dag_id}", \n'
     'default_args={{"start_date": datetime(2019, 1, 1)}}, \n'
-    "schedule_interval=None,\n"
+    "schedule=None,\n"
     ")\n"
     'task = EmptyOperator(task_id="test", dag=dag)'
 ).format(dag_id=TRIGGERED_DAG_ID)

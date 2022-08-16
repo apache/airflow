@@ -287,6 +287,7 @@ def clear_task_instances(
             if dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
                 dr.start_date = None
+    session.flush()
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
@@ -848,28 +849,35 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
 
-        qry = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.run_id == self.run_id,
-            TaskInstance.map_index == self.map_index,
+        if self in session:
+            session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
+
+        qry = (
+            # To avoid joining any relationships, by default select all
+            # columns, not the object. This also means we get (effectively) a
+            # namedtuple back, not a TI object
+            session.query(*TaskInstance.__table__.columns).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.run_id == self.run_id,
+                TaskInstance.map_index == self.map_index,
+            )
         )
 
         if lock_for_update:
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
-                    ti: Optional[TaskInstance] = qry.with_for_update().first()
+                    ti: Optional[TaskInstance] = qry.with_for_update().one_or_none()
         else:
-            ti = qry.first()
+            ti = qry.one_or_none()
         if ti:
             # Fields ordered per model definition
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.duration = ti.duration
             self.state = ti.state
-            # Get the raw value of try_number column, don't read through the
-            # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number
+            # Since we selected columns, not the object, this is the raw value
+            self.try_number = ti.try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.unixname = ti.unixname
@@ -1798,6 +1806,7 @@ class TaskInstance(Base, LoggingMixin):
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
+                self.map_index,
             )
         )
 
@@ -1845,9 +1854,6 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
 
-        if context is None:
-            context = self.get_template_context()
-
         if error:
             if isinstance(error, BaseException):
                 tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
@@ -1859,7 +1865,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f'operator_failures_{self.task.task_type}')
+        Stats.incr(f'operator_failures_{self.operator}')
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
@@ -1868,6 +1874,10 @@ class TaskInstance(Base, LoggingMixin):
             session.add(TaskFail(ti=self))
 
         self.clear_next_method_args()
+
+        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        if context is None and self.task:
+            context = self.get_template_context(session)
 
         if context is not None:
             context['exception'] = error
@@ -1886,7 +1896,8 @@ class TaskInstance(Base, LoggingMixin):
 
         task: Optional[BaseOperator] = None
         try:
-            task = self.task.unmap((context, session))
+            if self.task and context:
+                task = self.task.unmap((context, session))
         except Exception:
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
@@ -1911,7 +1922,7 @@ class TaskInstance(Base, LoggingMixin):
             except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
-        if callback:
+        if callback and context:
             self._run_finished_callback(callback, context, callback_type)
 
         if not test_mode:
@@ -1924,6 +1935,9 @@ class TaskInstance(Base, LoggingMixin):
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
+        if not self.task:
+            # Couldn't load the task, don't know number of retries, guess:
+            return self.try_number <= self.max_tries
 
         return self.task.retries and self.try_number <= self.max_tries
 
