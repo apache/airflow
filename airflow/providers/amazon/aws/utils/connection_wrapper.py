@@ -26,7 +26,15 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.types import NOTSET, ArgNotSet
+
+try:
+    from airflow.utils.types import NOTSET, ArgNotSet
+except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
+
+    class ArgNotSet:  # type: ignore[no-redef]
+        """Sentinel type for annotations, useful when None is not viable."""
+
+    NOTSET = ArgNotSet()
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
