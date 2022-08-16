@@ -2,7 +2,7 @@
     "name": "Apache Airflow - mysql",
     "dockerComposeFile": [
         "../../scripts/ci/docker-compose/devcontainer.yml",
-        "../../scripts/ci/docker-compose/local.yml",
+        "../../scripts/ci/docker-compose/remove-sources.yml",
         "../../scripts/ci/docker-compose/backend-mysql.yml",
         "../../scripts/ci/docker-compose/devcontainer-mysql.yml"
     ],
