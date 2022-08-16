@@ -613,7 +613,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         environment: Optional[Dict] = None,
         cancel_timeout: Optional[int] = 10 * 60,
         wait_until_finished: Optional[bool] = None,
-        append_job_name: Optional[bool] = True,
+        append_job_name: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
