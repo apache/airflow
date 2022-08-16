@@ -239,7 +239,7 @@ if PACKAGE_NAME == 'apache-airflow':
             exclude_patterns.append(_get_rst_filepath_from_path(path))
 else:
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags/**/*.py")
+        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -701,6 +701,7 @@ elif PACKAGE_NAME == 'docker-stack':
     autoapi_ignore.append('*/airflow/providers/*')
 else:
     autoapi_ignore.append('*/airflow/providers/cncf/kubernetes/backcompat/*')
+    autoapi_ignore.append('example_dags/*')
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True
