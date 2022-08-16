@@ -141,9 +141,10 @@ class TestSsmSecrets(TestCase):
 
         systems_manager.client
         assert mock_session_factory.call_count == 1
-        assert "conn" in mock_session_factory.call_args.kwargs
+        mock_session_factory_call_kwargs = mock_session_factory.call_args[1]
+        assert "conn" in mock_session_factory_call_kwargs
+        conn_wrapper = mock_session_factory_call_kwargs["conn"]
 
-        conn_wrapper = mock_session_factory.call_args.kwargs["conn"]
         assert conn_wrapper.conn_id == "SystemsManagerParameterStoreBackend__connection"
         assert conn_wrapper.role_arn == "arn:aws:iam::222222222222:role/awesome-role"
 
