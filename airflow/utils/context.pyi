@@ -51,7 +51,7 @@ class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
 # NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
-class Context(TypedDict):
+class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG
