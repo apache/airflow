@@ -3157,7 +3157,7 @@ class DagModel(Base):
                 continue
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session):
+    def dags_needing_dagruns(cls, session: Session) -> Tuple[Query, Dict]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -3165,6 +3165,23 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
+
+        # these dag ids are triggered by datasets, and they are ready to go.
+        dataset_triggered_dag_info_list = {
+            x.dag_id: (x.first_event_time, x.last_event_time)
+            for x in session.query(
+                DatasetDagRef.dag_id,
+                func.max(DDRQ.created_at).label('last_event_time'),
+                func.max(DDRQ.created_at).label('first_event_time'),
+            )
+            .join(DatasetDagRef.queue_records, isouter=True)
+            .group_by(DatasetDagRef.dag_id)
+            .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
+            .all()
+        }
+        dataset_triggered_dag_ids = list(dataset_triggered_dag_info_list.keys())
+
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
@@ -3175,13 +3192,19 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
-                cls.next_dagrun_create_after <= func.now(),
+                or_(
+                    cls.next_dagrun_create_after <= func.now(),
+                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                ),
             )
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
 
-        return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
+        return (
+            with_row_locks(query, of=cls, session=session, **skip_locked(session=session)),
+            dataset_triggered_dag_info_list,
+        )
 
     def calculate_dagrun_date_fields(
         self,

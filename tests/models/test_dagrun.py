@@ -27,14 +27,11 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.datasets import Dataset
 from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -1364,46 +1361,6 @@ def test_mapped_task_upstream_failed(dag_maker, session):
     tis, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
-
-
-@pytest.mark.need_serialized_dag
-def test_dataset_dagruns_triggered(dag_maker):
-    dataset1 = Dataset(uri="ds1")
-    dataset2 = Dataset(uri="ds2")
-
-    with dag_maker(dag_id="datasets-1", start_date=timezone.utcnow()):
-        BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset1])
-    dr = dag_maker.create_dagrun()
-    ti = dr.task_instances[0]
-    ti.state = TaskInstanceState.SUCCESS
-
-    with dag_maker(dag_id="datasets-2", schedule=[dataset1, dataset2]):
-        pass
-    dag2 = dag_maker.dag
-    with dag_maker(dag_id="datasets-3", schedule=[dataset1]):
-        pass
-    dag3 = dag_maker.dag
-
-    session = dag_maker.session
-    ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-    session.bulk_save_objects(
-        [
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
-        ]
-    )
-    session.flush()
-    dr.update_state(session=session)
-    session.flush()
-
-    # dag3 should be triggered since it only depends on dataset1, and it's been queued
-    assert session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one() is not None
-    # dag3 DDRQ record should still be there since the dag run was *not* triggered
-    assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag3.dag_id).one() is not None
-    # dag2 should not be triggered since it depends on both dataset 1  and 2
-    assert session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
-    # dag2 DDRQ record should be deleted since the dag run was triggered
-    assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):

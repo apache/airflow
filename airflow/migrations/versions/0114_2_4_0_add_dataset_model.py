@@ -134,6 +134,30 @@ def _create_dataset_event_table():
     op.create_index('idx_dataset_id_timestamp', 'dataset_event', ['dataset_id', 'timestamp'])
 
 
+def _create_dataset_event_dag_run_table():
+    op.create_table(
+        'dagrun_dataset_event',
+        sa.Column('dag_run_id', sa.Integer(), nullable=False),
+        sa.Column('event_id', sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ['dag_run_id'],
+            ['dag_run.id'],
+            name=op.f('dagrun_dataset_events_dag_run_id_fkey'),
+            ondelete='CASCADE',
+        ),
+        sa.ForeignKeyConstraint(
+            ['event_id'],
+            ['dataset_event.id'],
+            name=op.f('dagrun_dataset_events_event_id_fkey'),
+            ondelete='CASCADE',
+        ),
+        sa.PrimaryKeyConstraint('dag_run_id', 'event_id', name=op.f('dagrun_dataset_events_pkey')),
+    )
+    with op.batch_alter_table('dagrun_dataset_events') as batch_op:
+        batch_op.create_index('idx_dagrun_dataset_events_dag_run_id', ['dag_run_id'], unique=False)
+        batch_op.create_index('idx_dagrun_dataset_events_event_id', ['event_id'], unique=False)
+
+
 def upgrade():
     """Apply Add Dataset model"""
     _create_dataset_table()
@@ -141,6 +165,7 @@ def upgrade():
     _create_dataset_task_ref_table()
     _create_dataset_dag_run_queue_table()
     _create_dataset_event_table()
+    _create_dataset_event_dag_run_table()
 
 
 def downgrade():
@@ -148,5 +173,6 @@ def downgrade():
     op.drop_table('dataset_dag_ref')
     op.drop_table('dataset_task_ref')
     op.drop_table('dataset_dag_run_queue')
+    op.drop_table('dagrun_dataset_event')
     op.drop_table('dataset_event')
     op.drop_table('dataset')

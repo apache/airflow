@@ -46,6 +46,7 @@ from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetEvent
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -981,8 +982,17 @@ class SchedulerJob(BaseJob):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
-        query = DagModel.dags_needing_dagruns(session)
-        self._create_dag_runs(query.all(), session)
+        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        all_dags_needing_dag_runs = set(query.all())
+        dataset_triggered_dags = [
+            dag for dag in all_dags_needing_dag_runs if dag.dag_id in dataset_triggered_dag_info
+        ]
+        non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
+        self._create_dag_runs(non_dataset_dags, session)
+        if dataset_triggered_dags:
+            self._create_dag_runs_dataset_triggered(
+                dataset_triggered_dags, dataset_triggered_dag_info, session
+            )
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
@@ -1047,6 +1057,83 @@ class SchedulerJob(BaseJob):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
+
+    def _create_dag_runs_dataset_triggered(
+        self, dag_models: Collection[DagModel], dataset_triggered_dag_info: Dict, session: Session
+    ) -> None:
+        """For DAGs that are triggered by datasets, create dag runs."""
+        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate dag runs
+        exec_dates = {
+            dag_id: last_time for dag_id, (first_time, last_time) in dataset_triggered_dag_info.items()
+        }
+        existing_dagruns = (
+            session.query(DagRun.dag_id, DagRun.execution_date)
+            .filter(
+                tuple_in_condition(
+                    (DagRun.dag_id, DagRun.execution_date),
+                    list(exec_dates.items()),
+                ),
+            )
+            .all()
+        )
+
+        for dag_model in dag_models:
+            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                continue
+
+            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+
+            # Explicitly check if the DagRun already exists. This is an edge case
+            # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+            # are not updated.
+            # We opted to check DagRun existence instead
+            # of catching an Integrity error and rolling back the session i.e
+            # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
+            # create a new one. This is so that in the next Scheduling loop we try to create new runs
+            # instead of falling in a loop of Integrity Error.
+            exec_date = exec_dates[dag.dag_id]
+            if (dag.dag_id, exec_date) not in existing_dagruns:
+                dag_run = dag.create_dagrun(
+                    run_type=DagRunType.DATASET_TRIGGERED,
+                    execution_date=exec_date,
+                    state=DagRunState.QUEUED,
+                    external_trigger=False,
+                    session=session,
+                    dag_hash=dag_hash,
+                    creating_job_id=self.id,
+                )
+                previous_dag_run = (
+                    session.query(DagRun)
+                    .filter(
+                        DagRun.dag_id == dag_run.dag_id,
+                        DagRun.execution_date < dag_run.execution_date,
+                        DagRun.run_type == DagRunType.DATASET_TRIGGERED,
+                    )
+                    .order_by(DagRun.execution_date.desc())
+                    .first()
+                )
+                dataset_event_filters = [
+                    DatasetDagRef.dag_id == dag.dag_id,
+                    DatasetEvent.timestamp <= dag_run.execution_date,
+                ]
+                if previous_dag_run:
+                    dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
+                dataset_events = (
+                    session.query(DatasetEvent)
+                    .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
+                    .filter(*dataset_event_filters)
+                    .all()
+                )
+
+                dag_run.dataset_events.extend(dataset_events)
+                session.query(DatasetDagRunQueue).filter(
+                    DatasetDagRunQueue.target_dag_id == dag_run.dag_id
+                ).delete()
 
     def _should_update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs: int) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
