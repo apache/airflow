@@ -27,6 +27,7 @@ from cattr import structure, unstructure
 
 from airflow.configuration import conf
 from airflow.lineage.backend import LineageBackend
+from airflow.utils.context import lazy_mapping_from_context
 from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()
@@ -74,7 +75,7 @@ def _render_object(obj: Any, context) -> Any:
     return structure(
         json.loads(
             ENV.from_string(json.dumps(unstructure(obj), default=lambda o: None))
-            .render(**context)
+            .render(lazy_mapping_from_context(context))
             .encode('utf-8')
         ),
         type(obj),

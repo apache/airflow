@@ -643,7 +643,8 @@ class DagRun(Base, LoggingMixin):
         Looks at all outlet datasets that have been updated by this dag,
         and creates DAG runs that have all dataset deps fulfilled.
         """
-        from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
+        from airflow.datasets import Dataset
+        from airflow.models.dataset import DatasetDagRef, DatasetTaskRef
 
         has_dataset_outlets = False
         if self.dag:

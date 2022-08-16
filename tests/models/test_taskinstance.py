@@ -58,7 +58,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetEvent, DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, DatasetTaskRef
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1724,13 +1724,13 @@ class TestTaskInstance:
         ]
 
         # check that one event record created for dataset1 and this TI
-        assert session.query(Dataset.uri).join(DatasetEvent.dataset).filter(
+        assert session.query(DatasetModel.uri).join(DatasetEvent.dataset).filter(
             DatasetEvent.source_task_instance == ti
         ).one() == ('s3://dag1/output_1.txt',)
 
         # check that no other dataset events recorded
         assert (
-            session.query(Dataset.uri)
+            session.query(DatasetModel.uri)
             .join(DatasetEvent.dataset)
             .filter(DatasetEvent.source_task_instance == ti)
             .count()
