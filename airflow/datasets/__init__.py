@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import attr
 
@@ -24,4 +24,4 @@ class Dataset:
     """A Dataset is used for marking data dependencies between workflows."""
 
     uri: str
-    extra: "Dict[str, Any] | None" = None
+    extra: Optional[Dict[str, Any]] = None
