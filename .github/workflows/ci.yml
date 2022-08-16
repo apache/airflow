@@ -848,10 +848,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           # The extras below are all extras that should be installed with Airflow 2.2.0
           AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas.apache.beam,apache.cassandra,apache.drill,\
             apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
-            apache.spark,apache.sqoop,apache.webhdfs,arangodb,asana,async,\
-            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,dbt.cloud,\
+            apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
+            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
             deprecated_api,dingding,discord,docker,\
-            elasticsearch,exasol,facebook,ftp,github,github_enterprise,google,google_auth,\
+            elasticsearch,exasol,facebook,ftp,github_enterprise,google,google_auth,\
             grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
             leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
             neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
