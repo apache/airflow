@@ -237,7 +237,7 @@ if PACKAGE_NAME == 'apache-airflow':
     for path in (root / "utils").iterdir():
         if path.name not in browseable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
-else:
+elif PACKAGE_NAME != 'docker-stack':
     exclude_patterns.extend(
         _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
     )
@@ -673,9 +673,10 @@ viewcode_follow_imported_members = True
 
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
-autoapi_dirs = [
-    PACKAGE_DIR,
-]
+autoapi_dirs: List[os.PathLike] = []
+
+if PACKAGE_NAME != 'docker-stack':
+    autoapi_dirs.append(PACKAGE_DIR)
 
 if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     autoapi_dirs.append(SYSTEM_TESTS_DIR)
