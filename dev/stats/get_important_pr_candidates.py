@@ -83,11 +83,11 @@ class PrStat:
 
     @cached_property
     def num_issue_comments(self) -> int:
-        comments = 0
-        for comment in self.pull_request.get_issue_comments():
-            self._users.add(comment.user.login)
-            comments += 1
-        return comments
+        issue_comments = 0
+        for issue_comment in self.pull_request.get_issue_comments():
+            self._users.add(issue_comment.user.login)
+            issue_comments += 1
+        return issue_comments
 
     @cached_property
     def num_reactions(self) -> int:
@@ -101,8 +101,8 @@ class PrStat:
     @cached_property
     def num_issue_reactions(self) -> int:
         reactions = 0
-        for comment in self.pull_request.get_issue_comments():
-            for reaction in comment.get_reactions():
+        for issue_comment in self.pull_request.get_issue_comments():
+            for reaction in issue_comment.get_reactions():
                 if reaction == 1:
                     print(reaction)
                 self._users.add(reaction.user.login)
@@ -168,9 +168,9 @@ class PrStat:
         for comment in self.pull_request.get_review_comments():
             if comment.body is not None:
                 length += len(comment.body)
-        for comment in self.pull_request.get_issue_comments():
-            if comment.body is not None:
-                length += len(comment.body)
+        for issue_comment in self.pull_request.get_issue_comments():
+            if issue_comment.body is not None:
+                length += len(issue_comment.body)
         return length
 
     @property
@@ -213,7 +213,8 @@ class PrStat:
             * self.label_score
             * self.length_score
             * self.change_score
-            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0), 3
+            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0),
+            3,
         )
 
     def __str__(self) -> str:
