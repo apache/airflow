@@ -759,3 +759,40 @@ def test_task_decorator_has_wrapped_attr():
         decorated_test_func, '__wrapped__'
     ), "decorated function does not have __wrapped__ attribute"
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
+
+
+def test_upstream_exception_produces_none_xcom(dag_maker, session):
+    from airflow.exceptions import AirflowSkipException
+    from airflow.models.dagrun import DagRun
+    from airflow.utils.trigger_rule import TriggerRule
+
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> str:
+            return "example"
+
+        @dag.task()
+        def up2() -> None:
+            raise AirflowSkipException()
+
+        @dag.task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        def down(a, b):
+            nonlocal result
+            result = f"{a!r} {b!r}"
+
+        down(up1(), up2())
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == "'example' None"
