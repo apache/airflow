@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import multiprocessing as mp
 import subprocess
 import time
-from typing import List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -29,9 +28,10 @@ from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
-from airflow_breeze.utils.parallel import check_async_run_results
+from airflow_breeze.utils.parallel import check_async_run_results, progress_method_docker_pull, run_with_pool
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
@@ -49,73 +49,76 @@ def run_pull_in_parallel(
     extra_pytest_args: Tuple,
 ):
     """Run image pull in parallel"""
-    get_console().print(
-        f"\n[info]Pulling with parallelism = {parallelism} for the images: {python_version_list}:"
-    )
-    pool = mp.Pool(parallelism)
-    poll_time = 10.0
-    if not verify:
-        results = [
-            pool.apply_async(
-                run_pull_image,
-                args=(image_param, dry_run, verbose, wait_for_image, tag_as_latest, poll_time, True),
-            )
-            for image_param in image_params_list
-        ]
-    else:
-        results = [
-            pool.apply_async(
-                run_pull_and_verify_image,
-                args=(
-                    image_param,
-                    dry_run,
-                    verbose,
-                    wait_for_image,
-                    tag_as_latest,
-                    poll_time,
-                    extra_pytest_args,
-                ),
-            )
-            for image_param in image_params_list
-        ]
-    check_async_run_results(results)
-    pool.close()
+    all_params = [f"Image {image_params.python}" for image_params in image_params_list]
+    with ci_group(f"Pull{'/verify' if verify else ''} for {python_version_list}"):
+        with run_with_pool(
+            parallelism=parallelism, all_params=all_params, progress_method=progress_method_docker_pull
+        ) as (pool, outputs):
+
+            def get_right_method() -> Callable[..., Tuple[int, str]]:
+                if verify:
+                    return run_pull_and_verify_image
+                else:
+                    return run_pull_image
+
+            def get_kwds(index: int, image_param: Union[BuildCiParams, BuildProdParams]):
+                d = {
+                    "image_params": image_param,
+                    "wait_for_image": wait_for_image,
+                    "tag_as_latest": tag_as_latest,
+                    "poll_time": 10.0,
+                    "output": outputs[index],
+                    "dry_run": dry_run,
+                    "verbose": verbose,
+                }
+                if verify:
+                    d['extra_pytest_args'] = extra_pytest_args
+                return d
+
+            results = [
+                pool.apply_async(get_right_method(), kwds=get_kwds(index, image_param))
+                for index, image_param in enumerate(image_params_list)
+            ]
+    check_async_run_results(results, outputs)
 
 
 def run_pull_image(
     image_params: CommonBuildParams,
-    dry_run: bool,
-    verbose: bool,
     wait_for_image: bool,
     tag_as_latest: bool,
+    dry_run: bool,
+    verbose: bool,
+    output: Optional[Output],
     poll_time: float = 10.0,
-    parallel: bool = False,
 ) -> Tuple[int, str]:
     """
     Pull image specified.
     :param image_params: Image parameters.
     :param dry_run: whether it's dry run
     :param verbose: whether it's verbose
+    :param output: output to write to
     :param wait_for_image: whether we should wait for the image to be available
     :param tag_as_latest: tag the image as latest
     :param poll_time: what's the polling time between checks if images are there (default 10 s)
-    :param parallel: whether the pull is run as part of parallel execution
     :return: Tuple of return code and description of the image pulled
     """
-    get_console().print(
+    get_console(output=output).print(
         f"\n[info]Pulling {image_params.image_type} image of airflow python version: "
         f"{image_params.python} image: {image_params.airflow_image_name_with_tag} "
         f"with wait for image: {wait_for_image}[/]\n"
     )
     while True:
-        login_to_github_docker_registry(image_params=image_params, dry_run=dry_run, verbose=verbose)
+        login_to_github_docker_registry(
+            image_params=image_params, output=output, dry_run=dry_run, verbose=verbose
+        )
         command_to_run = ["docker", "pull", image_params.airflow_image_name_with_tag]
         command_result = run_command(
             command_to_run,
             verbose=verbose,
             dry_run=dry_run,
             check=False,
-            enabled_output_group=not parallel,
+            stdout=output.file if output else None,
+            stderr=subprocess.STDOUT,
         )
         if command_result.returncode == 0:
             command_result = run_command(
@@ -130,10 +133,12 @@ def run_pull_image(
                 if command_result.returncode == 0:
                     image_size = int(command_result.stdout.strip())
                     if image_size == 0:
-                        get_console().print("\n[error]The image size was 0 - image creation failed.[/]\n")
+                        get_console(output=output).print(
+                            "\n[error]The image size was 0 - image creation failed.[/]\n"
+                        )
                         return 1, f"Image Python {image_params.python}"
                 else:
-                    get_console().print(
+                    get_console(output=output).print(
                         "\n[error]There was an error pulling the size of the image. Failing.[/]\n"
                     )
                     return (
@@ -141,28 +146,35 @@ def run_pull_image(
                         f"Image Python {image_params.python}",
                     )
             if tag_as_latest:
-                command_result = tag_image_as_latest(image_params, dry_run, verbose)
+                command_result = tag_image_as_latest(
+                    image_params=image_params,
+                    output=output,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                )
                 if command_result.returncode == 0 and isinstance(image_params, BuildCiParams):
                     mark_image_as_refreshed(image_params)
             return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
             if verbose or dry_run:
-                get_console().print(
+                get_console(output=output).print(
                     f"\n[info]Waiting for {poll_time} seconds for "
                     f"{image_params.airflow_image_name_with_tag}.[/]\n"
                 )
             time.sleep(poll_time)
             continue
         else:
-            get_console().print(
+            get_console(output=output).print(
                 f"\n[error]There was an error pulling the image {image_params.python}. Failing.[/]\n"
             )
             return command_result.returncode, f"Image Python {image_params.python}"
 
 
-def tag_image_as_latest(image_params: CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
+def tag_image_as_latest(
+    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
+) -> RunCommandResult:
     if image_params.airflow_image_name_with_tag == image_params.airflow_image_name:
-        get_console().print(
+        get_console(output=output).print(
             f"[info]Skip tagging {image_params.airflow_image_name} as latest as it is already 'latest'[/]"
         )
         return subprocess.CompletedProcess(returncode=0, args=[])
@@ -182,23 +194,31 @@ def tag_image_as_latest(image_params: CommonBuildParams, dry_run: bool, verbose:
 
 def run_pull_and_verify_image(
     image_params: CommonBuildParams,
-    dry_run: bool,
-    verbose: bool,
     wait_for_image: bool,
     tag_as_latest: bool,
+    dry_run: bool,
+    verbose: bool,
     poll_time: float,
     extra_pytest_args: Tuple,
+    output: Optional[Output],
 ) -> Tuple[int, str]:
     return_code, info = run_pull_image(
-        image_params, dry_run, verbose, wait_for_image, tag_as_latest, poll_time
+        image_params=image_params,
+        wait_for_image=wait_for_image,
+        tag_as_latest=tag_as_latest,
+        output=output,
+        dry_run=dry_run,
+        verbose=verbose,
+        poll_time=poll_time,
     )
     if return_code != 0:
-        get_console().print(
+        get_console(output=output).print(
             f"\n[error]Not running verification for {image_params.python} as pulling failed.[/]\n"
         )
     return verify_an_image(
         image_name=image_params.airflow_image_name_with_tag,
         image_type=image_params.image_type,
+        output=output,
         dry_run=dry_run,
         verbose=verbose,
         slim_image=False,

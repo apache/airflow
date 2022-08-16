@@ -17,11 +17,12 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
+import subprocess
 import sys
 from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -52,7 +53,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEBSERVER_HOST_PORT,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -502,7 +503,7 @@ def prepare_docker_build_from_input(
 
 
 def build_cache(
-    image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
+    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
 ) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
@@ -518,24 +519,23 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
+            stdout=output.file if output else None,
+            stderr=subprocess.STDOUT,
             check=False,
             text=True,
-            enabled_output_group=not parallel,
         )
         if build_command_result.returncode != 0:
             break
     return build_command_result
 
 
-def make_sure_builder_configured(parallel: bool, params: CommonBuildParams, dry_run: bool, verbose: bool):
+def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbose: bool):
     if params.builder != 'default':
         cmd = ['docker', 'buildx', 'inspect', params.builder]
-        buildx_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
-        )
+        buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
             next_cmd = ['docker', 'buildx', 'create', '--name', params.builder]
-            run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
+            run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
 def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
@@ -716,7 +716,6 @@ LABEL description="test warmup image"
         cwd=AIRFLOW_SOURCES_ROOT,
         text=True,
         check=False,
-        enabled_output_group=True,
     )
     if warm_up_command_result.returncode != 0:
         get_console().print(

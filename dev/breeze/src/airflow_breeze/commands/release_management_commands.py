@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import multiprocessing as mp
 import shlex
+import subprocess
 import sys
 import time
 from copy import deepcopy
@@ -34,6 +34,7 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     argument_packages,
@@ -56,14 +57,14 @@ from airflow_breeze.utils.common_options import (
     option_version_suffix_for_pypi,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.parallel import check_async_run_results
+from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command, run_compile_www_assets
 
@@ -82,7 +83,7 @@ def run_with_debug(
     dry_run: bool,
     debug: bool,
     enable_input: bool = False,
-    enabled_output_group: bool = False,
+    **kwargs,
 ) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
@@ -118,17 +119,17 @@ echo -e '\\e[34mRun this command to debug:
             verbose=verbose,
             dry_run=dry_run,
             env=env_variables,
-            enabled_output_group=enabled_output_group,
+            **kwargs,
         )
     else:
         base_command.extend(command)
         return run_command(
             base_command,
-            enabled_output_group=enabled_output_group,
             verbose=verbose,
             dry_run=dry_run,
             env=env_variables,
             check=False,
+            **kwargs,
         )
 
 
@@ -178,7 +179,6 @@ def prepare_airflow_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -275,7 +275,11 @@ def prepare_provider_packages(
 
 
 def run_generate_constraints(
-    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool, parallel: bool = False
+    shell_params: ShellParams,
+    dry_run: bool,
+    verbose: bool,
+    debug: bool,
+    output: Optional[Output],
 ) -> Tuple[int, str]:
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
@@ -286,11 +290,12 @@ def run_generate_constraints(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        enabled_output_group=not parallel,
+        stdout=output.file if output else None,
+        stderr=subprocess.STDOUT,
     )
     return (
         generate_constraints_result.returncode,
-        f"Generate constraints Python {shell_params.python}:{shell_params.airflow_constraints_mode}",
+        f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
     )
 
 
@@ -302,20 +307,26 @@ def run_generate_constraints_in_parallel(
     verbose: bool,
 ):
     """Run generate constraints in parallel"""
-    get_console().print(
-        f"\n[info]Generating constraints with parallelism = {parallelism} "
-        f"for the constraints: {python_version_list}[/]"
-    )
-    pool = mp.Pool(parallelism)
-    results = [
-        pool.apply_async(
-            run_generate_constraints,
-            args=(shell_param, dry_run, verbose, False, True),
-        )
-        for shell_param in shell_params_list
-    ]
-    check_async_run_results(results)
-    pool.close()
+    with ci_group(f"Constraints for {python_version_list}"):
+        all_params = [
+            f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}"
+            for shell_params in shell_params_list
+        ]
+        with run_with_pool(parallelism=parallelism, all_params=all_params) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    run_generate_constraints,
+                    kwds={
+                        "shell_params": shell_params,
+                        "dry_run": dry_run,
+                        "verbose": verbose,
+                        "debug": False,
+                        "output": outputs[index],
+                    },
+                )
+                for index, shell_params in enumerate(shell_params_list)
+            ]
+    check_async_run_results(results, outputs)
 
 
 @release_management.command(
@@ -405,10 +416,10 @@ def generate_constraints(
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
+            output=None,
             dry_run=dry_run,
             verbose=verbose,
             debug=debug,
-            parallel=False,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
@@ -470,7 +481,6 @@ def verify_provider_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
