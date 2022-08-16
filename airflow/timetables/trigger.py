@@ -86,15 +86,15 @@ class CronTriggerTimetable(CronMixin, Timetable):
             if last_automated_data_interval is None:
                 if restriction.earliest is None:
                     return None
-                next_start_time = self._align(restriction.earliest)
+                next_start_time = self._align_to_next(restriction.earliest)
             else:
                 next_start_time = self._get_next(last_automated_data_interval.end)
         else:
             current_time = DateTime.utcnow()
             if restriction.earliest is not None and current_time < restriction.earliest:
-                next_start_time = self._align(restriction.earliest)
+                next_start_time = self._align_to_next(restriction.earliest)
             else:
-                next_start_time = self._align(current_time)
+                next_start_time = self._align_to_next(current_time)
         if restriction.latest is not None and restriction.latest < next_start_time:
             return None
         return DagRunInfo.interval(next_start_time - self._interval, next_start_time)
