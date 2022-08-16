@@ -44,6 +44,7 @@ automatically the credentials from there.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
 
+.. _howto/connection:aws:configuring-the-connection:
 
 Configuring the Connection
 --------------------------
@@ -63,19 +64,21 @@ AWS Secret Access Key (optional)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
-    connection. The following parameters are all optional:
+    connection. All parameters are optional.
+
+    The following extra parameters used to create an initial
+    `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
     * ``aws_secret_access_key``: AWS secret access key used for the initial connection
     * ``aws_session_token``: AWS session token used for the initial connection if you use external credentials.
       You are responsible for renewing these.
     * ``region_name``: AWS Region for the connection.
-    * ``session_kwargs``: Additional **kwargs** passed to
-      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
-    * ``config_kwargs``: Additional **kwargs** used to construct a
-      `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
-      passed to `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
-      and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__.
+    * ``profile_name``: The name of a profile to use listed in
+      `configuration and credential file settings <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`__.
+
+    The following extra parameters used for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__:
+
     * ``role_arn``: If specified, then assume this role, obtaining a set of temporary security credentials using the ``assume_role_method``.
     * ``assume_role_method``: AWS STS client method, one of
       `assume_role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__,
@@ -83,7 +86,15 @@ Extra (optional)
       `assume_role_with_web_identity <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html>`__
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
+
+    The following extra parameters used for
+    `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
+    and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__:
+
+    * ``config_kwargs``: Additional **kwargs** used to construct a
+      `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
     * ``endpoint_url``: Endpoint URL for the connection.
+    * ``verify``: Whether or not to verify SSL certificates.
 
 .. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
 
@@ -99,6 +110,8 @@ Extra (optional)
     * ``profile``: If you are getting your credentials from the ``s3_config_file``
       you can specify the profile with this parameter.
     * ``host``: Used as connection's URL. Use ``endpoint_url`` instead.
+    * ``session_kwargs``: Additional **kwargs** passed to
+      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
@@ -159,9 +172,7 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
 .. code-block:: json
 
     {
-      "session_kwargs": {
-        "profile_name": "my_profile"
-      }
+      "profile_name": "my_profile"
     }
 
 
@@ -285,7 +296,7 @@ Set in AWS Config File
 **~/.aws/config**:
   .. code-block:: ini
 
-    [awesome_aws_profile]
+    [profile awesome_aws_profile]
     retry_mode = standard
     max_attempts = 10
 
@@ -293,9 +304,7 @@ Set in AWS Config File
   .. code-block:: json
 
     {
-      "session_kwargs": {
-        "profile_name": "awesome_aws_profile"
-      }
+      "profile_name": "awesome_aws_profile"
     }
 
 Set by Environment Variables

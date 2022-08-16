@@ -116,11 +116,14 @@ class TestSsmSecrets(TestCase):
         {
             ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
             'SystemsManagerParameterStoreBackend',
-            ('secrets', 'backend_kwargs'): '{"use_ssl": false}',
+            (
+                'secrets',
+                'backend_kwargs',
+            ): '{"use_ssl": false, "role_arn": "arn:aws:iam::222222222222:role/awesome-role"}',
         }
     )
-    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager.boto3.Session.client")
-    def test_passing_client_kwargs(self, mock_ssm_client):
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
+    def test_passing_client_kwargs(self, mock_session_factory):
         backends = initialize_secrets_backends()
         systems_manager = [
             backend
@@ -128,8 +131,24 @@ class TestSsmSecrets(TestCase):
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
         ][0]
 
+        # Mock SessionFactory, session and client
+        mock_session_factory_instance = mock_session_factory.return_value
+        mock_ssm_client = mock.MagicMock(return_value="mock-ssm-client")
+        mock_session = mock.MagicMock()
+        mock_session.client = mock_ssm_client
+        mock_create_session = mock.MagicMock(return_value=mock_session)
+        mock_session_factory_instance.create_session = mock_create_session
+
         systems_manager.client
-        mock_ssm_client.assert_called_once_with('ssm', use_ssl=False)
+        assert mock_session_factory.call_count == 1
+        mock_session_factory_call_kwargs = mock_session_factory.call_args[1]
+        assert "conn" in mock_session_factory_call_kwargs
+        conn_wrapper = mock_session_factory_call_kwargs["conn"]
+
+        assert conn_wrapper.conn_id == "SystemsManagerParameterStoreBackend__connection"
+        assert conn_wrapper.role_arn == "arn:aws:iam::222222222222:role/awesome-role"
+
+        mock_ssm_client.assert_called_once_with(service_name='ssm', use_ssl=False)
 
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager."

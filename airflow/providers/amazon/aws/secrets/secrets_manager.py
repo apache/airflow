@@ -19,23 +19,15 @@
 
 import ast
 import json
-import re
 import warnings
 from typing import Any, Dict, List, Optional
 from urllib.parse import unquote, urlencode
 
-import boto3
-
 from airflow.compat.functools import cached_property
 from airflow.models.connection import Connection
-from airflow.providers.amazon.aws.utils import get_airflow_version
+from airflow.providers.amazon.aws.utils import get_airflow_version, trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-
-def _parse_version(val):
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split('.'))
 
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -58,8 +50,17 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     if you provide ``{"config_prefix": "airflow/config"}`` and request config
     key ``sql_alchemy_conn``.
 
-    You can also pass additional keyword arguments like ``aws_secret_access_key``, ``aws_access_key_id``
-    or ``region_name`` to this class and they would be passed on to Boto3 client.
+    You can also pass additional keyword arguments listed in AWS Connection Extra config
+    to this class, and they would be used for establishing a connection and passed on to Boto3 client.
+
+    .. code-block:: ini
+
+        [secrets]
+        backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+        backend_kwargs = {"connections_prefix": "airflow/connections", "region_name": "eu-west-1"}
+
+    .. seealso::
+        :ref:`howto/connection:aws:configuring-the-connection`
 
     There are two ways of storing secrets in Secret Manager for using them with this operator:
     storing them as a conn URI in one field, or taking advantage of native approach of Secrets Manager
@@ -90,7 +91,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
         If set to None (null value in the configuration), requests for configurations will not be sent to
         AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
-    :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
         If False (set it as false in backend_kwargs), you can store the secret using different
@@ -110,7 +110,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         connections_prefix: str = 'airflow/connections',
         variables_prefix: str = 'airflow/variables',
         config_prefix: str = 'airflow/config',
-        profile_name: Optional[str] = None,
         sep: str = "/",
         full_url_mode: bool = True,
         are_secret_values_urlencoded: Optional[bool] = None,
@@ -130,7 +129,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
-        self.profile_name = profile_name
         self.sep = sep
         self.full_url_mode = full_url_mode
 
@@ -154,14 +152,34 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 )
             self.are_secret_values_urlencoded = are_secret_values_urlencoded
         self.extra_conn_words = extra_conn_words or {}
+
+        self.profile_name = kwargs.get("profile_name", None)
+        # Remove client specific arguments from kwargs
+        self.api_version = kwargs.pop("api_version", None)
+        self.use_ssl = kwargs.pop("use_ssl", None)
+
         self.kwargs = kwargs
 
     @cached_property
     def client(self):
         """Create a Secrets Manager client"""
-        session = boto3.session.Session(profile_name=self.profile_name)
+        from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
+        from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
-        return session.client(service_name="secretsmanager", **self.kwargs)
+        conn_id = f"{self.__class__.__name__}__connection"
+        conn_config = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=self.kwargs)
+        client_kwargs = trim_none_values(
+            {
+                "region_name": conn_config.region_name,
+                "verify": conn_config.verify,
+                "endpoint_url": conn_config.endpoint_url,
+                "api_version": self.api_version,
+                "use_ssl": self.use_ssl,
+            }
+        )
+
+        session = SessionFactory(conn=conn_config).create_session()
+        return session.client(service_name="secretsmanager", **client_kwargs)
 
     @staticmethod
     def _format_uri_with_extra(secret, conn_string: str) -> str:
