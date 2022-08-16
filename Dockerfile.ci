@@ -534,7 +534,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
-. /opt/airflow/scripts/in_container/_in_container_script_init.sh
+. "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
 LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
 export LD_PRELOAD
