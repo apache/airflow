@@ -23,17 +23,10 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import type { UseQueryResult } from 'react-query';
 
+import * as utils from 'src/utils';
 import * as useTaskLogModule from 'src/api/useTaskLog';
 
 import Logs from './index';
-
-declare global {
-  namespace NodeJS {
-    interface Global {
-      defaultWrap: boolean;
-    }
-  }
-}
 
 const mockTaskLog = `
 5d28cfda3219
@@ -97,11 +90,16 @@ describe('Test Logs Component.', () => {
   });
 
   test.each([
-    { defaultWrap: true },
-    { defaultWrap: false },
-  ])('Test wrap checkbox initial value $defaultWrap', ({ defaultWrap }) => {
-    const originalDefaultWrapValue = global.defaultWrap;
-    global.defaultWrap = defaultWrap;
+    { defaultWrap: 'True', shouldBeChecked: true },
+    { defaultWrap: 'False', shouldBeChecked: false },
+    { defaultWrap: '', shouldBeChecked: false },
+  ])('Test wrap checkbox initial value $defaultWrap', ({ defaultWrap, shouldBeChecked }) => {
+    jest.spyOn(utils, 'getMetaValue').mockImplementation(
+      (meta) => {
+        if (meta === 'default_wrap') return defaultWrap;
+        return '';
+      },
+    );
 
     const tryNumber = 2;
     const { getByTestId } = render(
@@ -116,12 +114,11 @@ describe('Test Logs Component.', () => {
     );
 
     const wrapCheckbox = getByTestId('wrap-checkbox');
-    if (defaultWrap) {
+    if (shouldBeChecked) {
       expect(wrapCheckbox).toHaveAttribute('data-checked');
     } else {
       expect(wrapCheckbox.getAttribute('data-checked')).toBeNull();
     }
-    global.defaultWrap = originalDefaultWrapValue;
   });
 
   test('Test Logs Content Mapped Task', () => {

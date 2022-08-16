@@ -40,8 +40,6 @@ import MultiSelect from 'src/components/MultiSelect';
 import LogLink from './LogLink';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
 
-declare const defaultWrap: boolean;
-
 interface LogLevelOption {
   label: LogLevel;
   value: LogLevel;
@@ -102,7 +100,7 @@ const Logs = ({
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
-  const [wrap, setWrap] = useState(defaultWrap);
+  const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
