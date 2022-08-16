@@ -28,6 +28,8 @@ from airflow.providers.microsoft.azure.operators.asb import (
     AzureServiceBusSendMessageOperator,
     AzureServiceBusSubscriptionCreateOperator,
     AzureServiceBusSubscriptionDeleteOperator,
+    AzureServiceBusTopicCreateOperator,
+    AzureServiceBusTopicDeleteOperator,
     AzureServiceBusUpdateSubscriptionOperator,
 )
 
@@ -204,6 +206,51 @@ class TestAzureServiceBusReceiveMessageOperator:
         mock_get_conn.assert_has_calls(expected_calls)
 
 
+class TestABSTopicCreateOperator:
+    def test_init(self):
+        """
+        Test init by creating AzureServiceBusTopicCreateOperator with task id and topic name,
+        by asserting the value
+        """
+        asb_create_topic = AzureServiceBusTopicCreateOperator(
+            task_id="asb_create_topic",
+            topic_name=TOPIC_NAME,
+        )
+        assert asb_create_topic.task_id == "asb_create_topic"
+        assert asb_create_topic.topic_name == TOPIC_NAME
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    @mock.patch('azure.servicebus.management.TopicProperties')
+    def test_create_topic(self, mock_topic_properties, mock_get_conn):
+        """
+        Test AzureServiceBusTopicCreateOperator passed with the topic name
+        mocking the connection details, hook create_topic function
+        """
+        asb_create_topic = AzureServiceBusTopicCreateOperator(
+            task_id="asb_create_topic",
+            topic_name=TOPIC_NAME,
+        )
+        mock_topic_properties.name = TOPIC_NAME
+        mock_get_conn.return_value.__enter__.return_value.create_topic.return_value = mock_topic_properties
+
+        with mock.patch.object(asb_create_topic.log, "info") as mock_log_info:
+            asb_create_topic.execute(None)
+        mock_log_info.assert_called_with("Created Topic %s", TOPIC_NAME)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook')
+    def test_create_subscription_exception(self, mock_sb_admin_client):
+        """
+        Test `AzureServiceBusTopicCreateOperator` functionality to raise AirflowException,
+         by passing topic name as None and pytest raise Airflow Exception
+        """
+        asb_create_topic_exception = AzureServiceBusTopicCreateOperator(
+            task_id="create_service_bus_subscription",
+            topic_name=None,
+        )
+        with pytest.raises(TypeError):
+            asb_create_topic_exception.execute(None)
+
+
 class TestASBCreateSubscriptionOperator:
     def test_init(self):
         """
@@ -377,3 +424,60 @@ class TestASBSubscriptionReceiveMessageOperator:
             .__exit__
         ]
         mock_get_conn.assert_has_calls(expected_calls)
+
+
+class TestASBTopicDeleteOperator:
+    def test_init(self):
+        """
+        Test init by creating AzureServiceBusTopicDeleteOperator with task id, topic name and asserting
+        with values
+        """
+        asb_delete_topic_operator = AzureServiceBusTopicDeleteOperator(
+            task_id="asb_delete_topic",
+            topic_name=TOPIC_NAME,
+        )
+        assert asb_delete_topic_operator.task_id == "asb_delete_topic"
+        assert asb_delete_topic_operator.topic_name == TOPIC_NAME
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    @mock.patch('azure.servicebus.management.TopicProperties')
+    def test_delete_topic(self, mock_topic_properties, mock_get_conn):
+        """
+        Test AzureServiceBusTopicDeleteOperator by mocking topic name, connection
+        """
+        asb_delete_topic = AzureServiceBusTopicDeleteOperator(
+            task_id="asb_delete_topic",
+            topic_name=TOPIC_NAME,
+        )
+        mock_topic_properties.name = TOPIC_NAME
+        mock_get_conn.return_value.__enter__.return_value.get_topic.return_value = mock_topic_properties
+        with mock.patch.object(asb_delete_topic.log, "info") as mock_log_info:
+            asb_delete_topic.execute(None)
+        mock_log_info.assert_called_with("Topic %s deleted.", TOPIC_NAME)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    def test_delete_topic_not_exists(self, mock_get_conn):
+        """
+        Test AzureServiceBusTopicDeleteOperator by mocking topic name, connection
+        """
+        asb_delete_topic_not_exists = AzureServiceBusTopicDeleteOperator(
+            task_id="asb_delete_topic_not_exists",
+            topic_name=TOPIC_NAME,
+        )
+        mock_get_conn.return_value.__enter__.return_value.get_topic.return_value = None
+        with mock.patch.object(asb_delete_topic_not_exists.log, "info") as mock_log_info:
+            asb_delete_topic_not_exists.execute(None)
+        mock_log_info.assert_called_with("Topic %s does not exist.", TOPIC_NAME)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook')
+    def test_delete_topic_exception(self, mock_sb_admin_client):
+        """
+        Test `delete_topic` functionality to raise AirflowException,
+         by passing topic name as None and pytest raise Airflow Exception
+        """
+        asb_delete_topic_exception = AzureServiceBusTopicDeleteOperator(
+            task_id="delete_service_bus_subscription",
+            topic_name=None,
+        )
+        with pytest.raises(TypeError):
+            asb_delete_topic_exception.execute(None)
