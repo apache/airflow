@@ -77,7 +77,7 @@ class DataformHook(GoogleBaseHook):
                     repository_id=repository_id,
                     workflow_invocation_id=workflow_invocation_id,
                 )
-                state = workflow_invocation
+                state = workflow_invocation.state
             except Exception as err:
                 self.log.info(
                     "Retrying. Dataform API returned error when waiting for workflow invocation: %s", err
