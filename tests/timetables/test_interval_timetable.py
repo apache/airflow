@@ -37,6 +37,7 @@ PREV_DATA_INTERVAL_EXACT = DataInterval.exact(PREV_DATA_INTERVAL_END)
 
 CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
+OLD_INTERVAL = DataInterval(start=YESTERDAY, end=CURRENT_TIME)
 
 HOURLY_CRON_TIMETABLE = CronDataIntervalTimetable("@hourly", TIMEZONE)
 HOURLY_TIMEDELTA_TIMETABLE = DeltaDataIntervalTimetable(datetime.timedelta(hours=1))
@@ -61,6 +62,29 @@ def test_no_catchup_first_starts_at_current_time(
     )
     expected_start = YESTERDAY + DELTA_FROM_MIDNIGHT
     assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME + DELTA_FROM_MIDNIGHT)
+
+
+@pytest.mark.parametrize(
+    "earliest",
+    [pytest.param(None, id="none"), pytest.param(START_DATE, id="start_date")],
+)
+@pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+)
+@freezegun.freeze_time(CURRENT_TIME)
+def test_new_schedule_interval_next_info_starts_at_new_time(
+    earliest: Optional[pendulum.DateTime],
+    catchup: bool,
+) -> None:
+    """First run after DAG has new schedule interval."""
+    next_info = CRON_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=OLD_INTERVAL,
+        restriction=TimeRestriction(earliest=earliest, latest=None, catchup=catchup),
+    )
+    expected_start = YESTERDAY + datetime.timedelta(hours=16, minutes=30)
+    expected_end = CURRENT_TIME + datetime.timedelta(hours=16, minutes=30)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
 
 
 @pytest.mark.parametrize(
@@ -159,3 +183,72 @@ def test_validate_failure(timetable: Timetable, error_message: str) -> None:
 def test_cron_interval_timezone_from_string():
     timetable = CronDataIntervalTimetable("@hourly", "UTC")
     assert timetable.serialize()['timezone'] == 'UTC'
+
+
+@pytest.mark.parametrize(
+    "trigger_at, expected_interval",
+    [
+        # Arbitrary trigger time.
+        pytest.param(
+            pendulum.DateTime(2022, 8, 8, 1, tzinfo=TIMEZONE),
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            id="adhoc",
+        ),
+        # Trigger time falls exactly on interval boundary.
+        pytest.param(
+            pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            id="exact",
+        ),
+    ],
+)
+def test_cron_infer_manual_data_interval_alignment(
+    trigger_at: pendulum.DateTime,
+    expected_interval: DataInterval,
+) -> None:
+    timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
+    assert timetable.infer_manual_data_interval(run_after=trigger_at) == expected_interval
+
+
+@pytest.mark.parametrize(
+    "last_data_interval, expected_info",
+    [
+        pytest.param(
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            DagRunInfo.interval(
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 9, tzinfo=TIMEZONE),
+            ),
+            id="exact",
+        ),
+        pytest.param(
+            # Previous data interval does not align with the current timetable.
+            # This is possible if the user edits a DAG with existing runs.
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, 1, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, 1, tzinfo=TIMEZONE),
+            ),
+            DagRunInfo.interval(
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 9, tzinfo=TIMEZONE),
+            ),
+            id="changed",
+        ),
+    ],
+)
+def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expected_info: DagRunInfo):
+    timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=last_data_interval,
+        restriction=TimeRestriction(None, None, True),
+    )
+    assert info == expected_info

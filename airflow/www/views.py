@@ -100,6 +100,7 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
@@ -120,7 +121,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import Dataset, DatasetDagRef, DatasetDagRunQueue
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3647,11 +3648,11 @@ class Airflow(AirflowBaseView):
             data = [
                 dict(info)
                 for info in session.query(
-                    Dataset.id,
-                    Dataset.uri,
+                    DatasetModel.id,
+                    DatasetModel.uri,
                     DatasetDagRunQueue.created_at,
                 )
-                .join(DatasetDagRef, Dataset.id == DatasetDagRef.dataset_id)
+                .join(DatasetDagRef, DatasetModel.id == DatasetDagRef.dataset_id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
@@ -3661,7 +3662,7 @@ class Airflow(AirflowBaseView):
                     isouter=True,
                 )
                 .filter(DatasetDagRef.dag_id == dag_id)
-                .order_by(Dataset.id)
+                .order_by(DatasetModel.id)
                 .all()
             ]
         return (

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pytest
+from typing import Any, Dict, Optional
 
-from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context
-
-BUCKET_NAME = "AmazonSystemTestBucket"
+import attr
 
 
-@pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("amazon.aws")
-class ExampleDagsSystemTest(AmazonSystemTest):
-    @provide_aws_context()
-    def setUp(self):
-        super().setUp()
+@attr.define()
+class Dataset:
+    """A Dataset is used for marking data dependencies between workflows."""
 
-    @provide_aws_context()
-    def tearDown(self):
-        super().tearDown()
-
-    @provide_aws_context()
-    def test_run_example_dag_bucket_tagging(self):
-        self.run_dag('s3_bucket_tagging_dag', AWS_DAG_FOLDER)
+    uri: str
+    extra: Optional[Dict[str, Any]] = None
