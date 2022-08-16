@@ -163,3 +163,13 @@ Example DAGs
   :maxdepth: 1
 
   _api/airflow/example_dags/index
+
+Utils
+-----
+
+.. toctree::
+  :hidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/utils/dag_parsing_context/index
