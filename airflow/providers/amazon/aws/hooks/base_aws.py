@@ -377,7 +377,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def __init__(
         self,
         aws_conn_id: Optional[str] = default_conn_name,
-        verify: Union[bool, str, None] = None,
+        verify: Optional[Union[bool, str]] = None,
         region_name: Optional[str] = None,
         client_type: Optional[str] = None,
         resource_type: Optional[str] = None,
@@ -424,9 +424,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.conn_config.botocore_config
 
     @property
-    def verify(self) -> Optional[str]:
+    def verify(self) -> Optional[Union[bool, str]]:
         """Verify or not SSL certificates boto3 client/resource read-only property."""
-        return self.conn_config.region_name
+        return self.conn_config.verify
 
     def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""

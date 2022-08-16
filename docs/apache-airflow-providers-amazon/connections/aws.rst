@@ -66,7 +66,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. All parameters are optional.
 
-    The following extra parameters used for create initial
+    The following extra parameters used to create an initial
     `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
@@ -87,7 +87,7 @@ Extra (optional)
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
 
-    The following extra parameters used for passed to
+    The following extra parameters used for
     `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
     and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__:
 

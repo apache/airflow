@@ -142,26 +142,25 @@ class AwsConnectionWrapper(LoggingMixin):
         if not self.region_name:
             if "region_name" in extra:
                 self.region_name = extra["region_name"]
-                self.log.info("Retrieving region_name=%s from %s extra.", self.region_name, self.conn_repr)
+                self.log.debug("Retrieving region_name=%s from %s extra.", self.region_name, self.conn_repr)
             elif "region_name" in session_kwargs:
                 self.region_name = session_kwargs["region_name"]
-                self.log.info(
+                self.log.debug(
                     "Retrieving region_name=%s from %s extra['session_kwargs'].",
                     self.region_name,
                     self.conn_repr,
                 )
 
-        if not self.verify and "verify" in extra:
+        if self.verify is None and "verify" in extra:
             self.verify = extra["verify"]
             self.log.debug("Retrieving verify=%s from %s extra.", self.verify, self.conn_repr)
 
-        self.profile_name = extra.get("session_kwargs", {}).get("profile_name")
         if "profile_name" in extra:
             self.profile_name = extra["profile_name"]
-            self.log.info("Retrieving profile_name=%s from %s extra.", self.profile_name, self.conn_repr)
+            self.log.debug("Retrieving profile_name=%s from %s extra.", self.profile_name, self.conn_repr)
         elif "profile_name" in session_kwargs:
             self.profile_name = session_kwargs["profile_name"]
-            self.log.info(
+            self.log.debug(
                 "Retrieving profile_name=%s from %s extra['session_kwargs'].",
                 self.profile_name,
                 self.conn_repr,
@@ -181,7 +180,7 @@ class AwsConnectionWrapper(LoggingMixin):
         config_kwargs = extra.get("config_kwargs")
         if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-            self.log.info("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
             self.botocore_config = Config(**config_kwargs)
 
         if conn.host:
@@ -213,7 +212,7 @@ class AwsConnectionWrapper(LoggingMixin):
         conn_id: Optional[str] = None,
         login: Optional[str] = None,
         password: Optional[str] = None,
-        extra: Dict[str, Any] = None,
+        extra: Optional[Dict[str, Any]] = None,
     ):
         """
         Create config from connection metadata.
@@ -326,7 +325,7 @@ class AwsConnectionWrapper(LoggingMixin):
     ) -> Tuple[Optional[str], Optional[str], Dict[Any, str]]:
         """Get assume role configs from Connection extra."""
         if role_arn:
-            self.log.info("Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr)
+            self.log.debug("Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr)
         elif aws_account_id and aws_iam_role:
             warnings.warn(
                 "Constructing 'role_arn' from extra['aws_account_id'] and extra['aws_iam_role'] is deprecated"
@@ -336,7 +335,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 stacklevel=3,
             )
             role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
-            self.log.info(
+            self.log.debug(
                 "Constructions role_arn=%r from %s extra['aws_account_id'] and extra['aws_iam_role'].",
                 role_arn,
                 self.conn_repr,
@@ -353,7 +352,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 f' Currently {supported_methods} are supported.'
                 ' (Exclude this setting will default to "assume_role").'
             )
-        self.log.info("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)
+        self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)
 
         assume_role_kwargs = assume_role_kwargs or {}
         if "ExternalId" not in assume_role_kwargs and external_id:

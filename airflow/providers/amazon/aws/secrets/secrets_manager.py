@@ -51,7 +51,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     key ``sql_alchemy_conn``.
 
     You can also pass additional keyword arguments listed in AWS Connection Extra config
-    to this class, and they would be used for establish connection and passed on to Boto3 client.
+    to this class, and they would be used for establishing a connection and passed on to Boto3 client.
 
     .. code-block:: ini
 
@@ -91,7 +91,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
         If set to None (null value in the configuration), requests for configurations will not be sent to
         AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
-    :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
         If False (set it as false in backend_kwargs), you can store the secret using different

@@ -733,6 +733,20 @@ class TestAwsBaseHook:
         assert session == MOCK_BOTO3_SESSION
         assert endpoint == hook.conn_config.endpoint_url
 
+    @pytest.mark.parametrize("verify", [None, "path/to/cert/hook-bundle.pem", False])
+    @pytest.mark.parametrize("conn_verify", [None, "path/to/cert/conn-bundle.pem", False])
+    def test_resolve_verify(self, verify, conn_verify):
+        mock_conn = Connection(
+            conn_id="test_conn",
+            conn_type="aws",
+            extra={"verify": conn_verify} if conn_verify is not None else {},
+        )
+
+        with unittest.mock.patch.dict('os.environ', AIRFLOW_CONN_TEST_CONN=mock_conn.get_uri()):
+            hook = AwsBaseHook(aws_conn_id="test_conn", verify=verify)
+            expected = verify if verify is not None else conn_verify
+            assert hook.verify == expected
+
 
 class ThrowErrorUntilCount:
     """Holds counter state for invoking a method several times in a row."""
