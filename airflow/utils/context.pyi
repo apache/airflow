@@ -61,7 +61,7 @@ class Context(TypedDict):
     ds: str
     ds_nodash: str
     execution_date: DateTime
-    exception: Union[Exception, str, None]
+    exception: Union[KeyboardInterrupt, Exception, str, None]
     inlets: list
     logical_date: DateTime
     macros: Any

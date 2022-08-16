@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
 import inspect
 from typing import (
@@ -28,14 +27,12 @@ from typing import (
     FrozenSet,
     Iterable,
     List,
-    MutableMapping,
     Optional,
     Sequence,
     Set,
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 from airflow.compat.functools import cached_property
@@ -414,8 +411,8 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 template = jinja_env.from_string(value)
             dag = self.get_dag()
             if dag and dag.render_template_as_native_obj:
-                return render_template_as_native(template, cast(MutableMapping[str, Any], context))
-            return render_template_to_string(template, cast(MutableMapping[str, Any], context))
+                return render_template_as_native(template, context)
+            return render_template_to_string(template, context)
 
         if isinstance(value, (DagParam, XComArg)):
             return value.resolve(context)

@@ -17,7 +17,6 @@
 # under the License.
 
 """This module contains AWS Glue Catalog Hook"""
-import warnings
 from typing import Dict, List, Optional, Set
 
 from botocore.exceptions import ClientError
@@ -178,19 +177,3 @@ class GlueCatalogHook(AwsBaseHook):
         except ClientError as e:
             self.log.error("Client error: %s", e)
             raise AirflowException("AWS request failed, check logs for more info")
-
-
-class AwsGlueCatalogHook(GlueCatalogHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.glue_catalog.GlueCatalogHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.glue_catalog.GlueCatalogHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

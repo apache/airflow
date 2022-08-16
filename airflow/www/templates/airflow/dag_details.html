@@ -96,6 +96,16 @@
       <td>{{ dag.owner }}</td>
     </tr>
     <tr>
+      <th>Owner Links</th>
+      <td>
+        {% if dag.owner_links %}
+          {{ dag.owner_links }}
+        {% else %}
+          None
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
       <th>DAG Run Timeout</th>
       <td>{{ dag.dagrun_timeout }}</td>
     </tr>

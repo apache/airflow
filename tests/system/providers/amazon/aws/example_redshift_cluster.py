@@ -38,7 +38,7 @@ REDSHIFT_CLUSTER_IDENTIFIER = getenv("REDSHIFT_CLUSTER_IDENTIFIER", "redshift-cl
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     tags=['example'],
 ) as dag:

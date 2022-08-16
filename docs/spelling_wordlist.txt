@@ -99,6 +99,7 @@ DataTransferServiceClient
 Databricks
 Datadog
 Dataflow
+Dataform
 Dataframe
 Datalake
 Datanodes
@@ -729,6 +730,7 @@ delim
 dep
 deploymentUrl
 deps
+deregister
 desc
 deserialization
 deserialize
@@ -1052,6 +1054,7 @@ lshift
 lxml
 macOS
 macosx
+mailto
 makedirs
 makedsn
 mapred

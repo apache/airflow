@@ -52,7 +52,7 @@ QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example', "tasks"],

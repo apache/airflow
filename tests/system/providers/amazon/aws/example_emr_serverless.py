@@ -15,40 +15,55 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
-from os import getenv
 
-from airflow import DAG
+from datetime import datetime
+
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartJobOperator,
 )
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-EXECUTION_ROLE_ARN = getenv('EXECUTION_ROLE_ARN', 'execution_role_arn')
-EMR_EXAMPLE_BUCKET = getenv('EMR_EXAMPLE_BUCKET', 'emr_example_bucket')
-SPARK_JOB_DRIVER = {
-    "sparkSubmit": {
-        "entryPoint": "s3://us-east-1.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py",
-        "entryPointArguments": [f"s3://{EMR_EXAMPLE_BUCKET}/output"],
-        "sparkSubmitParameters": "--conf spark.executor.cores=1 --conf spark.executor.memory=4g\
-            --conf spark.driver.cores=1 --conf spark.driver.memory=4g --conf spark.executor.instances=1",
-    }
-}
+DAG_ID = 'example_emr_serverless'
 
-SPARK_CONFIGURATION_OVERRIDES = {
-    "monitoringConfiguration": {"s3MonitoringConfiguration": {"logUri": f"s3://{EMR_EXAMPLE_BUCKET}/logs"}}
-}
+# Externally fetched variables:
+ROLE_ARN_KEY = 'ROLE_ARN'
+
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 with DAG(
-    dag_id='example_emr_serverless',
-    schedule_interval=None,
+    dag_id=DAG_ID,
+    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
-) as emr_serverless_dag:
+) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
+    role_arn = test_context[ROLE_ARN_KEY]
+    bucket_name = f'{env_id}-emr-serverless-bucket'
+    entryPoint = "s3://us-east-1.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py"
+    create_s3_bucket = S3CreateBucketOperator(task_id='create_s3_bucket', bucket_name=bucket_name)
+
+    SPARK_JOB_DRIVER = {
+        "sparkSubmit": {
+            "entryPoint": entryPoint,
+            "entryPointArguments": [f"s3://{bucket_name}/output"],
+            "sparkSubmitParameters": "--conf spark.executor.cores=1 --conf spark.executor.memory=4g\
+                --conf spark.driver.cores=1 --conf spark.driver.memory=4g --conf spark.executor.instances=1",
+        }
+    }
+
+    SPARK_CONFIGURATION_OVERRIDES = {
+        "monitoringConfiguration": {"s3MonitoringConfiguration": {"logUri": f"s3://{bucket_name}/logs"}}
+    }
 
     # [START howto_operator_emr_serverless_create_application]
     emr_serverless_app = EmrServerlessCreateApplicationOperator(
@@ -70,7 +85,7 @@ with DAG(
     start_job = EmrServerlessStartJobOperator(
         task_id='start_emr_serverless_job',
         application_id=emr_serverless_app.output,
-        execution_role_arn=EXECUTION_ROLE_ARN,
+        execution_role_arn=role_arn,
         job_driver=SPARK_JOB_DRIVER,
         configuration_overrides=SPARK_CONFIGURATION_OVERRIDES,
     )
@@ -84,14 +99,39 @@ with DAG(
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
-        task_id='delete_application', application_id=emr_serverless_app.output, trigger_rule="all_done"
+        task_id='delete_application',
+        application_id=emr_serverless_app.output,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_emr_serverless_delete_application]
 
+    delete_s3_bucket = S3DeleteBucketOperator(
+        task_id='delete_s3_bucket',
+        bucket_name=bucket_name,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
     chain(
+        # TEST SETUP
+        test_context,
+        create_s3_bucket,
+        # TEST BODY
         emr_serverless_app,
         wait_for_app_creation,
         start_job,
         wait_for_job,
+        # TEST TEARDOWN
         delete_app,
+        delete_s3_bucket,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

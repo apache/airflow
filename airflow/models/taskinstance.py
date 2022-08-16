@@ -287,6 +287,7 @@ def clear_task_instances(
             if dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
                 dr.start_date = None
+    session.flush()
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
@@ -848,28 +849,35 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
 
-        qry = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.run_id == self.run_id,
-            TaskInstance.map_index == self.map_index,
+        if self in session:
+            session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
+
+        qry = (
+            # To avoid joining any relationships, by default select all
+            # columns, not the object. This also means we get (effectively) a
+            # namedtuple back, not a TI object
+            session.query(*TaskInstance.__table__.columns).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.run_id == self.run_id,
+                TaskInstance.map_index == self.map_index,
+            )
         )
 
         if lock_for_update:
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
-                    ti: Optional[TaskInstance] = qry.with_for_update().first()
+                    ti: Optional[TaskInstance] = qry.with_for_update().one_or_none()
         else:
-            ti = qry.first()
+            ti = qry.one_or_none()
         if ti:
             # Fields ordered per model definition
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.duration = ti.duration
             self.state = ti.state
-            # Get the raw value of try_number column, don't read through the
-            # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number
+            # Since we selected columns, not the object, this is the raw value
+            self.try_number = ti.try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.unixname = ti.unixname
@@ -1521,17 +1529,18 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
-        from airflow.models import Dataset
+        from airflow.datasets import Dataset
+        from airflow.models.dataset import DatasetModel
 
-        for obj in getattr(self.task, '_outlets', []):
+        for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             if isinstance(obj, Dataset):
-                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
+                dataset = session.query(DatasetModel).filter(DatasetModel.uri == obj.uri).one_or_none()
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
-                self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
+                self.log.debug("consuming dag ids %s", consuming_dag_ids)
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
@@ -1541,7 +1550,7 @@ class TaskInstance(Base, LoggingMixin):
                         source_map_index=self.map_index,
                     )
                 )
-                for dag_id in downstream_dag_ids:
+                for dag_id in consuming_dag_ids:
                     session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
@@ -1798,6 +1807,7 @@ class TaskInstance(Base, LoggingMixin):
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
+                self.map_index,
             )
         )
 
@@ -1835,7 +1845,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, BaseException],
+        error: Union[None, str, Exception, KeyboardInterrupt],
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,

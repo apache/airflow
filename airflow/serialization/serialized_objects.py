@@ -33,8 +33,8 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, SerializationError
-from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -589,7 +589,7 @@ class DependencyDetector:
     @staticmethod
     def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.schedule_on:
+        if dag and dag.dataset_triggers:
             return [
                 DagDependency(
                     source="dataset",
@@ -597,7 +597,7 @@ class DependencyDetector:
                     dependency_type="dataset",
                     dependency_id=x.uri,
                 )
-                for x in dag.schedule_on
+                for x in dag.dataset_triggers
             ]
         else:
             return []
@@ -642,8 +642,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
-
+        serialized_op = cls._serialize_node(op, include_deps=op.deps != MappedOperator.deps_for(BaseOperator))
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
         serialized_op[op._expand_input_attr] = {
@@ -1111,7 +1110,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k == "schedule_on":
+            elif k == "dataset_triggers":
                 v = cls._deserialize(v)
             # else use v as it is
 

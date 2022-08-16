@@ -26,7 +26,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
-RELEASE_NAME_REDIS = "TEST-REDIS"
+RELEASE_NAME_REDIS = "test-redis"
 
 REDIS_OBJECTS = {
     "NETWORK_POLICY": ("NetworkPolicy", f"{RELEASE_NAME_REDIS}-redis-policy"),
@@ -135,7 +135,7 @@ class RedisTest(unittest.TestCase):
             k8s_obj_by_key,
             expected_password_match="test-redis-password",
             expected_broker_url_match=re.escape(
-                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@TEST-REDIS-redis:6379/0"
+                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@test-redis-redis:6379/0"
             ),
         )
 

@@ -106,14 +106,14 @@ class WebserverDeploymentTest(unittest.TestCase):
         )
         container = jmespath.search("spec.template.spec.containers[0]", docs[0])
 
-        assert {"name": "Host", "value": "RELEASE-NAME.com"} in jmespath.search(
+        assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
             "livenessProbe.httpGet.httpHeaders", container
         )
-        assert {"name": "Host", "value": "RELEASE-NAME.com"} in jmespath.search(
+        assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
             "readinessProbe.httpGet.httpHeaders", container
         )
-        assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
-        assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
+        assert "/mypath/release-name/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
+        assert "/mypath/release-name/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
 
     def test_should_add_scheme_to_liveness_and_readiness_probes(self):
         docs = render_chart(
@@ -141,7 +141,7 @@ class WebserverDeploymentTest(unittest.TestCase):
 
         assert {
             "name": "webserver-config",
-            "configMap": {"name": "RELEASE-NAME-webserver-config"},
+            "configMap": {"name": "release-name-webserver-config"},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
         assert {
@@ -346,7 +346,7 @@ class WebserverDeploymentTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, None),
-            ({"enabled": True}, "RELEASE-NAME-logs"),
+            ({"enabled": True}, "release-name-logs"),
             ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
         ]
     )
@@ -519,7 +519,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     @parameterized.expand(
@@ -579,9 +579,9 @@ class WebserverDeploymentTest(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ({"persistence": {"enabled": True}}, "RELEASE-NAME-dags"),
+            ({"persistence": {"enabled": True}}, "release-name-dags"),
             ({"persistence": {"enabled": True, "existingClaim": "test-claim"}}, "test-claim"),
-            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "RELEASE-NAME-dags"),
+            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "release-name-dags"),
         ]
     )
     def test_dags_persistence_volume_no_sidecar(self, dags_values, expected_claim_name):
@@ -605,9 +605,9 @@ class WebserverServiceTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-service.yaml"],
         )
 
-        assert "RELEASE-NAME-webserver" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-webserver" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
-        assert {"tier": "airflow", "component": "webserver", "release": "RELEASE-NAME"} == jmespath.search(
+        assert {"tier": "airflow", "component": "webserver", "release": "release-name"} == jmespath.search(
             "spec.selector", docs[0]
         )
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
@@ -640,7 +640,7 @@ class WebserverServiceTest(unittest.TestCase):
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
                 [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
-                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 8080}],
+                [{"name": "release-name", "protocol": "UDP", "port": 8080}],
             ),
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
             (
@@ -678,9 +678,9 @@ class WebserverConfigmapTest(unittest.TestCase):
         )
 
         assert "ConfigMap" == docs[0]["kind"]
-        assert "RELEASE-NAME-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-webserver-config" == jmespath.search("metadata.name", docs[0])
         assert (
-            "CSRF_ENABLED = True  # RELEASE-NAME"
+            "CSRF_ENABLED = True  # release-name"
             == jmespath.search('data."webserver_config.py"', docs[0]).strip()
         )
 

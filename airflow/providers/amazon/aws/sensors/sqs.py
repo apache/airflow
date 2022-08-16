@@ -17,7 +17,6 @@
 # under the License.
 """Reads and then deletes the message from SQS queue"""
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Collection, List, Optional, Sequence
 
 from jsonpath_ng import parse
@@ -225,18 +224,3 @@ class SqsSensor(BaseSensorOperator):
                     filtered_messages.append(message)
                     break
         return filtered_messages
-
-
-class SQSSensor(SqsSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

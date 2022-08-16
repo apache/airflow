@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use newer kubernetes authentication method in internal vault client (#25351)``
+
+
 3.0.1
 .....
 

@@ -127,10 +127,10 @@ function in_container_fix_ownership() {
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
-            "/opt/airflow/logs"
-            "/opt/airflow/docs"
-            "/opt/airflow/dags"
-            "/opt/airflow/airflow/"
+            "${AIRFLOW_SOURCES}/logs"
+            "${AIRFLOW_SOURCES}/docs"
+            "${AIRFLOW_SOURCES}/dags"
+            "${AIRFLOW_SOURCES}/airflow/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then

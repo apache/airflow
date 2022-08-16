@@ -18,7 +18,7 @@ from typing import Dict, List, Union
 
 TESTING_COMMANDS: Dict[str, Union[str, List[str]]] = {
     "name": "Testing",
-    "commands": ["tests", "docker-compose-tests"],
+    "commands": ["tests", "helm-tests", "docker-compose-tests"],
 }
 TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
     "breeze testing tests": [
@@ -37,6 +37,16 @@ TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
         },
         {
             "name": "Advanced flag for tests command",
+            "options": [
+                "--limit-progress-output",
+                "--image-tag",
+                "--mount-sources",
+            ],
+        },
+    ],
+    "breeze testing helm-tests": [
+        {
+            "name": "Advanced flag for helms-tests command",
             "options": [
                 "--limit-progress-output",
                 "--image-tag",
