@@ -82,10 +82,29 @@ class PrStat:
         return comments
 
     @cached_property
+    def num_issue_comments(self) -> int:
+        comments = 0
+        for comment in self.pull_request.get_issue_comments():
+            self._users.add(comment.user.login)
+            comments += 1
+        return comments
+
+    @cached_property
     def num_reactions(self) -> int:
         reactions = 0
         for comment in self.pull_request.get_comments():
             for reaction in comment.get_reactions():
+                self._users.add(reaction.user.login)
+                reactions += 1
+        return reactions
+
+    @cached_property
+    def num_issue_reactions(self) -> int:
+        reactions = 0
+        for comment in self.pull_request.get_issue_comments():
+            for reaction in comment.get_reactions():
+                if reaction == 1:
+                    print(reaction)
                 self._users.add(reaction.user.login)
                 reactions += 1
         return reactions
@@ -100,8 +119,8 @@ class PrStat:
 
     @property
     def interaction_score(self) -> float:
-        interactions = self.num_comments * PrStat.COMMENT_INTERACTION_VALUE
-        interactions += self.num_reactions * PrStat.REACTION_INTERACTION_VALUE
+        interactions = (self.num_comments + self.num_issue_comments) * PrStat.COMMENT_INTERACTION_VALUE
+        interactions += (self.num_reactions + self.num_issue_reactions) * PrStat.REACTION_INTERACTION_VALUE
         interactions += self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
         return interactions
 
@@ -149,6 +168,9 @@ class PrStat:
         for comment in self.pull_request.get_review_comments():
             if comment.body is not None:
                 length += len(comment.body)
+        for comment in self.pull_request.get_issue_comments():
+            if comment.body is not None:
+                length += len(comment.body)
         return length
 
     @property
@@ -164,7 +186,7 @@ class PrStat:
             score *= 0.8
         if self.body_length < 20:
             score *= 0.4
-        return score
+        return round(score, 3)
 
     @property
     def score(self):
@@ -185,13 +207,13 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
-        return (
+        return round(
             1.0
             * self.interaction_score
             * self.label_score
             * self.length_score
             * self.change_score
-            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0)
+            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0), 3
         )
 
     def __str__(self) -> str:
@@ -212,7 +234,10 @@ class PrStat:
             f'-- Interaction score: [green]{self.interaction_score}[/] '
             f'(users interacting: {self.num_interacting_users}, '
             f'reviews: {self.num_reviews}, '
-            f'comments: {self.num_comments})\n'
+            f'comments: {self.num_comments}, '
+            f'reactions: {self.num_reactions}, '
+            f'issue comments: {self.num_issue_comments}, '
+            f'issue reactions: {self.num_issue_reactions})\n'
             f'-- Change score: [green]{self.change_score}[/] '
             f'(changed files: {self.num_changed_files}, '
             f'additions: {self.num_additions}, '
