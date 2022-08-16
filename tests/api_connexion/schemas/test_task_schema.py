@@ -40,7 +40,7 @@ class TestTaskSchema:
             "execution_timeout": None,
             "extra_links": [],
             "owner": "airflow",
-            "operator_name": "Empty",
+            "operator_name": "EmptyOperator",
             "params": {},
             "pool": "default_pool",
             "pool_slots": 1.0,
@@ -79,7 +79,7 @@ class TestTaskCollectionSchema:
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
-                    "operator_name": "Empty",
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     'params': {
                         'foo': {
