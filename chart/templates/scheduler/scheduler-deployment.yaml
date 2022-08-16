@@ -172,9 +172,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.scheduler.env }}
-{{ tpl (toYaml .Values.scheduler.env) $ | indent 12 }}
-{{- end }}
+          {{- include "scheduler_extra_envs" . | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.livenessProbe.timeoutSeconds }}

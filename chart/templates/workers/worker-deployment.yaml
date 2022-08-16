@@ -217,9 +217,7 @@ spec:
               value: "0"
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.workers.env }}
-{{ tpl (toYaml .Values.workers.env) $ | indent 12 }}
-{{- end }}
+          {{- include "workers_extra_envs" . | indent 10 }}
           {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}
