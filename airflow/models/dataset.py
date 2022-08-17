@@ -20,7 +20,17 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Table,
+    text,
+)
 from sqlalchemy.orm import relationship
 
 from airflow.datasets import Dataset
@@ -99,7 +109,14 @@ class DatasetDagRef(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship('DatasetModel')
+    dataset = relationship('DatasetModel', back_populates="consuming_dags")
+    queue_records = relationship(
+        "DatasetDagRunQueue",
+        primaryjoin="""and_(
+            DatasetDagRef.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+            DatasetDagRef.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+        )""",
+    )
 
     __tablename__ = "dataset_dag_ref"
     __table_args__ = (
@@ -210,6 +227,16 @@ class DatasetDagRunQueue(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
+association_table = Table(
+    "dagrun_dataset_event",
+    Base.metadata,
+    Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dagrun_dataset_events_dag_run_id", "dag_run_id"),
+    Index("idx_dagrun_dataset_events_event_id", "event_id"),
+)
+
+
 class DatasetEvent(Base):
     """
     A table to store datasets events.
@@ -239,6 +266,12 @@ class DatasetEvent(Base):
     __table_args__ = (
         Index('idx_dataset_id_timestamp', dataset_id, timestamp),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
+    )
+
+    created_dagruns = relationship(
+        "DagRun",
+        secondary=association_table,
+        backref="dataset_events",
     )
 
     source_task_instance = relationship(

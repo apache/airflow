@@ -30,8 +30,15 @@ Here is a sample configuration:
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": false}
 
-To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
-environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``, ``AWS_DEFAULT_REGION``.
+To authenticate you can either supply arguments listed in
+:ref:`Amazon Webservices Connection Extra config <howto/connection:aws:configuring-the-connection>` or set
+`environment variables <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables>`__.
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "role_arn": "arn:aws:iam::123456789098:role/role-name"}
 
 
 Storing and Retrieving Connections
