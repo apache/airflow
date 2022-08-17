@@ -38,7 +38,7 @@ datasets that never get updated.
 """
 import pendulum
 
-from airflow.models import DAG, Dataset
+from airflow import DAG, Dataset
 from airflow.operators.bash import BashOperator
 
 # [START dataset_def]

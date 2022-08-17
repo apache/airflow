@@ -1529,17 +1529,18 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
 
     def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
-        from airflow.models import Dataset
+        from airflow.datasets import Dataset
+        from airflow.models.dataset import DatasetModel
 
-        for obj in getattr(self.task, '_outlets', []):
+        for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             if isinstance(obj, Dataset):
-                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
+                dataset = session.query(DatasetModel).filter(DatasetModel.uri == obj.uri).one_or_none()
                 if not dataset:
                     self.log.warning("Dataset %s not found", obj)
                     continue
-                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
-                self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
+                self.log.debug("consuming dag ids %s", consuming_dag_ids)
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
@@ -1549,7 +1550,7 @@ class TaskInstance(Base, LoggingMixin):
                         source_map_index=self.map_index,
                     )
                 )
-                for dag_id in downstream_dag_ids:
+                for dag_id in consuming_dag_ids:
                     session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
@@ -1806,6 +1807,7 @@ class TaskInstance(Base, LoggingMixin):
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
+                self.map_index,
             )
         )
 
@@ -1843,7 +1845,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, BaseException],
+        error: Union[None, str, Exception, KeyboardInterrupt],
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,

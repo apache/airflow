@@ -491,13 +491,13 @@ export interface paths {
   "/datasets": {
     get: operations["get_datasets"];
   };
-  "/datasets/{id}": {
-    /** Get a dataset by id. */
+  "/datasets/{uri}": {
+    /** Get a dataset by uri. */
     get: operations["get_dataset"];
     parameters: {
       path: {
-        /** The Dataset ID */
-        id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
   };
@@ -1477,8 +1477,8 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      downstream_dag_references?: components["schemas"]["DatasetDagRef"][];
-      upstream_task_references?: components["schemas"]["DatasetTaskRef"][];
+      consuming_dags?: components["schemas"]["DatasetDagRef"][];
+      producing_tasks?: components["schemas"]["DatasetTaskRef"][];
     };
     /**
      * @description A datasets reference to an upstream task.
@@ -2027,8 +2027,8 @@ export interface components {
     EventLogID: number;
     /** @description The import error ID. */
     ImportErrorID: number;
-    /** @description The Dataset ID */
-    DatasetID: number;
+    /** @description The encoded Dataset URI */
+    DatasetURI: string;
     /** @description The pool name. */
     PoolName: string;
     /** @description The variable Key. */
@@ -3619,12 +3619,12 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  /** Get a dataset by id. */
+  /** Get a dataset by uri. */
   get_dataset: {
     parameters: {
       path: {
-        /** The Dataset ID */
-        id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
     responses: {
