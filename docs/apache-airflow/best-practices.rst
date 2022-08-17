@@ -135,6 +135,7 @@ Bad example:
       catchup=False,
       tags=["example"],
   ) as dag:
+
       @task()
       def print_array():
           """Print Numpy array."""
@@ -160,6 +161,7 @@ Good example:
       catchup=False,
       tags=["example"],
   ) as dag:
+
       @task()
       def print_array():
           """Print Numpy array."""
