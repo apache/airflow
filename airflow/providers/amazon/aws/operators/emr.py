@@ -118,6 +118,112 @@ class EmrAddStepsOperator(BaseOperator):
             return response['StepIds']
 
 
+class EmrEksCreateClusterOperator(BaseOperator):
+    """
+    An operator that creates EMR on EKS virtual clusters.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrEksCreateClusterOperator`
+
+    :param name: The name of the job run.
+    :param virtual_cluster_id: The EMR on EKS virtual cluster ID
+    :param execution_role_arn: The IAM role ARN associated with the job run.
+    :param release_label: The Amazon EMR release version to use for the job run.
+    :param job_driver: Job configuration details, e.g. the Spark job parameters.
+    :param configuration_overrides: The configuration overrides for the job run,
+        specifically either application configuration or monitoring configuration.
+    :param client_request_token: The client idempotency token of the job run request.
+        Use this if you want to specify a unique ID to prevent two jobs from getting started.
+        If no token is provided, a UUIDv4 token will be generated for you.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param wait_for_completion: Whether or not to wait in the operator for the job to complete.
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
+    :param max_tries: Maximum number of times to wait for the job run to finish.
+        Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
+    :param tags: The tags assigned to job runs.
+        Defaults to None
+    """
+
+    # template_fields: Sequence[str] = (
+    #     "name",
+    #     "virtual_cluster_id",
+    #     "execution_role_arn",
+    #     "release_label",
+    #     "job_driver",
+    # )
+    # ui_color = "#f9c915"
+
+    def __init__(
+        self,
+        *,
+        virtual_cluster_name: str,
+        eks_cluster_name: str,
+        eks_namespace: str,
+        # name: str,
+        virtual_cluster_id: str = '',
+        # execution_role_arn: str,
+        # release_label: str,
+        # job_driver: dict,
+        # configuration_overrides: Optional[dict] = None,
+        # client_request_token: Optional[str] = None,
+        aws_conn_id: str = "aws_default",
+        # wait_for_completion: bool = True,
+        # poll_interval: int = 30,
+        # max_tries: Optional[int] = None,
+        # tags: Optional[dict] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.virtual_cluster_name = virtual_cluster_name
+        self.eks_cluster_name = eks_cluster_name
+        self.eks_namespace = eks_namespace
+        # self.name = name
+        self.virtual_cluster_id = virtual_cluster_id
+        # self.execution_role_arn = execution_role_arn
+        # self.release_label = release_label
+        # self.job_driver = job_driver
+        # self.configuration_overrides = configuration_overrides or {}
+        self.aws_conn_id = aws_conn_id
+        # self.client_request_token = client_request_token or str(uuid4())
+        # self.wait_for_completion = wait_for_completion
+        # self.poll_interval = poll_interval
+        # self.max_tries = max_tries
+        # self.tags = tags
+        # self.job_id: Optional[str] = None
+
+    @cached_property
+    def hook(self) -> EmrContainerHook:
+        """Create and return an EmrContainerHook."""
+        return EmrContainerHook(self.aws_conn_id)
+
+    def execute(self, context: 'Context') -> Optional[str]:
+        """Create EMR EKS Cluster"""
+        self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
+            self.virtual_cluster_name,
+            self.eks_cluster_name,
+            self.eks_namespace,
+        )
+        # if self.wait_for_completion:
+        #     query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
+        #
+        #     if query_status in EmrContainerHook.FAILURE_STATES:
+        #         error_message = self.hook.get_job_failure_reason(self.job_id)
+        #         raise AirflowException(
+        #             f"EMR Containers job failed. Final state is {query_status}. "
+        #             f"query_execution_id is {self.job_id}. Error: {error_message}"
+        #         )
+        #     elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
+        #         raise AirflowException(
+        #             f"Final state of EMR Containers job is {query_status}. "
+        #             f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
+        #         )
+
+        print("Hi Phani, the cluster created is...", self.virtual_cluster_id)
+
+        return self.virtual_cluster_id
+
+
 class EmrContainerOperator(BaseOperator):
     """
     An operator that submits jobs to EMR on EKS virtual clusters.
