@@ -43,8 +43,8 @@ const gridUrl = getMetaValue('grid_url');
 const Details = ({
   dataset: {
     uri,
-    upstreamTaskReferences,
-    downstreamDagReferences,
+    producingTasks,
+    consumingDags,
   },
 }: { dataset: API.Dataset }) => (
   <Box>
@@ -54,13 +54,13 @@ const Details = ({
       {uri}
       <ClipboardButton value={uri} iconOnly ml={2} />
     </Heading>
-    {upstreamTaskReferences && !!upstreamTaskReferences.length && (
+    {producingTasks && !!producingTasks.length && (
     <Box mb={2}>
       <Flex alignItems="center">
         <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
         <InfoTooltip label="Tasks that will update this dataset." size={14} />
       </Flex>
-      {upstreamTaskReferences.map(({ dagId, taskId }) => (
+      {producingTasks.map(({ dagId, taskId }) => (
         <Link
           key={`${dagId}.${taskId}`}
           color="blue.600"
@@ -72,13 +72,13 @@ const Details = ({
       ))}
     </Box>
     )}
-    {downstreamDagReferences && !!downstreamDagReferences.length && (
+    {consumingDags && !!consumingDags.length && (
     <Box>
       <Flex alignItems="center">
         <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
         <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
       </Flex>
-      {downstreamDagReferences.map(({ dagId }) => (
+      {consumingDags.map(({ dagId }) => (
         <Link
           key={dagId}
           color="blue.600"

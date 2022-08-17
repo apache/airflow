@@ -31,6 +31,17 @@ Here is a sample configuration:
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
     backend_kwargs = {"connections_prefix": "/airflow/connections", "variables_prefix": "/airflow/variables", "profile_name": "default"}
 
+To authenticate you can either supply arguments listed in
+:ref:`Amazon Webservices Connection Extra config <howto/connection:aws:configuring-the-connection>` or set
+`environment variables <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables>`__.
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "role_arn": "arn:aws:iam::123456789098:role/role-name"}
+
+
 Optional lookup
 """""""""""""""
 

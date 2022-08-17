@@ -30,9 +30,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 """Configuration of Airflow Docs"""
-import glob
 import json
 import os
+import pathlib
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -47,16 +47,16 @@ sys.path.append(str(Path(__file__).parent / 'exts'))
 
 from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
 
-CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-INVENTORY_CACHE_DIR = os.path.join(CONF_DIR, '_inventory_cache')
-ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
+CONF_DIR = pathlib.Path(__file__).parent.absolute()
+INVENTORY_CACHE_DIR = CONF_DIR / '_inventory_cache'
+ROOT_DIR = CONF_DIR.parent
 FOR_PRODUCTION = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
-PACKAGE_DIR: Optional[str]
+PACKAGE_DIR: pathlib.Path
 if PACKAGE_NAME == 'apache-airflow':
-    PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
+    PACKAGE_DIR = ROOT_DIR / 'airflow'
     PACKAGE_VERSION = airflow.__version__
     SYSTEM_TESTS_DIR = None
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
@@ -71,34 +71,30 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         )
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
-    PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
+    PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER['package-dir'])
     PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
     SYSTEM_TESTS_DIR = CURRENT_PROVIDER['system-tests-dir']
 elif PACKAGE_NAME == 'apache-airflow-providers':
     from provider_yaml_utils import load_package_data
 
-    PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow', 'providers')
+    PACKAGE_DIR = ROOT_DIR / 'airflow' / 'providers'
     PACKAGE_VERSION = 'devel'
     ALL_PROVIDER_YAMLS = load_package_data()
     SYSTEM_TESTS_DIR = None
 elif PACKAGE_NAME == 'helm-chart':
-    PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
-    CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
+    PACKAGE_DIR = ROOT_DIR / 'chart'
+    chart_yaml_file = PACKAGE_DIR / 'Chart.yaml'
 
-    with open(CHART_YAML_FILE) as chart_file:
+    with chart_yaml_file.open() as chart_file:
         chart_yaml_contents = yaml.safe_load(chart_file)
 
     PACKAGE_VERSION = chart_yaml_contents['version']
     SYSTEM_TESTS_DIR = None
 else:
-    PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
     SYSTEM_TESTS_DIR = None
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
-if PACKAGE_DIR:
-    os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
-os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
@@ -198,17 +194,17 @@ else:
     exclude_patterns = []
 
 
-def _get_rst_filepath_from_path(filepath: str):
-    if os.path.isdir(filepath):
+def _get_rst_filepath_from_path(filepath: pathlib.Path):
+    if filepath.is_dir():
         result = filepath
-    elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
-        result = filepath.rpartition("/")[0]
     else:
-        result = filepath.rpartition(".")[0]
-    result += "/index.rst"
+        if filepath.name == '__init__.py':
+            result = filepath.parent
+        else:
+            result = filepath.with_name(filepath.stem)
+        result /= "index.rst"
 
-    result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
-    return result
+    return f"_api/{result.relative_to(ROOT_DIR)}"
 
 
 if PACKAGE_NAME == 'apache-airflow':
@@ -216,26 +212,34 @@ if PACKAGE_NAME == 'apache-airflow':
     # do not exclude these top-level modules from the doc build:
     _allowed_top_level = ("exceptions.py",)
 
-    for path in glob.glob(f"{ROOT_DIR}/airflow/*"):
-        name = os.path.basename(path)
-        if os.path.isfile(path) and not path.endswith(_allowed_top_level):
-            exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
-        browsable_packages = [
-            "hooks",
-            "example_dags",
-            "executors",
-            "models",
-            "operators",
-            "providers",
-            "secrets",
-            "sensors",
-            "timetables",
-        ]
-        if os.path.isdir(path) and name not in browsable_packages:
-            exclude_patterns.append(f"_api/airflow/{name}")
-else:
+    browsable_packages = {
+        "hooks",
+        "example_dags",
+        "executors",
+        "models",
+        "operators",
+        "providers",
+        "secrets",
+        "sensors",
+        "timetables",
+        "utils",
+    }
+    browseable_utils = {"dag_parsing_context.py"}
+
+    root = ROOT_DIR / "airflow"
+    for path in root.iterdir():
+        if path.is_file() and path.name not in _allowed_top_level:
+            exclude_patterns.append(_get_rst_filepath_from_path(path))
+        if path.is_dir() and path.name not in browsable_packages:
+            exclude_patterns.append(f"_api/airflow/{path.name}")
+
+    # Don't include all of utils, just the specific ones we include in python-api-ref
+    for path in (root / "utils").iterdir():
+        if path.name not in browseable_utils:
+            exclude_patterns.append(_get_rst_filepath_from_path(path))
+elif PACKAGE_NAME != 'docker-stack':
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in glob.glob(f"{PACKAGE_DIR}/**/example_dags/**/*.py")
+        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -415,12 +419,11 @@ if PACKAGE_NAME == 'apache-airflow':
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     def _load_config():
-        templates_dir = os.path.join(PACKAGE_DIR, 'config_templates')
-        file_path = os.path.join(templates_dir, "config.yml")
-        if not os.path.exists(file_path):
+        file_path = PACKAGE_DIR / 'config_templates' / 'config.yml'
+        if not file_path.exists():
             return {}
 
-        with open(file_path) as f:
+        with file_path.open() as f:
             return yaml.safe_load(f)
 
     config = _load_config()
@@ -491,8 +494,8 @@ elif PACKAGE_NAME == 'helm-chart':
                 out += _get_params(schema["properties"], prefixed_name, section_name)
         return out
 
-    schema_file = os.path.join(PACKAGE_DIR, "values.schema.json")  # type: ignore
-    with open(schema_file) as config_file:
+    schema_file = PACKAGE_DIR / "values.schema.json"
+    with schema_file.open() as config_file:
         chart_schema = json.load(config_file)
 
     params = _get_params(chart_schema["properties"])
@@ -670,9 +673,10 @@ viewcode_follow_imported_members = True
 
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
-autoapi_dirs = [
-    PACKAGE_DIR,
-]
+autoapi_dirs: List[os.PathLike] = []
+
+if PACKAGE_NAME != 'docker-stack':
+    autoapi_dirs.append(PACKAGE_DIR)
 
 if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     autoapi_dirs.append(SYSTEM_TESTS_DIR)
@@ -698,6 +702,7 @@ elif PACKAGE_NAME == 'docker-stack':
     autoapi_ignore.append('*/airflow/providers/*')
 else:
     autoapi_ignore.append('*/airflow/providers/cncf/kubernetes/backcompat/*')
+    autoapi_ignore.append('*/example_dags/*')
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True

@@ -424,7 +424,7 @@ let refreshInterval;
 function checkActiveRuns(json) {
   // filter latest dag runs and check if there are still running dags
   const activeRuns = Object.keys(json).filter((dagId) => {
-    const dagRuns = json[dagId].filter((s) => s.state === 'running').filter((r) => r.count > 0);
+    const dagRuns = json[dagId].filter(({ state }) => state === 'running' || state === 'queued').filter((r) => r.count > 0);
     return (dagRuns.length > 0);
   });
   if (activeRuns.length === 0) {

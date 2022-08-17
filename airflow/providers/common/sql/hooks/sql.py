@@ -244,7 +244,9 @@ class DbApiHook(BaseForDbApiHook):
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements = [s.rstrip(';') for s in splits if s.endswith(';')]
+        statements: List[str] = list(
+            filter(None, [s.rstrip(';').strip() if s.endswith(';') else s.strip() for s in splits])
+        )
         return statements
 
     def run(

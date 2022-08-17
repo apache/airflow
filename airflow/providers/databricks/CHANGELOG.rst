@@ -41,10 +41,12 @@ Bug Fixes
 * ``Databricks: fix test_connection implementation (#25114)``
 * ``Do not convert boolean values to string in deep_string_coerce function (#25394)``
 * ``Correctly handle output of the failed tasks (#25427)``
+* ``Databricks: Fix provider for Airflow 2.2.x (#25674)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``updated documentation for databricks operator (#24599)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
 
 3.1.0
 .....

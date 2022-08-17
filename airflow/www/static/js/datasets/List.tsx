@@ -72,13 +72,13 @@ const DatasetsList = ({ onSelect }: Props) => {
       },
       {
         Header: UpstreamHeader,
-        accessor: 'upstreamTaskReferences',
+        accessor: 'producingTasks',
         Cell: ({ cell: { value } }: any) => value.length,
         disableSortBy: true,
       },
       {
         Header: DownstreamHeader,
-        accessor: 'downstreamDagReferences',
+        accessor: 'consumingDags',
         Cell: ({ cell: { value } }: any) => value.length,
         disableSortBy: true,
       },
