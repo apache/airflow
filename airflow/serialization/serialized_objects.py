@@ -574,7 +574,7 @@ class DependencyDetector:
                     dependency_id=task.task_id,
                 )
             )
-        for obj in getattr(task, '_outlets', []):
+        for obj in task.outlets or []:
             if isinstance(obj, Dataset):
                 deps.append(
                     DagDependency(
@@ -773,6 +773,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
             if k == "_is_dummy":
                 k = "_is_empty"
+
+            if k in ("_outlets", "_inlets"):
+                # `_outlets` -> `outlets`
+                k = k[1:]
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
@@ -813,7 +817,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = _ExpandInputRef(v["type"], cls._deserialize(v["value"]))
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
-            elif k in ("_outlets", "_inlets"):
+            elif k in ("outlets", "inlets"):
                 v = cls._deserialize(v)
 
             # else use v as it is

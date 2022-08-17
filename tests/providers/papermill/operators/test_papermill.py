@@ -44,7 +44,6 @@ class TestPapermillOperator(unittest.TestCase):
             dag=None,
         )
 
-        op.pre_execute(context={})  # Make sure to have the inlets
         op.execute(context={})
 
         mock_papermill.execute_notebook.assert_called_once_with(

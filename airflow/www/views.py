@@ -363,7 +363,7 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
-                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 'operator': item.operator_name,
             }
 
