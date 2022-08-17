@@ -151,6 +151,20 @@ class WebserverDeploymentTest(unittest.TestCase):
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
+    def test_workers_host_aliases(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "webserver": {
+                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
+                },
+            },
+            show_only=["templates/webserver/webserver_config-deployment.yaml"],
+        )
+
+        assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
+        assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
