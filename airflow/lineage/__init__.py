@@ -158,7 +158,7 @@ def prepare_lineage(func: T) -> T:
             )
 
             # pick up unique direct upstream task_ids if AUTO is specified
-            if AUTO.upper() in self._inlets or AUTO.lower() in self._inlets:
+            if AUTO.upper() in self.inlets or AUTO.lower() in self.inlets:
                 task_ids = task_ids.union(task_ids.symmetric_difference(self.upstream_task_ids))
 
             _inlets = self.xcom_pull(context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS)
