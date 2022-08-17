@@ -69,13 +69,13 @@ class TestConnectionsFromSecrets(unittest.TestCase):
     )
     def test_backends_kwargs(self):
         backends = initialize_secrets_backends()
-        systems_manager = [
+        systems_manager = next(
             backend
             for backend in backends
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
-        ][0]
-
-        assert systems_manager.kwargs == {'use_ssl': False}
+        )
+        assert systems_manager.kwargs == {}
+        assert systems_manager.use_ssl is False
 
     @conf_vars(
         {
