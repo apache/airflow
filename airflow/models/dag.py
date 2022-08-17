@@ -2666,7 +2666,7 @@ class DAG(LoggingMixin):
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
                 input_datasets[DatasetModel.from_public(dataset)] = None
             for task in dag.tasks:
-                for obj in getattr(task, '_outlets', []):  # type: Dataset
+                for obj in task.outlets or []:
                     if isinstance(obj, Dataset):
                         outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
                         outlet_datasets[DatasetModel.from_public(obj)] = None
