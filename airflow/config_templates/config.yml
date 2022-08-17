@@ -672,7 +672,8 @@
       version_added: 2.3.4
       type: string
       example: ~
-      default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+      default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
+        {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     - name: log_formatter_class
       description: ~
       version_added: 2.3.4
