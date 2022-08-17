@@ -271,7 +271,7 @@ class DatasetEvent(Base):
     created_dagruns = relationship(
         "DagRun",
         secondary=association_table,
-        backref="dataset_events",
+        backref="consumed_dataset_events",
     )
 
     source_task_instance = relationship(

@@ -1130,7 +1130,7 @@ class SchedulerJob(BaseJob):
                     .all()
                 )
 
-                dag_run.dataset_events.extend(dataset_events)
+                dag_run.consumed_dataset_events.extend(dataset_events)
                 session.query(DatasetDagRunQueue).filter(
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
                 ).delete()
