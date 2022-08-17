@@ -20,14 +20,17 @@ from textwrap import dedent
 from typing import Callable, Optional, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
-from airflow.operators.python import PythonVirtualenvOperator
+from airflow.operators.python import ExternalPythonOperator
 from airflow.utils.decorators import remove_task_decorator
 
 
-class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOperator):
+class _PythonExternalDecoratedOperator(DecoratedOperator, ExternalPythonOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
+    :param python: Full path string (file-system specific) that points to a Python binary inside
+        a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+        (so usually start with "/" or "X:/" depending on the filesystem/os used).
     :param python_callable: A reference to an object that is callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
@@ -44,7 +47,7 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
-    custom_operator_name: str = '@task.virtualenv'
+    custom_operator_name: str = '@task.external_python'
 
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {
@@ -63,11 +66,12 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
         res = dedent(raw_source)
-        res = remove_task_decorator(res, "@task.virtualenv")
+        res = remove_task_decorator(res, "@task.external_python")
         return res
 
 
-def virtualenv_task(
+def external_python_task(
+    python: Optional[str] = None,
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
     **kwargs,
@@ -76,18 +80,22 @@ def virtualenv_task(
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
-    This function is only used only used during type checking or auto-completion.
+    This function is only used during type checking or auto-completion.
 
     :meta private:
 
+    :param python: Full path string (file-system specific) that points to a Python binary inside
+        a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+        (so usually start with "/" or "X:/" depending on the filesystem/os used).
     :param python_callable: Function to decorate
     :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys.
         Defaults to False.
     """
     return task_decorator_factory(
+        python=python,
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
-        decorated_operator_class=_PythonVirtualenvDecoratedOperator,
+        decorated_operator_class=_PythonExternalDecoratedOperator,
         **kwargs,
     )
