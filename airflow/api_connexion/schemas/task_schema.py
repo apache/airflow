@@ -33,6 +33,7 @@ class TaskSchema(Schema):
     """Task schema"""
 
     class_ref = fields.Method("_get_class_reference", dump_only=True)
+    operator_name = fields.Method("_get_operator_name", dump_only=True)
     task_id = fields.String(dump_only=True)
     owner = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
@@ -63,6 +64,9 @@ class TaskSchema(Schema):
     def _get_class_reference(self, obj):
         result = ClassReferenceSchema().dump(obj)
         return result.data if hasattr(result, "data") else result
+
+    def _get_operator_name(self, obj):
+        return obj.operator_name
 
     @staticmethod
     def get_params(obj):

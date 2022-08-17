@@ -100,6 +100,7 @@ class CustomOpLink(BaseOperatorLink):
 class CustomOperator(BaseOperator):
 
     template_fields = ['bash_command']
+    custom_operator_name = '@custom'
 
     @property
     def operator_extra_links(self):

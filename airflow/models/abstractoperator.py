@@ -132,6 +132,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
         raise NotImplementedError()
 
     @property
+    def operator_name(self) -> str:
+        raise NotImplementedError()
+
+    @property
     def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 

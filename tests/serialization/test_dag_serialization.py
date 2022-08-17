@@ -153,6 +153,7 @@ serialized_simple_dag_ground_truth = {
                 "template_fields_renderers": {'bash_command': 'bash', 'env': 'json'},
                 "bash_command": "echo {{ task.task_id }}",
                 "_task_type": "BashOperator",
+                "_operator_name": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
                 "executor_config": {
@@ -183,6 +184,7 @@ serialized_simple_dag_ground_truth = {
                 "template_fields": ['bash_command'],
                 "template_fields_renderers": {},
                 "_task_type": "CustomOperator",
+                "_operator_name": "@custom",
                 "_task_module": "tests.test_utils.mock_operators",
                 "pool": "default_pool",
             },
@@ -537,6 +539,7 @@ class TestStringifiedDAGs:
         fields_to_check = task.get_serialized_fields() - {
             # Checked separately
             '_task_type',
+            '_operator_name',
             'subdag',
             # Type is excluded, so don't check it
             '_log',
@@ -1850,6 +1853,7 @@ def test_operator_expand_serde():
         '_is_mapped': True,
         '_task_module': 'airflow.operators.bash',
         '_task_type': 'BashOperator',
+        '_operator_name': 'BashOperator',
         'downstream_task_ids': [],
         'expand_input': {
             "type": "dict-of-lists",
@@ -1881,6 +1885,7 @@ def test_operator_expand_serde():
 
     assert op.operator_class == {
         '_task_type': 'BashOperator',
+        '_operator_name': 'BashOperator',
         'downstream_task_ids': [],
         'task_id': 'a',
         'template_ext': ['.sh', '.bash'],
@@ -1907,6 +1912,7 @@ def test_operator_expand_xcomarg_serde():
         '_is_mapped': True,
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
+        '_operator_name': 'MockOperator',
         'downstream_task_ids': [],
         'expand_input': {
             "type": "dict-of-lists",
@@ -1956,6 +1962,7 @@ def test_operator_expand_kwargs_serde(strict):
         '_is_mapped': True,
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
+        '_operator_name': 'MockOperator',
         'downstream_task_ids': [],
         'expand_input': {
             "type": "list-of-dicts",
@@ -2041,6 +2048,7 @@ def test_taskflow_expand_serde():
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
+        print('**', type(x), type(x.partial), type(x.expand))
         x.partial(arg1=[1, 2, {"a": "b"}]).expand(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
 
     original = dag.get_task("x")
@@ -2051,6 +2059,7 @@ def test_taskflow_expand_serde():
         '_is_mapped': True,
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
+        '_operator_name': '@task',
         'downstream_task_ids': [],
         'partial_kwargs': {
             'op_args': [],
@@ -2136,6 +2145,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         '_is_mapped': True,
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
+        '_operator_name': '@task',
         'downstream_task_ids': [],
         'partial_kwargs': {
             'op_args': [],
@@ -2225,6 +2235,7 @@ def test_dummy_operator_serde(is_inherit):
         '_is_empty': is_inherit,
         '_task_module': 'tests.serialization.test_dag_serialization',
         '_task_type': 'MyDummyOperator',
+        '_operator_name': 'MyDummyOperator',
         '_outlets': [],
         '_inlets': [],
         'downstream_task_ids': [],

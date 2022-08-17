@@ -364,7 +364,7 @@ def dag_to_grid(dag, dag_runs, session):
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
                 'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
-                'operator': item.task_type,
+                'operator': item.operator_name,
             }
 
         # Task Group
@@ -3467,7 +3467,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = end_date
             task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
-            task_dict['operator'] = task.task_type
+            task_dict['operator'] = task.operator_name
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
             task_dict['execution_date'] = dttm.isoformat()

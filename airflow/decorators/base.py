@@ -391,6 +391,12 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
 
         # Mypy does not work well with a subclassed attrs class :(
         _MappedOperator = cast(Any, DecoratedMappedOperator)
+
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
         operator = _MappedOperator(
             operator_class=self.operator_class,
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
@@ -407,6 +413,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
             is_empty=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,

@@ -41,6 +41,8 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
+    custom_operator_name: str = '@task'
+
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {
             "python_callable": python_callable,

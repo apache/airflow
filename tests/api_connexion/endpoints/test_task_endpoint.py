@@ -106,6 +106,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -147,6 +148,7 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "is_mapped": True,
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             "params": {},
             "pool": "default_pool",
@@ -191,6 +193,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -257,6 +260,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     'params': {
                         'foo': {
@@ -293,6 +297,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -332,6 +337,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "is_mapped": True,
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -360,6 +366,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",

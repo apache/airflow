@@ -2611,6 +2611,7 @@ class TestTaskInstance:
 
         ti = create_task_instance()
         assert ti.task.task_type == 'EmptyOperator'
+        assert ti.task.operator_name == 'EmptyOperator'
 
         # Verify that ti.operator field renders correctly "without" Serialization
         assert ti.operator == "EmptyOperator"
@@ -2621,6 +2622,7 @@ class TestTaskInstance:
         # Verify that ti.operator field renders correctly "with" Serialization
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
+        assert ser_ti.task.operator_name == 'EmptyOperator'
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
