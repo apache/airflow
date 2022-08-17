@@ -1667,12 +1667,12 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /datasets/{id}:
+  /datasets/{uri}:
     parameters:
-      - $ref: '#/components/parameters/DatasetID'
+      - $ref: '#/components/parameters/DatasetURI'
     get:
       summary: Get a dataset
-      description: Get a dataset by id.
+      description: Get a dataset by uri.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
       operationId: get_dataset
       tags: [Dataset]
@@ -4313,13 +4313,14 @@ components:
       required: true
       description: The import error ID.
 
-    DatasetID:
+    DatasetURI:
       in: path
-      name: id
+      name: uri
       schema:
-        type: integer
+        type: string
+        format: path
       required: true
-      description: The Dataset ID
+      description: The encoded Dataset URI
 
     PoolName:
       in: path

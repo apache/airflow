@@ -29,7 +29,7 @@ interface DatasetEventsData {
 }
 
 interface Props {
-  datasetId?: string;
+  datasetId?: number;
   dagId?: string;
   taskId?: string;
   runId?: string;
@@ -52,7 +52,7 @@ export default function useDatasetEvents({
       if (limit) params.set('limit', limit.toString());
       if (offset) params.set('offset', offset.toString());
       if (order) params.set('order_by', order);
-      if (datasetId) params.set('dataset_id', datasetId);
+      if (datasetId) params.set('dataset_id', datasetId.toString());
       if (dagId) params.set('source_dag_id', dagId);
       if (runId) params.set('source_run_id', runId);
       if (taskId) params.set('source_task_id', taskId);

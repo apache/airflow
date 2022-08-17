@@ -33,7 +33,7 @@ export function openDatasetModal(dagId, summary = '', nextDatasets = [], error =
 
     const uriCell = document.createElement('td');
     const datasetLink = document.createElement('a');
-    datasetLink.href = `${datasetsUrl}?dataset_id=${d.id}`;
+    datasetLink.href = `${datasetsUrl}?dataset_uri=${encodeURIComponent(d.id)}`;
     datasetLink.innerText = d.uri;
     uriCell.append(datasetLink);
 
