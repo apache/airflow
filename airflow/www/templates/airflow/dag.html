@@ -122,7 +122,7 @@
         <span class="text-muted">ROOT:</span> {{ root }}
       {% endif %}
     </h3>
-    <h4 class="pull-right" style="user-select: none;-moz-user-select: auto;">
+    <h4 class="pull-right js-dataset-triggered" style="user-select: none;-moz-user-select: auto;">
       {% if state_token is defined and state_token %}
         {{ state_token }}
       {% endif %}
@@ -139,8 +139,11 @@
       {% endif %}
       {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}
         <span
+          id="next-dataset-tooltip"
           class="js-tooltip"
           title="Click to see dataset details."
+          data-html="true"
+          data-placement="bottom"
         >
           <p
             class="label label-default next-dataset-triggered"

@@ -295,11 +295,13 @@
                     info
                   </span>
             </td>
-            <td class="text-nowrap">
+            <td class="text-nowrap {{ 'js-dataset-triggered' if dag.dag_id in dataset_triggered_next_run_info }}">
               {% if dag.dag_id in dataset_triggered_next_run_info %}
                 <span
-                  class="js-tooltip"
+                  data-dag-id="{{ dag.dag_id }}"
+                  class="js-tooltip js-next-dataset-run-tooltip"
                   title="Click to see dataset details."
+                  data-html="true"
                 >
                   <div
                     class="label label-default next-dataset-triggered"

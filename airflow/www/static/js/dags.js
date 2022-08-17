@@ -23,7 +23,7 @@
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
-import openDatasetModal from './openDatasetModal';
+import { openDatasetModal, getDatasetTooltipInfo } from './datasetUtils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -39,6 +39,9 @@ const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
+
+const nextDatasets = {};
+let nextDatasetsError;
 
 // auto refresh interval in milliseconds
 // (x2 the interval in tree/graph view since this page can take longer to refresh )
@@ -542,5 +545,17 @@ $('#auto_refresh').change(() => {
 $('.next-dataset-triggered').on('click', (e) => {
   const dagId = $(e.target).data('dag-id');
   const summary = $(e.target).data('summary');
-  if (dagId) openDatasetModal(dagId, summary || '');
+  if (dagId) openDatasetModal(dagId, summary, nextDatasets[dagId], nextDatasetsError);
+});
+
+$('.js-dataset-triggered').each((i, cell) => {
+  $(cell).on('mouseover', () => {
+    const run = $(cell).children();
+    const dagId = $(run).data('dag-id');
+    const setNextDatasets = (datasets, error) => {
+      nextDatasets[dagId] = datasets;
+      nextDatasetsError = error;
+    };
+    getDatasetTooltipInfo(dagId, run, setNextDatasets);
+  });
 });
