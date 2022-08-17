@@ -319,7 +319,7 @@ This enters breeze container.
 
 .. code-block:: bash
 
-    pytest tests/chart -n auto
+    pytest tests/charts -n auto
 
 This runs all chart tests using all processors you have available.
 
