@@ -35,7 +35,7 @@ interface Props {
 }
 
 export default function useDatasets({ limit, offset, order }: Props) {
-  const query = useQuery<DatasetsData>(
+  const query = useQuery(
     ['datasets', limit, offset, order],
     () => {
       const datasetsUrl = getMetaValue('datasets_api') || '/api/v1/datasets';

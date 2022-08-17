@@ -128,28 +128,12 @@ HOOKS = [
         "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
     ),
     (
-        "airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook",
-        "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
-    ),
-    (
-        "airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook",
-        "airflow.contrib.hooks.aws_datasync_hook.AWSDataSyncHook",
-    ),
-    (
         "airflow.providers.amazon.aws.hooks.s3.S3Hook",
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
         "airflow.providers.amazon.aws.hooks.sqs.SqsHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
-    ),
-    (
-        "airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook",
-        "airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook",
-    ),
-    (
-        "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
-        "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
     (
         'airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook',
@@ -240,16 +224,8 @@ HOOKS = [
         'airflow.contrib.hooks.wasb_hook.WasbHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.glue_catalog.AwsGlueCatalogHook',
-        'airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook',
-    ),
-    (
         'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook',
         'airflow.contrib.hooks.aws_logs_hook.AwsLogsHook',
-    ),
-    (
-        'airflow.providers.amazon.aws.hooks.emr.EmrContainerHook',
-        'airflow.providers.amazon.aws.hooks.emr_containers.EMRContainerHook',
     ),
     (
         'airflow.providers.amazon.aws.hooks.emr.EmrHook',
@@ -410,10 +386,6 @@ HOOKS = [
     (
         'airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook',
         'airflow.contrib.hooks.aws_hook.AwsHook',
-    ),
-    (
-        'airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook',
-        'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
         'airflow.providers.sftp.hooks.sftp.SFTPHook',
@@ -968,32 +940,8 @@ OPERATORS = [
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
     (
-        "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
-        "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
-    ),
-    (
         "airflow.providers.amazon.aws.operators.batch.BatchOperator",
         "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.dms.DmsCreateTaskOperator",
-        "airflow.providers.amazon.aws.operators.dms_create_task.DmsCreateTaskOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.dms.DmsDeleteTaskOperator",
-        "airflow.providers.amazon.aws.operators.dms_delete_task.DmsDeleteTaskOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator",
-        "airflow.providers.amazon.aws.operators.dms_describe_tasks.DmsDescribeTasksOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator",
-        "airflow.providers.amazon.aws.operators.dms_start_task.DmsStartTaskOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator",
-        "airflow.providers.amazon.aws.operators.dms_stop_task.DmsStopTaskOperator",
     ),
     (
         "airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator",
@@ -1028,7 +976,7 @@ OPERATORS = [
         'airflow.contrib.operators.sqoop_operator.SqoopOperator',
     ),
     (
-        'airflow.operators.sql.SQLCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLCheckOperator',
         'airflow.operators.druid_check_operator.DruidCheckOperator',
     ),
     (
@@ -1058,110 +1006,6 @@ OPERATORS = [
     (
         'airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbDeleteBlobOperator',
         'airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
-        'airflow.contrib.operators.ecs_operator.ECSOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator',
-        'airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator',
-        'airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator',
-        'airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator',
-        'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrContainerOperator',
-        'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator',
-        'airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrClusterLink',
-        'airflow.providers.amazon.aws.operators.emr_modify_cluster.EmrClusterLink',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
-        'airflow.providers.amazon.aws.operators.emr_modify_cluster.EmrModifyClusterOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator',
-        'airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator',
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
-        "airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor",
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor",
-        "airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor",
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor",
-        "airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor",
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
-        "airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor",
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator',
-        'airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator',
-        'airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.s3.S3ListOperator',
-        'airflow.contrib.operators.s3_list_operator.S3ListOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator',
-        'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
-        "airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator",
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_base.SageMakerBaseOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointConfigOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_endpoint_config.SageMakerEndpointConfigOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_endpoint.SageMakerEndpointOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_model.SageMakerModelOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_training.SageMakerTrainingOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_transform.SageMakerTransformOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator',
-        'airflow.providers.amazon.aws.operators.sagemaker_tuning.SageMakerTuningOperator',
     ),
     (
         'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
@@ -1232,35 +1076,35 @@ OPERATORS = [
         'airflow.operators.papermill_operator.PapermillOperator',
     ),
     (
-        'airflow.operators.sql.SQLCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLCheckOperator',
         'airflow.operators.presto_check_operator.PrestoCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLIntervalCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator',
         'airflow.operators.presto_check_operator.PrestoIntervalCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLValueCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLValueCheckOperator',
         'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLCheckOperator',
         'airflow.operators.check_operator.CheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLIntervalCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator',
         'airflow.operators.check_operator.IntervalCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLValueCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLValueCheckOperator',
         'airflow.operators.check_operator.ValueCheckOperator',
     ),
     (
-        'airflow.operators.sql.SQLThresholdCheckOperator',
+        'airflow.providers.common.sql.operators.sql.SQLThresholdCheckOperator',
         'airflow.operators.check_operator.ThresholdCheckOperator',
     ),
     (
-        'airflow.operators.sql.BranchSQLOperator',
+        'airflow.providers.common.sql.operators.sql.BranchSQLOperator',
         'airflow.operators.sql_branch_operator.BranchSqlOperator',
     ),
     (
@@ -1443,54 +1287,6 @@ OPERATORS = [
         "airflow.operators.empty.EmptyOperator",
         "airflow.operators.dummy.DummyOperator",
     ),
-    (
-        "airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator",
-        "airflow.providers.amazon.aws.operators.ec2_start_instance.EC2StartInstanceOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.ec2.EC2StopInstanceOperator",
-        "airflow.providers.amazon.aws.operators.ec2_stop_instance.EC2StopInstanceOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator",
-        "airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3ListOperator",
-        "airflow.providers.amazon.aws.operators.s3_list.S3ListOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator",
-        "airflow.providers.amazon.aws.operators.s3_bucket.S3CreateBucketOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator",
-        "airflow.providers.amazon.aws.operators.s3_bucket.S3DeleteBucketOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator",
-        "airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3GetBucketTaggingOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator",
-        "airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3PutBucketTaggingOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator",
-        "airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3DeleteBucketTaggingOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator",
-        "airflow.providers.amazon.aws.operators.s3_copy_object.S3CopyObjectOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator",
-        "airflow.providers.amazon.aws.operators.s3_delete_objects.S3DeleteObjectsOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.s3.S3ListPrefixesOperator",
-        "airflow.providers.amazon.aws.operators.s3_list_prefixes.S3ListPrefixesOperator",
-    ),
 ]
 
 SECRETS = [
@@ -1575,14 +1371,6 @@ SENSORS = [
         "airflow.contrib.sensors.aws_athena_sensor.AthenaSensor",
     ),
     (
-        "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
-        "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskBaseSensor",
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.dms.DmsTaskCompletedSensor",
-        "airflow.providers.amazon.aws.sensors.dms_task.DmsTaskCompletedSensor",
-    ),
-    (
         "airflow.providers.amazon.aws.sensors.sqs.SqsSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
@@ -1631,10 +1419,6 @@ SENSORS = [
         'airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
-        'airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor',
-    ),
-    (
         'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
         'airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor',
     ),
@@ -1645,22 +1429,6 @@ SENSORS = [
     (
         'airflow.providers.amazon.aws.sensors.emr.EmrStepSensor',
         'airflow.contrib.sensors.emr_step_sensor.EmrStepSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
-        'airflow.providers.amazon.aws.sensors.sagemaker_base.SageMakerBaseSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEndpointSensor',
-        'airflow.providers.amazon.aws.sensors.sagemaker_endpoint.SageMakerEndpointSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTransformSensor',
-        'airflow.providers.amazon.aws.sensors.sagemaker_transform.SageMakerTransformSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTuningSensor',
-        'airflow.providers.amazon.aws.sensors.sagemaker_tuning.SageMakerTuningSensor',
     ),
     (
         'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
@@ -1679,26 +1447,8 @@ SENSORS = [
         'airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor',
     ),
     (
-        'airflow.providers.amazon.aws.operators.step_function.StepFunctionStartExecutionOperator',
-        'airflow.providers.amazon.aws.operators.step_function_start_execution'
-        '.StepFunctionStartExecutionOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.step_function.StepFunctionGetExecutionOutputOperator',
-        'airflow.providers.amazon.aws.operators.step_function_get_execution_output'
-        '.StepFunctionGetExecutionOutputOperator',
-    ),
-    (
         'airflow.providers.amazon.aws.sensors.s3.S3KeySensor',
         'airflow.sensors.s3_key_sensor.S3KeySensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
-        'airflow.sensors.s3_prefix_sensor.S3PrefixSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.step_function.StepFunctionExecutionSensor',
-        'airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionExecutionSensor',
     ),
     (
         'airflow.sensors.bash.BashSensor',
@@ -1767,30 +1517,6 @@ SENSORS = [
     (
         'airflow.providers.sftp.sensors.sftp.SFTPSensor',
         'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.ec2.EC2InstanceStateSensor',
-        'airflow.providers.amazon.aws.sensors.ec2_instance_state.EC2InstanceStateSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.s3.S3KeySensor',
-        'airflow.providers.amazon.aws.sensors.s3_key.S3KeySensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
-        'airflow.providers.amazon.aws.sensors.s3_key.S3KeySizeSensor',
-    ),
-    (
-        'airflow.providers.amazon.aws.sensors.s3.S3KeysUnchangedSensor',
-        'airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor',
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor",
-        "airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor",
-    ),
-    (
-        "airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor",
-        "airflow.providers.amazon.aws.sensors.redshift.RedshiftClusterSensor",
     ),
 ]
 

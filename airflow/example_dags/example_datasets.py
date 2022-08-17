@@ -35,73 +35,57 @@ example_dataset_dag4_req_dag1_dag2 should run.
 
 Dags example_dataset_dag5_req_dag1_D and example_dataset_dag6_req_DD should not run because they depend on
 datasets that never get updated.
-
-DAG example_dataset_dag7 should skip its only task and never trigger example_dataset_dag8_req_dag7
-
-DAG example_dataset_dag9 should fail its only task and never trigger example_dataset_dag10_req_dag9
-
 """
-from datetime import datetime
+import pendulum
 
-from airflow.exceptions import AirflowFailException, AirflowSkipException
-from airflow.models import DAG, Dataset
+from airflow import DAG, Dataset
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 
 # [START dataset_def]
 dag1_dataset = Dataset('s3://dag1/output_1.txt', extra={'hi': 'bye'})
 # [END dataset_def]
 dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
-dag7_dataset = Dataset('s3://dag7/output_1.txt', extra={'hi': 'bye'})
-dag9_dataset = Dataset('s3://dag9/output_1.txt', extra={'hi': 'bye'})
 
-dag1 = DAG(
+with DAG(
     dag_id='example_dataset_dag1',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule='@daily',
     tags=['upstream'],
-)
-
-# [START task_outlet]
-BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sleep 5", dag=dag1)
-# [END task_outlet]
+) as dag1:
+    # [START task_outlet]
+    BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sleep 5")
+    # [END task_outlet]
 
 with DAG(
     dag_id='example_dataset_dag2',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_interval=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=None,
     tags=['upstream'],
 ) as dag2:
-    BashOperator(
-        outlets=[dag2_dataset],
-        task_id='upstream_task_2',
-        bash_command="sleep 5",
-    )
+    BashOperator(outlets=[dag2_dataset], task_id='upstream_task_2', bash_command="sleep 5")
 
 # [START dag_dep]
-dag3 = DAG(
+with DAG(
     dag_id='example_dataset_dag3_req_dag1',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[dag1_dataset],
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[dag1_dataset],
     tags=['downstream'],
-)
-# [END dag_dep]
-
-BashOperator(
-    outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
-    task_id='downstream_1',
-    bash_command="sleep 5",
-    dag=dag3,
-)
+) as dag3:
+    # [END dag_dep]
+    BashOperator(
+        outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
+        task_id='downstream_1',
+        bash_command="sleep 5",
+    )
 
 with DAG(
     dag_id='example_dataset_dag4_req_dag1_dag2',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[dag1_dataset, dag2_dataset],
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[dag1_dataset, dag2_dataset],
     tags=['downstream'],
 ) as dag4:
     BashOperator(
@@ -113,8 +97,8 @@ with DAG(
 with DAG(
     dag_id='example_dataset_dag5_req_dag1_D',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[
         dag1_dataset,
         Dataset('s3://this-dataset-doesnt-get-triggered'),
     ],
@@ -129,8 +113,8 @@ with DAG(
 with DAG(
     dag_id='example_dataset_dag6_req_DD',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[
         Dataset('s3://unrelated/dataset3.txt'),
         Dataset('s3://unrelated/dataset_other_unknown.txt'),
     ],
@@ -139,67 +123,5 @@ with DAG(
     BashOperator(
         task_id='unrelated_task',
         outlets=[Dataset('s3://unrelated_task/dataset_other_unknown.txt')],
-        bash_command="sleep 5",
-    )
-
-
-def raise_skip_exc():
-    raise AirflowSkipException
-
-
-dag7 = DAG(
-    dag_id='example_dataset_dag7',
-    catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
-    tags=['upstream-skipping'],
-)
-PythonOperator(
-    task_id='skip_task',
-    outlets=[dag7_dataset],
-    python_callable=raise_skip_exc,
-    dag=dag7,
-)
-
-with DAG(
-    dag_id='example_dataset_dag8_req_dag7',
-    catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[dag7_dataset],
-    tags=['downstream-skipped'],
-) as dag8:
-    BashOperator(
-        task_id='dag8_task',
-        bash_command="sleep 5",
-    )
-
-
-def raise_assertionerror():
-    raise AirflowFailException
-
-
-dag9 = DAG(
-    dag_id='example_dataset_dag9',
-    catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
-    tags=['upstream-skipping'],
-)
-PythonOperator(
-    task_id='fail_task',
-    outlets=[dag9_dataset],
-    python_callable=raise_assertionerror,
-    dag=dag9,
-)
-
-with DAG(
-    dag_id='example_dataset_dag10_req_dag9',
-    catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[dag9_dataset],
-    tags=['downstream-failed'],
-) as dag10:
-    BashOperator(
-        task_id='dag10_task',
         bash_command="sleep 5",
     )

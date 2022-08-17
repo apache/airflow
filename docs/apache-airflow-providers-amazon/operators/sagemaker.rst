@@ -126,7 +126,7 @@ Create an Amazon SageMaker endpoint config job
 To create an Amazon Sagemaker endpoint config job you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointConfigOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_endpoint_config]
@@ -140,7 +140,7 @@ Create an Amazon SageMaker endpoint job
 To create an Amazon Sagemaker endpoint you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_endpoint]
@@ -199,7 +199,7 @@ Wait on an Amazon SageMaker endpoint state
 To check the state of an Amazon Sagemaker endpoint until it reaches a terminal state
 you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEndpointSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_sagemaker_endpoint]

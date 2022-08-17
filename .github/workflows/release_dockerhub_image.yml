@@ -61,7 +61,7 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
       - name: Selective checks
         id: selective-checks
-        run: breeze selective-check
+        run: breeze ci selective-check
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
@@ -95,9 +95,9 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: breeze free-space
+        run: breeze ci free-space
       - name: Build CI image for PROD build ${{ needs.build-info.outputs.defaultPythonVersion }}
-        run: breeze build-image
+        run: breeze ci-image build
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: "Cleanup dist and context file"
@@ -112,7 +112,7 @@ jobs:
       - name: >
           Release regular images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
-          breeze release-prod-images
+          breeze release-management release-prod-images
           --dockerhub-repo ${{ github.repository }}
           --airflow-version  ${{ github.event.inputs.airflowVersion }}
           ${{ needs.build-info.outputs.skipLatest }}
@@ -121,7 +121,7 @@ jobs:
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
-          breeze release-prod-images
+          breeze release-management release-prod-images
           --dockerhub-repo ${{ github.repository }}
           --airflow-version  ${{ github.event.inputs.airflowVersion }}
           ${{ needs.build-info.outputs.skipLatest }}
@@ -133,15 +133,15 @@ jobs:
       - name: >
           Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
-          breeze verify-prod-image
-          --pull-image
+          breeze prod-image verify
+          --pull
           --image-name
           ${{github.repository}}:${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
       - name: >
           Verify slim AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
-          breeze verify-prod-image
-          --pull-image
+          breeze prod-image verify
+          --pull
           --slim-image
           --image-name
           ${{github.repository}}:slim-${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
@@ -149,5 +149,5 @@ jobs:
         run: docker logout
         if: always()
       - name: "Fix ownership"
-        run: breeze fix-ownership
+        run: breeze ci fix-ownership
         if: always()

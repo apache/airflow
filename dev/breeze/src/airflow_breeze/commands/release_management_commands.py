@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import multiprocessing as mp
 import shlex
+import subprocess
 import sys
 import time
 from copy import deepcopy
@@ -25,7 +25,6 @@ from typing import IO, Dict, List, Optional, Tuple
 import click
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -35,6 +34,8 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     argument_packages,
     option_airflow_constraints_mode_ci,
@@ -56,99 +57,16 @@ from airflow_breeze.utils.common_options import (
     option_version_suffix_for_pypi,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.parallel import check_async_run_results
+from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command, run_compile_www_assets
-
-RELEASE_MANAGEMENT_PARAMETERS = {
-    "breeze prepare-airflow-package": [
-        {"name": "Package flags", "options": ["--package-format", "--version-suffix-for-pypi"]}
-    ],
-    "breeze verify-provider-packages": [
-        {
-            "name": "Provider verification flags",
-            "options": [
-                "--use-airflow-version",
-                "--airflow-constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
-                "--skip-constraints",
-                "--debug",
-            ],
-        }
-    ],
-    "breeze prepare-provider-packages": [
-        {
-            "name": "Package flags",
-            "options": [
-                "--package-format",
-                "--version-suffix-for-pypi",
-                "--package-list-file",
-                "--debug",
-            ],
-        }
-    ],
-    "breeze prepare-provider-documentation": [
-        {
-            "name": "Provider documentation preparation flags",
-            "options": [
-                "--debug",
-            ],
-        }
-    ],
-    "breeze generate-constraints": [
-        {
-            "name": "Generate constraints flags",
-            "options": [
-                "--image-tag",
-                "--python",
-                "--airflow-constraints-mode",
-                "--debug",
-            ],
-        },
-        {
-            "name": "Parallel running",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-            ],
-        },
-    ],
-    "breeze release-prod-images": [
-        {
-            "name": "Release PROD IMAGE flags",
-            "options": [
-                "--airflow-version",
-                "--dockerhub-repo",
-                "--slim-images",
-                "--limit-python",
-                "--limit-platform",
-                "--skip-latest",
-            ],
-        }
-    ],
-}
-
-RELEASE_MANAGEMENT_COMMANDS = {
-    "name": "Release management",
-    "commands": [
-        "verify-provider-packages",
-        "prepare-provider-documentation",
-        "prepare-provider-packages",
-        "prepare-airflow-package",
-        "release-prod-images",
-        "generate-constraints",
-    ],
-}
 
 option_debug_release_management = click.option(
     "--debug",
@@ -165,7 +83,7 @@ def run_with_debug(
     dry_run: bool,
     debug: bool,
     enable_input: bool = False,
-    enabled_output_group: bool = False,
+    **kwargs,
 ) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
@@ -201,21 +119,30 @@ echo -e '\\e[34mRun this command to debug:
             verbose=verbose,
             dry_run=dry_run,
             env=env_variables,
-            enabled_output_group=enabled_output_group,
+            **kwargs,
         )
     else:
         base_command.extend(command)
         return run_command(
             base_command,
-            enabled_output_group=enabled_output_group,
             verbose=verbose,
             dry_run=dry_run,
             env=env_variables,
             check=False,
+            **kwargs,
         )
 
 
-@main.command(
+@click.group(
+    cls=BreezeGroup,
+    name='release-management',
+    help="Tools that release managers can use to prepare and manage Airflow releases",
+)
+def release_management():
+    pass
+
+
+@release_management.command(
     name='prepare-airflow-package',
     help="Prepare sdist/whl package of Airflow.",
 )
@@ -234,7 +161,7 @@ def prepare_airflow_packages(
     debug: bool,
 ):
     perform_environment_checks(verbose=verbose)
-    run_compile_www_assets(verbose=verbose, dry_run=dry_run)
+    run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
         github_repository=github_repository,
@@ -252,12 +179,11 @@ def prepare_airflow_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
 
-@main.command(
+@release_management.command(
     name='prepare-provider-documentation',
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
@@ -297,7 +223,7 @@ def prepare_provider_documentation(
     sys.exit(result_command.returncode)
 
 
-@main.command(
+@release_management.command(
     name='prepare-provider-packages',
     help="Prepare sdist/whl packages of Airflow Providers.",
 )
@@ -349,7 +275,11 @@ def prepare_provider_packages(
 
 
 def run_generate_constraints(
-    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool, parallel: bool = False
+    shell_params: ShellParams,
+    dry_run: bool,
+    verbose: bool,
+    debug: bool,
+    output: Optional[Output],
 ) -> Tuple[int, str]:
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
@@ -360,11 +290,12 @@ def run_generate_constraints(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        enabled_output_group=not parallel,
+        stdout=output.file if output else None,
+        stderr=subprocess.STDOUT,
     )
     return (
         generate_constraints_result.returncode,
-        f"Generate constraints Python {shell_params.python}:{shell_params.airflow_constraints_mode}",
+        f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}",
     )
 
 
@@ -376,23 +307,29 @@ def run_generate_constraints_in_parallel(
     verbose: bool,
 ):
     """Run generate constraints in parallel"""
-    get_console().print(
-        f"\n[info]Generating constraints with parallelism = {parallelism} "
-        f"for the constraints: {python_version_list}[/]"
-    )
-    pool = mp.Pool(parallelism)
-    results = [
-        pool.apply_async(
-            run_generate_constraints,
-            args=(shell_param, dry_run, verbose, False, True),
-        )
-        for shell_param in shell_params_list
-    ]
-    check_async_run_results(results)
-    pool.close()
+    with ci_group(f"Constraints for {python_version_list}"):
+        all_params = [
+            f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}"
+            for shell_params in shell_params_list
+        ]
+        with run_with_pool(parallelism=parallelism, all_params=all_params) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    run_generate_constraints,
+                    kwds={
+                        "shell_params": shell_params,
+                        "dry_run": dry_run,
+                        "verbose": verbose,
+                        "debug": False,
+                        "output": outputs[index],
+                    },
+                )
+                for index, shell_params in enumerate(shell_params_list)
+            ]
+    check_async_run_results(results, outputs)
 
 
-@main.command(
+@release_management.command(
     name='generate-constraints',
     help="Generates pinned constraint files with all extras from setup.py in parallel.",
 )
@@ -436,7 +373,7 @@ def generate_constraints(
         if run_in_parallel:
             get_console().print("\n[info]Use this command to build the images:[/]\n")
             get_console().print(
-                f"     breeze build-image --run-in-parallel --python-versions '{python_versions}' "
+                f"     breeze ci-image build --run-in-parallel --python-versions '{python_versions}' "
                 f"--upgrade-to-newer-dependencies\n"
             )
         else:
@@ -445,7 +382,7 @@ def generate_constraints(
             )
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
-                f"     breeze build-image --python'{shell_params.python}' "
+                f"     breeze ci-image build --python '{shell_params.python}' "
                 f"--upgrade-to-newer-dependencies\n"
             )
         sys.exit(1)
@@ -479,17 +416,17 @@ def generate_constraints(
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
+            output=None,
             dry_run=dry_run,
             verbose=verbose,
             debug=debug,
-            parallel=False,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
             sys.exit(return_code)
 
 
-@main.command(
+@release_management.command(
     name='verify-provider-packages',
     help="Verifies if all provider code is following expectations for providers.",
 )
@@ -544,7 +481,6 @@ def verify_provider_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -566,7 +502,7 @@ def alias_image(image_from: str, image_to: str, dry_run: bool, verbose: bool):
     )
 
 
-@main.command(
+@release_management.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option('--airflow-version', required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")

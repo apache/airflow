@@ -126,8 +126,9 @@ class DatabricksHook(BaseDatabricksHook):
         retry_limit: int = 3,
         retry_delay: float = 1.0,
         retry_args: Optional[Dict[Any, Any]] = None,
+        caller: str = "DatabricksHook",
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args)
+        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
     def run_now(self, json: dict) -> int:
         """
@@ -259,6 +260,28 @@ class DatabricksHook(BaseDatabricksHook):
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         state = response['state']
         return RunState(**state)
+
+    def get_run(self, run_id: int) -> Dict[str, Any]:
+        """
+        Retrieve run information.
+
+        :param run_id: id of the run
+        :return: state of the run
+        """
+        json = {'run_id': run_id}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        return response
+
+    async def a_get_run(self, run_id: int) -> Dict[str, Any]:
+        """
+        Async version of `get_run`.
+
+        :param run_id: id of the run
+        :return: state of the run
+        """
+        json = {'run_id': run_id}
+        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
+        return response
 
     def get_run_state_str(self, run_id: int) -> str:
         """

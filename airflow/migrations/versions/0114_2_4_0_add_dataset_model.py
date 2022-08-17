@@ -23,13 +23,13 @@ Revises: 44b7034f6bdc
 Create Date: 2022-06-22 14:37:20.880672
 
 """
-
 import sqlalchemy as sa
+import sqlalchemy_jsonfield
 from alembic import op
 from sqlalchemy import Integer, String, func
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
-from airflow.utils.sqlalchemy import ExtendedJSON
+from airflow.settings import json
 
 revision = '0038cd0c28b4'
 down_revision = '44b7034f6bdc'
@@ -55,7 +55,7 @@ def _create_dataset_table():
             ),
             nullable=False,
         ),
-        sa.Column('extra', ExtendedJSON, nullable=True),
+        sa.Column('extra', sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         sa.Column('created_at', TIMESTAMP, nullable=False),
         sa.Column('updated_at', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
@@ -123,15 +123,39 @@ def _create_dataset_event_table():
         'dataset_event',
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
         sa.Column('dataset_id', Integer, nullable=False),
-        sa.Column('extra', ExtendedJSON, nullable=True),
+        sa.Column('extra', sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         sa.Column('source_task_id', String(250), nullable=True),
         sa.Column('source_dag_id', String(250), nullable=True),
         sa.Column('source_run_id', String(250), nullable=True),
         sa.Column('source_map_index', sa.Integer(), nullable=True, server_default='-1'),
-        sa.Column('created_at', TIMESTAMP, nullable=False),
+        sa.Column('timestamp', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
-    op.create_index('idx_dataset_id_created_at', 'dataset_event', ['dataset_id', 'created_at'])
+    op.create_index('idx_dataset_id_timestamp', 'dataset_event', ['dataset_id', 'timestamp'])
+
+
+def _create_dataset_event_dag_run_table():
+    op.create_table(
+        'dagrun_dataset_event',
+        sa.Column('dag_run_id', sa.Integer(), nullable=False),
+        sa.Column('event_id', sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ['dag_run_id'],
+            ['dag_run.id'],
+            name=op.f('dagrun_dataset_events_dag_run_id_fkey'),
+            ondelete='CASCADE',
+        ),
+        sa.ForeignKeyConstraint(
+            ['event_id'],
+            ['dataset_event.id'],
+            name=op.f('dagrun_dataset_events_event_id_fkey'),
+            ondelete='CASCADE',
+        ),
+        sa.PrimaryKeyConstraint('dag_run_id', 'event_id', name=op.f('dagrun_dataset_events_pkey')),
+    )
+    with op.batch_alter_table('dagrun_dataset_events') as batch_op:
+        batch_op.create_index('idx_dagrun_dataset_events_dag_run_id', ['dag_run_id'], unique=False)
+        batch_op.create_index('idx_dagrun_dataset_events_event_id', ['event_id'], unique=False)
 
 
 def upgrade():
@@ -141,6 +165,7 @@ def upgrade():
     _create_dataset_task_ref_table()
     _create_dataset_dag_run_queue_table()
     _create_dataset_event_table()
+    _create_dataset_event_dag_run_table()
 
 
 def downgrade():
@@ -148,5 +173,6 @@ def downgrade():
     op.drop_table('dataset_dag_ref')
     op.drop_table('dataset_task_ref')
     op.drop_table('dataset_dag_run_queue')
+    op.drop_table('dagrun_dataset_event')
     op.drop_table('dataset_event')
     op.drop_table('dataset')

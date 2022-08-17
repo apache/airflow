@@ -93,7 +93,7 @@ class RedshiftToS3Operator(BaseOperator):
         unload_options: Optional[List] = None,
         autocommit: bool = False,
         include_header: bool = False,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
         **kwargs,
     ) -> None:

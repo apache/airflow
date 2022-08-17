@@ -22,6 +22,7 @@ from datetime import timedelta
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
+from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.utils import cli as cli_utils
@@ -60,12 +61,16 @@ def dag_processor(args):
             "dag-processor", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+            stdout_handle.truncate(0)
+            stderr_handle.truncate(0)
+
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 try:

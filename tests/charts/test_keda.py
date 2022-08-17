@@ -48,7 +48,7 @@ class TestKeda:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         if is_created:
-            assert jmespath.search("metadata.name", docs[0]) == "RELEASE-NAME-worker"
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
         else:
             assert docs == []
 

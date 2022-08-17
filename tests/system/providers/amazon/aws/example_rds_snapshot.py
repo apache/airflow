@@ -67,7 +67,7 @@ def delete_rds_instance(instance_name) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

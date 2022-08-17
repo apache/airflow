@@ -23,7 +23,6 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Collection,
     Dict,
@@ -31,6 +30,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Set,
@@ -124,7 +124,7 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
     raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
-def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> None:
+def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
     duplicated_keys = set(kwargs1).intersection(kwargs2)
     if not duplicated_keys:
         return
@@ -138,8 +138,9 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
     from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
 
     if isinstance(arg, XComArg):
-        if arg.key != XCOM_RETURN_KEY:
-            raise ValueError(f"cannot map over XCom with custom key {arg.key!r} from {arg.operator}")
+        for operator, key in arg.iter_references():
+            if key != XCOM_RETURN_KEY:
+                raise ValueError(f"cannot map over XCom with custom key {key!r} from {operator}")
     elif not is_container(arg):
         return
     elif isinstance(arg, collections.abc.Mapping):
@@ -213,6 +214,11 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
 
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
         op = MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
@@ -229,6 +235,7 @@ class OperatorPartial:
             is_empty=issubclass(self.operator_class, EmptyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,
@@ -278,6 +285,7 @@ class MappedOperator(AbstractOperator):
     _is_empty: bool
     _task_module: str
     _task_type: str
+    _operator_name: str
 
     dag: Optional["DAG"]
     task_group: Optional["TaskGroup"]
@@ -376,6 +384,10 @@ class MappedOperator(AbstractOperator):
     def task_type(self) -> str:
         """Implementing Operator."""
         return self._task_type
+
+    @property
+    def operator_name(self) -> str:
+        return self._operator_name
 
     @property
     def inherits_from_empty_operator(self) -> bool:
@@ -529,7 +541,7 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Mapping[str, Any]:
         """Get the kwargs to create the unmapped operator.
 
         If *resolve* is not *None*, it must be a two-tuple to provide context to
@@ -547,7 +559,7 @@ class MappedOperator(AbstractOperator):
             return expand_input.resolve(*resolve)
         return expand_input.get_unresolved_kwargs()
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         """Get init kwargs to unmap the underlying operator class.
 
         :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
@@ -570,7 +582,7 @@ class MappedOperator(AbstractOperator):
             **mapped_kwargs,
         }
 
-    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
+    def unmap(self, resolve: Union[None, Mapping[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping.
 
         If ``operator_class`` is not a class (i.e. this DAG has been
@@ -612,20 +624,6 @@ class MappedOperator(AbstractOperator):
     def _get_specified_expand_input(self) -> ExpandInput:
         """Input received from the expand call on the operator."""
         return getattr(self, self._expand_input_attr)
-
-    @property
-    def validate_upstream_return_value(self) -> Callable[[Any], None]:
-        """Validate an upstream's return value satisfies this task's needs.
-
-        This is implemented as a property (instead of a function calling
-        ``validate_xcom``) so the call site in TaskInstance can de-duplicate
-        validation functions. If this is an instance method, each
-        ``validate_upstream_return_value`` would be a different object (due to
-        how Python handles bounded functions), and de-duplication won't work.
-
-        :meta private:
-        """
-        return self._get_specified_expand_input().validate_xcom
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.
@@ -718,7 +716,8 @@ class MappedOperator(AbstractOperator):
         from airflow.models.xcom_arg import XComArg
 
         for ref in XComArg.iter_xcom_args(self._get_specified_expand_input()):
-            yield ref.operator
+            for operator, _ in ref.iter_references():
+                yield operator
 
     @cached_property
     def parse_time_mapped_ti_count(self) -> Optional[int]:
@@ -742,10 +741,11 @@ class MappedOperator(AbstractOperator):
             return None
 
     def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Since the mapped kwargs are already resolved during unmapping,
-        # they must be removed from the list of templated fields to avoid
-        # being rendered again (which breaks escaping).
-        return set(self.template_fields).difference(expanded)
+        # Mapped kwargs from XCom are already resolved during unmapping, so they
+        # must be removed from the list of templated fields to avoid being
+        # rendered again.
+        unexpanded_keys = {k for k, _ in self._get_specified_expand_input().iter_parse_time_resolved_kwargs()}
+        return set(self.template_fields).difference(k for k in expanded if k not in unexpanded_keys)
 
     def render_template_fields(
         self,

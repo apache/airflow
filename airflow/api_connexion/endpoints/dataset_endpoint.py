@@ -18,7 +18,7 @@
 from typing import Optional
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -31,7 +31,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.api_connexion.types import APIResponse
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -40,7 +40,11 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
-    dataset = session.query(Dataset).get(id)
+    dataset = (
+        session.query(DatasetModel)
+        .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
+        .get(id)
+    )
     if not dataset:
         raise NotFound(
             "Dataset not found",
@@ -53,15 +57,27 @@ def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_datasets(
-    *, limit: int, offset: int = 0, order_by: str = "id", session: Session = NEW_SESSION
+    *,
+    limit: int,
+    offset: int = 0,
+    uri_pattern: Optional[str] = None,
+    order_by: str = "id",
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get datasets"""
     allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
-    total_entries = session.query(func.count(Dataset.id)).scalar()
-    query = session.query(Dataset)
+    total_entries = session.query(func.count(DatasetModel.id)).scalar()
+    query = session.query(DatasetModel)
+    if uri_pattern:
+        query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
-    datasets = query.offset(offset).limit(limit).all()
+    datasets = (
+        query.options(subqueryload(DatasetModel.consuming_dags), subqueryload(DatasetModel.producing_tasks))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
 
 
@@ -72,7 +88,7 @@ def get_dataset_events(
     *,
     limit: int,
     offset: int = 0,
-    order_by: str = "created_at",
+    order_by: str = "timestamp",
     dataset_id: Optional[int] = None,
     source_dag_id: Optional[str] = None,
     source_task_id: Optional[str] = None,
@@ -81,7 +97,7 @@ def get_dataset_events(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dataset events"""
-    allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'created_at']
+    allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'timestamp']
 
     query = session.query(DatasetEvent)
 

@@ -126,7 +126,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
-breeze prepare-provider-documentation [packages]
+breeze release-management prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -148,7 +148,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze prepare-provider-documentation --answer yes [packages]
+breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
 ## Build provider packages for SVN apache upload
@@ -173,13 +173,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-breeze prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -238,13 +238,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -389,6 +389,13 @@ You can also pass the token as `--github-token` option in the script.
 
 You can also generate the token by following
 [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
+If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+```
+
 
 ## Prepare voting email for Providers release candidate
 

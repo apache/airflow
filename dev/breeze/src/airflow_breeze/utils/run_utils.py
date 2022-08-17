@@ -46,7 +46,6 @@ def run_command(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
-    enabled_output_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -69,7 +68,6 @@ def run_command(
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
-    :param enabled_output_group: if set to true, in CI the logs will be placed in separate, foldable group.
     :param kwargs: kwargs passed to POpen
     """
     if not title:
@@ -88,7 +86,7 @@ def run_command(
     if verbose or dry_run:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
         env_to_print = get_environments_to_print(env)
-        with ci_group(title=f"Running {title}"):
+        with ci_group(title=f"Click to expand command run: {title}"):
             get_console().print(f"\n[info]Working directory {workdir}\n")
             if input:
                 get_console().print("[info]Input:")
@@ -103,7 +101,9 @@ def run_command(
         cmd_env.setdefault("HOME", str(Path.home()))
         if env:
             cmd_env.update(env)
-        with ci_group(title=f"Output of {title}", enabled=enabled_output_group):
+        if 'capture_output' in kwargs and kwargs['capture_output']:
+            return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        with ci_group(f"Click to expand the output of {title}"):
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
@@ -187,7 +187,7 @@ def assert_pre_commit_installed(verbose: bool):
     else:
         get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
         get_console().print(command_result.stderr)
-        get_console().print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\nMake sure to run:\n      breeze setup self-upgrade\n\n")
         sys.exit(1)
 
 
@@ -215,7 +215,8 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
     get_console().print(
-        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
+        f"\n[info]Please run at the earliest "
+        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 
@@ -351,12 +352,13 @@ def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
         image=airflow_image,
         verbose=verbose,
         dry_run=dry_run,
-        instruction=f"breeze build-image --python {python_version}",
+        instruction=f"breeze ci-image build --python {python_version}",
     )
     return airflow_image
 
 
 def run_compile_www_assets(
+    dev: bool,
     verbose: bool,
     dry_run: bool,
 ):
@@ -364,6 +366,13 @@ def run_compile_www_assets(
 
     assert_pre_commit_installed(verbose=verbose)
     perform_environment_checks(verbose=verbose)
+    if dev:
+        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[info]If you want to see output of the compilation command,\n"
+            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
+            "[info]However, it requires you to have local yarn installation.\n"
+        )
     command_to_execute = [
         sys.executable,
         "-m",
@@ -371,7 +380,7 @@ def run_compile_www_assets(
         'run',
         "--hook-stage",
         "manual",
-        'compile-www-assets',
+        'compile-www-assets-dev' if dev else 'compile-www-assets',
         '--all-files',
     ]
     env = os.environ.copy()

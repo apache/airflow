@@ -39,6 +39,16 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
+  provider:Common-sql:
+    - airflow/providers/common/sql/**/*
+    - docs/apache-airflow-providers-common-sql/**/*
+    - tests/providers/common/sql/**/*
+
+  provider:Databricks:
+    - airflow/providers/databricks/**/*
+    - docs/apache-airflow-providers-databricks/**/*
+    - tests/providers/databricks/**/*
+
   provider:Snowflake:
     - airflow/providers/snowflake/**/*
     - docs/apache-airflow-providers-snowflake/**/*
@@ -77,10 +87,8 @@ labelPRBasedOnFilePath:
     - scripts/**/*
     - dev/**/*
     - .github/**/*
-    - breeze
     - Dockerfile.ci
     - BREEZE.rst
-    - breeze-complete
     - CONTRIBUTING.*
     - LOCAL_VIRTUALENV.rst
     - STATIC_CODE_CHECKS.rst
@@ -247,7 +255,4 @@ firstIssueWelcomeComment: >
 
 checkUpToDate:
   targetBranch: main
-  files:
-    - airflow/migrations/*
-    - airflow/migrations/**/*
-    - airflow/alembic.ini
+  files: []

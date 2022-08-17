@@ -23,6 +23,7 @@
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
+import openDatasetModal from './openDatasetModal';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -423,7 +424,7 @@ let refreshInterval;
 function checkActiveRuns(json) {
   // filter latest dag runs and check if there are still running dags
   const activeRuns = Object.keys(json).filter((dagId) => {
-    const dagRuns = json[dagId].filter((s) => s.state === 'running').filter((r) => r.count > 0);
+    const dagRuns = json[dagId].filter(({ state }) => state === 'running' || state === 'queued').filter((r) => r.count > 0);
     return (dagRuns.length > 0);
   });
   if (activeRuns.length === 0) {
@@ -536,4 +537,10 @@ $('#auto_refresh').change(() => {
     $('#loading-dots').css('display', 'none');
   }
   startOrStopRefresh();
+});
+
+$('.next-dataset-triggered').on('click', (e) => {
+  const dagId = $(e.target).data('dag-id');
+  const summary = $(e.target).data('summary');
+  if (dagId) openDatasetModal(dagId, summary || '');
 });

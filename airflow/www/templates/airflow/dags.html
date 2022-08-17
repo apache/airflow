@@ -19,6 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
+{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
 {%- macro sortable_column(display_name, attribute_name) -%}
@@ -68,6 +69,8 @@
   <meta name="dag_stats_url" content="{{ url_for('Airflow.dag_stats') }}">
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
+  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
 {% block head_css %}
@@ -203,7 +206,7 @@
           </th>
           <th style="width:180px;">{{ sortable_column("Next Run", "next_dagrun") }}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
-                  title="Expected Date/Time of the next Dag Run.">info</span>
+                  title="Expected date/time of the next DAG Run, or for dataset triggered DAGs, how many datasets have been updated since the last DAG Run.">info</span>
           </th>
           <th>Recent Tasks
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
@@ -254,7 +257,11 @@
             <td>
               {% for owner in dag.owners.split(",") %}
                 <a class="label label-default"
+                 {% if owner_links and owner.strip() in owner_links.get(dag.dag_id, {}) %}
+                   href="{{ owner_links[dag.dag_id].get(owner.strip()) }}" target="_blank"
+                 {% else %}
                    href="?search={{ owner | trim }}"
+                 {% endif %}
                    style="margin: 3px 6px 3px 0;">
                   {{ owner | trim }}
                 </a>
@@ -289,6 +296,20 @@
                   </span>
             </td>
             <td class="text-nowrap">
+              {% if dag.dag_id in dataset_triggered_next_run_info %}
+                <span
+                  class="js-tooltip"
+                  title="Click to see dataset details."
+                >
+                  <div
+                    class="label label-default next-dataset-triggered"
+                    data-dag-id="{{ dag.dag_id }}"
+                    data-summary="{{ dataset_triggered_next_run_info[dag.dag_id] }}"
+                  >
+                    {{ dataset_triggered_next_run_info[dag.dag_id] }}
+                  </div>
+                </span>
+              {% endif %}
               {% if dag.next_dagrun is not none %}
                 <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
               {% endif %}
@@ -405,6 +426,8 @@
     <div class="tooltip-arrow"></div>
     <div class="tooltip-inner"></div>
   </div>
+  <!-- Modal for dataset-triggered next run -->
+  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
 {% endblock %}
 
 {% block tail %}

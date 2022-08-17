@@ -826,7 +826,7 @@ class TestHiveServer2Hook(unittest.TestCase):
             )
 
             output = '\n'.join(
-                res_tuple[0] for res_tuple in hook.get_results(hql=hql, hive_conf={'key': 'value'})['data']
+                res_tuple[0] for res_tuple in hook.get_results(hql, hive_conf={'key': 'value'})['data']
             )
         assert 'value' in output
         assert 'test_dag_id' in output

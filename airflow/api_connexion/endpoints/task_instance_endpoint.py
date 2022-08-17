@@ -437,7 +437,37 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     reset_dag_runs = data.pop('reset_dag_runs')
     dry_run = data.pop('dry_run')
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
-    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, **data)
+    dag_run_id = data.pop('dag_run_id', None)
+    future = data.pop('include_future', False)
+    past = data.pop('include_past', False)
+    downstream = data.pop('include_downstream', False)
+    upstream = data.pop('include_upstream', False)
+    if dag_run_id is not None:
+        dag_run: Optional[DR] = (
+            session.query(DR).filter(DR.dag_id == dag_id, DR.run_id == dag_run_id).one_or_none()
+        )
+        if dag_run is None:
+            error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+            raise NotFound(error_message)
+        data['start_date'] = dag_run.logical_date
+        data['end_date'] = dag_run.logical_date
+    if past:
+        data['start_date'] = None
+    if future:
+        data['end_date'] = None
+    task_ids = data.pop('task_ids', None)
+    if task_ids is not None:
+        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
+        dag = dag.partial_subset(
+            task_ids_or_regex=task_id,
+            include_downstream=downstream,
+            include_upstream=upstream,
+        )
+
+        if len(dag.task_dict) > 1:
+            # If we had upstream/downstream etc then also include those!
+            task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
+    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, task_ids=task_ids, **data)
     if not dry_run:
         clear_task_instances(
             task_instances.all(),

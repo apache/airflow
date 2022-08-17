@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import re
 from typing import Callable
 from unittest import mock
 
@@ -87,7 +88,7 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
     mock_plugin = AirflowPlugin()
     mock_plugin.name = "test_plugin"
     mock_plugin.source = EntryPointSource(
-        mock.Mock(), mock.Mock(version='1.0.0', metadata={'name': 'test-entrypoint-testpluginview'})
+        mock.Mock(), mock.Mock(version='1.0.0', metadata={'Name': 'test-entrypoint-testpluginview'})
     )
     with mock_plugin_manager(plugins=[mock_plugin]):
         resp = admin_client.get('/plugin')
@@ -375,7 +376,7 @@ def test_get_task_stats_from_query():
     assert data == expected_data
 
 
-INVALID_DATETIME_RESPONSE = "Invalid datetime: &#x27;invalid&#x27;"
+INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d+;")
 
 
 @pytest.mark.parametrize(
@@ -432,4 +433,4 @@ def test_invalid_dates(app, admin_client, url, content):
     resp = admin_client.get(url, follow_redirects=True)
 
     assert resp.status_code == 400
-    assert content in resp.get_data().decode()
+    assert re.search(content, resp.get_data().decode())

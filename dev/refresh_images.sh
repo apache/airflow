@@ -23,9 +23,9 @@ export ANSWER="yes"
 export CI="true"
 export GITHUB_TOKEN=""
 
-breeze self-upgrade --force --use-current-airflow-sources
+breeze setup self-upgrade --force --use-current-airflow-sources
 
-breeze build-image \
+breeze ci-image build \
      --builder airflow_cache \
      --run-in-parallel \
      --prepare-buildx-cache \
@@ -35,16 +35,16 @@ breeze build-image \
 
 rm -fv ./dist/* ./docker-context-files/*
 
-breeze prepare-provider-packages \
+breeze release-management prepare-provider-packages \
     --package-list-file ./scripts/ci/installed_providers.txt \
     --package-format wheel \
     --version-suffix-for-pypi dev0
 
-breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
+breeze release-management prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
 
 mv -v ./dist/*.whl ./docker-context-files
 
-breeze build-prod-image \
+breeze prod-image build \
      --builder airflow_cache \
      --run-in-parallel \
      --install-packages-from-context \

@@ -34,7 +34,7 @@ DAG_ID = "example_spark_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
