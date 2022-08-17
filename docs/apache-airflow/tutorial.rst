@@ -403,7 +403,7 @@ The steps below should be sufficient, but see the quick-start documentation for 
 .. code-block:: bash
 
   # Download the docker-compose.yaml file
-  curl -Lf0 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
+  curl -LfO 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
 
   # Make expected directories and set an expected environment variable
   mkdir -p ./dags ./logs ./plugins
