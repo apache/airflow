@@ -784,7 +784,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   prepare-test-provider-packages-wheel:
-    timeout-minutes: 40
+    timeout-minutes: 80
     name: "Build and test provider packages wheel"
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-ci-images]
