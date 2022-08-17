@@ -101,6 +101,7 @@ class ClickHouseHook(BaseHook):
         import json
 
         return {
+            "hidden_fields": [],
             "relabeling": {
                 'host': 'ClickHouse Host',
                 'port': 'ClickHouse Port',
