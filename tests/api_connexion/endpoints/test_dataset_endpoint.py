@@ -80,7 +80,9 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         assert session.query(DatasetModel).count() == 1
 
         with assert_queries_count(5):
-            response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
+            response = self.client.get(
+                "/api/v1/datasets/s3%3A%2F%2Fbucket%2Fkey", environ_overrides={'REMOTE_USER': "test"}
+            )
 
         assert response.status_code == 200
         assert response.json == {
@@ -94,10 +96,12 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         }
 
     def test_should_respond_404(self):
-        response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(
+            "/api/v1/datasets/s3%3A%2F%2Fbucket%2Fkey", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 404
         assert {
-            'detail': "The Dataset with id: `1` was not found",
+            'detail': "The Dataset with uri: `s3://bucket/key` was not found",
             'status': 404,
             'title': 'Dataset not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -105,7 +109,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_dataset(session)
-        response = self.client.get("/api/v1/datasets/1")
+        response = self.client.get("/api/v1/datasets/s3%3A%2F%2Fbucket%2Fkey")
         assert_401(response)
 
 
