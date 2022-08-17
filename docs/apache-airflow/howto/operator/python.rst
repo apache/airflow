@@ -129,19 +129,24 @@ If you want the context related to datetime objects like ``data_interval_start``
 .. _howto/operator:ShortCircuitOperator:
 
 ShortCircuitOperator
-========================
+====================
 
-Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
-if a condition is satisfied or a truthy value is obtained. The evaluation of this condition and truthy value
-is done via the output of a ``python_callable``. If the ``python_callable`` returns True or a truthy value,
+Use the ``@task.short_circuit`` decorator to control whether a pipeline continues
+if a condition is satisfied or a truthy value is obtained.
+
+.. warning::
+    The ``@task.short_circuit`` decorator is recommended over the classic :class:`~airflow.operators.python.ShortCircuitOperator`
+    to short-circuit pipelines via Python callables.
+
+The evaluation of this condition and truthy value
+is done via the output of the decorated function. If the decorated function returns True or a truthy value,
 the pipeline is allowed to continue and an :ref:`XCom <concepts:xcom>` of the output will be pushed. If the
 output is False or a falsy value, the pipeline will be short-circuited based on the configured
-short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_True"
-ShortCircuitOperator will execute while the tasks downstream of the "condition_is_False" ShortCircuitOperator
-will be skipped.
+short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_true"
+task will execute while the tasks downstream of the "condition_is_false" task will be skipped.
 
 
-.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_short_circuit]
@@ -155,14 +160,14 @@ set to False, the direct downstream tasks are skipped but the specified ``trigge
 downstream tasks are respected. In this short-circuiting configuration, the operator assumes the direct
 downstream task(s) were purposely meant to be skipped but perhaps not other subsequent tasks. This
 configuration is especially useful if only *part* of a pipeline should be short-circuited rather than all
-tasks which follow the ShortCircuitOperator task.
+tasks which follow the short-circuiting task.
 
-In the example below, notice that the ShortCircuitOperator task is configured to respect downstream trigger
-rules. This means while the tasks that follow the "short_circuit" ShortCircuitOperator task will be skipped
-since the ``python_callable`` returns False, "task_7" will still execute as its set to execute when upstream
+In the example below, notice that the "short_circuit" task is configured to respect downstream trigger
+rules. This means while the tasks that follow the "short_circuit" task will be skipped
+since the decorated function returns False, "task_7" will still execute as its set to execute when upstream
 tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DONE`` trigger rule).
 
-.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_short_circuit_trigger_rules]
@@ -173,7 +178,7 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-Both the ``op_args`` and ``op_kwargs`` arguments can be used in same way as described for the PythonOperator.
+Pass extra arguments to the ``@task.short_circuit``-decorated function as you would with a normal Python function.
 
 
 Templating
