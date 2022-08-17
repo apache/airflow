@@ -226,7 +226,7 @@ def fetch_variable(key: str, default_value: Optional[str] = None, test_name: Opt
 
     value: Optional[str] = os.getenv(key, _fetch_from_ssm(key, test_name)) or default_value
     if not value:
-        raise ValueError(NO_VALUE_MSG.format(key))
+        raise ValueError(NO_VALUE_MSG.format(key=key))
     return value
 
 
