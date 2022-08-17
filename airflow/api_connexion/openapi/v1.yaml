@@ -4334,6 +4334,7 @@ components:
       name: variable_key
       schema:
         type: string
+        format: path
       required: true
       description: The variable Key.
 
