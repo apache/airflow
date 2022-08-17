@@ -16,16 +16,15 @@
 # under the License.
 from datetime import timedelta
 from unittest import mock
-from uuid import uuid4
 
 import pendulum
 import pytest
 from freezegun import freeze_time
 from parameterized import parameterized
 
-from airflow import settings
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models import DAG, DagModel, DagRun, Dataset
+from airflow.datasets import Dataset
+from airflow.models import DAG, DagModel, DagRun, DatasetModel
 from airflow.models.dataset import DatasetEvent
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -1490,39 +1489,38 @@ class TestClearDagRun(TestDagRunEndpoint):
         assert response.status_code == 404
 
 
-def test__get_upstream_dataset_events_no_prior(configured_app):
+@pytest.mark.need_serialized_dag
+def test__get_upstream_dataset_events_no_prior(configured_app, dag_maker):
     """If no prior dag runs, return all events"""
     from airflow.api_connexion.endpoints.dag_run_endpoint import _get_upstream_dataset_events
 
+    dataset1a = Dataset(uri="ds1a")
+    dataset1b = Dataset(uri="ds1b")
     # setup dags and datasets
-    unique_id = str(uuid4())
-    session = settings.Session()
-    dataset1a = Dataset(uri=f"s3://{unique_id}-1a")
-    dataset1b = Dataset(uri=f"s3://{unique_id}-1b")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1a, dataset1b])
-    DAG.bulk_write_to_db(dags=[dag2], session=session)
-    session.add_all([dataset1a, dataset1b])
-    session.commit()
+    with dag_maker(dag_id="datasets-2", schedule=[dataset1a, dataset1b]):
+        pass
 
     # add 5 events
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id), DatasetEvent(dataset_id=dataset1b.id)])
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id), DatasetEvent(dataset_id=dataset1b.id)])
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id)])
-    session.commit()
+    session = dag_maker.session
+    ds1a_id = session.query(DatasetModel.id).filter_by(uri=dataset1a.uri).scalar()
+    ds1b_id = session.query(DatasetModel.id).filter_by(uri=dataset1b.uri).scalar()
+    session.add_all([DatasetEvent(dataset_id=ds1a_id), DatasetEvent(dataset_id=ds1b_id)])
+    session.add_all([DatasetEvent(dataset_id=ds1a_id), DatasetEvent(dataset_id=ds1b_id)])
+    session.add_all([DatasetEvent(dataset_id=ds1a_id)])
+    session.flush()
 
     # create a single dag run, no prior dag runs
-    dr = DagRun(dag2.dag_id, run_id=unique_id, run_type=DagRunType.DATASET_TRIGGERED)
-    dr.dag = dag2
-    session.add(dr)
-    session.commit()
-    session.expunge_all()
+    dr = dag_maker.create_dagrun(
+        run_id="run", run_type=DagRunType.DATASET_TRIGGERED, execution_date=timezone.utcnow()
+    )
 
     # check result
     events = _get_upstream_dataset_events(dag_run=dr, session=session)
     assert len(events) == 5
 
 
-def test__get_upstream_dataset_events_with_prior(configured_app):
+@pytest.mark.need_serialized_dag
+def test__get_upstream_dataset_events_with_prior(configured_app, dag_maker):
     """
     Events returned should be those that occurred after last DATASET_TRIGGERED
     dag run and up to the exec date of current dag run.
@@ -1530,57 +1528,48 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     from airflow.api_connexion.endpoints.dag_run_endpoint import _get_upstream_dataset_events
 
     # setup dags and datasets
-    unique_id = str(uuid4())
-    session = settings.Session()
-    dataset1a = Dataset(uri=f"s3://{unique_id}-1a")
-    dataset1b = Dataset(uri=f"s3://{unique_id}-1b")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule=[dataset1a, dataset1b])
-    DAG.bulk_write_to_db(dags=[dag2], session=session)
-    session.add_all([dataset1a, dataset1b])
-    session.commit()
+    dataset1a = Dataset(uri="ds1a")
+    dataset1b = Dataset(uri="ds1b")
+    # setup dags and datasets
+    with dag_maker(dag_id="datasets-2", schedule=[dataset1a, dataset1b]):
+        pass
+
+    session = dag_maker.session
+    ds1a_id = session.query(DatasetModel.id).filter_by(uri=dataset1a.uri).scalar()
+    ds1b_id = session.query(DatasetModel.id).filter_by(uri=dataset1b.uri).scalar()
 
     # add 2 events, then a dag run, then 3 events, then another dag run then another event
     first_timestamp = pendulum.datetime(2022, 1, 1, tz='UTC')
     session.add_all(
         [
-            DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp),
-            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp),
+            DatasetEvent(dataset_id=ds1a_id, timestamp=first_timestamp),
+            DatasetEvent(dataset_id=ds1b_id, timestamp=first_timestamp),
         ]
     )
-    dr1 = DagRun(
-        dag2.dag_id,
-        run_id=unique_id + '-1',
+    dag_maker.create_dagrun(
+        run_id='run-1',
         run_type=DagRunType.DATASET_TRIGGERED,
         execution_date=first_timestamp.add(microseconds=1000),
     )
-    dr1.dag = dag2
-    session.add(dr1)
     session.add_all(
         [
-            DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp.add(microseconds=2000)),
-            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp.add(microseconds=3000)),
-            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp.add(microseconds=4000)),
+            DatasetEvent(dataset_id=ds1a_id, timestamp=first_timestamp.add(microseconds=2000)),
+            DatasetEvent(dataset_id=ds1b_id, timestamp=first_timestamp.add(microseconds=3000)),
+            DatasetEvent(dataset_id=ds1b_id, timestamp=first_timestamp.add(microseconds=4000)),
         ]
     )
-    dr2 = DagRun(  # this dag run should be ignored
-        dag2.dag_id,
-        run_id=unique_id + '-3',
+    dag_maker.create_dagrun(
+        run_id='run-2',
         run_type=DagRunType.MANUAL,
         execution_date=first_timestamp.add(microseconds=3000),
     )
-    dr2.dag = dag2
-    session.add(dr2)
-    dr3 = DagRun(
-        dag2.dag_id,
-        run_id=unique_id + '-2',
+    dr3 = dag_maker.create_dagrun(
+        run_id='run-3',
         run_type=DagRunType.DATASET_TRIGGERED,
         execution_date=first_timestamp.add(microseconds=4000),  # exact same time as 3rd event in window
     )
-    dr3.dag = dag2
-    session.add(dr3)
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp.add(microseconds=5000))])
-    session.commit()
-    session.expunge_all()
+    session.add_all([DatasetEvent(dataset_id=ds1a_id, timestamp=first_timestamp.add(microseconds=5000))])
+    session.flush()
 
     events = _get_upstream_dataset_events(dag_run=dr3, session=session)
 
@@ -1611,7 +1600,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         created_at = pendulum.now('UTC')
         # make sure whatever is returned by this func is what comes out in response.
         d = DatasetEvent(dataset_id=1, timestamp=created_at)
-        d.dataset = Dataset(id=1, uri='hello', created_at=created_at, updated_at=created_at)
+        d.dataset = DatasetModel(id=1, uri='hello', created_at=created_at, updated_at=created_at)
         mock_get_events.return_value = [d]
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",

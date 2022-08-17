@@ -1355,6 +1355,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self.__class__.__name__
 
     @property
+    def operator_name(self) -> str:
+        """@property: use a more friendly display name for the operator, if set"""
+        try:
+            return self.custom_operator_name  # type: ignore
+        except AttributeError:
+            return self.task_type
+
+    @property
     def roots(self) -> List["BaseOperator"]:
         """Required by DAGNode."""
         return [self]
@@ -1458,6 +1466,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     'start_date',
                     'end_date',
                     '_task_type',
+                    '_operator_name',
                     'subdag',
                     'ui_color',
                     'ui_fgcolor',
