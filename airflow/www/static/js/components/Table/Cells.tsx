@@ -36,12 +36,12 @@ interface CellProps {
 
 export const TimeCell = ({ cell: { value } }: CellProps) => <Time dateTime={value} />;
 
-export const DatasetLink = ({ cell: { value, row } }: CellProps) => {
+export const DatasetLink = ({ cell: { value } }: CellProps) => {
   const datasetsUrl = getMetaValue('datasets_url');
   return (
     <Link
       color="blue.600"
-      href={`${datasetsUrl}?dataset_id=${row.original.datasetId}`}
+      href={`${datasetsUrl}?dataset_uri=${encodeURIComponent(value)}`}
     >
       {value}
     </Link>

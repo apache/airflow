@@ -24,14 +24,14 @@ import { getMetaValue } from 'src/utils';
 import type { API } from 'src/types';
 
 interface Props {
-  datasetId: string;
+  datasetUri: string;
 }
 
-export default function useDataset({ datasetId }: Props) {
+export default function useDataset({ datasetUri }: Props) {
   return useQuery(
-    ['dataset', datasetId],
+    ['dataset', datasetUri],
     () => {
-      const datasetUrl = `${getMetaValue('datasets_api') || '/api/v1/datasets'}/${datasetId}`;
+      const datasetUrl = `${getMetaValue('datasets_api') || '/api/v1/datasets'}/${encodeURIComponent(datasetUri)}`;
       return axios.get<AxiosResponse, API.Dataset>(datasetUrl);
     },
   );
