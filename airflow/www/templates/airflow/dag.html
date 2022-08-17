@@ -205,7 +205,7 @@
                   <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
                   <input type="hidden" name="unpause" value="True">
                   <!-- for task instance detail pages, dag_id is still a query param -->
-                  {% if request.args.get('dag_id') is not none %}
+                  {% if 'dag_id' in request.args %}
                     <input type="hidden" name="origin" value="{{ url_for(request.endpoint, **request.args) }}">
                   {% else %}
                     <input type="hidden" name="origin" value="{{ url_for(request.endpoint, dag_id=dag.dag_id, **request.args) }}">
