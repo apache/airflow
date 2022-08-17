@@ -26,12 +26,13 @@ import { getMetaValue } from 'src/utils';
 const taskLogApi = getMetaValue('task_log_api');
 
 const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, fullContent,
+  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent,
 }: {
   dagId: string,
   dagRunId: string,
   taskId: string,
   taskTryNumber: number,
+  mapIndex?: number,
   fullContent: boolean,
 }) => {
   let url: string = '';
@@ -42,8 +43,8 @@ const useTaskLog = ({
   const { isRefreshOn } = useAutoRefresh();
 
   return useQuery(
-    ['taskLogs', dagId, dagRunId, taskId, taskTryNumber, fullContent],
-    () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { full_content: fullContent } }),
+    ['taskLogs', dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent],
+    () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { map_index: mapIndex, full_content: fullContent } }),
     {
       placeholderData: '',
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,

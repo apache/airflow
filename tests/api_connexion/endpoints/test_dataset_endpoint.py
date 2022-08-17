@@ -19,7 +19,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -62,7 +62,7 @@ class TestDatasetEndpoint:
         clear_db_datasets()
 
     def _create_dataset(self, session):
-        dataset_model = Dataset(
+        dataset_model = DatasetModel(
             id=1,
             uri="s3://bucket/key",
             extra={"foo": "bar"},
@@ -77,7 +77,7 @@ class TestDatasetEndpoint:
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
         self._create_dataset(session)
-        assert session.query(Dataset).count() == 1
+        assert session.query(DatasetModel).count() == 1
 
         with assert_queries_count(5):
             response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
@@ -112,7 +112,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
 class TestGetDatasets(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
@@ -123,7 +123,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(datasets)
         session.commit()
-        assert session.query(Dataset).count() == 2
+        assert session.query(DatasetModel).count() == 2
 
         with assert_queries_count(8):
             response = self.client.get("/api/v1/datasets", environ_overrides={'REMOTE_USER': "test"})
@@ -156,7 +156,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -166,7 +166,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(datasets)
         session.commit()
-        assert session.query(Dataset).count() == 2
+        assert session.query(DatasetModel).count() == 2
 
         response = self.client.get(
             "/api/v1/datasets?order_by=fake", environ_overrides={'REMOTE_USER': "test"}
@@ -178,7 +178,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
     def test_should_raises_401_unauthenticated(self, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -188,7 +188,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(datasets)
         session.commit()
-        assert session.query(Dataset).count() == 2
+        assert session.query(DatasetModel).count() == 2
 
         response = self.client.get("/api/v1/datasets")
 
@@ -215,10 +215,10 @@ class TestGetDatasets(TestDatasetEndpoint):
     )
     @provide_session
     def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
-        dataset1 = Dataset("s3://folder/key")
-        dataset2 = Dataset("gcp://bucket/key")
-        dataset3 = Dataset("somescheme://dataset/key")
-        dataset4 = Dataset("wasb://some_dataset_bucket_/key")
+        dataset1 = DatasetModel("s3://folder/key")
+        dataset2 = DatasetModel("gcp://bucket/key")
+        dataset3 = DatasetModel("somescheme://dataset/key")
+        dataset4 = DatasetModel("wasb://some_dataset_bucket_/key")
         session.add_all([dataset1, dataset2, dataset3, dataset4])
         session.commit()
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
@@ -243,7 +243,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
     @provide_session
     def test_limit_and_offset(self, url, expected_dataset_uris, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -262,7 +262,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
     def test_should_respect_page_size_limit_default(self, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -281,7 +281,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -350,7 +350,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     @provide_session
     def test_filtering(self, attr, value, session):
         datasets = [
-            Dataset(
+            DatasetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},

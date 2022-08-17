@@ -46,7 +46,6 @@ def run_command(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
-    enabled_output_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -69,7 +68,6 @@ def run_command(
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
-    :param enabled_output_group: if set to true, in CI the logs will be placed in separate, foldable group.
     :param kwargs: kwargs passed to POpen
     """
     if not title:
@@ -88,7 +86,7 @@ def run_command(
     if verbose or dry_run:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
         env_to_print = get_environments_to_print(env)
-        with ci_group(title=f"Running {title}"):
+        with ci_group(title=f"Click to expand command run: {title}"):
             get_console().print(f"\n[info]Working directory {workdir}\n")
             if input:
                 get_console().print("[info]Input:")
@@ -103,7 +101,9 @@ def run_command(
         cmd_env.setdefault("HOME", str(Path.home()))
         if env:
             cmd_env.update(env)
-        with ci_group(title=f"Output of {title}", enabled=enabled_output_group):
+        if 'capture_output' in kwargs and kwargs['capture_output']:
+            return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        with ci_group(f"Click to expand the output of {title}"):
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
