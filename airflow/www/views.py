@@ -2745,6 +2745,7 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
             default_dag_run_display_number=default_dag_run_display_number,
+            default_wrap=conf.getboolean('webserver', 'default_wrap'),
             filters_drop_down_values=htmlsafe_json_dumps(
                 {
                     "taskStates": [state.value for state in TaskInstanceState],
