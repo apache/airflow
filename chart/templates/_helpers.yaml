@@ -782,78 +782,10 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
     {{- end -}}
   {{- end -}}
 {{- end -}}
-{{- define "workers_extra_envs" -}}
-{{- range $i, $config := .Values.workers.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "scheduler_extra_envs" -}}
-{{- range $i, $config := .Values.scheduler.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "flower_extra_envs" -}}
-{{- range $i, $config := .Values.flower.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "cleanup_extra_envs" -}}
-{{- range $i, $config := .Values.cleanup.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "dag_processor_extra_envs" -}}
-{{- range $i, $config := .Values.dagProcessor.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "create_user_job_extra_envs" -}}
-{{- range $i, $config := .Values.createUserJob.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "webserver_extra_envs" -}}
-{{- range $i, $config := .Values.webserver.env }}
-  - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- define "triggerer_extra_envs" -}}
-{{- range $i, $config := .Values.triggerer.env }}
+{{- define "container_extra_envs" -}}
+{{- $ := index . 0 -}}
+{{- $env := index . 1 -}}
+{{- range $i, $config := $env }}
   - name: {{ $config.name }}
     value: {{ $config.value | quote }}
     {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}

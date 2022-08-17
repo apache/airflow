@@ -94,6 +94,7 @@ spec:
               env:
               {{- include "standard_airflow_environment" . | indent 12 }}
               {{- include "cleanup_extra_envs" . | indent 12 }}
+              {{- include "container_extra_envs" (list . .Values.cleanup.env) | indent 10 }}
               volumeMounts:
                 - name: config
                   mountPath: {{ template "airflow_config_path" . }}
