@@ -5,6 +5,9 @@
         "../scripts/ci/docker-compose/remove-sources.yml",
         "../scripts/ci/docker-compose/backend-sqlite.yml"
     ],
+    "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+    },
     "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
