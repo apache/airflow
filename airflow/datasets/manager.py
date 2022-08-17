@@ -31,7 +31,7 @@ class DatasetEventManager(LoggingMixin):
     """
 
     def register_dataset_change(
-        self, *, task_instance=None, dataset=None, session: Session = NEW_SESSION
+        self, *, task_instance=None, dataset=None, extra=None, session: Session = NEW_SESSION
     ) -> None:
         """
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
@@ -52,6 +52,7 @@ class DatasetEventManager(LoggingMixin):
                     source_dag_id=task_instance.dag_id,
                     source_run_id=task_instance.run_id,
                     source_map_index=task_instance.map_index,
+                    extra=extra,
                 )
             )
             self._queue_dagruns(dataset, session)
