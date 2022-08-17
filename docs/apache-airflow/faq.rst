@@ -194,7 +194,7 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
             @task()
             def hello_world():
                 print("Hello World")
-                print("This is DAG: {}".format(str(dag_number)))
+                print(f"This is DAG: {dag_number}")
 
             hello_world()
 
