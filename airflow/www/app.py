@@ -108,7 +108,7 @@ def create_app(config=None, testing=False):
         flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     # Configure the JSON encoder used by `|tojson` filter from Flask
-    flask_app.json_encoder = AirflowJsonEncoder
+    flask_app.json_provider_class = AirflowJsonEncoder
 
     csrf.init_app(flask_app)
 
