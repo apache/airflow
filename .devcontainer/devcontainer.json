@@ -2,7 +2,6 @@
     "name": "Apache Airflow - sqlite",
     "dockerComposeFile": [
         "../scripts/ci/docker-compose/devcontainer.yml",
-        "../scripts/ci/docker-compose/remove-sources.yml",
         "../scripts/ci/docker-compose/backend-sqlite.yml"
     ],
     "settings": {
