@@ -1,0 +1,5 @@
+DAG runs sorting logic changed in grid view
+
+The ordering of DAG runs in the grid view has been changed to be more "natural".
+The new logic generally orders by data interval, but a custom ordering can be
+applied by setting the DAG to use a custom timetable.

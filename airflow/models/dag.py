@@ -3157,11 +3157,11 @@ class DagModel(Base):
                 continue
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> Tuple[Query, Dict]:
+    def dags_needing_dagruns(cls, session: Session) -> Tuple[Query, Dict[str, Tuple[datetime, datetime]]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
-        This will return a resultset of rows  that is row-level-locked with a "SELECT ... FOR UPDATE" query,
+        This will return a resultset of rows that is row-level-locked with a "SELECT ... FOR UPDATE" query,
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """

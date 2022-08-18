@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, Dict, NamedTuple, Optional, Sequence
 
 from pendulum import DateTime
 
@@ -123,6 +123,12 @@ class Timetable(Protocol):
 
     This defaults to and should generally be *True*, but ``NullTimetable`` sets
     this to *False*.
+    """
+
+    run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
+    """How runs triggered from this timetable should be ordered in UI.
+
+    This should be a list of field names on the DAG run object.
     """
 
     @classmethod

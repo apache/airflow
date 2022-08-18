@@ -25,7 +25,7 @@ import sys
 import time
 import warnings
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
 
 from sqlalchemy import func, not_, or_, text
@@ -1059,25 +1059,21 @@ class SchedulerJob(BaseJob):
         # memory for larger dags? or expunge_all()
 
     def _create_dag_runs_dataset_triggered(
-        self, dag_models: Collection[DagModel], dataset_triggered_dag_info: Dict, session: Session
+        self,
+        dag_models: Collection[DagModel],
+        dataset_triggered_dag_info: Dict[str, Tuple[datetime, datetime]],
+        session: Session,
     ) -> None:
         """For DAGs that are triggered by datasets, create dag runs."""
         # Bulk Fetch DagRuns with dag_id and execution_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-        exec_dates = {
-            dag_id: last_time for dag_id, (first_time, last_time) in dataset_triggered_dag_info.items()
-        }
-        existing_dagruns = (
-            session.query(DagRun.dag_id, DagRun.execution_date)
-            .filter(
-                tuple_in_condition(
-                    (DagRun.dag_id, DagRun.execution_date),
-                    list(exec_dates.items()),
-                ),
+        exec_dates = {dag_id: last_time for dag_id, (_, last_time) in dataset_triggered_dag_info.items()}
+        existing_dagruns: Set[Tuple[str, datetime]] = set(
+            session.query(DagRun.dag_id, DagRun.execution_date).filter(
+                tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
             )
-            .all()
         )
 
         for dag_model in dag_models:
@@ -1101,6 +1097,7 @@ class SchedulerJob(BaseJob):
                 dag_run = dag.create_dagrun(
                     run_type=DagRunType.DATASET_TRIGGERED,
                     execution_date=exec_date,
+                    data_interval=(exec_date, exec_date),
                     state=DagRunState.QUEUED,
                     external_trigger=False,
                     session=session,
