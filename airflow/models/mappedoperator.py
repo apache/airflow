@@ -505,13 +505,21 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
-    @property
-    def inlets(self) -> Optional[Any]:
+    @property  # type: ignore[override]
+    def inlets(self) -> Optional[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("inlets", None)
 
-    @property
-    def outlets(self) -> Optional[Any]:
+    @inlets.setter
+    def inlets(self, value):  # type: ignore[override]
+        self.partial_kwargs["inlets"] = value
+
+    @property  # type: ignore[override]
+    def outlets(self) -> Optional[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("outlets", None)
+
+    @outlets.setter
+    def outlets(self, value):  # type: ignore[override]
+        self.partial_kwargs["outlets"] = value
 
     @property
     def doc(self) -> Optional[str]:

@@ -27,6 +27,7 @@ class _TrivialTimetable(Timetable):
 
     periodic = False
     can_run = False
+    run_ordering = ("execution_date",)
 
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":

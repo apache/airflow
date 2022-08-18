@@ -363,7 +363,7 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
-                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 'operator': item.operator_name,
             }
 
@@ -3624,8 +3624,10 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            dag_runs = query.order_by(DagRun.execution_date.desc()).limit(num_runs).all()
+            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
+            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
             dag_runs.reverse()
+
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
