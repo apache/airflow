@@ -138,7 +138,7 @@ class TestGoogleSearchAdsDownloadReportOperator(TestCase):
         dag = DAG(
             dag_id="test_set_bucket_name",
             start_date=DEFAULT_DATE,
-            schedule_interval=None,
+            schedule=None,
             catchup=False,
         )
 

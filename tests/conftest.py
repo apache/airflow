@@ -193,10 +193,20 @@ def pytest_addoption(parser):
 
 
 def initial_db_init():
+    from flask import Flask
+
+    from airflow.configuration import conf
     from airflow.utils import db
+    from airflow.www.app import sync_appbuilder_roles
+    from airflow.www.extensions.init_appbuilder import init_appbuilder
 
     db.resetdb()
     db.bootstrap_dagbag()
+    # minimal app to add roles
+    flask_app = Flask(__name__)
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+    init_appbuilder(flask_app)
+    sync_appbuilder_roles(flask_app)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -611,7 +621,7 @@ def dag_maker(request):
                     if not dag_ids:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
-                    self.session.flush()
+                    self.session.rollback()
 
                     self.session.query(SerializedDagModel).filter(
                         SerializedDagModel.dag_id.in_(dag_ids)

@@ -374,6 +374,19 @@
       example: ~
       default: "1024"
 
+    - name: daemon_umask
+      description: |
+        The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
+
+        This controls the file-creation mode mask which determines the initial value of file permission bits
+        for newly created files.
+
+        This value is treated as an octal-integer.
+      version_added: 2.3.4
+      type: string
+      default: "0o077"
+      example: ~
+
 - name: database
   description: ~
   options:
@@ -1652,15 +1665,6 @@
       type: boolean
       example: ~
       default: "true"
-    - name: worker_umask
-      description: |
-        Umask that will be used when starting workers with the ``airflow celery worker``
-        in daemon mode. This control the file-creation mode mask which determines the initial
-        value of file permission bits for newly created files.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
@@ -2463,36 +2467,3 @@
       type: float
       example: ~
       default: "604800"
-- name: smart_sensor
-  description: ~
-  options:
-    - name: use_smart_sensor
-      description: |
-        When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
-        smart sensor task.
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
-    - name: shard_code_upper_limit
-      description: |
-        `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
-        by `hashcode % shard_code_upper_limit`.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "10000"
-    - name: shards
-      description: |
-        The number of running smart sensor processes for each service.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "5"
-    - name: sensors_enabled
-      description: |
-        comma separated sensor classes support in smart_sensor.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "NamedHivePartitionSensor"

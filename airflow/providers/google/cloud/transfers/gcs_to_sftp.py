@@ -40,7 +40,7 @@ class GCSToSFTPOperator(BaseOperator):
         with models.DAG(
             "example_gcs_to_sftp",
             start_date=datetime(2020, 6, 19),
-            schedule_interval=None,
+            schedule=None,
         ) as dag:
             # downloads file to /tmp/sftp/folder/subfolder/file.txt
             copy_file_from_gcs_to_sftp = GCSToSFTPOperator(

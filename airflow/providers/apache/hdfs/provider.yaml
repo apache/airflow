@@ -23,6 +23,7 @@ description: |
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 versions:
+  - 3.1.0
   - 3.0.1
   - 3.0.0
   - 2.2.3

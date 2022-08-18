@@ -21,6 +21,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Collection,
     Dict,
     Generic,
@@ -259,6 +260,8 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
 
     decorator_name: str = attr.ib(repr=False, default="task")
 
+    _airflow_is_task_decorator: ClassVar[bool] = True
+
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
         try:
@@ -388,6 +391,12 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
 
         # Mypy does not work well with a subclassed attrs class :(
         _MappedOperator = cast(Any, DecoratedMappedOperator)
+
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
         operator = _MappedOperator(
             operator_class=self.operator_class,
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
@@ -404,6 +413,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
             is_empty=False,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,
@@ -455,7 +465,7 @@ class DecoratedMappedOperator(MappedOperator):
         assert self.expand_input is EXPAND_INPUT_EMPTY
         return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         if strict:
             prevent_duplicates(
                 self.partial_kwargs["op_kwargs"],
@@ -533,6 +543,9 @@ class Task(Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
         ...
 
+    def override(self, **kwargs: Any) -> "Task[FParams, FReturn]":
+        ...
+
 
 class TaskDecorator(Protocol):
     """Type declaration for ``task_decorator_factory`` return type."""
@@ -552,6 +565,9 @@ class TaskDecorator(Protocol):
         **kwargs: Any,
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
+
+    def override(self, **kwargs: Any) -> "Task[FParams, FReturn]":
+        ...
 
 
 def task_decorator_factory(

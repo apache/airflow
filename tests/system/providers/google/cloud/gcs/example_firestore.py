@@ -76,7 +76,7 @@ if BUCKET_NAME is None:
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval='@once',
+    schedule='@once',
     catchup=False,
     tags=["example", "firestore"],
 ) as dag:

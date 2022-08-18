@@ -21,10 +21,12 @@ import { useSearchParams } from 'react-router-dom';
 
 const RUN_ID = 'dag_run_id';
 const TASK_ID = 'task_id';
+const MAP_INDEX = 'map_index';
 
 export interface SelectionProps {
   runId?: string | null ;
   taskId?: string | null;
+  mapIndex?: number | null;
 }
 
 const useSelection = () => {
@@ -34,10 +36,11 @@ const useSelection = () => {
   const clearSelection = () => {
     searchParams.delete(RUN_ID);
     searchParams.delete(TASK_ID);
+    searchParams.delete(MAP_INDEX);
     setSearchParams(searchParams);
   };
 
-  const onSelect = ({ runId, taskId }: SelectionProps) => {
+  const onSelect = ({ runId, taskId, mapIndex }: SelectionProps) => {
     const params = new URLSearchParams(searchParams);
 
     if (runId) params.set(RUN_ID, runId);
@@ -46,16 +49,22 @@ const useSelection = () => {
     if (taskId) params.set(TASK_ID, taskId);
     else params.delete(TASK_ID);
 
+    if (mapIndex || mapIndex === 0) params.set(MAP_INDEX, mapIndex.toString());
+    else params.delete(MAP_INDEX);
+
     setSearchParams(params);
   };
 
   const runId = searchParams.get(RUN_ID);
   const taskId = searchParams.get(TASK_ID);
+  const mapIndexParam = searchParams.get(MAP_INDEX);
+  const mapIndex = mapIndexParam !== null ? parseInt(mapIndexParam, 10) : null;
 
   return {
     selected: {
       runId,
       taskId,
+      mapIndex,
     },
     clearSelection,
     onSelect,

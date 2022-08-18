@@ -16,13 +16,12 @@
 # under the License.
 
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -40,9 +39,6 @@ class BuildProdParams(CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints"
-    default_constraints_branch: str = os.environ.get(
-        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
     airflow_constraints_reference: str = ""
     cleanup_context: bool = False
     disable_airflow_repo_cache: bool = False
@@ -199,15 +195,6 @@ class BuildProdParams(CommonBuildParams):
     @property
     def required_image_args(self) -> List[str]:
         return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_pip_install_flags",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
             "airflow_branch",
             "airflow_constraints_mode",
             "airflow_extras",
@@ -231,6 +218,15 @@ class BuildProdParams(CommonBuildParams):
     @property
     def optional_image_args(self) -> List[str]:
         return [
+            "additional_airflow_extras",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_pip_install_flags",
+            "additional_python_deps",
+            "additional_runtime_apt_command",
+            "additional_runtime_apt_deps",
+            "additional_runtime_apt_env",
             "dev_apt_command",
             "dev_apt_deps",
             "runtime_apt_command",

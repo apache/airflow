@@ -27,11 +27,11 @@ from typing import Dict, List, Optional, Tuple
 
 import click
 
-from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_backend,
     option_db_reset,
@@ -56,49 +56,13 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 
-TESTING_COMMANDS = {
-    "name": "Testing",
-    "commands": ["docker-compose-tests", "tests"],
-}
 
-TESTING_PARAMETERS = {
-    "breeze docker-compose-tests": [
-        {
-            "name": "Docker-compose tests flag",
-            "options": [
-                "--image-name",
-                "--image-tag",
-                "--python",
-            ],
-        }
-    ],
-    "breeze tests": [
-        {
-            "name": "Basic flag for tests command",
-            "options": [
-                "--integration",
-                "--test-type",
-                "--db-reset",
-                "--backend",
-                "--python",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
-            ],
-        },
-        {
-            "name": "Advanced flag for tests command",
-            "options": [
-                "--limit-progress-output",
-                "--image-tag",
-                "--mount-sources",
-            ],
-        },
-    ],
-}
+@click.group(cls=BreezeGroup, name='testing', help='Tools that developers can use to run tests')
+def testing():
+    pass
 
 
-@main.command(
+@testing.command(
     name='docker-compose-tests',
     context_settings=dict(
         ignore_unknown_options=True,
@@ -191,11 +155,12 @@ def run_with_progress(
     test_type: str,
     python: str,
     backend: str,
-    version: str,
     verbose: bool,
     dry_run: bool,
+    version: Optional[str] = None,
 ) -> RunCommandResult:
-    title = f"Running tests: {test_type}, Python: {python}, Backend: {backend}:{version}"
+    backend_version = backend + (":" + version) if version else backend
+    title = f"Running tests: {test_type}, Python: {python}, Backend: {backend_version}"
     try:
         with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as tf:
             get_console().print(f"[info]Starting test = {title}[/]")
@@ -222,9 +187,9 @@ def run_with_progress(
     return result
 
 
-@main.command(
+@testing.command(
     name='tests',
-    help="Run the specified unit test targets. Multiple targets may be specified separated by spaces.",
+    help="Run the specified unit test targets.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -252,6 +217,12 @@ def run_with_progress(
     default="All",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
+@click.option(
+    "--test-timeout",
+    help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
+    default="60",
+    show_default=True,
+)
 @option_db_reset
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def tests(
@@ -266,22 +237,11 @@ def tests(
     integration: Tuple,
     extra_pytest_args: Tuple,
     test_type: str,
+    test_timeout: str,
     db_reset: bool,
     image_tag: Optional[str],
     mount_sources: str,
 ):
-    os.environ["RUN_TESTS"] = "true"
-    if test_type:
-        os.environ["TEST_TYPE"] = test_type
-        if "[" in test_type and not test_type.startswith("Providers"):
-            get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
-            sys.exit(1)
-    if integration:
-        if "trino" in integration:
-            integration = integration + ("kerberos",)
-        os.environ["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = ' '.join(list(integration))
-    if db_reset:
-        os.environ["DB_RESET"] = "true"
     exec_shell_params = ShellParams(
         verbose=verbose,
         dry_run=dry_run,
@@ -294,6 +254,20 @@ def tests(
         mount_sources=mount_sources,
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
+    env_variables['RUN_TESTS'] = "true"
+    if test_type:
+        env_variables["TEST_TYPE"] = test_type
+        if "[" in test_type and not test_type.startswith("Providers"):
+            get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
+            sys.exit(1)
+    if test_timeout:
+        env_variables["TEST_TIMEOUT"] = test_timeout
+    if integration:
+        if "trino" in integration:
+            integration = integration + ("kerberos",)
+        env_variables["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = ' '.join(list(integration))
+    if db_reset:
+        env_variables["DB_RESET"] = "true"
     perform_environment_checks(verbose=verbose)
     cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
@@ -314,6 +288,59 @@ def tests(
             python=python,
             backend=backend,
             version=version,
+            verbose=verbose,
+            dry_run=dry_run,
+        )
+    else:
+        result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+    sys.exit(result.returncode)
+
+
+@testing.command(
+    name='helm-tests',
+    help="Run Helm chart tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_dry_run
+@option_verbose
+@click.option(
+    '--limit-progress-output',
+    help="Limit progress to percentage only and just show the summary when tests complete.",
+    is_flag=True,
+)
+@option_image_tag_for_running
+@option_mount_sources
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+def helm_tests(
+    dry_run: bool,
+    verbose: bool,
+    extra_pytest_args: Tuple,
+    image_tag: Optional[str],
+    limit_progress_output: bool,
+    mount_sources: str,
+):
+    exec_shell_params = ShellParams(
+        verbose=verbose,
+        dry_run=dry_run,
+        image_tag=image_tag,
+        mount_sources=mount_sources,
+    )
+    env_variables = get_env_variables_for_docker_commands(exec_shell_params)
+    env_variables['RUN_TESTS'] = "true"
+    env_variables['TEST_TYPE'] = 'Helm'
+    perform_environment_checks(verbose=verbose)
+    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd.extend(list(extra_pytest_args))
+    if limit_progress_output:
+        result = run_with_progress(
+            cmd=cmd,
+            python=exec_shell_params.python,
+            backend=exec_shell_params.backend,
+            test_type='Helm',
+            env_variables=env_variables,
             verbose=verbose,
             dry_run=dry_run,
         )

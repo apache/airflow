@@ -33,7 +33,7 @@ DAG_ID = "example_livy_operator"
 with DAG(
     dag_id=DAG_ID,
     default_args={'args': [10]},
-    schedule_interval='@daily',
+    schedule='@daily',
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

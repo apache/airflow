@@ -31,7 +31,7 @@ args = {
 dag = DAG(
     dag_id='perf_dag_1',
     default_args=args,
-    schedule_interval='@daily',
+    schedule='@daily',
     dagrun_timeout=datetime.timedelta(minutes=60),
 )
 

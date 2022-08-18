@@ -31,7 +31,7 @@ with DAG(
     default_args={'owner': 'core scientific', 'retries': 1},
     description='testing plexus operator',
     start_date=datetime(2021, 1, 1),
-    schedule_interval='@once',
+    schedule='@once',
     catchup=False,
 ) as dag:
     # [START plexus_job_op]

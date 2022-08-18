@@ -17,11 +17,12 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
+import subprocess
 import sys
 from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -52,7 +53,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEBSERVER_HOST_PORT,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -271,13 +272,24 @@ def check_docker_compose_version(verbose: bool):
     """
     version_pattern = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     docker_compose_version_command = ["docker-compose", "--version"]
-    docker_compose_version_result = run_command(
-        docker_compose_version_command,
-        verbose=verbose,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        docker_compose_version_result = run_command(
+            docker_compose_version_command,
+            verbose=verbose,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        docker_compose_version_command = ["docker", "compose", "version"]
+        docker_compose_version_result = run_command(
+            docker_compose_version_command,
+            verbose=verbose,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        )
+
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -433,7 +445,7 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
                 "--builder",
                 image_params.builder,
                 "--progress=tty",
-                "--push" if image_params.push_image else "--load",
+                "--push" if image_params.push else "--load",
             ]
         )
     else:
@@ -491,7 +503,7 @@ def prepare_docker_build_from_input(
 
 
 def build_cache(
-    image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
+    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
 ) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
@@ -507,24 +519,23 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
+            stdout=output.file if output else None,
+            stderr=subprocess.STDOUT,
             check=False,
             text=True,
-            enabled_output_group=not parallel,
         )
         if build_command_result.returncode != 0:
             break
     return build_command_result
 
 
-def make_sure_builder_configured(parallel: bool, params: CommonBuildParams, dry_run: bool, verbose: bool):
+def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbose: bool):
     if params.builder != 'default':
         cmd = ['docker', 'buildx', 'inspect', params.builder]
-        buildx_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
-        )
+        buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
             next_cmd = ['docker', 'buildx', 'create', '--name', params.builder]
-            run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
+            run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
 def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
@@ -582,6 +593,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'SKIP_ENVIRONMENT_INITIALIZATION', "false")
     set_value_to_default_if_not_set(env, 'SKIP_SSH_SETUP', "false")
     set_value_to_default_if_not_set(env, 'TEST_TYPE', "")
+    set_value_to_default_if_not_set(env, 'TEST_TIMEOUT', "60")
     set_value_to_default_if_not_set(env, 'UPGRADE_TO_NEWER_DEPENDENCIES', "false")
     set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
     set_value_to_default_if_not_set(env, 'VERBOSE', "false")
@@ -688,7 +700,7 @@ def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_r
     get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
     warm_up_image_param = deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
-    warm_up_image_param.push_image = False
+    warm_up_image_param.push = False
     build_command = prepare_base_build_command(image_params=warm_up_image_param, verbose=verbose)
     warm_up_command = []
     warm_up_command.extend(["docker"])
@@ -705,7 +717,6 @@ LABEL description="test warmup image"
         cwd=AIRFLOW_SOURCES_ROOT,
         text=True,
         check=False,
-        enabled_output_group=True,
     )
     if warm_up_command_result.returncode != 0:
         get_console().print(

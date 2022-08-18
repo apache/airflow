@@ -54,6 +54,10 @@ This policy checks if each DAG has at least one tag defined:
 
     To avoid import cycles, if you use ``DAG`` in type annotations in your cluster policy, be sure to import from ``airflow.models`` and not from ``airflow``.
 
+.. note::
+
+    DAG policies are applied after the DAG has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
+
 Task policies
 -------------
 
@@ -90,3 +94,5 @@ Here's an example of re-routing tasks that are on their second (or greater) retr
         :language: python
         :start-after: [START example_task_mutation_hook]
         :end-before: [END example_task_mutation_hook]
+
+Note that since priority weight is determined dynamically using weight rules, you cannot alter the ``priority_weight`` of a task instance within the mutation hook.

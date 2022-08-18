@@ -449,12 +449,16 @@ def webserver(args):
             handle = setup_logging(log_file)
 
             base, ext = os.path.splitext(pid_file)
-            with open(stdout, 'w+') as stdout, open(stderr, 'w+') as stderr:
+            with open(stdout, 'a') as stdout, open(stderr, 'a') as stderr:
+                stdout.truncate(0)
+                stderr.truncate(0)
+
                 ctx = daemon.DaemonContext(
                     pidfile=TimeoutPIDLockFile(f"{base}-monitor{ext}", -1),
                     files_preserve=[handle],
                     stdout=stdout,
                     stderr=stderr,
+                    umask=int(settings.DAEMON_UMASK, 8),
                 )
                 with ctx:
                     subprocess.Popen(run_args, close_fds=True)

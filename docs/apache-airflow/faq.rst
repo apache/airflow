@@ -41,13 +41,13 @@ There are very many reasons why your task might not be getting scheduled. Here a
   "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
   files collocated with user's DAGs.
 
-- Is your ``start_date`` set properly? The Airflow scheduler triggers the
-  task soon after the ``start_date + schedule_interval`` is passed.
+- Is your ``start_date`` set properly? For time-based DAGs, the task won't be triggered until the
+  the first schedule interval following the start date has passed.
 
-- Is your ``schedule_interval`` set properly? The default ``schedule_interval``
-  is one day (``datetime.timedelta(1)``). You must specify a different ``schedule_interval``
+- Is your ``schedule`` argument set properly? The default
+  is one day (``datetime.timedelta(1)``). You must specify a different ``schedule``
   directly to the DAG object you instantiate, not as a ``default_param``, as task instances
-  do not override their parent DAG's ``schedule_interval``.
+  do not override their parent DAG's ``schedule``.
 
 - Is your ``start_date`` beyond where you can see it in the UI? If you
   set your ``start_date`` to some time say 3 months ago, you won't be able to see
@@ -177,25 +177,27 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
    :name: dag_loader.py
 
     from airflow import DAG
-    from airflow.operators.python_operator import PythonOperator
+    from airflow.decorators import task
 
     import pendulum
 
 
     def create_dag(dag_id, schedule, dag_number, default_args):
-        def hello_world_py(*args):
-            print("Hello World")
-            print("This is DAG: {}".format(str(dag_number)))
-
         dag = DAG(
             dag_id,
-            schedule_interval=schedule,
+            schedule=schedule,
             default_args=default_args,
             pendulum.datetime(2021, 9, 13, tz="UTC"),
         )
 
         with dag:
-            t1 = PythonOperator(task_id="hello_world", python_callable=hello_world_py)
+
+            @task()
+            def hello_world():
+                print("Hello World")
+                print(f"This is DAG: {dag_number}")
+
+            hello_world()
 
         return dag
 
@@ -212,7 +214,7 @@ a global ``start_date`` for your tasks. This can be done by declaring your
 ``start_date`` directly in the ``DAG()`` object. The first
 DagRun to be created will be based on the ``min(start_date)`` for all your
 tasks. From that point on, the scheduler creates new DagRuns based on
-your ``schedule_interval`` and the corresponding task instances run as your
+your ``schedule`` and the corresponding task instances run as your
 dependencies are met. When introducing new tasks to your DAG, you need to
 pay special attention to ``start_date``, and may want to reactivate
 inactive DagRuns to get the new task onboarded properly.
@@ -224,15 +226,15 @@ an hour after now as ``now()`` moves along.
 
 
 Previously, we also recommended using rounded ``start_date`` in relation to your
-``schedule_interval``. This meant an ``@hourly`` would be at ``00:00``
+DAG's ``schedule``. This meant an ``@hourly`` would be at ``00:00``
 minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
 first of the month. This is no longer required. Airflow will now auto align
-the ``start_date`` and the ``schedule_interval``, by using the ``start_date``
+the ``start_date`` and the ``schedule``, by using the ``start_date``
 as the moment to start looking.
 
 You can use any sensor or a ``TimeDeltaSensor`` to delay
 the execution of tasks within the schedule interval.
-While ``schedule_interval`` does allow specifying a ``datetime.timedelta``
+While ``schedule`` does allow specifying a ``datetime.timedelta``
 object, we recommend using the macros or cron expressions instead, as
 it enforces this idea of rounded schedules.
 
@@ -376,7 +378,7 @@ Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 ------------------------------------------------------------------
 
 - When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
-  ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
+  ``logical_date`` and the DAG's schedule (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
 
@@ -410,7 +412,7 @@ upstream task.
     from airflow.utils.trigger_rule import TriggerRule
 
 
-    @task
+    @task()
     def a_func():
         raise AirflowException
 
@@ -422,7 +424,7 @@ upstream task.
         pass
 
 
-    @dag(schedule_interval="@once", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"))
+    @dag(schedule="@once", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"))
     def my_dag():
         a = a_func()
         b = b_func()

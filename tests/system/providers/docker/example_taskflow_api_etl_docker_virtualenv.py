@@ -101,7 +101,7 @@ def tutorial_taskflow_api_etl_docker_virtualenv():
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "docker"],

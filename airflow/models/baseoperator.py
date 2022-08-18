@@ -899,11 +899,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.inlets: List = []
         self.outlets: List = []
 
-        self._inlets: List = []
-        self._outlets: List = []
-
         if inlets:
-            self._inlets = (
+            self.inlets = (
                 inlets
                 if isinstance(inlets, list)
                 else [
@@ -912,7 +909,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
         if outlets:
-            self._outlets = (
+            self.outlets = (
                 outlets
                 if isinstance(outlets, list)
                 else [
@@ -959,7 +956,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
-            if not self._outlets and not self.supports_lineage:
+            if not self.outlets and not self.supports_lineage:
                 raise ValueError("No outlets defined for this operator")
             other.add_inlets([self.task_id])
             self.set_downstream(other)
@@ -1015,19 +1012,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def add_inlets(self, inlets: Iterable[Any]):
         """Sets inlets to this operator"""
-        self._inlets.extend(inlets)
+        self.inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
         """Defines the outlets of this operator"""
-        self._outlets.extend(outlets)
+        self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """:return: list of inlets defined for this operator"""
-        return self._inlets
+        """:meta private:"""
+        return self.inlets
 
     def get_outlet_defs(self):
-        """:return: list of outlets defined for this operator"""
-        return self._outlets
+        """:meta private:"""
+        return self.outlets
 
     def get_dag(self) -> "Optional[DAG]":
         return self._dag
@@ -1355,6 +1352,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self.__class__.__name__
 
     @property
+    def operator_name(self) -> str:
+        """@property: use a more friendly display name for the operator, if set"""
+        try:
+            return self.custom_operator_name  # type: ignore
+        except AttributeError:
+            return self.task_type
+
+    @property
     def roots(self) -> List["BaseOperator"]:
         """Required by DAGNode."""
         return [self]
@@ -1443,8 +1448,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             cls.__serialized_fields = frozenset(
                 vars(BaseOperator(task_id='test')).keys()
                 - {
-                    'inlets',
-                    'outlets',
                     'upstream_task_ids',
                     'default_args',
                     'dag',
@@ -1458,6 +1461,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     'start_date',
                     'end_date',
                     '_task_type',
+                    '_operator_name',
                     'subdag',
                     'ui_color',
                     'ui_fgcolor',
@@ -1474,10 +1478,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
-
-    def is_smart_sensor_compatible(self):
-        """Return if this operator can use smart service. Default False."""
-        return False
 
     is_mapped: ClassVar[bool] = False
 
@@ -1512,7 +1512,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if cls.mapped_arguments_validated_by_init:
             cls(**kwargs, _airflow_from_mapped=True, _airflow_mapped_validation_only=True)
 
-    def unmap(self, ctx: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
         return self
 
@@ -1766,21 +1766,16 @@ class BaseOperatorLink(metaclass=ABCMeta):
     @property
     @abstractmethod
     def name(self) -> str:
-        """
-        Name of the link. This will be the button name on the task UI.
-
-        :return: link name
-        """
+        """Name of the link. This will be the button name on the task UI."""
 
     @abstractmethod
-    def get_link(self, operator: AbstractOperator, *, ti_key: "TaskInstanceKey") -> str:
-        """
-        Link to external system.
+    def get_link(self, operator: BaseOperator, *, ti_key: "TaskInstanceKey") -> str:
+        """Link to external system.
 
         Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
         supported at runtime but is deprecated.
 
-        :param operator: airflow operator
-        :param ti_key: TaskInstance ID to return link for
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """

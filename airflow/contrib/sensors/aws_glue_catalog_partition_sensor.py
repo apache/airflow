@@ -22,7 +22,9 @@ Please use :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`.
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.glue_catalog_partition import AwsGlueCatalogPartitionSensor  # noqa
+from airflow.providers.amazon.aws.sensors.glue_catalog_partition import (  # noqa
+    GlueCatalogPartitionSensor as AwsGlueCatalogPartitionSensor,
+)
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.glue_catalog_partition`.",

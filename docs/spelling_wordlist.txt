@@ -99,6 +99,7 @@ DataTransferServiceClient
 Databricks
 Datadog
 Dataflow
+Dataform
 Dataframe
 Datalake
 Datanodes
@@ -729,6 +730,7 @@ delim
 dep
 deploymentUrl
 deps
+deregister
 desc
 deserialization
 deserialize
@@ -975,6 +977,7 @@ isfile
 ish
 isn
 iterable
+iterables
 iteratively
 iterm
 itertools
@@ -1051,6 +1054,7 @@ lshift
 lxml
 macOS
 macosx
+mailto
 makedirs
 makedsn
 mapred
@@ -1520,6 +1524,7 @@ unittest
 unittests
 unix
 unmanaged
+unmap
 unmappable
 unmapped
 unmapping

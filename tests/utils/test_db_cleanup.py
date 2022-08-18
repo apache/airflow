@@ -258,6 +258,7 @@ class TestDBCleanup:
             'serialized_dag',  # handled through FK to Dag
             'log_template',  # not a significant source of data; age not indicative of staleness
             'dag_tag',  # not a significant source of data; age not indicative of staleness,
+            'dag_owner_attributes',  # not a significant source of data; age not indicative of staleness,
             'dag_pickle',  # unsure of consequences
             'dag_code',  # self-maintaining
             'dag_warning',  # self-maintaining
@@ -266,6 +267,7 @@ class TestDBCleanup:
             'dataset_dag_ref',  # leave alone for now
             'dataset_task_ref',  # leave alone for now
             'dataset_dag_run_queue',  # self-managed
+            'dataset_event_dag_run',  # foreign keys
         }
 
         from airflow.utils.db_cleanup import config_dict

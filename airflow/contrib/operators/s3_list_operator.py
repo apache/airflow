@@ -15,14 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.s3_list`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.s3`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # noqa
+try:
+    from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.s3_list import (  # type: ignore[no-redef]  # noqa
+        S3ListOperator,
+    )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_list`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
     DeprecationWarning,
     stacklevel=2,
 )

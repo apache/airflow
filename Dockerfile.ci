@@ -328,7 +328,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="22.2.1"
+            export AIRFLOW_PIP_VERSION="22.2.2"
         fi
     fi
 }
@@ -534,7 +534,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
-. /opt/airflow/scripts/in_container/_in_container_script_init.sh
+. "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
 LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
 export LD_PRELOAD
@@ -569,6 +569,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    TEST_TIMEOUT=${TEST_TIMEOUT:="60"}
 
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
@@ -759,9 +760,9 @@ EXTRA_PYTEST_ARGS=(
     # timeouts in seconds for individual tests
     "--timeouts-order"
     "moi"
-    "--setup-timeout=60"
-    "--execution-timeout=60"
-    "--teardown-timeout=60"
+    "--setup-timeout=${TEST_TIMEOUT}"
+    "--execution-timeout=${TEST_TIMEOUT}"
+    "--teardown-timeout=${TEST_TIMEOUT}"
     # Only display summary for non-expected case
     # f - failed
     # E - error
@@ -775,9 +776,11 @@ EXTRA_PYTEST_ARGS=(
 )
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
+    echo "Running tests with ${_cpus} CPUs in parallel"
     # Enable parallelism
     EXTRA_PYTEST_ARGS+=(
-        "-n" "auto"
+        "-n" "${_cpus}"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -1052,7 +1055,7 @@ ARG RUNTIME_APT_DEPS="\
       xxd"
 
 # Install Helm
-ARG HELM_VERSION="v3.6.3"
+ARG HELM_VERSION="v3.9.2"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
@@ -1119,7 +1122,7 @@ ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
-ARG AIRFLOW_PIP_VERSION=22.2.1
+ARG AIRFLOW_PIP_VERSION=22.2.2
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1173,7 +1176,9 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3"
+# * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
+#   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
