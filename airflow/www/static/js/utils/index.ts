@@ -25,9 +25,9 @@ const hoverDelay = 200;
 function getMetaValue(name: string) {
   const elem = document.querySelector(`meta[name="${name}"]`);
   if (!elem) {
-    return null;
+    return '';
   }
-  return elem.getAttribute('content');
+  return elem.getAttribute('content') || '';
 }
 
 const finalStatesMap = () => new Map([
@@ -38,7 +38,6 @@ const finalStatesMap = () => new Map([
   ['up_for_reschedule', 0],
   ['running', 0],
   ['deferred', 0],
-  ['sensing', 0],
   ['queued', 0],
   ['scheduled', 0],
   ['skipped', 0],

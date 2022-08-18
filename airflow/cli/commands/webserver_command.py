@@ -458,6 +458,7 @@ def webserver(args):
                     files_preserve=[handle],
                     stdout=stdout,
                     stderr=stderr,
+                    umask=int(settings.DAEMON_UMASK, 8),
                 )
                 with ctx:
                     subprocess.Popen(run_args, close_fds=True)

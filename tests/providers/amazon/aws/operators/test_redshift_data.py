@@ -110,3 +110,32 @@ class TestRedshiftDataOperator:
         mock_conn.cancel_statement.assert_called_once_with(
             Id=STATEMENT_ID,
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_batch_execute(self, mock_conn):
+        mock_conn.execute_statement.return_value = {'Id': STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        operator = RedshiftDataOperator(
+            task_id=TASK_ID,
+            cluster_identifier=cluster_identifier,
+            database=DATABASE,
+            db_user=db_user,
+            sql=[SQL],
+            statement_name=statement_name,
+            secret_arn=secret_arn,
+            aws_conn_id=CONN_ID,
+        )
+        operator.execute(None)
+        mock_conn.batch_execute_statement.assert_called_once_with(
+            Database=DATABASE,
+            Sqls=[SQL],
+            ClusterIdentifier=cluster_identifier,
+            DbUser=db_user,
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            WithEvent=False,
+        )

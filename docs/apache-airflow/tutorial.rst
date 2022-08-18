@@ -95,7 +95,7 @@ Instantiate a DAG
 We'll need a DAG object to nest our tasks into. Here we pass a string
 that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
-define a ``schedule_interval`` of 1 day for the DAG.
+define a ``schedule`` of 1 day for the DAG.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
@@ -403,7 +403,7 @@ The steps below should be sufficient, but see the quick-start documentation for 
 .. code-block:: bash
 
   # Download the docker-compose.yaml file
-  curl -Lf0 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
+  curl -LfO 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
 
   # Make expected directories and set an expected environment variable
   mkdir -p ./dags ./logs ./plugins
@@ -587,7 +587,7 @@ Putting all of the pieces together, we have our completed DAG.
 
 
   @dag(
-      schedule_interval="0 0 * * *",
+      schedule="0 0 * * *",
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       dagrun_timeout=datetime.timedelta(minutes=60),

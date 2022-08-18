@@ -24,6 +24,20 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MsSqlHook.get_uri: pymssql driver to scheme (25092) (#25185)``
+
+
 3.1.0
 .....
 

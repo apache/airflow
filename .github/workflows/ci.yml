@@ -784,7 +784,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   prepare-test-provider-packages-wheel:
-    timeout-minutes: 40
+    timeout-minutes: 80
     name: "Build and test provider packages wheel"
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-ci-images]
@@ -848,10 +848,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           # The extras below are all extras that should be installed with Airflow 2.2.0
           AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas.apache.beam,apache.cassandra,apache.drill,\
             apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
-            apache.spark,apache.sqoop,apache.webhdfs,arangodb,asana,async,\
-            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,dbt.cloud,\
+            apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
+            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
             deprecated_api,dingding,discord,docker,\
-            elasticsearch,exasol,facebook,ftp,github,github_enterprise,google,google_auth,\
+            elasticsearch,exasol,facebook,ftp,github_enterprise,google,google_auth,\
             grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
             leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
             neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
@@ -921,7 +921,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-helm:
     timeout-minutes: 80
-    name: "Python unit tests for helm chart"
+    name: "Python unit tests for Helm chart"
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, wait-for-ci-images]
     env:
@@ -957,9 +957,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: Helm"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing helm-tests
         env:
-          PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
@@ -974,13 +973,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           name: container-logs-helm
           path: "./files/container_logs*"
-          retention-days: 7
-      - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v3
-        if: needs.build-info.outputs.run-coverage == 'true'
-        with:
-          name: coverage-helm
-          path: "./files/coverage*.xml"
           retention-days: 7
       - name: "Fix ownership"
         run: breeze ci fix-ownership
@@ -1767,7 +1759,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: matrix.platform == 'linux/amd64'
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze prod-image build

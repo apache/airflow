@@ -34,7 +34,7 @@ from tests.system.providers.apache.beam.utils import (
 
 with models.DAG(
     "example_beam_native_java_dataflow_runner",
-    schedule_interval=None,  # Override to match your needs
+    schedule=None,  # Override to match your needs
     start_date=START_DATE,
     catchup=False,
     tags=['example'],

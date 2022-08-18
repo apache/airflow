@@ -30,7 +30,6 @@ type TaskState = RunState
 | 'up_for_reschedule'
 | 'upstream_failed'
 | 'skipped'
-| 'sensing'
 | 'deferred'
 | null;
 
@@ -64,6 +63,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   },
+  mapIndex?: number;
   tryNumber?: number;
 }
 

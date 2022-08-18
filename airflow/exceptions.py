@@ -67,14 +67,6 @@ class AirflowRescheduleException(AirflowException):
         self.reschedule_date = reschedule_date
 
 
-class AirflowSmartSensorException(AirflowException):
-    """
-    Raise after the task register itself in the smart sensor service.
-
-    It should exit without failing a task.
-    """
-
-
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
 
@@ -97,6 +89,19 @@ class AirflowFailException(AirflowException):
 
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
+
+
+class XComNotFound(AirflowException):
+    """Raise when an XCom reference is being resolved against a non-existent XCom."""
+
+    def __init__(self, dag_id: str, task_id: str, key: str) -> None:
+        super().__init__()
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.key = key
+
+    def __str__(self) -> str:
+        return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
 
 
 class UnmappableOperator(AirflowException):

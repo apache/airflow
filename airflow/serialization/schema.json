@@ -118,7 +118,7 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
-        "schedule_on":{
+        "dataset_triggers":{
             "anyOf": [
                 { "type": "null" },
                 {
@@ -127,6 +127,7 @@
                 }
             ]
         },
+        "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
           "properties": {

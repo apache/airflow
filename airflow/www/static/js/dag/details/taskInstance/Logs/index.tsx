@@ -84,6 +84,7 @@ interface Props {
   dagId: Dag['id'];
   dagRunId: DagRun['runId'];
   taskId: TaskInstance['taskId'];
+  mapIndex?: TaskInstance['mapIndex'];
   executionDate: DagRun['executionDate'];
   tryNumber: TaskInstance['tryNumber'];
 }
@@ -92,13 +93,14 @@ const Logs = ({
   dagId,
   dagRunId,
   taskId,
+  mapIndex,
   executionDate,
   tryNumber,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
-  const [wrap, setWrap] = useState(false);
+  const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
@@ -106,6 +108,7 @@ const Logs = ({
     dagId,
     dagRunId,
     taskId,
+    mapIndex,
     taskTryNumber: selectedAttempt,
     fullContent: shouldRequestFullContent,
   });
@@ -113,7 +116,11 @@ const Logs = ({
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
-  }).toString();
+  });
+
+  if (mapIndex !== undefined) {
+    params.append('map_index', mapIndex.toString());
+  }
 
   const { parsedLogs, fileSources = [] } = useMemo(
     () => parseLogs(
@@ -136,7 +143,7 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (!internalIndexes.includes(selectedAttempt)) {
+    if (!internalIndexes.includes(selectedAttempt) && internalIndexes.length) {
       setSelectedAttempt(internalIndexes[0]);
     }
 
@@ -151,7 +158,7 @@ const Logs = ({
 
   return (
     <>
-      {tryNumber! > 0 && (
+      {tryNumber !== undefined && (
         <>
           <Text as="span"> (by attempts)</Text>
           <Flex my={1} justifyContent="space-between">
@@ -159,7 +166,7 @@ const Logs = ({
               {internalIndexes.map((index) => (
                 <Button
                   key={index}
-                  variant="ghost"
+                  variant={selectedAttempt === index ? 'solid' : 'ghost'}
                   colorScheme="blue"
                   onClick={() => setSelectedAttempt(index)}
                   data-testid={`log-attempt-select-button-${index}`}
@@ -209,8 +216,10 @@ const Logs = ({
             </Flex>
             <Flex alignItems="center">
               <Checkbox
+                isChecked={wrap}
                 onChange={() => setWrap((previousState) => !previousState)}
                 px={4}
+                data-testid="wrap-checkbox"
               >
                 <Text as="strong">Wrap</Text>
               </Checkbox>
@@ -227,9 +236,10 @@ const Logs = ({
                 executionDate={executionDate}
                 isInternal
                 tryNumber={tryNumber}
+                mapIndex={mapIndex}
               />
               <LinkButton
-                href={`${logUrl}&${params}`}
+                href={`${logUrl}&${params.toString()}`}
               >
                 See More
               </LinkButton>

@@ -17,14 +17,24 @@
 
 import warnings
 from copy import deepcopy
-from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from dataclasses import MISSING, InitVar, dataclass, field, fields
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from botocore.config import Config
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from airflow.utils.types import NOTSET, ArgNotSet
+except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
+
+    class ArgNotSet:  # type: ignore[no-redef]
+        """Sentinel type for annotations, useful when None is not viable."""
+
+    NOTSET = ArgNotSet()
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -35,25 +45,45 @@ class AwsConnectionWrapper(LoggingMixin):
     """
     AWS Connection Wrapper class helper.
     Use for validate and resolve AWS Connection parameters.
+
+    ``conn`` reference to Airflow Connection object or AwsConnectionWrapper
+        if it set to ``None`` than default values would use.
+
+    The precedence rules for ``region_name``
+        1. Explicit set (in Hook) ``region_name``.
+        2. Airflow Connection Extra 'region_name'.
+
+    The precedence rules for ``botocore_config``
+        1. Explicit set (in Hook) ``botocore_config``.
+        2. Construct from Airflow Connection Extra 'botocore_kwargs'.
+        3. The wrapper's default value
     """
 
-    conn: InitVar[Optional["Connection"]]
+    conn: InitVar[Optional[Union["Connection", "AwsConnectionWrapper"]]]
+    region_name: Optional[str] = field(default=None)
+    # boto3 client/resource configs
+    botocore_config: Optional[Config] = field(default=None)
+    verify: Optional[Union[bool, str]] = field(default=None)
 
-    conn_id: Optional[str] = field(init=False, default=None)
+    # Reference to Airflow Connection attributes
+    # ``extra_config`` contains original Airflow Connection Extra.
+    conn_id: Optional[Union[str, ArgNotSet]] = field(init=False, default=NOTSET)
     conn_type: Optional[str] = field(init=False, default=None)
     login: Optional[str] = field(init=False, repr=False, default=None)
     password: Optional[str] = field(init=False, repr=False, default=None)
     extra_config: Dict[str, Any] = field(init=False, repr=False, default_factory=dict)
 
-    aws_access_key_id: Optional[str] = field(init=False)
-    aws_secret_access_key: Optional[str] = field(init=False)
-    aws_session_token: Optional[str] = field(init=False)
+    # AWS Credentials from connection.
+    aws_access_key_id: Optional[str] = field(init=False, default=None)
+    aws_secret_access_key: Optional[str] = field(init=False, default=None)
+    aws_session_token: Optional[str] = field(init=False, default=None)
 
-    region_name: Optional[str] = field(init=False, default=None)
-    session_kwargs: Dict[str, Any] = field(init=False, default_factory=dict)
-    botocore_config: Optional[Config] = field(init=False, default=None)
+    # AWS Shared Credential profile_name
+    profile_name: Optional[str] = field(init=False, default=None)
+    # Custom endpoint_url for boto3.client and boto3.resource
     endpoint_url: Optional[str] = field(init=False, default=None)
 
+    # Assume Role Configurations
     role_arn: Optional[str] = field(init=False, default=None)
     assume_role_method: Optional[str] = field(init=False, default=None)
     assume_role_kwargs: Dict[str, Any] = field(init=False, default_factory=dict)
@@ -63,10 +93,41 @@ class AwsConnectionWrapper(LoggingMixin):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
     def __post_init__(self, conn: "Connection"):
-        if not conn:
+        if isinstance(conn, type(self)):
+            # For every field with init=False we copy reference value from original wrapper
+            # For every field with init=True we use init values if it not equal default
+            # We can't use ``dataclasses.replace`` in classmethod because
+            # we limited by InitVar arguments since it not stored in object,
+            # and also we do not want to run __post_init__ method again which print all logs/warnings again.
+            for fl in fields(conn):
+                value = getattr(conn, fl.name)
+                if not fl.init:
+                    setattr(self, fl.name, value)
+                else:
+                    if fl.default is not MISSING:
+                        default = fl.default
+                    elif fl.default_factory is not MISSING:
+                        default = fl.default_factory()  # zero-argument callable
+                    else:
+                        continue  # Value mandatory, skip
+
+                    orig_value = getattr(self, fl.name)
+                    if orig_value == default:
+                        # Only replace value if it not equal default value
+                        setattr(self, fl.name, value)
+            return
+        elif not conn:
             return
 
         extra = deepcopy(conn.extra_dejson)
+        session_kwargs = extra.get("session_kwargs", {})
+        if session_kwargs:
+            warnings.warn(
+                "'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
+                f"Please specify arguments passed to boto3 Session directly in {self.conn_repr} extra.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         # Assign attributes from AWS Connection
         self.conn_id = conn.conn_id
@@ -86,13 +147,32 @@ class AwsConnectionWrapper(LoggingMixin):
         init_credentials = self._get_credentials(**extra)
         self.aws_access_key_id, self.aws_secret_access_key, self.aws_session_token = init_credentials
 
-        if "region_name" in extra:
-            self.region_name = extra["region_name"]
-            self.log.info("Retrieving region_name=%s from %s extra.", self.region_name, self.conn_repr)
+        if not self.region_name:
+            if "region_name" in extra:
+                self.region_name = extra["region_name"]
+                self.log.debug("Retrieving region_name=%s from %s extra.", self.region_name, self.conn_repr)
+            elif "region_name" in session_kwargs:
+                self.region_name = session_kwargs["region_name"]
+                self.log.debug(
+                    "Retrieving region_name=%s from %s extra['session_kwargs'].",
+                    self.region_name,
+                    self.conn_repr,
+                )
 
-        if "session_kwargs" in extra:
-            self.session_kwargs = extra["session_kwargs"]
-            self.log.info("Retrieving session_kwargs=%s from %s extra.", self.session_kwargs, self.conn_repr)
+        if self.verify is None and "verify" in extra:
+            self.verify = extra["verify"]
+            self.log.debug("Retrieving verify=%s from %s extra.", self.verify, self.conn_repr)
+
+        if "profile_name" in extra:
+            self.profile_name = extra["profile_name"]
+            self.log.debug("Retrieving profile_name=%s from %s extra.", self.profile_name, self.conn_repr)
+        elif "profile_name" in session_kwargs:
+            self.profile_name = session_kwargs["profile_name"]
+            self.log.debug(
+                "Retrieving profile_name=%s from %s extra['session_kwargs'].",
+                self.profile_name,
+                self.conn_repr,
+            )
 
         # Warn the user that an invalid parameter is being used which actually not related to 'profile_name'.
         if "profile" in extra and "s3_config_file" not in extra:
@@ -106,23 +186,76 @@ class AwsConnectionWrapper(LoggingMixin):
                 )
 
         config_kwargs = extra.get("config_kwargs")
-        if config_kwargs:
+        if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-            self.log.info("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
             self.botocore_config = Config(**config_kwargs)
 
+        if conn.host:
+            warnings.warn(
+                f"Host {conn.host} specified in the connection is not used."
+                " Please, set it on extra['endpoint_url'] instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.endpoint_url = extra.get("host")
+        if self.endpoint_url:
+            warnings.warn(
+                "extra['host'] is deprecated and will be removed in a future release."
+                " Please set extra['endpoint_url'] instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            self.endpoint_url = extra.get("endpoint_url")
 
         # Retrieve Assume Role Configuration
         assume_role_configs = self._get_assume_role_configs(**extra)
         self.role_arn, self.assume_role_method, self.assume_role_kwargs = assume_role_configs
 
+    @classmethod
+    def from_connection_metadata(
+        cls,
+        conn_id: Optional[str] = None,
+        login: Optional[str] = None,
+        password: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Create config from connection metadata.
+
+        :param conn_id: Custom connection ID.
+        :param login: AWS Access Key ID.
+        :param password: AWS Secret Access Key.
+        :param extra: Connection Extra metadata.
+        """
+        from airflow.models.connection import Connection
+
+        return cls(
+            conn=Connection(conn_id=conn_id, conn_type="aws", login=login, password=password, extra=extra)
+        )
+
     @property
     def extra_dejson(self):
+        """Compatibility with `airflow.models.Connection.extra_dejson` property."""
         return self.extra_config
 
+    @property
+    def session_kwargs(self) -> Dict[str, Any]:
+        """Additional kwargs passed to boto3.session.Session."""
+        return trim_none_values(
+            {
+                "aws_access_key_id": self.aws_access_key_id,
+                "aws_secret_access_key": self.aws_secret_access_key,
+                "aws_session_token": self.aws_session_token,
+                "region_name": self.region_name,
+                "profile_name": self.profile_name,
+            }
+        )
+
     def __bool__(self):
-        return self.conn_id is not None
+        return self.conn_id is not NOTSET
 
     def _get_credentials(
         self,
@@ -134,6 +267,7 @@ class AwsConnectionWrapper(LoggingMixin):
         s3_config_file: Optional[str] = None,
         s3_config_format: Optional[str] = None,
         profile: Optional[str] = None,
+        session_kwargs: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
@@ -142,16 +276,26 @@ class AwsConnectionWrapper(LoggingMixin):
         ``aws_access_key_id`` and ``aws_secret_access_key`` order
         1. From Connection login and password
         2. From Connection extra['aws_access_key_id'] and extra['aws_access_key_id']
-        3. (deprecated) From local credentials file
+        3. (deprecated) Form Connection extra['session_kwargs']
+        4. (deprecated) From local credentials file
 
         Get ``aws_session_token`` from extra['aws_access_key_id']
 
         """
+        session_kwargs = session_kwargs or {}
+        session_aws_access_key_id = session_kwargs.get("aws_access_key_id")
+        session_aws_secret_access_key = session_kwargs.get("aws_secret_access_key")
+        session_aws_session_token = session_kwargs.get("aws_session_token")
+
         if self.login and self.password:
             self.log.info("%s credentials retrieved from login and password.", self.conn_repr)
             aws_access_key_id, aws_secret_access_key = self.login, self.password
         elif aws_access_key_id and aws_secret_access_key:
             self.log.info("%s credentials retrieved from extra.", self.conn_repr)
+        elif session_aws_access_key_id and session_aws_secret_access_key:
+            aws_access_key_id = session_aws_access_key_id
+            aws_secret_access_key = session_aws_secret_access_key
+            self.log.info("%s credentials retrieved from extra['session_kwargs'].", self.conn_repr)
         elif s3_config_file:
             aws_access_key_id, aws_secret_access_key = _parse_s3_config(
                 s3_config_file,
@@ -163,6 +307,13 @@ class AwsConnectionWrapper(LoggingMixin):
         if aws_session_token:
             self.log.info(
                 "%s session token retrieved from extra, please note you are responsible for renewing these.",
+                self.conn_repr,
+            )
+        elif session_aws_session_token:
+            aws_session_token = session_aws_session_token
+            self.log.info(
+                "%s session token retrieved from extra['session_kwargs'], "
+                "please note you are responsible for renewing these.",
                 self.conn_repr,
             )
 
@@ -182,7 +333,7 @@ class AwsConnectionWrapper(LoggingMixin):
     ) -> Tuple[Optional[str], Optional[str], Dict[Any, str]]:
         """Get assume role configs from Connection extra."""
         if role_arn:
-            self.log.info("Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr)
+            self.log.debug("Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr)
         elif aws_account_id and aws_iam_role:
             warnings.warn(
                 "Constructing 'role_arn' from extra['aws_account_id'] and extra['aws_iam_role'] is deprecated"
@@ -192,7 +343,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 stacklevel=3,
             )
             role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
-            self.log.info(
+            self.log.debug(
                 "Constructions role_arn=%r from %s extra['aws_account_id'] and extra['aws_iam_role'].",
                 role_arn,
                 self.conn_repr,
@@ -209,7 +360,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 f' Currently {supported_methods} are supported.'
                 ' (Exclude this setting will default to "assume_role").'
             )
-        self.log.info("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)
+        self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)
 
         assume_role_kwargs = assume_role_kwargs or {}
         if "ExternalId" not in assume_role_kwargs and external_id:

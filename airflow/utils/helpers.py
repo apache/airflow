@@ -34,10 +34,12 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    cast,
 )
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 from airflow.utils.types import NOTSET
 
@@ -292,14 +294,14 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     return "".join(nodes)
 
 
-def render_template_to_string(template: "jinja2.Template", context: MutableMapping[str, Any]) -> str:
+def render_template_to_string(template: "jinja2.Template", context: Context) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, context, native=False)
+    return render_template(template, cast(MutableMapping[str, Any], context), native=False)
 
 
-def render_template_as_native(template: "jinja2.Template", context: MutableMapping[str, Any]) -> Any:
+def render_template_as_native(template: "jinja2.Template", context: Context) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, context, native=True)
+    return render_template(template, cast(MutableMapping[str, Any], context), native=True)
 
 
 def exactly_one(*args) -> bool:

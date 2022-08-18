@@ -18,7 +18,6 @@
 """Interact with AWS DataSync, using the AWS ``boto3`` library."""
 
 import time
-import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
@@ -316,18 +315,3 @@ class DataSyncHook(AwsBaseHook):
         if iterations <= 0:
             raise AirflowTaskTimeout("Max iterations exceeded!")
         raise AirflowException(f"Unknown status: {status}")  # Should never happen
-
-
-class AWSDataSyncHook(DataSyncHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.datasync.DataSyncHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.datasync.DataSyncHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

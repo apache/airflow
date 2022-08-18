@@ -18,7 +18,6 @@
 
 """This module contains AWS SNS hook"""
 import json
-import warnings
 from typing import Dict, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -90,18 +89,3 @@ class SnsHook(AwsBaseHook):
             }
 
         return self.get_conn().publish(**publish_kwargs)
-
-
-class AwsSnsHook(SnsHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

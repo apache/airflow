@@ -19,18 +19,20 @@
 
 import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
+import { useAutoRefresh } from 'src/context/autorefresh';
 
 import { getMetaValue } from 'src/utils';
 
 const taskLogApi = getMetaValue('task_log_api');
 
 const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, fullContent,
+  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent,
 }: {
   dagId: string,
   dagRunId: string,
   taskId: string,
   taskTryNumber: number,
+  mapIndex?: number,
   fullContent: boolean,
 }) => {
   let url: string = '';
@@ -38,11 +40,14 @@ const useTaskLog = ({
     url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber.toString());
   }
 
+  const { isRefreshOn } = useAutoRefresh();
+
   return useQuery(
-    ['taskLogs', dagId, dagRunId, taskId, taskTryNumber, fullContent],
-    () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { full_content: fullContent } }),
+    ['taskLogs', dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent],
+    () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { map_index: mapIndex, full_content: fullContent } }),
     {
       placeholderData: '',
+      refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
     },
   );
 };

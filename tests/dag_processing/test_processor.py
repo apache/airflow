@@ -30,6 +30,7 @@ from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -388,10 +389,44 @@ class TestDagFileProcessor:
                 full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
             )
         ]
-        dag_file_processor.execute_callbacks(dagbag, requests)
+        dag_file_processor.execute_callbacks(dagbag, requests, session)
         mock_ti_handle_failure.assert_called_once_with(
-            error="Message",
-            test_mode=conf.getboolean('core', 'unit_test_mode'),
+            error="Message", test_mode=conf.getboolean('core', 'unit_test_mode'), session=session
+        )
+
+    @pytest.mark.parametrize(
+        ["has_serialized_dag"],
+        [pytest.param(True, id="dag_in_db"), pytest.param(False, id="no_dag_found")],
+    )
+    @patch.object(TaskInstance, 'handle_failure')
+    def test_execute_on_failure_callbacks_without_dag(self, mock_ti_handle_failure, has_serialized_dag):
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            dagrun = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+            task = dag.get_task(task_id='run_this_first')
+            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.QUEUED)
+            session.add(ti)
+
+            if has_serialized_dag:
+                assert SerializedDagModel.write_dag(dag, session=session) is True
+                session.flush()
+
+        requests = [
+            TaskCallbackRequest(
+                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+            )
+        ]
+        dag_file_processor.execute_callbacks_without_dag(requests, session)
+        mock_ti_handle_failure.assert_called_once_with(
+            error="Message", test_mode=conf.getboolean('core', 'unit_test_mode'), session=session
         )
 
     def test_failure_callbacks_should_not_drop_hostname(self):

@@ -31,7 +31,6 @@ SQL_QUERY = "select * from test_table;"
 
 with models.DAG(
     dag_id='example_postgres_to_gcs',
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
