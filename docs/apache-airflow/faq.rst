@@ -177,16 +177,12 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
    :name: dag_loader.py
 
     from airflow import DAG
-    from airflow.operators.python_operator import PythonOperator
+    from airflow.decorators import task
 
     import pendulum
 
 
     def create_dag(dag_id, schedule, dag_number, default_args):
-        def hello_world_py(*args):
-            print("Hello World")
-            print("This is DAG: {}".format(str(dag_number)))
-
         dag = DAG(
             dag_id,
             schedule=schedule,
@@ -195,7 +191,13 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
         )
 
         with dag:
-            t1 = PythonOperator(task_id="hello_world", python_callable=hello_world_py)
+
+            @task()
+            def hello_world():
+                print("Hello World")
+                print(f"This is DAG: {dag_number}")
+
+            hello_world()
 
         return dag
 
@@ -410,7 +412,7 @@ upstream task.
     from airflow.utils.trigger_rule import TriggerRule
 
 
-    @task
+    @task()
     def a_func():
         raise AirflowException
 
