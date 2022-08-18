@@ -15,11 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, NamedTuple, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Optional, Sequence
 
 from pendulum import DateTime
 
 from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from airflow.utils.types import DagRunType
 
 
 class DataInterval(NamedTuple):
@@ -200,3 +203,15 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         raise NotImplementedError()
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: "DagRunType",
+        logical_date: DateTime,
+        data_interval: Optional[DataInterval],
+        **extra,
+    ) -> str:
+        from airflow.models.dagrun import DagRun
+
+        return DagRun.generate_run_id(run_type, logical_date)

@@ -68,7 +68,9 @@ def _trigger_dag(
                 f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
             )
 
-    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+    run_id = run_id or dag.timetable.generate_run_id(
+        run_type=DagRunType.MANUAL, logical_date=execution_date, data_interval=None
+    )
     dag_run = DagRun.find_duplicate(dag_id=dag_id, execution_date=execution_date, run_id=run_id)
 
     if dag_run:
