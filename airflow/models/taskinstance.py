@@ -111,7 +111,6 @@ from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
-from airflow.utils.dataset import get_dataset_manager
 from airflow.utils.email import send_email
 from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -584,7 +583,9 @@ class TaskInstance(Base, LoggingMixin):
         # can be changed when calling 'run'
         self.test_mode = False
 
-        self.dataset_event_manager = get_dataset_manager()
+        self.dataset_event_manager = conf.getimport(
+            'core', 'dataset_event_manager_class', fallback='airflow.datasets.manager.DatasetEventManager'
+        )()
 
     @staticmethod
     def insert_mapping(run_id: str, task: "Operator", map_index: int) -> dict:
