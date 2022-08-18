@@ -130,10 +130,11 @@ class PrStat:
         if self.pull_request.body is not None:
             regex = r'(?<=closes: #|elated: #)\d{5}'
             self.issue_nums = re.findall(regex, self.pull_request.body)
+            # return re.findall(regex, self.pull_request.body)
 
     @cached_property
     def num_issue_comments_reactions(self):
-        if len(self.issue_nums) >= 1:
+        if self.issue_nums:
             repo = self.g.get_repo("apache/airflow")
             issue_comments = 0
             issue_reactions = 0
@@ -151,13 +152,11 @@ class PrStat:
                         issue_comments_len += len(issue_comment.body)
             self.issue_comments_len = issue_comments_len
             return issue_comments, issue_reactions
-        else:
-            return 0, 0
+        return 0, 0
 
     @property
     def interaction_score(self) -> float:
         self.issues
-        self.num_issue_comments_reactions
         self.num_issue_comments, self.num_issue_reactions = self.num_issue_comments_reactions
         interactions = (
             self.num_comments + self.num_convo_comments + self.num_issue_comments
