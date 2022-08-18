@@ -130,7 +130,6 @@ class PrStat:
         if self.pull_request.body is not None:
             regex = r'(?<=closes: #|elated: #)\d{5}'
             self.issue_nums = re.findall(regex, self.pull_request.body)
-            # return re.findall(regex, self.pull_request.body)
 
     @cached_property
     def num_issue_comments_reactions(self):
