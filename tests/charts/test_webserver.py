@@ -159,7 +159,7 @@ class WebserverDeploymentTest(unittest.TestCase):
                     "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
                 },
             },
-            show_only=["templates/webserver/webserver_config-deployment.yaml"],
+            show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
         assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])

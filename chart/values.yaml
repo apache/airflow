@@ -573,7 +573,7 @@ workers:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
-  # hostAliases to use in webserver pods.
+  # hostAliases to use in worker pods.
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
@@ -987,7 +987,7 @@ webserver:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
-  # hostAliases to use in worker pods.
+  # hostAliases to use in webserver pods.
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
