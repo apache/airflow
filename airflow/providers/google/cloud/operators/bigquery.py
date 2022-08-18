@@ -369,7 +369,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param project_id: (Optional) The name of the project where the data 
+    :param project_id: (Optional) The name of the project where the data
         will be returned from. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
