@@ -42,7 +42,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql
+  - apache-airflow-providers-common-sql>=1.1.0
   - hmsclient>=0.1.0
   - pandas>=0.17.1
   - pyhive[hive]>=0.6.0
