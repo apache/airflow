@@ -3083,7 +3083,7 @@ class TestSchedulerJob:
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one()
         assert created_run.state == State.QUEUED
         assert created_run.start_date is None
-        assert created_run.dataset_events == [event]
+        assert created_run.consumed_dataset_events == [event]
         # dag3 DDRQ record should still be there since the dag run was *not* triggered
         assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag3.dag_id).one() is not None
         # dag2 should not be triggered since it depends on both dataset 1  and 2

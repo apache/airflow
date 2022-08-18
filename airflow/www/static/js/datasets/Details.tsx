@@ -17,146 +17,82 @@
  * under the License.
  */
 
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import {
   Box, Heading, Flex, Text, Spinner, Button, Link,
 } from '@chakra-ui/react';
-import { snakeCase } from 'lodash';
-import type { SortingRule } from 'react-table';
 
-import { useDatasetEvents, useDataset } from 'src/api';
-import {
-  Table, TimeCell, TaskInstanceLink,
-} from 'src/components/Table';
+import { useDataset } from 'src/api';
 import { ClipboardButton } from 'src/components/Clipboard';
-import type { API } from 'src/types';
 import InfoTooltip from 'src/components/InfoTooltip';
 import { getMetaValue } from 'src/utils';
+import Events from './DatasetEvents';
 
 interface Props {
-  datasetId: string;
+  datasetUri: string;
   onBack: () => void;
 }
 
 const gridUrl = getMetaValue('grid_url');
 
-const Details = ({
-  dataset: {
-    uri,
-    producingTasks,
-    consumingDags,
-  },
-}: { dataset: API.Dataset }) => (
-  <Box>
-    <Heading my={2} fontWeight="normal">
-      Dataset:
-      {' '}
-      {uri}
-      <ClipboardButton value={uri} iconOnly ml={2} />
-    </Heading>
-    {producingTasks && !!producingTasks.length && (
-    <Box mb={2}>
-      <Flex alignItems="center">
-        <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
-        <InfoTooltip label="Tasks that will update this dataset." size={14} />
-      </Flex>
-      {producingTasks.map(({ dagId, taskId }) => (
-        <Link
-          key={`${dagId}.${taskId}`}
-          color="blue.600"
-          href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
-          display="block"
-        >
-          {`${dagId}.${taskId}`}
-        </Link>
-      ))}
-    </Box>
-    )}
-    {consumingDags && !!consumingDags.length && (
-    <Box>
-      <Flex alignItems="center">
-        <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
-        <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
-      </Flex>
-      {consumingDags.map(({ dagId }) => (
-        <Link
-          key={dagId}
-          color="blue.600"
-          href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
-          display="block"
-        >
-          {dagId}
-        </Link>
-      ))}
-    </Box>
-    )}
-  </Box>
-);
-
-const DatasetDetails = ({ datasetId, onBack }: Props) => {
-  const limit = 25;
-  const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
-
-  const sort = sortBy[0];
-  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
-
-  const { data: dataset, isLoading } = useDataset({ datasetId });
-  const {
-    data: { datasetEvents, totalEntries },
-    isLoading: isEventsLoading,
-  } = useDatasetEvents({
-    datasetId, limit, offset, order,
-  });
-
-  const columns = useMemo(
-    () => [
-      {
-        Header: 'Source Task Instance',
-        accessor: 'sourceTaskId',
-        Cell: TaskInstanceLink,
-      },
-      {
-        Header: 'When',
-        accessor: 'timestamp',
-        Cell: TimeCell,
-      },
-    ],
-    [],
-  );
-
-  const data = useMemo(
-    () => datasetEvents,
-    [datasetEvents],
-  );
-
-  const memoSort = useMemo(() => sortBy, [sortBy]);
+const DatasetDetails = ({ datasetUri, onBack }: Props) => {
+  const { data: dataset, isLoading } = useDataset({ datasetUri });
 
   return (
     <Box mt={[6, 3]} maxWidth="1500px">
       <Button onClick={onBack}>See all datasets</Button>
       {isLoading && <Spinner display="block" />}
-      {!!dataset && (<Details dataset={dataset} />)}
+      <Box>
+        <Heading my={2} fontWeight="normal">
+          Dataset:
+          {' '}
+          {datasetUri}
+          <ClipboardButton value={datasetUri} iconOnly ml={2} />
+        </Heading>
+        {dataset?.producingTasks && !!dataset.producingTasks.length && (
+        <Box mb={2}>
+          <Flex alignItems="center">
+            <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
+            <InfoTooltip label="Tasks that will update this dataset." size={14} />
+          </Flex>
+          {dataset.producingTasks.map(({ dagId, taskId }) => (
+            <Link
+              key={`${dagId}.${taskId}`}
+              color="blue.600"
+              href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
+              display="block"
+            >
+              {`${dagId}.${taskId}`}
+            </Link>
+          ))}
+        </Box>
+        )}
+        {dataset?.consumingDags && !!dataset.consumingDags.length && (
+        <Box>
+          <Flex alignItems="center">
+            <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
+            <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
+          </Flex>
+          {dataset.consumingDags.map(({ dagId }) => (
+            <Link
+              key={dagId}
+              color="blue.600"
+              href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
+              display="block"
+            >
+              {dagId}
+            </Link>
+          ))}
+        </Box>
+        )}
+      </Box>
       <Box>
         <Heading size="lg" mt={3} mb={2} fontWeight="normal">History</Heading>
         <Text>Whenever a DAG has updated this dataset.</Text>
       </Box>
-      <Table
-        data={data}
-        columns={columns}
-        manualPagination={{
-          offset,
-          setOffset,
-          totalEntries,
-        }}
-        manualSort={{
-          setSortBy,
-          sortBy,
-          initialSortBy: memoSort,
-        }}
-        pageSize={limit}
-        isLoading={isEventsLoading}
-      />
+      {dataset?.id && (
+        <Events datasetId={dataset.id} />
+      )}
     </Box>
   );
 };
