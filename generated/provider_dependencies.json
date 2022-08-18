@@ -301,6 +301,8 @@
       "PyOpenSSL",
       "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
+      "asgiref>=3.5.2",
+      "gcloud-aio-bigquery>=6.1.2",
       "google-ads>=15.1.1",
       "google-api-core>=2.7.0,<3.0.0",
       "google-api-python-client>=1.6.0,<2.0.0",
