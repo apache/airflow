@@ -133,7 +133,9 @@ class PrStat:
         if self.pull_request.body is not None:
             regex = r'(?<=closes: #|elated: #)\d{5}'
             issue_strs = re.findall(regex, self.pull_request.body)
-            self.issue_nums = [eval(s) for s in issue_strs]
+            issue_ints = [eval(s) for s in issue_strs]
+            self.issue_nums = issue_ints
+            return issue_ints
 
     @cached_property
     def issue_reactions(self) -> int:
@@ -146,17 +148,19 @@ class PrStat:
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
                     issue_reactions += 1
+            self.num_issue_reactions = issue_reactions
             return issue_reactions
         return 0
 
     @cached_property
     def issue_comments(self) -> int:
         """counts issue comments and calculates comment length"""
-        if self.issue_nums:
+        issues = self.issues
+        if issues:
             repo = self.g.get_repo("apache/airflow")
             issue_comments = 0
             len_issue_comments = 0
-            for num in self.issue_nums:
+            for num in issues:
                 issue = repo.get_issue(number=num)
                 for issue_comment in issue.get_comments():
                     issue_comments += 1
@@ -164,19 +168,17 @@ class PrStat:
                     if issue_comment.body is not None:
                         len_issue_comments += len(issue_comment.body)
             self.len_issue_comments = len_issue_comments
+            self.num_issue_comments = issue_comments
             return issue_comments
         return 0
 
     @property
     def interaction_score(self) -> float:
-        self.issues
-        self.num_issue_comments = self.issue_comments
-        self.num_issue_reactions = self.issue_reactions
         interactions = (
-            self.num_comments + self.num_conv_comments + self.num_issue_comments
+            self.num_comments + self.num_conv_comments + self.issue_comments
         ) * PrStat.COMMENT_INTERACTION_VALUE
         interactions += (
-            self.num_reactions + self.num_conv_reactions + self.num_issue_reactions
+            self.num_reactions + self.num_conv_reactions + self.issue_reactions
         ) * PrStat.REACTION_INTERACTION_VALUE
         interactions += self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
         return interactions
