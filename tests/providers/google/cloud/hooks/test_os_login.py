@@ -54,7 +54,7 @@ class TestOSLoginHook(TestCase):
             self.hook = OSLoginHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id",
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
@@ -90,7 +90,7 @@ class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
             self.hook = OSLoginHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id",
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_2),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
@@ -126,7 +126,7 @@ class TestOSLoginHookWithoutDefaultProjectIdHook(TestCase):
             self.hook = OSLoginHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id",
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_2),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
@@ -164,7 +164,7 @@ class TestOSLoginHookMissingProjectIdHook(TestCase):
             self.hook = OSLoginHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id",
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")

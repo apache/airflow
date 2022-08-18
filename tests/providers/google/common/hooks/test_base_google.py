@@ -588,7 +588,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         assert self.instance.num_retries == 5
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.build_http")
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
     def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
         """
         Verify that if 'num_retires' in extras is not set, the default value
@@ -612,7 +612,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         assert response == new_response
         assert content == new_content
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
     def test_authorize_assert_http_308_is_excluded(self, mock_get_credentials):
         """
         Verify that 308 status code is excluded from httplib2's redirect codes
@@ -620,7 +620,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         http_authorized = self.instance._authorize().http
         assert 308 not in http_authorized.redirect_codes
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
     def test_authorize_assert_http_timeout_is_present(self, mock_get_credentials):
         """
         Verify that http client has a timeout set
