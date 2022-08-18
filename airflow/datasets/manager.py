@@ -18,7 +18,6 @@
 from sqlalchemy.orm.session import Session
 
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION
 
 
 class DatasetEventManager(LoggingMixin):
@@ -29,9 +28,7 @@ class DatasetEventManager(LoggingMixin):
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
-    def register_dataset_change(
-        self, *, task_instance=None, dataset=None, extra=None, session: Session = NEW_SESSION
-    ) -> None:
+    def register_dataset_change(self, *, task_instance, dataset, extra=None, session: Session) -> None:
         """
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
