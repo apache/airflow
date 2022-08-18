@@ -140,7 +140,6 @@ class DagProcessorTest(unittest.TestCase):
                 "dagProcessor": {
                     "enabled": True,
                     "waitForMigrations": {
-                        "enabled": True,
                         "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                     },
                 }

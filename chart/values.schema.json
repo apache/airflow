@@ -561,27 +561,6 @@
                                 "IfNotPresent"
                             ],
                             "default": "IfNotPresent"
-                        },
-                        "env": {
-                            "description": "Add additional env vars to flower.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
-                            }
                         }
                     }
                 },
