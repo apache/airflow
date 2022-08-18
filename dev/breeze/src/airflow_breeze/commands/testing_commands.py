@@ -217,6 +217,12 @@ def run_with_progress(
     default="All",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
+@click.option(
+    "--test-timeout",
+    help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
+    default="60",
+    show_default=True,
+)
 @option_db_reset
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def tests(
@@ -231,6 +237,7 @@ def tests(
     integration: Tuple,
     extra_pytest_args: Tuple,
     test_type: str,
+    test_timeout: str,
     db_reset: bool,
     image_tag: Optional[str],
     mount_sources: str,
@@ -253,6 +260,8 @@ def tests(
         if "[" in test_type and not test_type.startswith("Providers"):
             get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
             sys.exit(1)
+    if test_timeout:
+        env_variables["TEST_TIMEOUT"] = test_timeout
     if integration:
         if "trino" in integration:
             integration = integration + ("kerberos",)
