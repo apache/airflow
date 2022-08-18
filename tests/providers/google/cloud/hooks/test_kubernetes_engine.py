@@ -208,7 +208,7 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format('ClusterManagerClient'))
-    @mock.patch(GKE_STRING.format('GKEHook._get_credentials'))
+    @mock.patch(GKE_STRING.format('GKEHook.get_credentials'))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
