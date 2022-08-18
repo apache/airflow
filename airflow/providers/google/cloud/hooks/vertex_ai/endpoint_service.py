@@ -54,7 +54,7 @@ class EndpointServiceHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return EndpointServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):

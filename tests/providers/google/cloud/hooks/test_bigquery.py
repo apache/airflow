@@ -59,7 +59,7 @@ TABLE_REFERENCE = TableReference.from_api_repr(TABLE_REFERENCE_REPR)
 class _BigQueryBaseTestClass:
     def setup_method(self) -> None:
         class MockedBigQueryHook(BigQueryHook):
-            def _get_credentials_and_project_id(self):
+            def get_credentials_and_project_id(self):
                 return CREDENTIALS, PROJECT_ID
 
         self.hook = MockedBigQueryHook()
