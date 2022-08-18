@@ -64,24 +64,25 @@ class PrStat:
     REACTION_INTERACTION_VALUE = 0.5
 
     def __init__(self, g, pull_request: PullRequest):
+        self.g = g
         self.pull_request = pull_request
         self._users: Set[str] = set()
-        self.issue_nums: List[str] = []
-        self.g = g
-        self.issue_comments_len = 0
+        self.issue_nums: List[int] = []
+        self.len_issue_comments = 0
         self.num_issue_comments = 0
         self.num_issue_reactions = 0
 
     @property
     def label_score(self) -> float:
+        """assigns label score"""
         for label in self.pull_request.labels:
             if "provider" in label.name:
                 return PrStat.PROVIDER_SCORE
         return PrStat.REGULAR_SCORE
 
     @cached_property
-    # counts reviewer comments
     def num_comments(self):
+        """counts reviewer comments"""
         comments = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
@@ -89,17 +90,17 @@ class PrStat:
         return comments
 
     @cached_property
-    # counts conversational comments
-    def num_convo_comments(self) -> int:
-        convo_comments = 0
-        for convo_comment in self.pull_request.get_issue_comments():
-            self._users.add(convo_comment.user.login)
-            convo_comments += 1
-        return convo_comments
+    def num_conv_comments(self) -> int:
+        """counts conversational comments"""
+        conv_comments = 0
+        for conv_comment in self.pull_request.get_issue_comments():
+            self._users.add(conv_comment.user.login)
+            conv_comments += 1
+        return conv_comments
 
     @cached_property
-    # counts reactions to reviewer comments
     def num_reactions(self) -> int:
+        """counts reactions to reviewer comments"""
         reactions = 0
         for comment in self.pull_request.get_comments():
             for reaction in comment.get_reactions():
@@ -108,17 +109,18 @@ class PrStat:
         return reactions
 
     @cached_property
-    # counts reactions to conversational comments
-    def num_convo_reactions(self) -> int:
+    def num_conv_reactions(self) -> int:
+        """counts reactions to conversational comments"""
         reactions = 0
-        for convo_comment in self.pull_request.get_issue_comments():
-            for reaction in convo_comment.get_reactions():
+        for conv_comment in self.pull_request.get_issue_comments():
+            for reaction in conv_comment.get_reactions():
                 self._users.add(reaction.user.login)
                 reactions += 1
         return reactions
 
     @cached_property
     def num_reviews(self) -> int:
+        """counts reviews"""
         reviews = 0
         for review in self.pull_request.get_reviews():
             self._users.add(review.user.login)
@@ -127,41 +129,54 @@ class PrStat:
 
     @cached_property
     def issues(self):
+        """finds issues in PR"""
         if self.pull_request.body is not None:
             regex = r'(?<=closes: #|elated: #)\d{5}'
-            self.issue_nums = re.findall(regex, self.pull_request.body)
+            issue_strs = re.findall(regex, self.pull_request.body)
+            self.issue_nums = [eval(s) for s in issue_strs]
 
     @cached_property
-    def num_issue_comments_reactions(self):
+    def issue_reactions(self) -> int:
+        """counts reactions to issue comments"""
         if self.issue_nums:
             repo = self.g.get_repo("apache/airflow")
-            issue_comments = 0
             issue_reactions = 0
-            issue_comments_len = 0
             for num in self.issue_nums:
-                num = int(num)
                 issue = repo.get_issue(number=num)
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
                     issue_reactions += 1
+            return issue_reactions
+        return 0
+
+    @cached_property
+    def issue_comments(self) -> int:
+        """counts issue comments and calculates comment length"""
+        if self.issue_nums:
+            repo = self.g.get_repo("apache/airflow")
+            issue_comments = 0
+            len_issue_comments = 0
+            for num in self.issue_nums:
+                issue = repo.get_issue(number=num)
                 for issue_comment in issue.get_comments():
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
-                        issue_comments_len += len(issue_comment.body)
-            self.issue_comments_len = issue_comments_len
-            return issue_comments, issue_reactions
-        return 0, 0
+                        len_issue_comments += len(issue_comment.body)
+            self.len_issue_comments = len_issue_comments
+            return issue_comments
+        return 0
 
     @property
     def interaction_score(self) -> float:
         self.issues
-        self.num_issue_comments, self.num_issue_reactions = self.num_issue_comments_reactions
+        self.num_issue_comments = self.issue_comments
+        self.num_issue_reactions = self.issue_reactions
         interactions = (
-            self.num_comments + self.num_convo_comments + self.num_issue_comments
+            self.num_comments + self.num_conv_comments + self.num_issue_comments
         ) * PrStat.COMMENT_INTERACTION_VALUE
         interactions += (
-            self.num_reactions + self.num_convo_reactions + self.num_issue_reactions
+            self.num_reactions + self.num_conv_reactions + self.num_issue_reactions
         ) * PrStat.REACTION_INTERACTION_VALUE
         interactions += self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
         return interactions
@@ -213,7 +228,7 @@ class PrStat:
         for convo_comment in self.pull_request.get_issue_comments():
             if convo_comment.body is not None:
                 length += len(convo_comment.body)
-        length += self.issue_comments_len
+        length += self.len_issue_comments
         return length
 
     @property
@@ -280,8 +295,8 @@ class PrStat:
             f'reviews: {self.num_reviews}, '
             f'review comments: {self.num_comments}, '
             f'review reactions: {self.num_reactions}, '
-            f'non-review comments: {self.num_convo_comments}, '
-            f'non-review reactions: {self.num_convo_reactions}, '
+            f'non-review comments: {self.num_conv_comments}, '
+            f'non-review reactions: {self.num_conv_reactions}, '
             f'issue comments: {self.num_issue_comments}, '
             f'issue reactions: {self.num_issue_reactions})\n'
             f'-- Change score: [green]{self.change_score}[/] '
