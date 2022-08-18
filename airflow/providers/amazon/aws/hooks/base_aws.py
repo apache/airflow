@@ -124,13 +124,7 @@ class BaseSessionFactory(LoggingMixin):
         return self._create_session_with_assume_role(session_kwargs=self.conn.session_kwargs)
 
     def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
-        return boto3.session.Session(
-            aws_access_key_id=self.conn.aws_access_key_id,
-            aws_secret_access_key=self.conn.aws_secret_access_key,
-            aws_session_token=self.conn.aws_session_token,
-            region_name=self.region_name,
-            **session_kwargs,
-        )
+        return boto3.session.Session(**session_kwargs)
 
     def _create_session_with_assume_role(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
         if self.conn.assume_role_method == 'assume_role_with_web_identity':
@@ -383,7 +377,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def __init__(
         self,
         aws_conn_id: Optional[str] = default_conn_name,
-        verify: Union[bool, str, None] = None,
+        verify: Optional[Union[bool, str]] = None,
         region_name: Optional[str] = None,
         client_type: Optional[str] = None,
         resource_type: Optional[str] = None,
@@ -391,11 +385,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     ) -> None:
         super().__init__()
         self.aws_conn_id = aws_conn_id
-        self.verify = verify
         self.client_type = client_type
         self.resource_type = resource_type
+
         self._region_name = region_name
         self._config = config
+        self._verify = verify
 
     @cached_property
     def conn_config(self) -> AwsConnectionWrapper:
@@ -415,9 +410,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 )
 
         return AwsConnectionWrapper(
-            conn=connection or Connection(conn_id=None, conn_type="aws"),
-            region_name=self._region_name,
-            botocore_config=self._config,
+            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
         )
 
     @property
@@ -429,6 +422,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def config(self) -> Optional[Config]:
         """Configuration for botocore client read-only property."""
         return self.conn_config.botocore_config
+
+    @property
+    def verify(self) -> Optional[Union[bool, str]]:
+        """Verify or not SSL certificates boto3 client/resource read-only property."""
+        return self.conn_config.verify
 
     def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""

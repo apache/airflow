@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, Optional
 
-from airflow.cli import airflow_cmd
+import attr
 
-if __name__ == '__main__':
-    airflow_cmd(obj={})
+
+@attr.define()
+class Dataset:
+    """A Dataset is used for marking data dependencies between workflows."""
+
+    uri: str
+    extra: Optional[Dict[str, Any]] = None

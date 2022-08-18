@@ -105,6 +105,9 @@ class AbstractOperator(LoggingMixin, DAGNode):
     owner: str
     task_id: str
 
+    outlets: list
+    inlets: list
+
     HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
         (
             'log',
@@ -129,6 +132,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     @property
     def task_type(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def operator_name(self) -> str:
         raise NotImplementedError()
 
     @property

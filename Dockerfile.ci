@@ -569,6 +569,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    TEST_TIMEOUT=${TEST_TIMEOUT:="60"}
 
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
@@ -759,9 +760,9 @@ EXTRA_PYTEST_ARGS=(
     # timeouts in seconds for individual tests
     "--timeouts-order"
     "moi"
-    "--setup-timeout=60"
-    "--execution-timeout=60"
-    "--teardown-timeout=60"
+    "--setup-timeout=${TEST_TIMEOUT}"
+    "--execution-timeout=${TEST_TIMEOUT}"
+    "--teardown-timeout=${TEST_TIMEOUT}"
     # Only display summary for non-expected case
     # f - failed
     # E - error

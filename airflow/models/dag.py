@@ -95,8 +95,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
+    from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
-    from airflow.models.dataset import Dataset
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -384,7 +384,6 @@ class DAG(LoggingMixin):
         tags: Optional[List[str]] = None,
         owner_links: Optional[Dict[str, str]] = None,
     ):
-        from airflow.models.dataset import Dataset
         from airflow.utils.task_group import TaskGroup
 
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
@@ -485,10 +484,12 @@ class DAG(LoggingMixin):
             )
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: Optional[List[Dataset]] = None
+        self.dataset_triggers: Optional[List["Dataset"]] = None
 
         if schedule is not NOTSET:
             if isinstance(schedule, List):
+                from airflow.datasets import Dataset
+
                 # if List, only support List[Dataset]
                 if any(isinstance(x, Dataset) for x in schedule):
                     if not all(isinstance(x, Dataset) for x in schedule):
@@ -2643,7 +2644,8 @@ class DAG(LoggingMixin):
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
-        from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
+        from airflow.datasets import Dataset
+        from airflow.models.dataset import DatasetDagRef, DatasetModel, DatasetTaskRef
 
         class OutletRef(NamedTuple):
             dag_id: str
@@ -2656,23 +2658,25 @@ class DAG(LoggingMixin):
 
         dag_references = set()
         outlet_references = set()
-        outlet_datasets = set()
-        input_datasets = set()
+        # We can't use a set here as we want to preserve order
+        outlet_datasets: Dict[Dataset, None] = {}
+        input_datasets: Dict[Dataset, None] = {}
         for dag in dags:
             for dataset in dag.dataset_triggers or []:
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
-                input_datasets.add(dataset)
+                input_datasets[DatasetModel.from_public(dataset)] = None
             for task in dag.tasks:
-                for obj in getattr(task, '_outlets', []):  # type: Dataset
+                for obj in task.outlets or []:
                     if isinstance(obj, Dataset):
                         outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
-                        outlet_datasets.add(obj)
-        all_datasets = outlet_datasets.union(input_datasets)
+                        outlet_datasets[DatasetModel.from_public(obj)] = None
+        all_datasets = outlet_datasets
+        all_datasets.update(input_datasets)
 
         # store datasets
         stored_datasets = {}
         for dataset in all_datasets:
-            stored_dataset = session.query(Dataset).filter(Dataset.uri == dataset.uri).first()
+            stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
             if stored_dataset:
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
@@ -3153,14 +3157,31 @@ class DagModel(Base):
                 continue
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session):
+    def dags_needing_dagruns(cls, session: Session) -> Tuple[Query, Dict[str, Tuple[datetime, datetime]]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
-        This will return a resultset of rows  that is row-level-locked with a "SELECT ... FOR UPDATE" query,
+        This will return a resultset of rows that is row-level-locked with a "SELECT ... FOR UPDATE" query,
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
+
+        # these dag ids are triggered by datasets, and they are ready to go.
+        dataset_triggered_dag_info_list = {
+            x.dag_id: (x.first_event_time, x.last_event_time)
+            for x in session.query(
+                DatasetDagRef.dag_id,
+                func.max(DDRQ.created_at).label('last_event_time'),
+                func.max(DDRQ.created_at).label('first_event_time'),
+            )
+            .join(DatasetDagRef.queue_records, isouter=True)
+            .group_by(DatasetDagRef.dag_id)
+            .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
+            .all()
+        }
+        dataset_triggered_dag_ids = list(dataset_triggered_dag_info_list.keys())
+
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
@@ -3171,13 +3192,19 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
-                cls.next_dagrun_create_after <= func.now(),
+                or_(
+                    cls.next_dagrun_create_after <= func.now(),
+                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                ),
             )
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
 
-        return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
+        return (
+            with_row_locks(query, of=cls, session=session, **skip_locked(session=session)),
+            dataset_triggered_dag_info_list,
+        )
 
     def calculate_dagrun_date_fields(
         self,

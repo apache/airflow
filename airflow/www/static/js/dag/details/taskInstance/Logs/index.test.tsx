@@ -23,6 +23,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import type { UseQueryResult } from 'react-query';
 
+import * as utils from 'src/utils';
 import * as useTaskLogModule from 'src/api/useTaskLog';
 
 import Logs from './index';
@@ -86,6 +87,38 @@ describe('Test Logs Component.', () => {
       taskId: 'dummyTaskId',
       taskTryNumber: 1,
     });
+  });
+
+  test.each([
+    { defaultWrap: 'True', shouldBeChecked: true },
+    { defaultWrap: 'False', shouldBeChecked: false },
+    { defaultWrap: '', shouldBeChecked: false },
+  ])('Test wrap checkbox initial value $defaultWrap', ({ defaultWrap, shouldBeChecked }) => {
+    jest.spyOn(utils, 'getMetaValue').mockImplementation(
+      (meta) => {
+        if (meta === 'default_wrap') return defaultWrap;
+        return '';
+      },
+    );
+
+    const tryNumber = 2;
+    const { getByTestId } = render(
+      <Logs
+        dagId="dummyDagId"
+        dagRunId="dummyDagRunId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+        mapIndex={1}
+        tryNumber={tryNumber}
+      />,
+    );
+
+    const wrapCheckbox = getByTestId('wrap-checkbox');
+    if (shouldBeChecked) {
+      expect(wrapCheckbox).toHaveAttribute('data-checked');
+    } else {
+      expect(wrapCheckbox.getAttribute('data-checked')).toBeNull();
+    }
   });
 
   test('Test Logs Content Mapped Task', () => {
