@@ -146,21 +146,19 @@ def prepare_lineage(func: T) -> T:
 
         self.log.debug("Preparing lineage inlets and outlets")
 
-        if isinstance(self._inlets, (str, AbstractOperator)) or attr.has(self._inlets):
-            self._inlets = [
-                self._inlets,
-            ]
+        if isinstance(self.inlets, (str, AbstractOperator)):
+            self.inlets = [self.inlets]
 
-        if self._inlets and isinstance(self._inlets, list):
+        if self.inlets and isinstance(self.inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
             task_ids = (
-                {o for o in self._inlets if isinstance(o, str)}
-                .union(op.task_id for op in self._inlets if isinstance(op, AbstractOperator))
+                {o for o in self.inlets if isinstance(o, str)}
+                .union(op.task_id for op in self.inlets if isinstance(op, AbstractOperator))
                 .intersection(self.get_flat_relative_ids(upstream=True))
             )
 
             # pick up unique direct upstream task_ids if AUTO is specified
-            if AUTO.upper() in self._inlets or AUTO.lower() in self._inlets:
+            if AUTO.upper() in self.inlets or AUTO.lower() in self.inlets:
                 task_ids = task_ids.union(task_ids.symmetric_difference(self.upstream_task_ids))
 
             _inlets = self.xcom_pull(context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS)
@@ -171,17 +169,12 @@ def prepare_lineage(func: T) -> T:
             ]
 
             self.inlets.extend(_inlets)
-            self.inlets.extend(self._inlets)
 
-        elif self._inlets:
+        elif self.inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
 
-        if not isinstance(self._outlets, list):
-            self._outlets = [
-                self._outlets,
-            ]
-
-        self.outlets.extend(self._outlets)
+        if not isinstance(self.outlets, list):
+            self.outlets = [self.outlets]
 
         # render inlets and outlets
         self.inlets = [_render_object(i, context) for i in self.inlets if attr.has(i)]

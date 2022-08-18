@@ -899,11 +899,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.inlets: List = []
         self.outlets: List = []
 
-        self._inlets: List = []
-        self._outlets: List = []
-
         if inlets:
-            self._inlets = (
+            self.inlets = (
                 inlets
                 if isinstance(inlets, list)
                 else [
@@ -912,7 +909,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
         if outlets:
-            self._outlets = (
+            self.outlets = (
                 outlets
                 if isinstance(outlets, list)
                 else [
@@ -959,7 +956,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
-            if not self._outlets and not self.supports_lineage:
+            if not self.outlets and not self.supports_lineage:
                 raise ValueError("No outlets defined for this operator")
             other.add_inlets([self.task_id])
             self.set_downstream(other)
@@ -1015,19 +1012,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def add_inlets(self, inlets: Iterable[Any]):
         """Sets inlets to this operator"""
-        self._inlets.extend(inlets)
+        self.inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
         """Defines the outlets of this operator"""
-        self._outlets.extend(outlets)
+        self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """:return: list of inlets defined for this operator"""
-        return self._inlets
+        """:meta private:"""
+        return self.inlets
 
     def get_outlet_defs(self):
-        """:return: list of outlets defined for this operator"""
-        return self._outlets
+        """:meta private:"""
+        return self.outlets
 
     def get_dag(self) -> "Optional[DAG]":
         return self._dag
@@ -1451,8 +1448,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             cls.__serialized_fields = frozenset(
                 vars(BaseOperator(task_id='test')).keys()
                 - {
-                    'inlets',
-                    'outlets',
                     'upstream_task_ids',
                     'default_args',
                     'dag',

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import urllib
+
 import pytest
 from parameterized import parameterized
 
@@ -123,6 +125,16 @@ class TestGetVariable(TestVariableEndpoint):
         response = self.client.get("/api/v1/variables/TEST_VARIABLE_KEY")
 
         assert_401(response)
+
+    def test_should_handle_slashes_in_keys(self):
+        expected_value = 'hello'
+        Variable.set("foo/bar", expected_value)
+        response = self.client.get(
+            f"/api/v1/variables/{urllib.parse.quote('foo/bar', safe='')}",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {"key": "foo/bar", "value": expected_value, "description": None}
 
 
 class TestGetVariables(TestVariableEndpoint):

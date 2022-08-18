@@ -124,7 +124,7 @@ Bad example:
   import pendulum
 
   from airflow import DAG
-  from airflow.operators.python import PythonOperator
+  from airflow.decorators import task
 
   import numpy as np  # <-- THIS IS A VERY BAD IDEA! DON'T DO THAT!
 
@@ -136,16 +136,14 @@ Bad example:
       tags=["example"],
   ) as dag:
 
+      @task()
       def print_array():
           """Print Numpy array."""
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
-      run_this = PythonOperator(
-          task_id="print_the_context",
-          python_callable=print_array,
-      )
+      print_array()
 
 Good example:
 
@@ -154,7 +152,7 @@ Good example:
   import pendulum
 
   from airflow import DAG
-  from airflow.operators.python import PythonOperator
+  from airflow.decorators import task
 
   with DAG(
       dag_id="example_python_operator",
@@ -164,6 +162,7 @@ Good example:
       tags=["example"],
   ) as dag:
 
+      @task()
       def print_array():
           """Print Numpy array."""
           import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
@@ -172,12 +171,7 @@ Good example:
           print(a)
           return a
 
-      run_this = PythonOperator(
-          task_id="print_the_context",
-          python_callable=print_array,
-      )
-
-
+      print_array()
 
 Dynamic DAG Generation
 ----------------------
@@ -278,7 +272,6 @@ It's easier to grab the concept with an example. Let's say that we have the foll
     from airflow.decorators import task
     from airflow.exceptions import AirflowException
     from airflow.operators.bash import BashOperator
-    from airflow.operators.python import PythonOperator
     from airflow.utils.trigger_rule import TriggerRule
 
 
