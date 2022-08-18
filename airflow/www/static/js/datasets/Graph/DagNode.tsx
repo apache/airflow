@@ -59,7 +59,7 @@ const DagNode = ({
           justifyContent="space-between"
           alignItems="center"
         >
-          <MdOutlineAccountTree />
+          <MdOutlineAccountTree size="16px" />
           <Text>{dagId}</Text>
         </Flex>
       </PopoverTrigger>

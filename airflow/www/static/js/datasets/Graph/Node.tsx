@@ -78,13 +78,13 @@ const Node = ({
             alignItems="center"
           >
             {value.class === 'dataset' && (
-              <HiDatabase />
+              <HiDatabase size="16px" />
             )}
             {value.class === 'sensor' && (
-              <MdSensors />
+              <MdSensors size="16px" />
             )}
             {value.class === 'trigger' && (
-              <MdPlayArrow />
+              <MdPlayArrow size="16px" />
             )}
             <Text>{value.label}</Text>
           </Flex>

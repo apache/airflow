@@ -34,9 +34,21 @@ import Edge from './Edge';
 interface GenerateProps {
   nodes: DepNode[];
   edges: DepEdge[];
+  font: string;
 }
 
-const generateGraph = ({ nodes, edges }: GenerateProps) => ({
+// Take text and font to calculate how long each node should be
+function getTextWidth(text: string, font: string) {
+  const context = document.createElement('canvas').getContext('2d');
+  if (context) {
+    context.font = font;
+    const metrics = context.measureText(text);
+    return metrics.width;
+  }
+  return text.length * 9;
+}
+
+const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
   id: 'root',
   layoutOptions: {
     'spacing.nodeNodeBetweenLayers': '40.0',
@@ -51,7 +63,8 @@ const generateGraph = ({ nodes, edges }: GenerateProps) => ({
   },
   children: nodes.map(({ id, value }) => ({
     id,
-    width: value.label.length * 9 + 16,
+    // calculate text width and add space for padding/icon
+    width: getTextWidth(value.label, font) + 36,
     height: 40,
     value,
   })),
@@ -76,6 +89,9 @@ interface Data extends ElkShape {
 }
 
 const Graph = ({ onSelect, selectedUri }: Props) => {
+  // get computed style to calculate how large each node should be
+  const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
+
   const elk = new ELK();
   const [data, setData] = useState<Data | undefined>();
   const [dimensions, setDimensions] = useState({
@@ -85,7 +101,7 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
 
   useEffect(() => {
     if (edges.length && nodes.length) {
-      elk.layout(generateGraph({ nodes, edges }))
+      elk.layout(generateGraph({ nodes, edges, font }))
         .then((g) => setData(g as Data))
         .catch(console.error);
     }
