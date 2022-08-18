@@ -502,6 +502,12 @@ Airflow 2.3.0 restores the original meaning to the parameter. If you set it to "
 can be embedded in an iframe (no header is added), but when you set it to "false" the header is added
 and Airflow cannot be embedded in an iframe.
 
+``MySQLToS3Operator`` argument `pd_csv_kwargs` has beed replaced with `pd_kwargs` (#20807)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Although the old one (``pd_csv_kwargs``) is still accepted but no longer taken into account. Considering
+``MySQLToS3Operator`` deprecation it is recommeded to switch to ``SqlToS3Operator``. Doing this keep in mind
+that ``index`` and ``header`` arguments should be moved into ``pd_kwargs`` dict.
 
 New Features
 ^^^^^^^^^^^^
