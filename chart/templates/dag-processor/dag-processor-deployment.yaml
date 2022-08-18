@@ -127,6 +127,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+{{- if .Values.dagProcessor.waitForMigrations.env }}
+{{ tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
@@ -170,6 +173,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+          {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.dagProcessor.livenessProbe.timeoutSeconds }}

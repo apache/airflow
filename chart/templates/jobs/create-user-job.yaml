@@ -97,6 +97,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.createUserJob.env) | indent 10 }}
           resources:
 {{ toYaml .Values.createUserJob.resources | indent 12 }}
           volumeMounts:

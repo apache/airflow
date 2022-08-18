@@ -170,6 +170,20 @@ class CreateUserJobTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
     @parameterized.expand(
         [
             ("1.10.14", "airflow create_user"),
