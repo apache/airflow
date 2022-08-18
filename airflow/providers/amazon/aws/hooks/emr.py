@@ -214,8 +214,6 @@ class EmrContainerHook(AwsBaseHook):
             tags=tags or {},
         )
 
-        print(response)
-
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Create EMR EKS Cluster failed: {response}')
         else:
