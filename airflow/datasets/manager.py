@@ -41,17 +41,17 @@ class DatasetEventManager(LoggingMixin):
             if not dataset:
                 self.log.warning("Dataset %s not found", dataset)
                 return
-            session.add(
-                DatasetEvent(
-                    dataset_id=dataset.id,
-                    source_task_id=task_instance.task_id,
-                    source_dag_id=task_instance.dag_id,
-                    source_run_id=task_instance.run_id,
-                    source_map_index=task_instance.map_index,
-                    extra=extra,
-                )
+        session.add(
+            DatasetEvent(
+                dataset_id=dataset.id,
+                source_task_id=task_instance.task_id,
+                source_dag_id=task_instance.dag_id,
+                source_run_id=task_instance.run_id,
+                source_map_index=task_instance.map_index,
+                extra=extra,
             )
-            self._queue_dagruns(dataset, session)
+        )
+        self._queue_dagruns(dataset, session)
 
     def _queue_dagruns(self, dataset, session: Session) -> None:
         from airflow.models.dataset import DatasetDagRunQueue
