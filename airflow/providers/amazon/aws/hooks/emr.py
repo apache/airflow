@@ -198,7 +198,11 @@ class EmrContainerHook(AwsBaseHook):
         self.virtual_cluster_id = virtual_cluster_id
 
     def create_emr_on_eks_cluster(
-        self, virtual_cluster_name: str, eks_cluster_name: str, eks_namespace: str
+        self,
+        virtual_cluster_name: str,
+        eks_cluster_name: str,
+        eks_namespace: str,
+        tags: Optional[dict] = None,
     ) -> str:
         response = self.conn.create_virtual_cluster(
             name=virtual_cluster_name,
@@ -207,6 +211,7 @@ class EmrContainerHook(AwsBaseHook):
                 "type": "EKS",
                 "info": {"eksInfo": {"namespace": eks_namespace}},
             },
+            tags=tags or {},
         )
 
         print(response)

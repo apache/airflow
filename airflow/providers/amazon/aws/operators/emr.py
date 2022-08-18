@@ -171,7 +171,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         # wait_for_completion: bool = True,
         # poll_interval: int = 30,
         # max_tries: Optional[int] = None,
-        # tags: Optional[dict] = None,
+        tags: Optional[dict] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -189,7 +189,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         # self.wait_for_completion = wait_for_completion
         # self.poll_interval = poll_interval
         # self.max_tries = max_tries
-        # self.tags = tags
+        self.tags = tags
         # self.job_id: Optional[str] = None
 
     @cached_property
@@ -200,25 +200,8 @@ class EmrEksCreateClusterOperator(BaseOperator):
     def execute(self, context: 'Context') -> Optional[str]:
         """Create EMR EKS Cluster"""
         self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
-            self.virtual_cluster_name,
-            self.eks_cluster_name,
-            self.eks_namespace,
+            self.virtual_cluster_name, self.eks_cluster_name, self.eks_namespace, self.tags
         )
-        # if self.wait_for_completion:
-        #     query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
-        #
-        #     if query_status in EmrContainerHook.FAILURE_STATES:
-        #         error_message = self.hook.get_job_failure_reason(self.job_id)
-        #         raise AirflowException(
-        #             f"EMR Containers job failed. Final state is {query_status}. "
-        #             f"query_execution_id is {self.job_id}. Error: {error_message}"
-        #         )
-        #     elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
-        #         raise AirflowException(
-        #             f"Final state of EMR Containers job is {query_status}. "
-        #             f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
-        #         )
-
         print("Hi Phani, the cluster created is...", self.virtual_cluster_id)
 
         return self.virtual_cluster_id
