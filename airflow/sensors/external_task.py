@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable
 import attr
 from sqlalchemy import func
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -420,6 +420,6 @@ class ExternalTaskSensorLink(ExternalDagLink):
         warnings.warn(
             "This external link is deprecated. "
             "Please use :class:`airflow.sensors.external_task.ExternalDagLink`.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )

@@ -19,8 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.branch`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.branch`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

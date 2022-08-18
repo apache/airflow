@@ -18,12 +18,14 @@
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1EnvVar`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
+
 with warnings.catch_warnings():
-    warnings.simplefilter("ignore", DeprecationWarning)
+    warnings.simplefilter("ignore", RemovedInAirflow3Warning)
     from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

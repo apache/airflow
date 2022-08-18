@@ -155,6 +155,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                      | Check changelogs for duplicate entries                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |

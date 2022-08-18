@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Set, 
 
 import pendulum
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
@@ -96,7 +96,7 @@ class TaskMixin(DependencyMixin):
     def __init_subclass__(cls) -> None:
         warnings.warn(
             f"TaskMixin has been renamed to DependencyMixin, please update {cls.__name__}",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return super().__init_subclass__()
