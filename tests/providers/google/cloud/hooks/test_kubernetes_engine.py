@@ -39,7 +39,7 @@ class TestGKEHookClient(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
-    @mock.patch(GKE_STRING.format("GKEHook._get_credentials"))
+    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
 
