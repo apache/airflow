@@ -58,12 +58,17 @@ Kube config (JSON format)
 Namespace
   Default Kubernetes namespace for the connection.
 
-When specifying the connection in environment variable you should specify
-it using URI syntax.
+Cluster context
+  When using a kube config, can specify which context to use.
 
-Note that all components of the URI should be URL-encoded.
+Disable verify SSL
+  Can optionally disable SSL certificate verification.  By default SSL is verified.
 
-For example:
+Disable TCP keepalive
+  TCP keepalive is a feature (enabled by default) that tries to keep long-running connections
+  alive. Set this parameter to True to disable this feature.
+
+Example storing connection in env var using URI format:
 
 .. code-block:: bash
 

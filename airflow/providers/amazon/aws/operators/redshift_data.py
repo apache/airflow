@@ -15,17 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -40,7 +36,7 @@ class RedshiftDataOperator(BaseOperator):
         :ref:`howto/operator:RedshiftDataOperator`
 
     :param database: the name of the database
-    :param sql: the SQL statement text to run
+    :param sql: the SQL statement or list of  SQL statement to run
     :param cluster_identifier: unique identifier of a cluster
     :param db_user: the database username
     :param parameters: the parameters for the SQL statement
@@ -69,7 +65,7 @@ class RedshiftDataOperator(BaseOperator):
     def __init__(
         self,
         database: str,
-        sql: str,
+        sql: Union[str, List],
         cluster_identifier: Optional[str] = None,
         db_user: Optional[str] = None,
         parameters: Optional[list] = None,
@@ -120,8 +116,21 @@ class RedshiftDataOperator(BaseOperator):
             "StatementName": self.statement_name,
         }
 
-        filter_values = {key: val for key, val in kwargs.items() if val is not None}
-        resp = self.hook.conn.execute_statement(**filter_values)
+        resp = self.hook.conn.execute_statement(**trim_none_values(kwargs))
+        return resp['Id']
+
+    def execute_batch_query(self):
+        kwargs: Dict[str, Any] = {
+            "ClusterIdentifier": self.cluster_identifier,
+            "Database": self.database,
+            "Sqls": self.sql,
+            "DbUser": self.db_user,
+            "Parameters": self.parameters,
+            "WithEvent": self.with_event,
+            "SecretArn": self.secret_arn,
+            "StatementName": self.statement_name,
+        }
+        resp = self.hook.conn.batch_execute_statement(**trim_none_values(kwargs))
         return resp['Id']
 
     def wait_for_results(self, statement_id):
@@ -136,14 +145,16 @@ class RedshiftDataOperator(BaseOperator):
             elif status == 'FAILED' or status == 'ABORTED':
                 raise ValueError(f"Statement {statement_id!r} terminated with status {status}.")
             else:
-                self.log.info(f"Query {status}")
+                self.log.info("Query %s", status)
             sleep(self.poll_interval)
 
     def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
-        self.log.info(f"Executing statement: {self.sql}")
-
-        self.statement_id = self.execute_query()
+        self.log.info("Executing statement: %s", self.sql)
+        if isinstance(self.sql, list):
+            self.statement_id = self.execute_batch_query()
+        else:
+            self.statement_id = self.execute_query()
 
         if self.await_result:
             self.wait_for_results(self.statement_id)

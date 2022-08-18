@@ -637,13 +637,13 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :return: The status of the pipeline run.
         """
-        self.log.info(f"Getting the status of run ID {run_id}.")
+        self.log.info("Getting the status of run ID %s.", run_id)
         pipeline_run_status = self.get_pipeline_run(
             run_id=run_id,
             factory_name=factory_name,
             resource_group_name=resource_group_name,
         ).status
-        self.log.info(f"Current status of pipeline run {run_id}: {pipeline_run_status}")
+        self.log.info("Current status of pipeline run %s: %s", run_id, pipeline_run_status)
 
         return pipeline_run_status
 

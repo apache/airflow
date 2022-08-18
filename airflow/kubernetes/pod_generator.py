@@ -34,7 +34,7 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, PodReconciliationError
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -42,7 +42,7 @@ from airflow.version import version as airflow_version
 MAX_LABEL_LEN = 63
 
 
-def make_safe_label_value(string):
+def make_safe_label_value(string: str) -> str:
     """
     Valid label values must be 63 characters or less and must be empty or begin and
     end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
@@ -389,7 +389,10 @@ class PodGenerator:
         # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
         pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
-        return reduce(PodGenerator.reconcile_pods, pod_list)
+        try:
+            return reduce(PodGenerator.reconcile_pods, pod_list)
+        except Exception as e:
+            raise PodReconciliationError from e
 
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod) -> dict:

@@ -42,4 +42,4 @@ class TestEmrTerminateJobFlowOperator(unittest.TestCase):
                 task_id='test_task', job_flow_id='j-8989898989', aws_conn_id='aws_default'
             )
 
-            operator.execute(None)
+            operator.execute(MagicMock())

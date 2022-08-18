@@ -19,6 +19,7 @@ import re
 import sys
 import uuid
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from dateutil import parser
@@ -26,7 +27,7 @@ from kubernetes.client import ApiClient, models as k8s
 from parameterized import parameterized
 
 from airflow import __version__
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, PodReconciliationError
 from airflow.kubernetes.pod_generator import (
     PodDefaults,
     PodGenerator,
@@ -519,6 +520,33 @@ class TestPodGenerator:
         )
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
         assert worker_config_result == sanitized_result
+
+    @mock.patch('uuid.uuid4')
+    def test_construct_pod_attribute_error(self, mock_uuid):
+        """
+        After upgrading k8s library we might get attribute error.
+        In this case it should raise PodReconciliationError
+        """
+        path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
+        worker_config = PodGenerator.deserialize_model_file(path)
+        mock_uuid.return_value = self.static_uuid
+        executor_config = MagicMock()
+        executor_config.side_effect = AttributeError('error')
+
+        with pytest.raises(PodReconciliationError):
+            PodGenerator.construct_pod(
+                dag_id='dag_id',
+                task_id='task_id',
+                pod_id='pod_id',
+                kube_image='test-image',
+                try_number=3,
+                date=self.execution_date,
+                args=['command'],
+                pod_override_object=executor_config,
+                base_worker_pod=worker_config,
+                namespace='namespace',
+                scheduler_job_id='uuid',
+            )
 
     @mock.patch('uuid.uuid4')
     def test_ensure_max_label_length(self, mock_uuid):

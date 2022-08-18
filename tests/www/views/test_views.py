@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import re
 from typing import Callable
 from unittest import mock
 
@@ -87,7 +88,7 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
     mock_plugin = AirflowPlugin()
     mock_plugin.name = "test_plugin"
     mock_plugin.source = EntryPointSource(
-        mock.Mock(), mock.Mock(version='1.0.0', metadata={'name': 'test-entrypoint-testpluginview'})
+        mock.Mock(), mock.Mock(version='1.0.0', metadata={'Name': 'test-entrypoint-testpluginview'})
     )
     with mock_plugin_manager(plugins=[mock_plugin]):
         resp = admin_client.get('/plugin')
@@ -373,3 +374,63 @@ def test_get_task_stats_from_query():
 
     data = get_task_stats_from_query(query_data)
     assert data == expected_data
+
+
+INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d+;")
+
+
+@pytest.mark.parametrize(
+    "url, content",
+    [
+        (
+            '/rendered-templates?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            '/log?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            '/redirect_to_external_log?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            '/task?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'dags/example_bash_operator/graph?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'dags/example_bash_operator/graph?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'dags/example_bash_operator/duration?base_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'dags/example_bash_operator/tries?base_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'dags/example_bash_operator/landing-times?base_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'dags/example_bash_operator/gantt?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+        (
+            'extra_links?execution_date=invalid',
+            INVALID_DATETIME_RESPONSE,
+        ),
+    ],
+)
+def test_invalid_dates(app, admin_client, url, content):
+    """Test invalid date format doesn't crash page."""
+    resp = admin_client.get(url, follow_redirects=True)
+
+    assert resp.status_code == 400
+    assert re.search(content, resp.get_data().decode())

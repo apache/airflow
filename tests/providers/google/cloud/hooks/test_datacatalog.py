@@ -70,11 +70,11 @@ TEST_ENTRY_GROUP_PATH: str = f"projects/{{}}/locations/{TEST_LOCATION}/entryGrou
 TEST_TAG_TEMPLATE_PATH: str = f"projects/{{}}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}"
 TEST_TAG_TEMPLATE_FIELD_PATH: str = (
     f"projects/{{}}/locations/{TEST_LOCATION}/tagTemplates/"
-    + f"{TEST_TAG_TEMPLATE_ID}/fields/{TEST_TAG_TEMPLATE_FIELD_ID}"
+    f"{TEST_TAG_TEMPLATE_ID}/fields/{TEST_TAG_TEMPLATE_FIELD_ID}"
 )
 TEST_TAG_PATH: str = (
     f"projects/{{}}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}"
-    + f"/entries/{TEST_ENTRY_ID}/tags/{TEST_TAG_ID}"
+    f"/entries/{TEST_ENTRY_ID}/tags/{TEST_TAG_ID}"
 )
 TEST_PROJECT_ID_1 = "example-project-1"
 TEST_PROJECT_ID_2 = "example-project-2"

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
@@ -175,8 +176,8 @@ class RedshiftCreateClusterOperator(BaseOperator):
             params["DBName"] = self.db_name
         if self.cluster_type:
             params["ClusterType"] = self.cluster_type
-        if self.number_of_nodes:
-            params["NumberOfNodes"] = self.number_of_nodes
+            if self.cluster_type == "multi-node":
+                params["NumberOfNodes"] = self.number_of_nodes
         if self.cluster_security_groups:
             params["ClusterSecurityGroups"] = self.cluster_security_groups
         if self.vpc_security_group_ids:
@@ -317,3 +318,66 @@ class RedshiftPauseClusterOperator(BaseOperator):
             self.log.warning(
                 "Unable to pause cluster since cluster is currently in status: %s", cluster_state
             )
+
+
+class RedshiftDeleteClusterOperator(BaseOperator):
+    """
+    Delete an AWS Redshift cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftDeleteClusterOperator`
+
+    :param cluster_identifier: unique identifier of a cluster
+    :param skip_final_cluster_snapshot: determines cluster snapshot creation
+    :param final_cluster_snapshot_identifier: name of final cluster snapshot
+    :param wait_for_completion: Whether wait for cluster deletion or not
+        The default value is ``True``
+    :param aws_conn_id: aws connection to use
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    """
+
+    template_fields: Sequence[str] = ("cluster_identifier",)
+    ui_color = "#eeaa11"
+    ui_fgcolor = "#ffffff"
+
+    def __init__(
+        self,
+        *,
+        cluster_identifier: str,
+        skip_final_cluster_snapshot: bool = True,
+        final_cluster_snapshot_identifier: Optional[str] = None,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        poll_interval: float = 30.0,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.cluster_identifier = cluster_identifier
+        self.skip_final_cluster_snapshot = skip_final_cluster_snapshot
+        self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
+        self.wait_for_completion = wait_for_completion
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
+        self.poll_interval = poll_interval
+
+    def execute(self, context: 'Context'):
+        self.delete_cluster()
+
+        if self.wait_for_completion:
+            cluster_status: str = self.check_status()
+            while cluster_status != "cluster_not_found":
+                self.log.info(
+                    "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
+                )
+                time.sleep(self.poll_interval)
+                cluster_status = self.check_status()
+
+    def delete_cluster(self) -> None:
+        self.redshift_hook.delete_cluster(
+            cluster_identifier=self.cluster_identifier,
+            skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
+            final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
+        )
+
+    def check_status(self) -> str:
+        return self.redshift_hook.cluster_status(self.cluster_identifier)

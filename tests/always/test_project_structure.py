@@ -57,14 +57,6 @@ class TestProjectStructure(unittest.TestCase):
         """
         Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
         """
-        # Deprecated modules that don't have corresponded test
-        expected_missing_providers_modules = {
-            (
-                'airflow/providers/amazon/aws/hooks/aws_dynamodb.py',
-                'tests/providers/amazon/aws/hooks/test_aws_dynamodb.py',
-            )
-        }
-
         # TODO: Should we extend this test to cover other directories?
         modules_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
 
@@ -98,21 +90,7 @@ class TestProjectStructure(unittest.TestCase):
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
         with self.subTest("Detect missing tests in providers module"):
-            expected_missing_test_modules = {pair[1] for pair in expected_missing_providers_modules}
-            missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
             assert set() == missing_tests_files
-
-        with self.subTest("Verify removed deprecated module also removed from deprecated list"):
-            expected_missing_modules = {pair[0] for pair in expected_missing_providers_modules}
-            removed_deprecated_module = expected_missing_modules - modules_files
-            if removed_deprecated_module:
-                self.fail(
-                    "You've removed a deprecated module:\n"
-                    f"{removed_deprecated_module}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of expected missing modules tests, please?"
-                )
 
 
 def get_imports_from_file(filepath: str):
@@ -331,7 +309,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         'GetBatchPredictionJobOperator',
     }
 
-    # These operators should not have assets
     ASSETS_NOT_REQUIRED = {
         'airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator',
         'airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator',
@@ -420,10 +397,37 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         super().test_missing_assets()
 
 
+class TestAmazonProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "amazon"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+
+    BASE_CLASSES = {
+        'airflow.providers.amazon.aws.operators.rds.RdsBaseOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
+        'airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor',
+        'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
+        'airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
+        'airflow.providers.amazon.aws.operators.appflow.AppflowBaseOperator',
+        'airflow.providers.amazon.aws.operators.ecs.EcsBaseOperator',
+        'airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor',
+    }
+
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
+        'airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator',
+        # Glue Catalog sensor difficult to test
+        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
+    }
+
+
 class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
     CLASS_SUFFIXES = ["Hook"]
+    DEPRECATED_CLASSES = {
+        'airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook',
+    }
 
 
 class TestDockerProviderProjectStructure(ExampleCoverageTest):

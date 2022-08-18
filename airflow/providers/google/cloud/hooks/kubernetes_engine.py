@@ -123,8 +123,10 @@ class GKEHook(GoogleBaseHook):
         :return: The new, updated operation from Google Cloud
         """
         return self.get_cluster_manager_client().get_operation(
-            name=f'projects/{project_id or self.project_id}'
-            + f'/locations/{self.location}/operations/{operation_name}'
+            name=(
+                f'projects/{project_id or self.project_id}'
+                f'/locations/{self.location}/operations/{operation_name}'
+            )
         )
 
     @staticmethod

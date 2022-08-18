@@ -32,7 +32,7 @@ to ``true``.
 
 Here we are poking until httpbin gives us a response text containing ``httpbin``.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_http_sensor_check]
     :end-before: [END howto_operator_http_http_sensor_check]
@@ -69,14 +69,14 @@ the response text back.
 In the first example we are calling a ``POST`` with json data and succeed when we get the same json data back
 otherwise the task will fail.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_post_op]
     :end-before: [END howto_operator_http_task_post_op]
 
 Here we are calling a ``GET`` request and pass params to it. The task will succeed regardless of the response text.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_get_op]
     :end-before: [END howto_operator_http_task_get_op]
@@ -91,7 +91,7 @@ it on the next task downstream use ``response_filter``. This is useful if:
 Below is an example of retrieving data from a REST API and only returning a nested property instead of the full
 response body.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_get_op_response_filter]
     :end-before: [END howto_operator_http_task_get_op_response_filter]
@@ -99,7 +99,7 @@ response body.
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
 provided to the request.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_put_op]
     :end-before: [END howto_operator_http_task_put_op]
@@ -107,14 +107,14 @@ provided to the request.
 In this example we call a ``DELETE`` operation to the ``delete`` endpoint. This time we are passing form data to the
 request.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_del_op]
     :end-before: [END howto_operator_http_task_del_op]
 
 Here we pass form data to a ``POST`` operation which is equal to a usual form submit.
 
-.. exampleinclude:: /../../airflow/providers/http/example_dags/example_http.py
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]

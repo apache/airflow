@@ -82,10 +82,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
                 schedule_options["disable_auto_scheduling"] = True
         else:
             new_config["schedule_options"] = {"disable_auto_scheduling": True}
-        # HACK: TransferConfig.to_dict returns invalid representation
-        # See: https://github.com/googleapis/python-bigquery-datatransfer/issues/90
-        if isinstance(new_config.get('user_id'), str):
-            new_config['user_id'] = int(new_config['user_id'])
+
         return TransferConfig(**new_config)
 
     def get_conn(self) -> DataTransferServiceClient:

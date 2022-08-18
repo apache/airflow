@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,14 +19,14 @@ import sys
 from pathlib import Path
 from textwrap import wrap
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 
-sys.path.insert(0, str(Path(__file__).parent.absolute()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from Airflow
 # flake8: noqa: F401
 
 from common_precommit_utils import insert_documentation  # isort: skip
-from setup import EXTRAS_REQUIREMENTS  # isort:skip
+from setup import EXTRAS_DEPENDENCIES  # isort:skip
 
 sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
@@ -52,8 +52,8 @@ if __name__ == '__main__':
     global_constants_file_path = (
         AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
     )
-    extras_list = wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)
+    extras_list = wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)
     extras_list = [line + "\n" for line in extras_list]
-    extras_code = [f"    {extra}\n" for extra in EXTRAS_REQUIREMENTS.keys()]
+    extras_code = [f"    {extra}\n" for extra in EXTRAS_DEPENDENCIES.keys()]
     insert_documentation(install_file_path, extras_list, INSTALL_HEADER, INSTALL_FOOTER)
     insert_documentation(contributing_file_path, extras_list, RST_HEADER, RST_FOOTER)

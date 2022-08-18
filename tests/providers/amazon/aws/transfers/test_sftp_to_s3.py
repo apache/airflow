@@ -51,8 +51,8 @@ class TestSFTPToS3Operator(unittest.TestCase):
         s3_hook = S3Hook('aws_default')
         hook.no_host_key_check = True
         dag = DAG(
-            TEST_DAG_ID + 'test_schedule_dag_once',
-            schedule_interval="@once",
+            f'{TEST_DAG_ID}test_schedule_dag_once',
+            schedule="@once",
             start_date=DEFAULT_DATE,
         )
 

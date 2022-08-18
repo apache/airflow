@@ -20,7 +20,7 @@ import json
 import os
 import unittest
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from jinja2 import StrictUndefined
@@ -170,8 +170,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
                 operator.execute(self.mock_context)
 
         ti = self.mock_context['ti']
-
-        ti.xcom_push.assert_called_once_with(key='job_flow_id', value=expected_job_flow_id)
+        ti.assert_has_calls(calls=[call.xcom_push(key='job_flow_id', value=expected_job_flow_id)])
 
     def test_init_with_nonexistent_cluster_name(self):
         cluster_name = 'test_cluster'

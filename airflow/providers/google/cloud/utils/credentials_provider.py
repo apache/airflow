@@ -74,7 +74,10 @@ def build_gcp_conn(
 
 
 @contextmanager
-def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: Optional[Dict] = None):
+def provide_gcp_credentials(
+    key_file_path: Optional[str] = None,
+    key_file_dict: Optional[Dict] = None,
+) -> Generator[None, None, None]:
     """
     Context manager that provides a Google Cloud credentials for application supporting
     `Application Default Credentials (ADC) strategy`__.
@@ -111,7 +114,7 @@ def provide_gcp_connection(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
-) -> Generator:
+) -> Generator[None, None, None]:
     """
     Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
     connection. It build a new connection that includes path to provided service json,
@@ -135,7 +138,7 @@ def provide_gcp_conn_and_credentials(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
-) -> Generator:
+) -> Generator[None, None, None]:
     """
     Context manager that provides both:
 
@@ -170,6 +173,9 @@ class _CredentialProvider(LoggingMixin):
 
     :param key_path: Path to Google Cloud Service Account key file (JSON).
     :param keyfile_dict: A dict representing Cloud Service Account as in the Credential JSON file
+    :param key_secret_name: Keyfile Secret Name in GCP Secret Manager.
+    :param key_secret_project_id: Project ID to read the secrets from. If not passed, the project ID from
+        default credentials will be used.
     :param scopes:  OAuth scopes for the connection
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -191,6 +197,7 @@ class _CredentialProvider(LoggingMixin):
         key_path: Optional[str] = None,
         keyfile_dict: Optional[Dict[str, str]] = None,
         key_secret_name: Optional[str] = None,
+        key_secret_project_id: Optional[str] = None,
         scopes: Optional[Collection[str]] = None,
         delegate_to: Optional[str] = None,
         disable_logging: bool = False,
@@ -201,12 +208,13 @@ class _CredentialProvider(LoggingMixin):
         key_options = [key_path, key_secret_name, keyfile_dict]
         if len([x for x in key_options if x]) > 1:
             raise AirflowException(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields"
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields "
                 "are all mutually exclusive. Please provide only one value."
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
         self.key_secret_name = key_secret_name
+        self.key_secret_project_id = key_secret_project_id
         self.scopes = scopes
         self.delegate_to = delegate_to
         self.disable_logging = disable_logging
@@ -285,7 +293,10 @@ class _CredentialProvider(LoggingMixin):
         if not secret_manager_client.is_valid_secret_name(self.key_secret_name):
             raise AirflowException('Invalid secret name specified for fetching JSON key data.')
 
-        secret_value = secret_manager_client.get_secret(self.key_secret_name, adc_project_id)
+        secret_value = secret_manager_client.get_secret(
+            secret_id=self.key_secret_name,
+            project_id=self.key_secret_project_id if self.key_secret_project_id else adc_project_id,
+        )
         if secret_value is None:
             raise AirflowException(f"Failed getting value of secret {self.key_secret_name}.")
 
@@ -369,5 +380,5 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
         return service_account_email.split('@')[1].split('.')[0]
     except IndexError:
         raise AirflowException(
-            f"Could not extract project_id from service account's email: " f"{service_account_email}."
+            f"Could not extract project_id from service account's email: {service_account_email}."
         )

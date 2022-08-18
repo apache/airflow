@@ -51,6 +51,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     dataflow_config: DataflowConfiguration
     gcp_conn_id: str
     delegate_to: Optional[str]
+    dataflow_support_impersonation: bool = True
 
     def _set_dataflow(
         self,
@@ -91,6 +92,13 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             pipeline_options[job_name_key] = job_name
         if self.dataflow_config.service_account:
             pipeline_options["serviceAccount"] = self.dataflow_config.service_account
+        if self.dataflow_support_impersonation and self.dataflow_config.impersonation_chain:
+            if isinstance(self.dataflow_config.impersonation_chain, list):
+                pipeline_options["impersonateServiceAccount"] = ",".join(
+                    self.dataflow_config.impersonation_chain
+                )
+            else:
+                pipeline_options["impersonateServiceAccount"] = self.dataflow_config.impersonation_chain
         pipeline_options["project"] = self.dataflow_config.project_id
         pipeline_options["region"] = self.dataflow_config.location
         pipeline_options.setdefault("labels", {}).update(
@@ -319,6 +327,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                         location=self.dataflow_config.location,
                         job_id=self.dataflow_job_id,
                         multiple_jobs=False,
+                        project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
             else:
@@ -460,11 +469,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                             process_line_callback=process_line_callback,
                         )
                     if dataflow_job_name and self.dataflow_config.location:
-                        multiple_jobs = (
-                            self.dataflow_config.multiple_jobs
-                            if self.dataflow_config.multiple_jobs
-                            else False
-                        )
+                        multiple_jobs = self.dataflow_config.multiple_jobs or False
                         DataflowJobLink.persist(
                             self,
                             context,
@@ -549,6 +554,13 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             **kwargs,
         )
 
+        if self.dataflow_config.impersonation_chain:
+            self.log.info(
+                "Impersonation chain parameter is not supported for Apache Beam GO SDK and will be skipped "
+                "in the execution"
+            )
+        self.dataflow_support_impersonation = False
+
         self.go_file = go_file
         self.should_init_go_module = False
         self.pipeline_options.setdefault("labels", {}).update(
@@ -600,6 +612,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         location=self.dataflow_config.location,
                         job_id=self.dataflow_job_id,
                         multiple_jobs=False,
+                        project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
             else:

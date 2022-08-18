@@ -286,3 +286,19 @@ class AzureFileShareHook(BaseHook):
         self.get_conn().create_file_from_stream(
             share_name, directory_name, file_name, stream, count, **kwargs
         )
+
+    def test_connection(self):
+        """Test Azure FileShare connection."""
+        success = (True, "Successfully connected to Azure File Share.")
+
+        try:
+            # Attempt to retrieve file share information
+            next(iter(self.get_conn().list_shares()))
+            return success
+        except StopIteration:
+            # If the iterator returned is empty it should still be considered a successful connection since
+            # it's possible to create a storage account without any file share and none could
+            # legitimately exist yet.
+            return success
+        except Exception as e:
+            return False, str(e)

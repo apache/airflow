@@ -17,7 +17,7 @@
 # under the License.
 
 #
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+# Bash coherence settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 
 IN_CONTAINER_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)

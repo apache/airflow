@@ -16,21 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ads Reporting hooks"""
-import sys
 import time
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adreportrun import AdReportRun
 from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.api import FacebookAdsApi
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 

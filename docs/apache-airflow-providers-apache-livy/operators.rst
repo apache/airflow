@@ -29,7 +29,7 @@ LivyOperator
 
 This operator wraps the Apache Livy batch REST API, allowing to submit a Spark application to the underlying cluster.
 
-.. exampleinclude:: /../../airflow/providers/apache/livy/example_dags/example_livy.py
+.. exampleinclude:: /../../tests/system/providers/apache/livy/example_livy.py
     :language: python
     :start-after: [START create_livy]
     :end-before: [END create_livy]

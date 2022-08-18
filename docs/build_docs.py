@@ -15,17 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
 import argparse
 import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from itertools import filterfalse, tee
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, TypeVar
 
 from rich.console import Console
 from tabulate import tabulate
 
-from airflow.utils.helpers import partition
 from docs.exts.docs_build import dev_index_generator, lint_checks
 from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
 from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
@@ -62,6 +64,14 @@ ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
+T = TypeVar('T')
+
+
+def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> Tuple[Iterable[T], Iterable[T]]:
+    """Use a predicate to partition entries into false entries and true entries"""
+    iter_1, iter_2 = tee(iterable)
+    return filterfalse(pred, iter_1), filter(pred, iter_2)
+
 
 def _promote_new_flags():
     console.print()
@@ -96,6 +106,12 @@ def _get_parser():
     parser.formatter_class = argparse.RawTextHelpFormatter
     parser.add_argument(
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
+    )
+    parser.add_argument(
+        '--disable-provider-checks',
+        dest='disable_provider_checks',
+        action='store_true',
+        help='Disables extra checks for providers',
     )
     parser.add_argument(
         '--one-pass-only',
@@ -431,6 +447,7 @@ def main():
     available_packages = get_available_packages()
     docs_only = args.docs_only
     spellcheck_only = args.spellcheck_only
+    disable_provider_checks = args.disable_provider_checks
     disable_checks = args.disable_checks
     package_filters = args.package_filter
     for_production = args.for_production
@@ -521,7 +538,7 @@ def main():
         )
 
     if not disable_checks:
-        general_errors = lint_checks.run_all_check()
+        general_errors = lint_checks.run_all_check(disable_provider_checks=disable_provider_checks)
         if general_errors:
             all_build_errors[None] = general_errors
 

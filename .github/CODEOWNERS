@@ -46,6 +46,15 @@
 /airflow/timetables/ @uranusjr
 /docs/apache-airflow/concepts/timetable.rst @uranusjr
 
+# Task expansion, scheduling, and rendering
+/airflow/models/abstractoperator.py @uranusjr
+/airflow/models/baseoperator.py @uranusjr
+/airflow/models/expandinput.py @uranusjr
+/airflow/models/mappedoperator.py @uranusjr
+/airflow/models/operator.py @uranusjr
+/airflow/models/xcom_arg.py @uranusjr
+/docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
+
 # Async Operators & Triggerer
 /airflow/jobs/triggerer_job.py @dstandish
 /airflow/cli/commands/triggerer_command.py @dstandish
@@ -59,6 +68,7 @@
 /airflow/providers/google/ @turbaszek
 /airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
 /airflow/providers/cncf/kubernetes @jedcunningham
+/airflow/providers/tabular/ @Fokko
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 
 # Dev tools

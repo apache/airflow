@@ -557,7 +557,7 @@ class UndeployModelOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info(f"Removing a DeployedModel {self.deployed_model_id}")
+        self.log.info("Removing a DeployedModel %s", self.deployed_model_id)
         operation = hook.undeploy_model(
             project_id=self.project_id,
             region=self.region,

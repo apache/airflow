@@ -255,3 +255,19 @@ class TestAzureFileshareHook(unittest.TestCase):
         hook = AzureFileShareHook(azure_fileshare_conn_id='azure_fileshare_extras')
         hook.delete_share('my_share')
         mock_instance.delete_share.assert_called_once_with('my_share')
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.fileshare.FileService', autospec=True)
+    def test_connection_success(self, mock_service):
+        hook = AzureFileShareHook(azure_fileshare_conn_id='azure_fileshare_extras')
+        hook.get_conn().list_shares.return_value = ["test_container"]
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == "Successfully connected to Azure File Share."
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.fileshare.FileService', autospec=True)
+    def test_connection_failure(self, mock_service):
+        hook = AzureFileShareHook(azure_fileshare_conn_id='azure_fileshare_extras')
+        hook.get_conn().list_shares.side_effect = Exception("Test Connection Failure")
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == "Test Connection Failure"

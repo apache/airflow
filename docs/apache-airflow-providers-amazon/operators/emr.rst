@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-Amazon EMR Operators
-====================
+==========
+Amazon EMR
+==========
 
 `Amazon EMR <https://aws.amazon.com/emr/>`__ (previously called Amazon Elastic MapReduce)
 is a managed cluster platform that simplifies running big data frameworks, such as Apache
@@ -32,15 +32,18 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. note::
-    In order to run the two examples successfully, you need to create the IAM Service
+    In order to run the examples successfully, you need to create the IAM Service
     Roles(``EMR_EC2_DefaultRole`` and ``EMR_DefaultRole``) for Amazon EMR.  You can
     create these roles using the AWS CLI: ``aws emr create-default-roles``.
 
 .. _howto/operator:EmrCreateJobFlowOperator:
 
-Create EMR Job Flow
--------------------
+Create an EMR job flow
+======================
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator` to
 create a new EMR job flow.  The cluster will be terminated automatically after finishing the steps.
@@ -50,10 +53,10 @@ JobFlow configuration
 
 To create a job flow on EMR, you need to specify the configuration for the EMR cluster:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
     :language: python
-    :start-after: [START howto_operator_emr_automatic_steps_config]
-    :end-before: [END howto_operator_emr_automatic_steps_config]
+    :start-after: [START howto_operator_emr_steps_config]
+    :end-before: [END howto_operator_emr_steps_config]
 
 Here we create an EMR single-node Cluster *PiCalc*. It only has a single step *calculate_pi* which
 calculates the value of ``Pi`` using Spark.  The config ``'KeepJobFlowAliveWhenNoSteps': False``
@@ -73,7 +76,7 @@ Create the Job Flow
 
 In the following code we are creating a new job flow using the configuration as explained above.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_create_job_flow]
@@ -81,13 +84,13 @@ In the following code we are creating a new job flow using the configuration as 
 
 .. _howto/operator:EmrAddStepsOperator:
 
-Add Steps to an EMR Job Flow
-----------------------------
+Add Steps to an EMR job flow
+============================
 
-To add Steps to an existing EMR Job Flow you can use
+To add steps to an existing EMR Job flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_add_steps]
@@ -95,13 +98,13 @@ To add Steps to an existing EMR Job Flow you can use
 
 .. _howto/operator:EmrTerminateJobFlowOperator:
 
-Terminate an EMR Job Flow
--------------------------
+Terminate an EMR job flow
+=========================
 
 To terminate an EMR Job Flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_emr_terminate_job_flow]
@@ -109,54 +112,52 @@ To terminate an EMR Job Flow you can use
 
 .. _howto/operator:EmrModifyClusterOperator:
 
-Modify Amazon EMR Container
----------------------------
+Modify Amazon EMR container
+===========================
 
-To modify an existing EMR Container you can use
+To modify an existing EMR container you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
 
-.. _howto/sensor:EmrContainerSensor:
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_emr_modify_cluster]
+    :end-before: [END howto_operator_emr_modify_cluster]
 
-Amazon EMR Container Sensor
----------------------------
-
-To monitor the state of an EMR Container you can use
-:class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
-
+Sensors
+-------
 
 .. _howto/sensor:EmrJobFlowSensor:
 
-Amazon EMR Job Flow Sensor
----------------------------
+Wait on an Amazon EMR job flow state
+====================================
 
-To monitor the state of an EMR Job Flow you can use
+To monitor the state of an EMR job flow you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_sensor_emr_job_flow_sensor]
-    :end-before: [END howto_sensor_emr_job_flow_sensor]
+    :start-after: [START howto_sensor_emr_job_flow]
+    :end-before: [END howto_sensor_emr_job_flow]
 
 .. _howto/sensor:EmrStepSensor:
 
-Amazon EMR Step Sensor
-----------------------
+Wait on an Amazon EMR step state
+================================
 
-To monitor the state of a Step running an existing EMR Job Flow you can use
+To monitor the state of a step running an existing EMR Job flow you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_sensor_emr_step_sensor]
-    :end-before: [END howto_sensor_emr_step_sensor]
+    :start-after: [START howto_sensor_emr_step]
+    :end-before: [END howto_sensor_emr_step]
 
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for EMR <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html>`__
+* `AWS boto3 library documentation for EMR <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html>`__
 * `AWS CLI - create-default-roles <https://docs.aws.amazon.com/cli/latest/reference/emr/create-default-roles.html>`__
 * `Configure IAM Service Roles for Amazon EMR Permissions <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html>`__

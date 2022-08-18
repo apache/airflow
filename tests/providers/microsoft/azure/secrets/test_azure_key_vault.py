@@ -25,10 +25,9 @@ from airflow.providers.microsoft.azure.secrets.key_vault import AzureKeyVaultBac
 
 class TestAzureKeyVaultBackend(TestCase):
     @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.get_conn_value')
-    def test_get_connections(self, mock_get_value):
+    def test_get_connection(self, mock_get_value):
         mock_get_value.return_value = 'scheme://user:pass@host:100'
-        conn_list = AzureKeyVaultBackend().get_connections('fake_conn')
-        conn = conn_list[0]
+        conn = AzureKeyVaultBackend().get_connection('fake_conn')
         assert conn.host == 'host'
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.DefaultAzureCredential')
@@ -54,14 +53,14 @@ class TestAzureKeyVaultBackend(TestCase):
     def test_get_conn_uri_non_existent_key(self, mock_client):
         """
         Test that if the key with connection ID is not present,
-        AzureKeyVaultBackend.get_connections should return None
+        AzureKeyVaultBackend.get_connection should return None
         """
         conn_id = 'test_mysql'
         mock_client.get_secret.side_effect = ResourceNotFoundError
         backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
 
         assert backend.get_conn_uri(conn_id=conn_id) is None
-        assert [] == backend.get_connections(conn_id=conn_id)
+        assert backend.get_connection(conn_id=conn_id) is None
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.client')
     def test_get_variable(self, mock_client):
@@ -107,7 +106,7 @@ class TestAzureKeyVaultBackend(TestCase):
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
         Test that if Connections prefix is None,
-        AzureKeyVaultBackend.get_connections should return None
+        AzureKeyVaultBackend.get_connection should return None
         AzureKeyVaultBackend._get_secret should not be called
         """
         kwargs = {'connections_prefix': None}

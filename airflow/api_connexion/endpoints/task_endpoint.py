@@ -16,8 +16,6 @@
 # under the License.
 from operator import attrgetter
 
-from flask import current_app
-
 from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -25,6 +23,7 @@ from airflow.api_connexion.schemas.task_schema import TaskCollection, task_colle
 from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 
 
 @security.requires_access(
@@ -35,7 +34,7 @@ from airflow.security import permissions
 )
 def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     """Get simplified representation of a task."""
-    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found")
 
@@ -54,7 +53,7 @@ def get_task(*, dag_id: str, task_id: str) -> APIResponse:
 )
 def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     """Get tasks for DAG"""
-    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found")
     tasks = dag.tasks

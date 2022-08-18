@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from http import HTTPStatus
 from typing import Any, Dict, Optional
 
 import flask
@@ -80,7 +81,7 @@ class NotFound(ProblemException):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            status=404,
+            status=HTTPStatus.NOT_FOUND,
             type=EXCEPTIONS_LINK_MAP[404],
             title=title,
             detail=detail,
@@ -100,7 +101,7 @@ class BadRequest(ProblemException):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            status=400,
+            status=HTTPStatus.BAD_REQUEST,
             type=EXCEPTIONS_LINK_MAP[400],
             title=title,
             detail=detail,
@@ -120,7 +121,7 @@ class Unauthenticated(ProblemException):
         **kwargs: Any,
     ):
         super().__init__(
-            status=401,
+            status=HTTPStatus.UNAUTHORIZED,
             type=EXCEPTIONS_LINK_MAP[401],
             title=title,
             detail=detail,
@@ -140,7 +141,7 @@ class PermissionDenied(ProblemException):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            status=403,
+            status=HTTPStatus.FORBIDDEN,
             type=EXCEPTIONS_LINK_MAP[403],
             title=title,
             detail=detail,
@@ -160,7 +161,7 @@ class AlreadyExists(ProblemException):
         **kwargs: Any,
     ):
         super().__init__(
-            status=409,
+            status=HTTPStatus.CONFLICT,
             type=EXCEPTIONS_LINK_MAP[409],
             title=title,
             detail=detail,
@@ -180,7 +181,7 @@ class Unknown(ProblemException):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            status=500,
+            status=HTTPStatus.INTERNAL_SERVER_ERROR,
             type=EXCEPTIONS_LINK_MAP[500],
             title=title,
             detail=detail,

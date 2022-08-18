@@ -112,7 +112,17 @@ class DAGRunSchema(SQLAlchemySchema):
 class SetDagRunStateFormSchema(Schema):
     """Schema for handling the request of setting state of DAG run"""
 
-    state = DagStateField(validate=validate.OneOf([DagRunState.SUCCESS.value, DagRunState.FAILED.value]))
+    state = DagStateField(
+        validate=validate.OneOf(
+            [DagRunState.SUCCESS.value, DagRunState.FAILED.value, DagRunState.QUEUED.value]
+        )
+    )
+
+
+class ClearDagRunStateFormSchema(Schema):
+    """Schema for handling the request of clearing a DAG run"""
+
+    dry_run = fields.Boolean(load_default=True)
 
 
 class DAGRunCollection(NamedTuple):
@@ -154,4 +164,5 @@ class DagRunsBatchFormSchema(Schema):
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
 set_dagrun_state_form_schema = SetDagRunStateFormSchema()
+clear_dagrun_form_schema = ClearDagRunStateFormSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()

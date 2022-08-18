@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
 import inspect
 from typing import (
@@ -31,6 +30,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     Union,
 )
@@ -57,17 +57,22 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
 
-DEFAULT_OWNER: str = conf.get("operators", "default_owner")
+DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
-DEFAULT_QUEUE: str = conf.get("operators", "default_queue")
+DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
+DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
+    "scheduler", "ignore_first_depends_on_past_by_default"
+)
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
+    seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
+)
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
-DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta = conf.gettimedelta(
+DEFAULT_TASK_EXECUTION_TIMEOUT: Optional[datetime.timedelta] = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
 
@@ -100,6 +105,9 @@ class AbstractOperator(LoggingMixin, DAGNode):
     owner: str
     task_id: str
 
+    outlets: list
+    inlets: list
+
     HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
         (
             'log',
@@ -124,6 +132,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     @property
     def task_type(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def operator_name(self) -> str:
         raise NotImplementedError()
 
     @property
@@ -279,6 +291,16 @@ class AbstractOperator(LoggingMixin, DAGNode):
     def extra_links(self) -> List[str]:
         return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, "Session"]]) -> "BaseOperator":
+        """Get the "normal" operator from current abstract operator.
+
+        MappedOperator uses this to unmap itself based on the map index. A non-
+        mapped operator (i.e. BaseOperator subclass) simply returns itself.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
     def get_extra_links(self, ti: "TaskInstance", link_name: str) -> Optional[str]:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
 
@@ -295,14 +317,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
             link = self.global_operator_extra_link_dict.get(link_name)
             if not link:
                 return None
-        # Check for old function signature
+
         parameters = inspect.signature(link.get_link).parameters
-        args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
-        if "ti_key" in args:
-            return link.get_link(self, ti_key=ti.key)
-        else:
-            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
-        return None
+        old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
+
+        if old_signature:
+            return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
+        return link.get_link(self.unmap(None), ti_key=ti.key)
 
     def render_template_fields(
         self,
@@ -341,13 +362,23 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self.render_template(
-                value,
-                context,
-                jinja_env,
-                seen_oids,
-            )
-            setattr(parent, attr_name, rendered_content)
+            try:
+                rendered_content = self.render_template(
+                    value,
+                    context,
+                    jinja_env,
+                    seen_oids,
+                )
+            except Exception:
+                self.log.exception(
+                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                    self.task_id,
+                    attr_name,
+                    value,
+                )
+                raise
+            else:
+                setattr(parent, attr_name, rendered_content)
 
     def render_template(
         self,

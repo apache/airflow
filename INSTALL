@@ -56,7 +56,7 @@ pip install .[google,amazon] \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 
-You can upgrade just airflow, without paying attention to provider's dependencies by using 'no-providers'
+You can upgrade just airflow, without paying attention to provider's dependencies by using 'constraints-no-providers'
 constraint files. This allows you to keep installed provider packages.
 
 pip install . --upgrade \
@@ -97,15 +97,15 @@ The list of available extras:
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
 apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
-celery, cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud,
-deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid,
-elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth,
-grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
-leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql,
-neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus,
-postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
-sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica,
-virtualenv, webhdfs, winrm, yandex, zendesk
+celery, cgroups, cloudant, cncf.kubernetes, common.sql, crypto, dask, databricks, datadog,
+dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker,
+druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos,
+kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
+mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
+pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment,
+sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
+telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
 # END EXTRAS HERE
 
 # For installing Airflow in development environments - see CONTRIBUTING.rst

@@ -167,7 +167,9 @@ class TestGoogleDriveHook(unittest.TestCase):
         file_name = "abc123.csv"
 
         result_value = self.gdrive_hook.exists(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
-        mock_method.assert_called_once_with(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+        mock_method.assert_called_once_with(
+            folder_id=folder_id, file_name=file_name, drive_id=drive_id, include_trashed=True
+        )
         self.assertEqual(True, result_value)
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_file_id")
@@ -178,7 +180,24 @@ class TestGoogleDriveHook(unittest.TestCase):
         file_name = "abc123.csv"
 
         self.gdrive_hook.exists(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
-        mock_method.assert_called_once_with(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+        mock_method.assert_called_once_with(
+            folder_id=folder_id, file_name=file_name, drive_id=drive_id, include_trashed=True
+        )
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_file_id")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_exists_when_trashed_is_false(self, mock_get_conn, mock_method):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+        include_trashed = False
+
+        self.gdrive_hook.exists(
+            folder_id=folder_id, file_name=file_name, drive_id=drive_id, include_trashed=include_trashed
+        )
+        mock_method.assert_called_once_with(
+            folder_id=folder_id, file_name=file_name, drive_id=drive_id, include_trashed=False
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_media_request(self, mock_get_conn):

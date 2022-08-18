@@ -44,9 +44,6 @@ Login
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
 
-Host (optional)
-    Specify the snowflake hostname.
-
 Schema (optional)
     Specify the snowflake schema to be used.
 
@@ -65,13 +62,35 @@ Extra (optional)
     * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.
     * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
 
-When specifying the connection in environment variable you should specify
-it using URI syntax.
+URI format example
+^^^^^^^^^^^^^^^^^^
 
-Note that all components of the URI should be URL-encoded.
-
-Example connection string:
+If serializing with Airflow URI:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='snowflake://user:password@snowflake.example/db-schema?account=account&database=snow-db&region=us-east&warehouse=snow-warehouse'
+   export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='snowflake://user:password@/db-schema?account=account&database=snow-db&region=us-east&warehouse=snow-warehouse'
+
+When specifying the connection as an environment variable in Airflow versions prior to 2.3.0, you need to specify the connection using the URI format.
+
+Note that all components of the URI should be URL-encoded.
+
+JSON format example
+^^^^^^^^^^^^^^^^^^^
+
+If serializing with JSON:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='{
+        "conn_type": "snowflake",
+        "login": "user",
+        "password": "password",
+        "schema": "db-schema",
+        "extra": {
+            "account": "account",
+            "database": "database",
+            "region": "us-east",
+            "warehouse": "snow-warehouse"
+        }
+    }'

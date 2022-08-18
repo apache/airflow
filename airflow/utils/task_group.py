@@ -24,7 +24,12 @@ import re
 import weakref
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Set, Tuple, Union
 
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import (
+    AirflowDagCycleException,
+    AirflowException,
+    DuplicateTaskIdFound,
+    TaskAlreadyInTaskGroup,
+)
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
@@ -186,7 +191,16 @@ class TaskGroup(DAGNode):
                 yield child
 
     def add(self, task: DAGNode) -> None:
-        """Add a task to this TaskGroup."""
+        """Add a task to this TaskGroup.
+
+        :meta private:
+        """
+        from airflow.models.abstractoperator import AbstractOperator
+
+        existing_tg = task.task_group
+        if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
+            raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
+
         # Set the TG first, as setting it might change the return value of node_id!
         task.task_group = weakref.proxy(self)
         key = task.node_id
@@ -269,18 +283,18 @@ class TaskGroup(DAGNode):
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
         """
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
+
+        for task_like in task_or_task_list:
+            self.update_relative(task_like, upstream)
+
         if upstream:
             for task in self.get_roots():
                 task.set_upstream(task_or_task_list)
         else:
             for task in self.get_leaves():
                 task.set_downstream(task_or_task_list)
-
-        if not isinstance(task_or_task_list, Sequence):
-            task_or_task_list = [task_or_task_list]
-
-        for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream)
 
     def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)

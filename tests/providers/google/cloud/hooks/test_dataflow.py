@@ -173,20 +173,10 @@ class TestFallbackToVariables(unittest.TestCase):
             FixtureFallback().test_fn({'project': "TEST"}, "TEST2")
 
 
-def mock_init(
-    self,
-    gcp_conn_id,
-    delegate_to=None,
-    impersonation_chain=None,
-):
-    pass
-
-
 class TestDataflowHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
-            self.dataflow_hook.beam_hook = MagicMock()
+        self.dataflow_hook = DataflowHook(gcp_conn_id='google_cloud_default')
+        self.dataflow_hook.beam_hook = MagicMock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
@@ -792,8 +782,7 @@ class TestDataflowHook(unittest.TestCase):
 
 class TestDataflowTemplateHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
+        self.dataflow_hook = DataflowHook(gcp_conn_id='google_cloud_default')
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))

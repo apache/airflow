@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,11 +17,10 @@
 # under the License.
 
 import json
-import os
+import pathlib
 import sys
 import textwrap
 from collections import Counter
-from glob import glob
 from itertools import chain, product
 from typing import Any, Dict, Iterable, List, Set
 
@@ -41,26 +40,26 @@ if __name__ != "__main__":
         "This file is intended to be executed as an executable program. You cannot use it as a module."
     )
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
-PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
-PROVIDER_ISSUE_TEMPLATE_PATH = os.path.join(
-    ROOT_DIR, ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
+ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
+DOCS_DIR = ROOT_DIR.joinpath("docs")
+PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "provider.yaml.schema.json")
+PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
+    ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
 errors = []
 
 
-def _filepath_to_module(filepath: str):
-    filepath = os.path.relpath(os.path.abspath(filepath), ROOT_DIR)
-    if filepath.endswith(".py"):
-        filepath = filepath[: -(len(".py"))]
-    return filepath.replace("/", ".")
+def _filepath_to_module(filepath: pathlib.Path) -> str:
+    p = filepath.resolve().relative_to(ROOT_DIR).as_posix()
+    if p.endswith(".py"):
+        p = p[:-3]
+    return p.replace("/", ".")
 
 
 def _load_schema() -> Dict[str, Any]:
-    with open(PROVIDER_DATA_SCHEMA_PATH) as schema_file:
+    with PROVIDER_DATA_SCHEMA_PATH.open() as schema_file:
         content = json.load(schema_file)
     return content
 
@@ -71,7 +70,7 @@ def _load_package_data(package_paths: Iterable[str]):
     for provider_yaml_path in package_paths:
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.load(yaml_file, SafeLoader)
-        rel_path = os.path.relpath(provider_yaml_path, ROOT_DIR)
+        rel_path = pathlib.Path(provider_yaml_path).relative_to(ROOT_DIR).as_posix()
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
@@ -148,22 +147,22 @@ def check_if_objects_belongs_to_package(
 
 
 def parse_module_data(provider_data, resource_type, yaml_file_path):
-    package_dir = ROOT_DIR + "/" + os.path.dirname(yaml_file_path)
-    provider_package = os.path.dirname(yaml_file_path).replace(os.sep, ".")
+    package_dir = ROOT_DIR.joinpath(yaml_file_path).parent
+    provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
     py_files = chain(
-        glob(f"{package_dir}/**/{resource_type}/*.py"),
-        glob(f"{package_dir}/{resource_type}/*.py"),
-        glob(f"{package_dir}/**/{resource_type}/**/*.py"),
-        glob(f"{package_dir}/{resource_type}/**/*.py"),
+        package_dir.glob(f"**/{resource_type}/*.py"),
+        package_dir.glob(f"{resource_type}/*.py"),
+        package_dir.glob(f"**/{resource_type}/**/*.py"),
+        package_dir.glob(f"{resource_type}/**/*.py"),
     )
-    expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
+    expected_modules = {_filepath_to_module(f) for f in py_files if f.name != "__init__.py"}
     resource_data = provider_data.get(resource_type, [])
     return expected_modules, provider_package, resource_data
 
 
 def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of {sensors, hooks, operators}")
-    print(" -- {sensors, hooks, operators} - Expected modules(Left): Current Modules(Right)")
+    print(" -- {sensors, hooks, operators} - Expected modules (left) : Current modules (right)")
     for (yaml_file_path, provider_data), resource_type in product(
         yaml_files.items(), ["sensors", "operators", "hooks"]
     ):
@@ -225,7 +224,7 @@ def check_hook_classes(yaml_files: Dict[str, Dict]):
     print("Checking connection classes belong to package")
     resource_type = 'hook-class-names'
     for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = os.path.dirname(yaml_file_path).replace(os.sep, ".")
+        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
         hook_class_names = provider_data.get(resource_type)
         if hook_class_names:
             check_if_objects_belongs_to_package(
@@ -305,25 +304,24 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
             )
 
     expected_doc_urls = {
-        "/docs/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators/**/*.rst", recursive=True)
-        if not f.endswith("/index.rst") and '/_partials' not in f
-    }
-    expected_doc_urls |= {
-        "/docs/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}/apache-airflow-providers-*/operators.rst", recursive=True)
+        f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
+        for f in DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst")
+        if f.name != "index.rst" and "_partials" not in f.parts
+    } | {
+        f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
+        for f in DOCS_DIR.glob("apache-airflow-providers-*/operators.rst")
     }
     expected_logo_urls = {
-        "/" + os.path.relpath(f, start=DOCS_DIR)
-        for f in glob(f"{DOCS_DIR}/integration-logos/**/*", recursive=True)
-        if os.path.isfile(f)
+        f"/{f.relative_to(DOCS_DIR).as_posix()}"
+        for f in DOCS_DIR.glob("integration-logos/**/*")
+        if f.is_file()
     }
 
     try:
-        print(" -- Checking document urls: expected(left), current(right)")
+        print(" -- Checking document urls: expected (left), current (right)")
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
 
-        print(" -- Checking logo urls: expected(left), current(right)")
+        print(" -- Checking logo urls: expected (left), current (right)")
         assert_sets_equal(set(expected_logo_urls), set(current_logo_urls))
     except AssertionError as ex:
         print(ex)
@@ -341,12 +339,12 @@ def check_providers_are_mentioned_in_issue_template(yaml_files: Dict[str, Dict])
     prefix_len = len("apache-airflow-providers-")
     short_provider_names = [d['package-name'][prefix_len:] for d in yaml_files.values()]
     jsonpath_expr = parse('$.body[?(@.attributes.label == "Apache Airflow Provider(s)")]..options[*]')
-    with open(PROVIDER_ISSUE_TEMPLATE_PATH) as issue_file:
+    with PROVIDER_ISSUE_TEMPLATE_PATH.open() as issue_file:
         issue_template = yaml.safe_load(issue_file)
     all_mentioned_providers = [match.value for match in jsonpath_expr.find(issue_template)]
     try:
         print(
-            f" -- Checking providers: present in code(left), "
+            f" -- Checking providers: present in code (left), "
             f"mentioned in {PROVIDER_ISSUE_TEMPLATE_PATH} (right)"
         )
         assert_sets_equal(set(short_provider_names), set(all_mentioned_providers))
@@ -359,9 +357,9 @@ def check_providers_have_all_documentation_files(yaml_files: Dict[str, Dict]):
     expected_files = ["commits.rst", "index.rst", "installing-providers-from-sources.rst"]
     for package_info in yaml_files.values():
         package_name = package_info['package-name']
-        provider_dir = os.path.join(DOCS_DIR, package_name)
+        provider_dir = DOCS_DIR.joinpath(package_name)
         for file in expected_files:
-            if not os.path.isfile(os.path.join(provider_dir, file)):
+            if not provider_dir.joinpath(file).is_file():
                 errors.append(
                     f"The provider {package_name} misses `{file}` in documentation. "
                     f"Please add the file to {provider_dir}"
@@ -369,7 +367,9 @@ def check_providers_have_all_documentation_files(yaml_files: Dict[str, Dict]):
 
 
 if __name__ == '__main__':
-    all_provider_files = sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
+    provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")
+    all_provider_files = sorted(str(path) for path in provider_files_pattern)
+
     if len(sys.argv) > 1:
         paths = sorted(sys.argv[1:])
     else:

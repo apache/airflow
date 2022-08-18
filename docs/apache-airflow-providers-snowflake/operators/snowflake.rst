@@ -47,7 +47,7 @@ the connection metadata is structured as follows:
 
 An example usage of the SnowflakeOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/snowflake/example_dags/example_snowflake.py
+.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
     :language: python
     :start-after: [START howto_operator_snowflake]
     :end-before: [END howto_operator_snowflake]

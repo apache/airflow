@@ -711,7 +711,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
 
         DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_EXPORT_LINK)
         uri = self._get_uri_from_destination(MetadataExport.to_dict(metadata_export)["destination_gcs_uri"])
-        StorageLink.persist(context=context, task_instance=self, uri=uri)
+        StorageLink.persist(context=context, task_instance=self, uri=uri, project_id=self.project_id)
         return MetadataExport.to_dict(metadata_export)
 
     def _get_uri_from_destination(self, destination_uri: str):

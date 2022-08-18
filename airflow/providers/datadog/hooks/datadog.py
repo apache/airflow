@@ -43,6 +43,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         conn = self.get_connection(datadog_conn_id)
         self.api_key = conn.extra_dejson.get('api_key', None)
         self.app_key = conn.extra_dejson.get('app_key', None)
+        self.api_host = conn.extra_dejson.get('api_host', None)
         self.source_type_name = conn.extra_dejson.get('source_type_name', None)
 
         # If the host is populated, it will use that hostname instead.
@@ -53,7 +54,7 @@ class DatadogHook(BaseHook, LoggingMixin):
             raise AirflowException("api_key must be specified in the Datadog connection details")
 
         self.log.info("Setting up api keys for Datadog")
-        initialize(api_key=self.api_key, app_key=self.app_key)
+        initialize(api_key=self.api_key, app_key=self.app_key, api_host=self.api_host)
 
     def validate_response(self, response: Dict[str, Any]) -> None:
         """Validate Datadog response"""

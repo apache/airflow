@@ -23,18 +23,10 @@ This module contains a Google Pub/Sub Hook.
     MessageStoragePolicy
     ReceivedMessage
 """
-import sys
 import warnings
 from base64 import b64decode
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 from uuid import uuid4
-
-from airflow.providers.google.common.consts import CLIENT_INFO
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -52,6 +44,8 @@ from google.cloud.pubsub_v1.types import (
 )
 from googleapiclient.errors import HttpError
 
+from airflow.compat.functools import cached_property
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.version import version
 
@@ -339,7 +333,7 @@ class PubSubHook(GoogleBaseHook):
             in which they are received by the Pub/Sub system. Otherwise, they may be
             delivered in any order.
         :param expiration_policy: A policy that specifies the conditions for this
-            subscription’s expiration. A subscription is considered active as long as any
+            subscription's expiration. A subscription is considered active as long as any
             connected subscriber is successfully consuming messages from the subscription or
             is issuing operations on the subscription. If expiration_policy is not set,
             a default policy with ttl of 31 days will be used. The minimum allowed value for

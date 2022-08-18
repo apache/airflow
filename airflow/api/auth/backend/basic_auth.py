@@ -18,10 +18,11 @@
 from functools import wraps
 from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
-from flask import Response, current_app, request
+from flask import Response, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_login import login_user
 
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.www.fab_security.sqla.models import User
 
 CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
@@ -40,7 +41,7 @@ def auth_current_user() -> Optional[User]:
     if auth is None or not auth.username or not auth.password:
         return None
 
-    ab_security_manager = current_app.appbuilder.sm
+    ab_security_manager = get_airflow_app().appbuilder.sm
     user = None
     if ab_security_manager.auth_type == AUTH_LDAP:
         user = ab_security_manager.auth_user_ldap(auth.username, auth.password)

@@ -191,11 +191,7 @@ class Pool(Base):
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
-            if stats_dict["total"] == -1:
-                # -1 means infinite
-                stats_dict["open"] = -1
-            else:
-                stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
+            stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
 
         return pools
 

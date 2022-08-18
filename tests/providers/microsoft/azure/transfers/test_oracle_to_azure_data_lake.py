@@ -44,8 +44,8 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         delimiter = '|'
         encoding = 'utf-8'
         cursor_description = [
-            ('id', "<class 'cx_Oracle.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1),
+            ('id', "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
+            ('description', "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
         ]
         cursor_rows = [[1, 'description 1'], [2, 'description 2']]
         mock_cursor = MagicMock()
@@ -95,8 +95,8 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         delimiter = '|'
         encoding = 'latin-1'
         cursor_description = [
-            ('id', "<class 'cx_Oracle.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1),
+            ('id', "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
+            ('description', "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
         ]
         cursor_rows = [[1, 'description 1'], [2, 'description 2']]
         cursor_mock = MagicMock()

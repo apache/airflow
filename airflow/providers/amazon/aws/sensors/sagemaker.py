@@ -50,7 +50,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     def poke(self, context: 'Context'):
         response = self.get_sagemaker_response()
-        if not (response['ResponseMetadata']['HTTPStatusCode'] == 200):
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             self.log.info('Bad HTTP response: %s', response)
             return False
         state = self.state_from_response(response)
@@ -225,7 +225,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.instance_count = description['ResourceConfig']['InstanceCount']
         status = description['TrainingJobStatus']
         job_already_completed = status not in self.non_terminal_states()
-        self.state = LogState.TAILING if (not job_already_completed) else LogState.COMPLETE
+        self.state = LogState.COMPLETE if job_already_completed else LogState.TAILING
         self.last_description = description
         self.last_describe_job_call = time.monotonic()
         self.log_resource_inited = True

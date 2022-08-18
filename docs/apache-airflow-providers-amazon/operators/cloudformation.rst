@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-AWS CloudFormation Operators
-============================
+==================
+AWS CloudFormation
+==================
 
 `AWS CloudFormation <https://aws.amazon.com/cloudformation/>`__ enables you to create and provision AWS
 infrastructure deployments predictably and repeatedly. It helps you leverage AWS products such as Amazon
@@ -31,68 +31,69 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:CloudFormationCreateStackOperator:
 
-AWS CloudFormation Create Stack Operator
-""""""""""""""""""""""""""""""""""""""""
+Create an AWS CloudFormation stack
+==================================
 
 To create a new AWS CloudFormation stack use
 :class:`~airflow.providers.amazon.aws.operators.cloud_formation.CloudFormationCreateStackOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudformation_create_stack]
     :end-before: [END howto_operator_cloudformation_create_stack]
 
-
-.. _howto/operator:CloudFormationCreateStackSensor:
-
-AWS CloudFormation Create Stack Sensor
-""""""""""""""""""""""""""""""""""""""
-
-To wait on the state of an AWS CloudFormation stack creation until it reaches a terminal state you can use
-:class:`~airflow.providers.amazon.aws.sensors.cloud_formation.CloudFormationCreateStackSensor`
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_cloudformation_create_stack]
-    :end-before: [END howto_sensor_cloudformation_create_stack]
-
 .. _howto/operator:CloudFormationDeleteStackOperator:
 
-AWS CloudFormation Delete Stack Operator
-""""""""""""""""""""""""""""""""""""""""
+Delete an AWS CloudFormation stack
+==================================
 
 To delete an AWS CloudFormation stack you can use
 :class:`~airflow.providers.amazon.aws.operators.cloud_formation.CloudFormationDeleteStackOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudformation_delete_stack]
     :end-before: [END howto_operator_cloudformation_delete_stack]
 
+Sensors
+-------
 
-.. _howto/operator:CloudFormationDeleteStackSensor:
+.. _howto/sensor:CloudFormationCreateStackSensor:
 
-AWS CloudFormation Delete Stack Sensor
-""""""""""""""""""""""""""""""""""""""
+Wait on an AWS CloudFormation stack creation state
+==================================================
+
+To wait on the state of an AWS CloudFormation stack creation until it reaches a terminal state you can use
+:class:`~airflow.providers.amazon.aws.sensors.cloud_formation.CloudFormationCreateStackSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_cloudformation_create_stack]
+    :end-before: [END howto_sensor_cloudformation_create_stack]
+
+.. _howto/sensor:CloudFormationDeleteStackSensor:
+
+Wait on an AWS CloudFormation stack deletion state
+==================================================
 
 To wait on the state of an AWS CloudFormation stack deletion until it reaches a terminal state you can use
 use :class:`~airflow.providers.amazon.aws.sensors.cloud_formation.CloudFormationDeleteStackSensor`
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_cloudformation.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_cloudformation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_cloudformation_delete_stack]
     :end-before: [END howto_sensor_cloudformation_delete_stack]
 
-
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for CloudFormation <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html>`__
+* `AWS boto3 library documentation for CloudFormation <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html>`__

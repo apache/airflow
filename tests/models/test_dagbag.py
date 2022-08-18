@@ -398,7 +398,7 @@ class TestDagBag:
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
-            schedule_interval=None,
+            schedule=None,
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
@@ -436,7 +436,7 @@ class TestDagBag:
         actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
 
         for dag_id in expected_dag_ids:
-            actual_dagbag.log.info(f'validating {dag_id}')
+            actual_dagbag.log.info('validating %s', dag_id)
             assert (dag_id in actual_found_dag_ids) == should_be_found, (
                 f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
                 f"have been found after processing dag \"{expected_parent_dag.dag_id}\""
@@ -955,7 +955,7 @@ class TestDagBag:
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
-    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_violation(self):
         """
         test that file processing results in import error when task does not
@@ -963,7 +963,7 @@ class TestDagBag:
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -974,7 +974,7 @@ class TestDagBag:
         }
         assert expected_import_errors == dagbag.import_errors
 
-    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_nonstring_owner(self):
         """
         test that file processing results in import error when task does not
@@ -983,7 +983,7 @@ class TestDagBag:
         TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name('dags_corrupted')
         dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -994,7 +994,7 @@ class TestDagBag:
         }
         assert expected_import_errors == dagbag.import_errors
 
-    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_obeyed(self):
         """
         test that dag successfully imported without import errors when tasks
@@ -1002,7 +1002,7 @@ class TestDagBag:
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_with_non_default_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert {"test_with_non_default_owner"} == set(dagbag.dag_ids)
 
         assert {} == dagbag.import_errors
@@ -1011,6 +1011,6 @@ class TestDagBag:
     def test_dag_cluster_policy_obeyed(self):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_with_no_tags.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert len(dagbag.dag_ids) == 0
         assert "has no tags" in dagbag.import_errors[dag_file]

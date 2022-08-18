@@ -36,7 +36,7 @@ def app():
 
 @pytest.fixture()
 def client(app):
-    return werkzeug.test.Client(app, werkzeug.wrappers.BaseResponse)
+    return werkzeug.test.Client(app, werkzeug.wrappers.response.Response)
 
 
 def test_mount(client):
@@ -54,4 +54,4 @@ def test_not_found(client):
 def test_index(client):
     resp = client.get('/test/')
     assert resp.status_code == 302
-    assert resp.headers['Location'] == 'http://localhost/test/home'
+    assert resp.headers['Location'] == '/test/home'

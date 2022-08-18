@@ -19,8 +19,10 @@
 
 import warnings
 
-from airflow.hooks.dbapi import DbApiHook  # noqa
+from airflow.providers.common.sql.hooks.sql import DbApiHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.hooks.dbapi`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.common.sql.hooks.sql`.",
+    DeprecationWarning,
+    stacklevel=2,
 )

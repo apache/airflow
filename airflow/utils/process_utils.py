@@ -34,7 +34,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, List, Optional
+from typing import Dict, Generator, List, Optional
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
@@ -61,8 +61,9 @@ def reap_process_group(
     a SIGKILL will be send.
 
     :param process_group_id: process group id to kill.
-           The process that wants to create the group should run `os.setpgid(0, 0)` as the first
-           command it executes which will set group id = process_id. Effectively the process that is the
+           The process that wants to create the group should run
+           `airflow.utils.process_utils.set_new_process_group()` as the first command
+           it executes which will set group id = process_id. Effectively the process that is the
            "root" of the group has pid = gid and all other processes in the group have different
            pids but the same gid (equal the pid of the root process)
     :param logger: log handler
@@ -158,13 +159,23 @@ def reap_process_group(
 def execute_in_subprocess(cmd: List[str], cwd: Optional[str] = None) -> None:
     """
     Execute a process and stream output to logger
-
     :param cmd: command and arguments to run
     :param cwd: Current working directory passed to the Popen constructor
     """
+    execute_in_subprocess_with_kwargs(cmd, cwd=cwd)
+
+
+def execute_in_subprocess_with_kwargs(cmd: List[str], **kwargs) -> None:
+    """
+    Execute a process and stream output to logger
+
+    :param cmd: command and arguments to run
+
+    All other keyword args will be passed directly to subprocess.Popen
+    """
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, cwd=cwd
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, **kwargs
     ) as proc:
         log.info("Output:")
         if proc.stdout:
@@ -258,7 +269,7 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
 
 
 @contextmanager
-def patch_environ(new_env_variables: Dict[str, str]):
+def patch_environ(new_env_variables: Dict[str, str]) -> Generator[None, None, None]:
     """
     Sets environment variables in context. After leaving the context, it restores its original state.
 
@@ -301,3 +312,17 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
         except psutil.NoSuchProcess:
             # If process is dead remove the pidfile
             pid_lock_file.break_lock()
+
+
+def set_new_process_group() -> None:
+    """
+    Tries to set current process to a new process group
+    That makes it easy to kill all sub-process of this at the OS-level,
+    rather than having to iterate the child processes.
+    If current process spawn by system call ``exec()`` than keep current process group
+    """
+    if os.getpid() == os.getsid(0):
+        # If PID = SID than process a session leader, and it is not possible to change process group
+        return
+
+    os.setpgid(0, 0)

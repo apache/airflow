@@ -106,6 +106,29 @@ class TestClearTasks:
             assert ti0.state is None
             assert ti0.external_executor_id is None
 
+    def test_clear_task_instances_next_method(self, dag_maker, session):
+        with dag_maker(
+            'test_clear_task_instances_next_method',
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id='task0')
+
+        ti0 = dag_maker.create_dagrun().task_instances[0]
+        ti0.state = State.DEFERRED
+        ti0.next_method = "next_method"
+        ti0.next_kwargs = {}
+
+        session.add(ti0)
+        session.commit()
+
+        clear_task_instances([ti0], session, dag=dag)
+
+        ti0.refresh_from_db()
+
+        assert ti0.next_method is None
+        assert ti0.next_kwargs is None
+
     @pytest.mark.parametrize(
         ["state", "last_scheduling"], [(State.QUEUED, None), (State.RUNNING, DEFAULT_DATE)]
     )

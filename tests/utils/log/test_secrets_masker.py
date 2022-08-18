@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
 import inspect
 import logging
 import logging.config
@@ -22,8 +23,11 @@ import textwrap
 
 import pytest
 
-from airflow.utils.log.secrets_masker import SecretsMasker, should_hide_value_for_key
+from airflow import settings
+from airflow.utils.log.secrets_masker import RedactedIO, SecretsMasker, should_hide_value_for_key
 from tests.test_utils.config import conf_vars
+
+settings.MASK_SECRETS_IN_LOGS = True
 
 p = "password"
 
@@ -114,7 +118,6 @@ class TestSecretsMasker:
             """
         )
 
-    @pytest.mark.xfail(reason="Cannot filter secrets in traceback source")
     def test_exc_tb(self, logger, caplog):
         """
         Show it is not possible to filter secrets in the source.
@@ -142,7 +145,7 @@ class TestSecretsMasker:
             ERROR Err
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line}, in test_exc_tb
-                raise RuntimeError("Cannot connect to user:***)
+                raise RuntimeError("Cannot connect to user:password")
             RuntimeError: Cannot connect to user:***
             """
         )
@@ -338,3 +341,23 @@ class ShortExcFormatter(logging.Formatter):
 def lineno():
     """Returns the current line number in our program."""
     return inspect.currentframe().f_back.f_lineno
+
+
+class TestRedactedIO:
+    def test_redacts_from_print(self, capsys):
+        # Without redacting, password is printed.
+        print(p)
+        stdout = capsys.readouterr().out
+        assert stdout == f"{p}\n"
+        assert "***" not in stdout
+
+        # With context manager, password is redacted.
+        with contextlib.redirect_stdout(RedactedIO()):
+            print(p)
+        stdout = capsys.readouterr().out
+        assert stdout == "***\n"
+
+    def test_write(self, capsys):
+        RedactedIO().write(p)
+        stdout = capsys.readouterr().out
+        assert stdout == "***"

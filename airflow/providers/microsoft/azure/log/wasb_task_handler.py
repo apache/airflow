@@ -17,16 +17,11 @@
 # under the License.
 import os
 import shutil
-import sys
 from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -44,8 +39,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
-        filename_template: str,
         delete_local_copy: str,
+        *,
+        filename_template: Optional[str] = None,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container

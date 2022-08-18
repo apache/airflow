@@ -26,7 +26,7 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
-from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeySizeSensor
+from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.utils import timezone
 
 
@@ -160,25 +160,31 @@ class TestS3KeySensor(unittest.TestCase):
         assert op.poke(None) is False
         mock_get_file_metadata.assert_called_once_with("file", "test_bucket")
 
-        mock_get_file_metadata.return_value = [{'Size': 0}]
+        mock_get_file_metadata.return_value = [{'Key': 'dummyFile', 'Size': 0}]
+        assert op.poke(None) is False
+
+        mock_get_file_metadata.return_value = [{'Key': 'file1', 'Size': 0}]
         assert op.poke(None) is True
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata')
     def test_poke_wildcard_multiple_files(self, mock_get_file_metadata):
         op = S3KeySensor(
             task_id='s3_key_sensor',
-            bucket_key=['s3://test_bucket/file1*', 's3://test_bucket/file2*'],
+            bucket_key=['s3://test_bucket/file*', 's3://test_bucket/*.zip'],
             wildcard_match=True,
         )
 
-        mock_get_file_metadata.side_effect = [[{'Size': 0}], []]
+        mock_get_file_metadata.side_effect = [[{'Key': 'file1', 'Size': 0}], []]
         assert op.poke(None) is False
 
-        mock_get_file_metadata.side_effect = [[{'Size': 0}], [{'Size': 0}]]
+        mock_get_file_metadata.side_effect = [[{'Key': 'file1', 'Size': 0}], [{'Key': 'file2', 'Size': 0}]]
+        assert op.poke(None) is False
+
+        mock_get_file_metadata.side_effect = [[{'Key': 'file1', 'Size': 0}], [{'Key': 'test.zip', 'Size': 0}]]
         assert op.poke(None) is True
 
-        mock_get_file_metadata.assert_any_call("file1", "test_bucket")
-        mock_get_file_metadata.assert_any_call("file2", "test_bucket")
+        mock_get_file_metadata.assert_any_call("file", "test_bucket")
+        mock_get_file_metadata.assert_any_call("", "test_bucket")
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
     def test_poke_with_check_function(self, mock_head_object):
@@ -192,24 +198,3 @@ class TestS3KeySensor(unittest.TestCase):
 
         mock_head_object.return_value = {'ContentLength': 1}
         assert op.poke(None) is True
-
-
-class TestS3KeySizeSensor(unittest.TestCase):
-    def test_deprecation_warnings_generated(self):
-        with pytest.warns(expected_warning=DeprecationWarning):
-            S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
-
-    @parameterized.expand(
-        [
-            [{"ContentLength": 0}, False],
-            [{"ContentLength": 10}, True],
-        ]
-    )
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
-    def test_poke(self, head_object_return_value, poke_return_value, mock_head_object):
-        op = S3KeySizeSensor(
-            task_id='s3_key_sensor', bucket_key=['s3://test_bucket/file', 's3://test_bucket2/file2']
-        )
-
-        mock_head_object.return_value = head_object_return_value
-        assert op.poke(None) is poke_return_value

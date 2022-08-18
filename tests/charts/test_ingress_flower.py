@@ -19,6 +19,7 @@ import itertools
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -26,13 +27,13 @@ from tests.charts.helm_template_generator import render_chart
 class IngressFlowerTest(unittest.TestCase):
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
-            values={"ingress": {"enabled": True}, "executor": "CeleryExecutor"},
+            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
             show_only=["templates/flower/flower-ingress.yaml"],
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
         render_chart(
-            values={"ingress": {"enabled": True}, "executor": "CeleryExecutor"},
+            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
             show_only=["templates/flower/flower-ingress.yaml"],
             kubernetes_version='1.16.0',
         )  # checks that no validation exception is raised
@@ -40,8 +41,8 @@ class IngressFlowerTest(unittest.TestCase):
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
             values={
-                "ingress": {"enabled": True, "flower": {"annotations": {"aa": "bb", "cc": "dd"}}},
-                "executor": "CeleryExecutor",
+                "ingress": {"flower": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}},
+                "flower": {"enabled": True},
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
@@ -51,7 +52,7 @@ class IngressFlowerTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "ingress": {"enabled": True, "flower": {"ingressClassName": "foo"}},
-                "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
@@ -60,9 +61,10 @@ class IngressFlowerTest(unittest.TestCase):
     def test_should_ingress_hosts_objs_have_priority_over_host(self):
         docs = render_chart(
             values={
+                "flower": {"enabled": True},
                 "ingress": {
-                    "enabled": True,
                     "flower": {
+                        "enabled": True,
                         "tls": {"enabled": True, "secretName": "oldsecret"},
                         "hosts": [
                             {"name": "*.a-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
@@ -73,7 +75,7 @@ class IngressFlowerTest(unittest.TestCase):
                         ],
                         "host": "old-host",
                     },
-                }
+                },
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
@@ -89,14 +91,15 @@ class IngressFlowerTest(unittest.TestCase):
     def test_should_ingress_hosts_strs_have_priority_over_host(self):
         docs = render_chart(
             values={
+                "flower": {"enabled": True},
                 "ingress": {
-                    "enabled": True,
                     "flower": {
+                        "enabled": True,
                         "tls": {"enabled": True, "secretName": "secret"},
                         "hosts": ["*.a-host", "b-host", "c-host", "d-host"],
                         "host": "old-host",
                     },
-                }
+                },
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
@@ -109,13 +112,14 @@ class IngressFlowerTest(unittest.TestCase):
     def test_should_ingress_deprecated_host_and_top_level_tls_still_work(self):
         docs = render_chart(
             values={
+                "flower": {"enabled": True},
                 "ingress": {
-                    "enabled": True,
                     "flower": {
+                        "enabled": True,
                         "tls": {"enabled": True, "secretName": "supersecret"},
                         "host": "old-host",
                     },
-                }
+                },
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
@@ -127,11 +131,40 @@ class IngressFlowerTest(unittest.TestCase):
 
     def test_should_ingress_host_entry_not_exist(self):
         docs = render_chart(
+            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
+            show_only=["templates/flower/flower-ingress.yaml"],
+        )
+        assert not jmespath.search("spec.rules[*].host", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None, False),
+            (None, False, False),
+            (None, True, True),
+            (False, None, False),
+            (True, None, True),
+            (False, True, True),  # We will deploy it if _either_ are true
+            (True, False, True),
+        ]
+    )
+    def test_ingress_created(self, global_value, flower_value, expected):
+        values = {"flower": {"enabled": True}, "ingress": {}}
+        if global_value is not None:
+            values["ingress"]["enabled"] = global_value
+        if flower_value is not None:
+            values["ingress"]["flower"] = {"enabled": flower_value}
+        if values["ingress"] == {}:
+            del values["ingress"]
+        docs = render_chart(values=values, show_only=["templates/flower/flower-ingress.yaml"])
+        assert expected == (1 == len(docs))
+
+    def test_ingress_not_created_flower_disabled(self):
+        docs = render_chart(
             values={
                 "ingress": {
-                    "enabled": True,
+                    "flower": {"enabled": True},
                 }
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
-        assert not jmespath.search("spec.rules[*].host", docs[0])
+        assert 0 == len(docs)

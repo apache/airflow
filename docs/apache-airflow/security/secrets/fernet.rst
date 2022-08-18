@@ -22,7 +22,7 @@ Fernet
 
 Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
 configuration and the variable configuration. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
-Fernet is an implementation of symmetric (also known as “secret key”) authenticated cryptography.
+Fernet is an implementation of symmetric (also known as "secret key") authenticated cryptography.
 
 The first time Airflow is started, the ``airflow.cfg`` file is generated with the default configuration and the unique Fernet
 key. The key is saved to option ``fernet_key`` of section ``[core]``.

@@ -19,10 +19,8 @@ import os
 from typing import Optional
 
 import pytest
-from itsdangerous import URLSafeSerializer
 
 from airflow import DAG
-from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -73,15 +71,14 @@ class TestGetSource:
         docstring = ast.get_docstring(module)
         return docstring
 
-    def test_should_respond_200_text(self):
-        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+    def test_should_respond_200_text(self, url_safe_serializer):
 
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))
         dag_docstring = self._get_dag_file_docstring(first_dag.fileloc)
 
-        url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+        url = f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
             url, headers={"Accept": "text/plain"}, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -90,14 +87,13 @@ class TestGetSource:
         assert dag_docstring in response.data.decode()
         assert 'text/plain' == response.headers['Content-Type']
 
-    def test_should_respond_200_json(self):
-        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+    def test_should_respond_200_json(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))
         dag_docstring = self._get_dag_file_docstring(first_dag.fileloc)
 
-        url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+        url = f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
             url, headers={"Accept": 'application/json'}, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -106,13 +102,12 @@ class TestGetSource:
         assert dag_docstring in response.json['content']
         assert 'application/json' == response.headers['Content-Type']
 
-    def test_should_respond_406(self):
-        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+    def test_should_respond_406(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))
 
-        url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+        url = f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
             url, headers={"Accept": 'image/webp'}, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -128,27 +123,25 @@ class TestGetSource:
 
         assert 404 == response.status_code
 
-    def test_should_raises_401_unauthenticated(self):
-        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+    def test_should_raises_401_unauthenticated(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))
 
         response = self.client.get(
-            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
+            f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}",
             headers={"Accept": "text/plain"},
         )
 
         assert_401(response)
 
-    def test_should_raise_403_forbidden(self):
-        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+    def test_should_raise_403_forbidden(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))
 
         response = self.client.get(
-            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
+            f"/api/v1/dagSources/{url_safe_serializer.dumps(first_dag.fileloc)}",
             headers={"Accept": "text/plain"},
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )

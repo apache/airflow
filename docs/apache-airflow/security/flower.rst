@@ -21,6 +21,9 @@ Flower
 Flower is a web based tool for monitoring and administrating Celery clusters. This topic describes how
 to configure Airflow to secure your flower instance.
 
+This is an optional component that is disabled by default in Community deployments and you need to
+configure it on your own if you want to use it.
+
 Flower Authentication
 ---------------------
 

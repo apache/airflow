@@ -20,9 +20,9 @@ import json
 import re
 import unittest.mock
 import urllib.parse
+from datetime import timedelta
 
 import pytest
-from freezegun import freeze_time
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -32,7 +32,7 @@ from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
-from airflow.utils import dates, timezone
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -43,7 +43,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
-DEFAULT_DATE = dates.days_ago(2)
+DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
@@ -165,24 +165,14 @@ def client_ti_without_dag_edit(app):
             id='graph',
         ),
         pytest.param(
-            'tree?dag_id=example_bash_operator',
+            'object/grid_data?dag_id=example_bash_operator',
             ['runme_1'],
-            id='tree',
+            id='grid-data',
         ),
         pytest.param(
-            'dags/example_bash_operator/grid',
-            ['runme_1'],
-            id='grid',
-        ),
-        pytest.param(
-            'tree?dag_id=example_subdag_operator.section-1',
+            'object/grid_data?dag_id=example_subdag_operator.section-1',
             ['section-1-task-1'],
-            id="tree-subdag-url-param",
-        ),
-        pytest.param(
-            'dags/example_subdag_operator.section-1/grid',
-            ['section-1-task-1'],
-            id="grid-subdag",
+            id="grid-data-subdag",
         ),
         pytest.param(
             'duration?days=30&dag_id=example_bash_operator',
@@ -556,7 +546,6 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     'airflow.executors.executor_loader.ExecutorLoader.get_default_executor',
     return_value=_ForceHeartbeatCeleryExecutor(),
 )
-@freeze_time("2020-07-07 09:00:00")
 def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
     task_id = 'runme_0'
     session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
@@ -576,10 +565,12 @@ def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
     resp = admin_client.post('run', data=form, follow_redirects=True)
 
     assert resp.status_code == 200
-
-    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [
-        (timezone.utcnow(),)
-    ]
+    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
+    # Unlike real datetime, when FakeDatetime is used, it coerces to
+    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
+    assert timezone.utcnow() - session.query(TaskInstance.queued_dttm).filter(
+        TaskInstance.task_id == task_id
+    ).scalar() < timedelta(minutes=5)
 
 
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)

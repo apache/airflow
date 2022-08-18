@@ -43,6 +43,10 @@ class GoogleApiToS3Operator(BaseOperator):
     Therefore it is recommended that you use the custom Google Cloud Service Operators for working
     with the Google Cloud Platform.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleApiToS3Operator`
+
     :param google_api_service_name: The specific API service that is being requested.
     :param google_api_service_version: The version of the API that is being requested.
     :param google_api_endpoint_path: The client libraries path to the api call's executing method.
@@ -151,13 +155,12 @@ class GoogleApiToS3Operator(BaseOperator):
             api_version=self.google_api_service_version,
             impersonation_chain=self.google_impersonation_chain,
         )
-        google_api_response = google_discovery_api_hook.query(
+        return google_discovery_api_hook.query(
             endpoint=self.google_api_endpoint_path,
             data=self.google_api_endpoint_params,
             paginate=self.google_api_pagination,
             num_retries=self.google_api_num_retries,
         )
-        return google_api_response
 
     def _load_data_to_s3(self, data: dict) -> None:
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)

@@ -16,7 +16,6 @@
 # under the License.
 #
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
@@ -121,7 +120,7 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
     Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:EksFargateProfileStateSensor`
 
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)
@@ -256,51 +255,3 @@ class EksNodegroupStateSensor(BaseSensorOperator):
                 )
             )
         return nodegroup_state == self.target_state
-
-
-class EKSClusterStateSensor(EksClusterStateSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSFargateProfileStateSensor(EksFargateProfileStateSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.eks.EksFargateProfileStateSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSNodegroupStateSensor(EksNodegroupStateSensor):
-    """
-    This sensor is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use `airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

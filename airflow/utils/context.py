@@ -23,12 +23,12 @@ import copy
 import functools
 import warnings
 from typing import (
-    AbstractSet,
     Any,
     Container,
     Dict,
     ItemsView,
     Iterator,
+    KeysView,
     List,
     Mapping,
     MutableMapping,
@@ -175,7 +175,7 @@ class Context(MutableMapping[str, Any]):
     }
 
     def __init__(self, context: Optional[MutableMapping[str, Any]] = None, **kwargs: Any) -> None:
-        self._context = context or {}
+        self._context: MutableMapping[str, Any] = context or {}
         if kwargs:
             self._context.update(kwargs)
         self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
@@ -231,7 +231,7 @@ class Context(MutableMapping[str, Any]):
             return NotImplemented
         return self._context != other._context
 
-    def keys(self) -> AbstractSet[str]:
+    def keys(self) -> KeysView[str]:
         return self._context.keys()
 
     def items(self):
@@ -284,6 +284,11 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
 
     :meta private:
     """
+    if not isinstance(source, Context):
+        # Sometimes we are passed a plain dict (usually in tests, or in User's
+        # custom operators) -- be lienent about what we accept so we don't
+        # break anything for users.
+        return source
 
     def _deprecated_proxy_factory(k: str, v: Any) -> Any:
         replacements = source._deprecation_replacements[k]

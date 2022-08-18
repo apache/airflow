@@ -16,77 +16,40 @@
 # under the License.
 
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
-    AIRFLOW_SOURCES_WWW_FROM,
-    AIRFLOW_SOURCES_WWW_TO,
     get_airflow_extras,
     get_airflow_version,
 )
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
 
 
 @dataclass
-class BuildProdParams:
+class BuildProdParams(CommonBuildParams):
     """
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
-    docker_cache: str = "pulled"
-    disable_mysql_client_installation: bool = False
-    disable_mssql_client_installation: bool = False
-    disable_postgres_client_installation: bool = False
-    disable_airflow_repo_cache: bool = False
-    install_providers_from_sources: bool = False
+    airflow_constraints_mode: str = "constraints"
+    airflow_constraints_reference: str = ""
     cleanup_context: bool = False
-    prepare_buildx_cache: bool = False
-    push_image: bool = False
-    empty_image: bool = False
-    airflow_is_in_context: bool = False
-    install_packages_from_context: bool = False
-    upgrade_to_newer_dependencies: bool = False
-    python: str = "3.7"
-    airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH
+    disable_airflow_repo_cache: bool = False
+    disable_mssql_client_installation: bool = False
+    disable_mysql_client_installation: bool = False
+    disable_postgres_client_installation: bool = False
     install_airflow_reference: str = ""
     install_airflow_version: str = ""
-    default_constraints_branch = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    build_id: int = 0
-    airflow_constraints: str = "constraints-source-providers"
-    github_repository: str = "apache/airflow"
-    constraints_github_repository: str = "apache/airflow"
-    dev_apt_command: str = ""
-    dev_apt_deps: str = ""
-    runtime_apt_command: str = ""
-    runtime_apt_deps: str = ""
-    additional_dev_apt_command: str = ""
-    additional_dev_apt_deps: str = ""
-    additional_dev_apt_env: str = ""
-    additional_runtime_apt_command: str = ""
-    additional_runtime_apt_deps: str = ""
-    additional_runtime_apt_env: str = ""
-    additional_python_deps: str = ""
-    image_tag: Optional[str] = None
-    extras: str = ""
-    additional_airflow_extras: str = ""
-    github_token: str = os.environ.get('GITHUB_TOKEN', "")
-    github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
-    login_to_github_registry: str = "false"
-    github_username: str = ""
-    platform: str = f"linux/{os.uname().machine}"
-    airflow_constraints_reference: str = ""
-    airflow_constraints_location: str = ""
+    install_packages_from_context: bool = False
     installation_method: str = "."
-    debian_version: str = "bullseye"
-    answer: Optional[str] = None
+    airflow_extras: str = get_airflow_extras()
 
     @property
     def airflow_version(self) -> str:
@@ -96,22 +59,7 @@ class BuildProdParams:
             return get_airflow_version()
 
     @property
-    def airflow_branch(self) -> str:
-        return self.airflow_branch_for_pypi_preloading
-
-    @property
-    def airflow_base_image_name(self):
-        image = f'ghcr.io/{self.github_repository.lower()}'
-        return image
-
-    @property
-    def airflow_image_name(self):
-        """Construct PROD image link"""
-        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
-        return image
-
-    @property
-    def the_image_type(self) -> str:
+    def image_type(self) -> str:
         return 'PROD'
 
     @property
@@ -120,29 +68,21 @@ class BuildProdParams:
         build_args.extend(
             [
                 "--build-arg",
-                "AIRFLOW_SOURCES_WWW_FROM=empty",
-                "--build-arg",
-                "AIRFLOW_SOURCES_WWW_TO=/empty",
-                "--build-arg",
                 "AIRFLOW_SOURCES_FROM=empty",
                 "--build-arg",
                 "AIRFLOW_SOURCES_TO=/empty",
             ]
         )
-        if len(self.airflow_constraints_reference) > 0:
+        if re.match('v?2.*', self.airflow_version):
+            build_args.extend(
+                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
+            )
+        else:
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
             )
-        else:
-            if re.match('v?2.*', self.airflow_version):
-                build_args.extend(
-                    ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
-                )
-            else:
-                build_args.extend(
-                    ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}"]
-                )
-        if len(self.airflow_constraints_location) > 0:
+        if self.airflow_constraints_location:
+            # override location if specified
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
@@ -209,13 +149,9 @@ class BuildProdParams:
                     "--build-arg",
                     f"AIRFLOW_SOURCES_TO={AIRFLOW_SOURCES_TO}",
                     "--build-arg",
-                    f"AIRFLOW_SOURCES_WWW_FROM={AIRFLOW_SOURCES_WWW_FROM}",
-                    "--build-arg",
-                    f"AIRFLOW_SOURCES_WWW_TO={AIRFLOW_SOURCES_WWW_TO}",
-                    "--build-arg",
                     f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
                     "--build-arg",
-                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
                 ]
             )
 
@@ -237,114 +173,62 @@ class BuildProdParams:
         return extra_build_flags
 
     @property
-    def docker_cache_directive(self) -> List[str]:
-        docker_cache_directive = []
-
-        if self.docker_cache == "pulled":
-            docker_cache_directive.append(f"--cache-from={self.airflow_image_name}")
-        elif self.docker_cache == "disabled":
-            docker_cache_directive.append("--no-cache")
-        else:
-            docker_cache_directive = []
-
-        if self.prepare_buildx_cache:
-            docker_cache_directive.extend(["--cache-to=type=inline,mode=max", "--push"])
-        return docker_cache_directive
-
-    @property
-    def python_base_image(self):
-        """Construct Python Base Image"""
-        #  ghcr.io/apache/airflow/main/python:3.8-slim-bullseye
-        return f'python:{self.python}-slim-{self.debian_version}'
-
-    @property
-    def airflow_image_repository(self):
-        return f'https://github.com/{self.github_repository}'
-
-    @property
-    def airflow_image_date_created(self):
-        now = datetime.now()
-        return now.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    @property
-    def airflow_image_readme_url(self):
-        return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
-
-    @property
     def airflow_pre_cached_pip_packages(self) -> str:
-        airflow_pre_cached_pip = 'true'
-        if not self.airflow_is_in_context or self.disable_airflow_repo_cache:
-            airflow_pre_cached_pip = 'false'
-        return airflow_pre_cached_pip
+        return 'false' if self.disable_airflow_repo_cache else 'true'
 
     @property
     def install_mssql_client(self) -> str:
-        install_mssql = 'true'
-        if self.disable_mssql_client_installation:
-            install_mssql = 'false'
-        return install_mssql
+        return 'false' if self.disable_mssql_client_installation else 'true'
 
     @property
     def install_mysql_client(self) -> str:
-        install_mysql = 'true'
-        if self.disable_mysql_client_installation:
-            install_mysql = 'false'
-        return install_mysql
+        return 'false' if self.disable_mysql_client_installation else 'true'
 
     @property
     def install_postgres_client(self) -> str:
-        install_postgres = 'true'
-        if self.disable_postgres_client_installation:
-            install_postgres = 'false'
-        return install_postgres
-
-    @property
-    def airflow_extras(self):
-        return get_airflow_extras()
+        return 'false' if self.disable_postgres_client_installation else 'true'
 
     @property
     def docker_context_files(self) -> str:
         return "docker-context-files"
 
     @property
-    def airflow_image_name_with_tag(self):
-        """Construct PROD image link"""
-        image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
-        return image if self.image_tag is None else image + f":{self.image_tag}"
+    def required_image_args(self) -> List[str]:
+        return [
+            "airflow_branch",
+            "airflow_constraints_mode",
+            "airflow_extras",
+            "airflow_image_date_created",
+            "airflow_image_readme_url",
+            "airflow_image_repository",
+            "airflow_pre_cached_pip_packages",
+            "airflow_version",
+            "build_id",
+            "constraints_github_repository",
+            "docker_context_files",
+            "install_mssql_client",
+            "install_mysql_client",
+            "install_packages_from_context",
+            "install_postgres_client",
+            "install_providers_from_sources",
+            "python_base_image",
+            "upgrade_to_newer_dependencies",
+        ]
 
-    required_image_args = [
-        "python_base_image",
-        "install_mysql_client",
-        "install_mssql_client",
-        "install_postgres_client",
-        "airflow_version",
-        "airflow_branch",
-        "airflow_extras",
-        "airflow_pre_cached_pip_packages",
-        "docker_context_files",
-        "extras",
-        "additional_airflow_extras",
-        "additional_python_deps",
-        "additional_dev_apt_command",
-        "additional_dev_apt_deps",
-        "additional_dev_apt_env",
-        "additional_runtime_apt_command",
-        "additional_runtime_apt_deps",
-        "additional_runtime_apt_env",
-        "upgrade_to_newer_dependencies",
-        "constraints_github_repository",
-        "airflow_constraints",
-        "airflow_image_repository",
-        "airflow_image_date_created",
-        "build_id",
-        "airflow_image_readme_url",
-        "install_providers_from_sources",
-        "airflow_is_in_context",
-        "install_packages_from_context",
-    ]
-    optional_image_args = [
-        "dev_apt_command",
-        "dev_apt_deps",
-        "runtime_apt_command",
-        "runtime_apt_deps",
-    ]
+    @property
+    def optional_image_args(self) -> List[str]:
+        return [
+            "additional_airflow_extras",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_pip_install_flags",
+            "additional_python_deps",
+            "additional_runtime_apt_command",
+            "additional_runtime_apt_deps",
+            "additional_runtime_apt_env",
+            "dev_apt_command",
+            "dev_apt_deps",
+            "runtime_apt_command",
+            "runtime_apt_deps",
+        ]

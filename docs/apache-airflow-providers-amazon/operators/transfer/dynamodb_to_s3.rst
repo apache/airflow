@@ -15,29 +15,32 @@
     specific language governing permissions and limitations
     under the License.
 
+============================
+Amazon DynamoDB to Amazon S3
+============================
 
-Amazon DynamoDB to Amazon S3 Transfer Operator
-==============================================
-
-Use the DynamoDBToS3Operator transfer to copy the contents of an existing Amazon DynamoDB table
+Use the ``DynamoDBToS3Operator`` transfer to copy the content of an existing Amazon DynamoDB table
 to an existing Amazon Simple Storage Service (S3) bucket.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/transfer:DynamoDBToS3Operator:
 
-DynamoDB To S3 Operator
-^^^^^^^^^^^^^^^^^^^^^^^
+Amazon DynamoDB To Amazon S3 transfer operator
+==============================================
 
-This operator replicates records from a DynamoDB table to a file in an S3 bucket.
-It scans a DynamoDB table and writes the received records to a file on the local
-filesystem. It flushes the file to S3 once the file size exceeds the file size limit
+This operator replicates records from an Amazon DynamoDB table to a file in an Amazon S3 bucket.
+It scans an Amazon DynamoDB table and writes the received records to a file on the local
+filesystem. It flushes the file to Amazon S3 once the file size exceeds the file size limit
 specified by the user.
 
-Users can also specify a filtering criteria using dynamodb_scan_kwargs to only replicate
+Users can also specify a filtering criteria using ``dynamodb_scan_kwargs`` to only replicate
 records that satisfy the criteria.
 
 To get more information visit:
@@ -51,11 +54,17 @@ Example usage:
     :start-after: [START howto_transfer_dynamodb_to_s3]
     :end-before: [END howto_transfer_dynamodb_to_s3]
 
-To parallelize the replication, users can create multiple DynamoDBToS3Operator tasks using the
+To parallelize the replication, users can create multiple ``DynamoDBToS3Operator`` tasks using the
 ``TotalSegments`` parameter.  For instance to replicate with parallelism of 2, create two tasks:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dynamodb_to_s3_segmented.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dynamodb_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_dynamodb_to_s3_segmented]
     :end-before: [END howto_transfer_dynamodb_to_s3_segmented]
+
+Reference
+---------
+
+* `AWS boto3 library documentation for Amazon DynamoDB <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

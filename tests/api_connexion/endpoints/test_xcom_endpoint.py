@@ -185,7 +185,7 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data['xcom_entries']:
             xcom_entry['timestamp'] = "TIMESTAMP"
-        assert response.json == {
+        assert response_data == {
             'xcom_entries': [
                 {
                     'dag_id': dag_id,
@@ -227,7 +227,7 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data['xcom_entries']:
             xcom_entry['timestamp'] = "TIMESTAMP"
-        assert response.json == {
+        assert response_data == {
             'xcom_entries': [
                 {
                     'dag_id': dag_id_1,
@@ -283,7 +283,7 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data['xcom_entries']:
             xcom_entry['timestamp'] = "TIMESTAMP"
-        assert response.json == {
+        assert response_data == {
             'xcom_entries': [
                 {
                     'dag_id': dag_id_1,

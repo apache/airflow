@@ -23,6 +23,63 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.6.0 (2022-05-20)
+-------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.3.0`` (#23386)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.3.0``, previously it was ``2.2.4``.
+
+``ingress.enabled`` is deprecated
+"""""""""""""""""""""""""""""""""
+
+Instead of having a single flag to control ingress resources for both the webserver and flower, there
+are now separate flags to control them individually, ``ingress.web.enabled`` and ``ingress.flower.enabled``.
+``ingress.enabled`` is now deprecated, but will still continue to control them both.
+
+Flower disabled by default
+""""""""""""""""""""""""""
+
+Flower is no longer enabled by default when using CeleryExecutor. If you'd like to deploy it, set
+``flower.enabed`` to true in your values file.
+
+New Features
+^^^^^^^^^^^^
+
+- Support ``annotations`` on ``volumeClaimTemplates`` (#23433)
+- Add support for ``topologySpreadConstraints`` to Helm Chart (#22712)
+- Helm support for LocalKubernetesExecutor (#22388)
+- Add ``securityContext`` config for Redis to Helm chart (#22182)
+- Allow ``annotations`` on Helm DAG PVC (#22261)
+- enable optional ``subPath`` for DAGs volume mount (#22323)
+- Added support to override ``auth_type`` in ``auth_file`` in PgBouncer Helm configuration (#21999)
+- Add ``extraVolumeMounts`` to Flower (#22414)
+- Add webserver ``PodDisruptionBudget`` (#21735)
+
+Improvements
+^^^^^^^^^^^^
+
+- Ensure the messages from migration job show up early (#23479)
+- Allow migration jobs and init containers to be optional (#22195)
+- Use jobs check command for liveness probe check in Airflow 2 (#22143)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Adds ``resultBackendSecretName`` warning in Helm production docs (#23307)
+
+Misc
+^^^^
+
+- Update default Airflow version to ``2.3.0`` (#23386)
+- Move the database configuration to a new section (#22284)
+- Disable flower in chart by default (#23737)
+
+
 Airflow Helm Chart 1.5.0, (2022-03-07)
 --------------------------------------
 

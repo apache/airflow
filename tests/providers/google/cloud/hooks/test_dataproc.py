@@ -23,6 +23,7 @@ from unittest.mock import ANY
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import JobStatus
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
@@ -472,27 +473,28 @@ class TestDataProcJobBuilder(unittest.TestCase):
             properties={"test": "test"},
         )
 
+    @parameterized.expand([TASK_ID, f"group.{TASK_ID}"])
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_init(self, mock_uuid):
+    def test_init(self, job_name, mock_uuid):
         mock_uuid.return_value = "uuid"
         properties = {"test": "test"}
-        job = {
+        expected_job_id = f"{job_name}_{mock_uuid.return_value}".replace(".", "_")
+        expected_job = {
             "job": {
                 "labels": {"airflow-version": AIRFLOW_VERSION},
                 "placement": {"cluster_name": CLUSTER_NAME},
-                "reference": {"job_id": TASK_ID + "_uuid", "project_id": GCP_PROJECT},
+                "reference": {"job_id": expected_job_id, "project_id": GCP_PROJECT},
                 "test": {"properties": properties},
             }
         }
         builder = DataProcJobBuilder(
             project_id=GCP_PROJECT,
-            task_id=TASK_ID,
+            task_id=job_name,
             cluster_name=CLUSTER_NAME,
             job_type="test",
             properties=properties,
         )
-
-        assert job == builder.job
+        assert expected_job == builder.job
 
     def test_add_labels(self):
         labels = {"key": "value"}
@@ -559,14 +561,22 @@ class TestDataProcJobBuilder(unittest.TestCase):
         self.builder.set_python_main(main)
         assert main == self.builder.job["job"][self.job_type]["main_python_file_uri"]
 
+    @parameterized.expand(
+        [
+            ("simple", "name"),
+            ("name with underscores", "name_with_dash"),
+            ("name with dot", "group.name"),
+            ("name with dot and underscores", "group.name_with_dash"),
+        ]
+    )
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_set_job_name(self, mock_uuid):
+    def test_set_job_name(self, name, job_name, mock_uuid):
         uuid = "test_uuid"
+        expected_job_name = f"{job_name}_{uuid[:8]}".replace(".", "_")
         mock_uuid.return_value = uuid
-        name = "name"
-        self.builder.set_job_name(name)
-        name += "_" + uuid[:8]
-        assert name == self.builder.job["job"]["reference"]["job_id"]
+        self.builder.set_job_name(job_name)
+        assert expected_job_name == self.builder.job["job"]["reference"]["job_id"]
+        assert len(self.builder.job["job"]["reference"]["job_id"]) == len(job_name) + 9
 
     def test_build(self):
         assert self.builder.job == self.builder.build()

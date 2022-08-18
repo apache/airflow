@@ -164,7 +164,7 @@ class PsrpOperator(BaseOperator):
         def securestring(value: str):
             if not native:
                 raise AirflowException(
-                    "Filter 'securestring' not applicable to non-native " "templating environment"
+                    "Filter 'securestring' not applicable to non-native templating environment"
                 )
             return TaggedValue("SS", value)
 

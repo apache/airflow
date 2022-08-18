@@ -51,6 +51,24 @@ class TriggererTest(unittest.TestCase):
 
         assert 0 == len(docs)
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {
+            "triggerer": {
+                "enabled": True,
+            }
+        }
+        if revision_history_limit:
+            values['triggerer']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
@@ -274,7 +292,7 @@ class TriggererTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
@@ -382,7 +400,7 @@ class TriggererTest(unittest.TestCase):
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_dags_gitsync_sidecar_and_init_container(self):

@@ -46,6 +46,20 @@ class WorkerTest(unittest.TestCase):
 
         assert kind == jmespath.search("kind", docs[0])
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {"workers": {}}
+        if revision_history_limit:
+            values['workers']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -286,7 +300,7 @@ class WorkerTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
@@ -425,7 +439,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_log_groomer_default_command_and_args(self):
@@ -472,7 +486,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     @parameterized.expand(

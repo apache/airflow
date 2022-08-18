@@ -17,17 +17,15 @@
 # under the License.
 
 """
-Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
+Example Airflow DAG that demonstrates interactions with Google Cloud Transfer. This DAG relies on
+the following OS environment variables
 
-
-This DAG relies on the following OS environment variables
+Note that you need to provide a large enough set of data so that operations do not execute too quickly.
+Otherwise, DAG will fail.
 
 * GCP_PROJECT_ID - Google Cloud Project to use for the Google Cloud Transfer Service.
 * GCP_DESCRIPTION - Description of transfer job
 * GCP_TRANSFER_SOURCE_AWS_BUCKET - Amazon Web Services Storage bucket from which files are copied.
-  .. warning::
-    You need to provide a large enough set of data so that operations do not execute too quickly.
-    Otherwise, DAG will fail.
 * GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 * WAIT_FOR_OPERATION_POKE_INTERVAL - interval of what to check the status of the operation
   A smaller value than the default value accelerates the system test and ensures its correct execution with
@@ -108,7 +106,6 @@ aws_to_gcs_transfer_body = {
 
 with models.DAG(
     'example_gcp_transfer_aws',
-    schedule_interval=None,  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

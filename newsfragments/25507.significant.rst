@@ -1,0 +1,3 @@
+Removal of experimental Smart Sensors
+
+Smart Sensors were added in 2.0 and deprecated in favour of Deferable operators in 2.2, and have now been removed.

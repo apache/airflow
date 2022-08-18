@@ -86,7 +86,7 @@ def calculate_md5_checksum_for_files(
     return modified_files, not_modified_files
 
 
-def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, verbose: bool) -> bool:
+def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
     """
     Checks if build is needed based on whether important files were modified.
 

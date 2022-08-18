@@ -107,6 +107,18 @@ class AirbyteHook(HttpHook):
             headers={"accept": "application/json"},
         )
 
+    def cancel_job(self, job_id: int) -> Any:
+        """
+        Cancel the job when task is cancelled
+
+        :param job_id: Required. Id of the Airbyte job
+        """
+        return self.run(
+            endpoint=f"api/{self.api_version}/jobs/cancel",
+            json={"id": job_id},
+            headers={"accept": "application/json"},
+        )
+
     def test_connection(self):
         """Tests the Airbyte connection by hitting the health API"""
         self.method = 'GET'

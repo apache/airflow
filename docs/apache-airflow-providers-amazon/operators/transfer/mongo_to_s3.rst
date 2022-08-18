@@ -15,20 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-MongoDB to Amazon S3 Transfer Operator
-======================================
+====================
+MongoDB to Amazon S3
+====================
 
-Use the MongoToS3Operator transfer to copy data from a MongoDB collection into an Amazon Simple Storage Service (S3) file.
+Use the ``MongoToS3Operator`` transfer to copy data from a MongoDB collection into an Amazon Simple Storage Service
+(S3) file.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:MongoToS3Operator:
 
-MongoDB To Amazon S3
-^^^^^^^^^^^^^^^^^^^^
+MongoDB To Amazon S3 transfer operator
+======================================
 
 This operator copies a set of data from a MongoDB collection to an Amazon S3 files.
 In order to select the data you want to copy, you need to use the ``mongo_query`` parameter.
@@ -48,7 +53,7 @@ You can find more information about ``PyMongo`` used by Airflow to communicate w
 `here <https://pymongo.readthedocs.io/en/stable/tutorial.html>`__.
 
 Reference
-^^^^^^^^^
+---------
 
 * `PyMongo <https://pymongo.readthedocs.io/en/stable/tutorial.html>`__
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

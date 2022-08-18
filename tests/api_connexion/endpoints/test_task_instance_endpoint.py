@@ -314,7 +314,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         for map_index in (1, 2):
             response = self.client.get(
                 "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
-                + f"/print_the_context/{map_index}",
+                f"/print_the_context/{map_index}",
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
@@ -480,7 +480,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     {"state": State.NONE},
                 ],
                 False,
-                ("/api/v1/dags/example_python_operator/dagRuns/" "TEST_DAG_RUN_ID/taskInstances"),
+                ("/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 4,
             ),
             (

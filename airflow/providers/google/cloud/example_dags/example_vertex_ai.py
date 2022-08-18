@@ -26,15 +26,16 @@ Cloud Platform.
 This DAG relies on the following OS environment variables:
 
 * GCP_VERTEX_AI_BUCKET - Google Cloud Storage bucket where the model will be saved
-after training process was finished.
+  after training process was finished.
 * CUSTOM_CONTAINER_URI - path to container with model.
 * PYTHON_PACKAGE_GSC_URI - path to test model in archive.
 * LOCAL_TRAINING_SCRIPT_PATH - path to local training script.
 * DATASET_ID - ID of dataset which will be used in training process.
 * MODEL_ID - ID of model which will be used in predict process.
 * MODEL_ARTIFACT_URI - The artifact_uri should be the path to a GCS directory containing saved model
-artifacts.
+  artifacts.
 """
+
 import os
 from datetime import datetime
 from uuid import uuid4
@@ -237,7 +238,6 @@ MODEL_OBJ = {
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as custom_jobs_dag:
@@ -327,7 +327,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_dataset",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dataset_dag:
@@ -430,7 +429,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_auto_ml",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as auto_ml_dag:
@@ -547,7 +545,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_batch_prediction_job",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as batch_prediction_job_dag:
@@ -587,7 +584,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_endpoint",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as endpoint_dag:
@@ -643,7 +639,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_hyperparameter_tuning_job",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as hyperparameter_tuning_job_dag:
@@ -716,7 +711,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_model_service",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as model_service_dag:

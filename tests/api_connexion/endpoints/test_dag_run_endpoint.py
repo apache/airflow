@@ -22,7 +22,9 @@ from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models import DAG, DagModel, DagRun
+from airflow.datasets import Dataset
+from airflow.models import DAG, DagModel, DagRun, DatasetModel
+from airflow.models.dataset import DatasetEvent
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -44,6 +46,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
@@ -116,7 +119,7 @@ class TestDagRunEndpoint:
         dag_instance = DagModel(dag_id=dag_id)
         with create_session() as session:
             session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule_interval=None)
+        dag = DAG(dag_id=dag_id, schedule=None)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
@@ -1039,7 +1042,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_dag_run_id = f"manual__{expected_logical_date}"
         else:
             expected_dag_run_id = dag_run_id
-        assert {
+        assert response.json == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
@@ -1053,7 +1056,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-        } == response.json
+        }
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
@@ -1271,7 +1274,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 
 class TestPatchDagRunState(TestDagRunEndpoint):
-    @pytest.mark.parametrize("state", ["failed", "success"])
+    @pytest.mark.parametrize("state", ["failed", "success", "queued"])
     @pytest.mark.parametrize("run_type", [state.value for state in DagRunType])
     def test_should_respond_200(self, state, run_type, dag_maker, session):
         dag_id = "TEST_DAG_ID"
@@ -1294,8 +1297,10 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        ti.refresh_from_db()
-        assert ti.state == state
+        if state != "queued":
+            ti.refresh_from_db()
+            assert ti.state == state
+
         dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
         assert response.status_code == 200
         assert response.json == {
@@ -1314,7 +1319,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             'run_type': run_type,
         }
 
-    @pytest.mark.parametrize('invalid_state', ["running", "queued"])
+    @pytest.mark.parametrize('invalid_state', ["running"])
     @freeze_time(TestDagRunEndpoint.default_time)
     def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
         dag_id = "TEST_DAG_ID"
@@ -1332,7 +1337,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         )
         assert response.status_code == 400
         assert response.json == {
-            'detail': f"'{invalid_state}' is not one of ['success', 'failed'] - 'state'",
+            'detail': f"'{invalid_state}' is not one of ['success', 'failed', 'queued'] - 'state'",
             'status': 400,
             'title': 'Bad Request',
             'type': EXCEPTIONS_LINK_MAP[400],
@@ -1367,3 +1372,199 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
+
+
+class TestClearDagRun(TestDagRunEndpoint):
+    def test_should_respond_200(self, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            task = EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"dry_run": False}
+
+        response = self.client.post(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        assert response.status_code == 200
+        assert response.json == {
+            "conf": {},
+            "dag_id": dag_id,
+            "dag_run_id": dag_run_id,
+            "end_date": None,
+            "execution_date": dr.execution_date.isoformat(),
+            "external_trigger": False,
+            "logical_date": dr.logical_date.isoformat(),
+            "start_date": dr.logical_date.isoformat(),
+            "state": "queued",
+            "data_interval_start": dr.data_interval_start.isoformat(),
+            "data_interval_end": dr.data_interval_end.isoformat(),
+            "last_scheduling_decision": None,
+            "run_type": dr.run_type,
+        }
+
+        ti.refresh_from_db()
+        assert ti.state is None
+
+    def test_dry_run(self, dag_maker, session):
+        """Test that dry_run being True returns TaskInstances without clearing DagRun"""
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            task = EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"dry_run": True}
+
+        response = self.client.post(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {
+            "task_instances": [
+                {
+                    "dag_id": dag_id,
+                    "dag_run_id": dag_run_id,
+                    "execution_date": dr.execution_date.isoformat(),
+                    "task_id": "task_id",
+                }
+            ]
+        }
+
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        assert dr.state == "running"
+
+    def test_should_raises_401_unauthenticated(self, session):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/clear",
+            json={
+                "dry_run": True,
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/clear",
+            json={
+                "dry_run": True,
+            },
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+    def test_should_respond_404(self):
+        response = self.client.post(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/clear",
+            json={
+                "dry_run": True,
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+
+
+@pytest.mark.need_serialized_dag
+class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
+    def test_should_respond_200(self, dag_maker, session):
+        dataset1 = Dataset(uri="ds1")
+
+        with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
+            EmptyOperator(task_id="task", outlets=[dataset1])
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+
+        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        event = DatasetEvent(
+            dataset_id=ds1_id,
+            source_task_id=ti.task_id,
+            source_dag_id=ti.dag_id,
+            source_run_id=ti.run_id,
+            source_map_index=ti.map_index,
+        )
+        session.add(event)
+
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
+            pass
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
+        dr.consumed_dataset_events.append(event)
+
+        session.commit()
+        assert event.timestamp
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        expected_response = {
+            'dataset_events': [
+                {
+                    'timestamp': event.timestamp.isoformat(),
+                    'dataset_id': ds1_id,
+                    'dataset_uri': dataset1.uri,
+                    'extra': {},
+                    'id': event.id,
+                    'source_dag_id': ti.dag_id,
+                    'source_map_index': ti.map_index,
+                    'source_run_id': ti.run_id,
+                    'source_task_id': ti.task_id,
+                }
+            ],
+            'total_entries': 1,
+        }
+        assert response.json == expected_response
+
+    def test_should_respond_404(self):
+        response = self.client.get(
+            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamDatasetEvents",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 404
+        expected_resp = {
+            'detail': "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
+            'status': 404,
+            'title': 'DAGRun not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
+        assert expected_resp == response.json
+
+    def test_should_raises_401_unauthenticated(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
+
+        assert_401(response)

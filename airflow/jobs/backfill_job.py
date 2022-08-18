@@ -261,7 +261,7 @@ class BackfillJob(BaseJob):
                     f"{ti.state}. Was the task killed externally? Info: {info}"
                 )
                 self.log.error(msg)
-                ti.handle_failure_with_callback(error=msg)
+                ti.handle_failure(error=msg)
                 continue
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
                 # Don't use ti.task; if this task is mapped, that attribute
@@ -876,7 +876,7 @@ class BackfillJob(BaseJob):
             session.commit()
             executor.end()
 
-        self.log.info("Backfill done. Exiting.")
+        self.log.info("Backfill done for DAG %s. Exiting.", self.dag)
 
     @provide_session
     def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):

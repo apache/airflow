@@ -32,6 +32,10 @@ class GCSToS3Operator(BaseOperator):
     """
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GCSToS3Operator`
+
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)

@@ -95,18 +95,38 @@ Instantiate a DAG
 We'll need a DAG object to nest our tasks into. Here we pass a string
 that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
-define a ``schedule_interval`` of 1 day for the DAG.
+define a ``schedule`` of 1 day for the DAG.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
 
+Operators
+---------
+
+An operator defines a unit of work for Airflow to complete. Using operators is the classic approach
+to defining work in Airflow. For some use cases, it's better to use the TaskFlow API to define
+work in a Pythonic context as described in :doc:`/tutorial_taskflow_api`. For now, using operators helps to
+visualize task dependencies in our DAG code.
+
+All operators inherit from the BaseOperator, which includes all of the required arguments for
+running work in Airflow. From here, each operator includes unique arguments for
+the type of work it's completing. Some of the most popular operators are the PythonOperator, the BashOperator, and the
+KubernetesPodOperator.
+
+Airflow completes work based on the arguments you pass to your operators. In this tutorial, we
+use the BashOperator to run a few bash scripts.
+
 Tasks
 -----
-Tasks are generated when instantiating operator objects. An object
-instantiated from an operator is called a task. The first argument
-``task_id`` acts as a unique identifier for the task.
+
+To use an operator in a DAG, you have to instantiate it as a task. Tasks
+determine how to execute your operator's work within the context of a DAG.
+
+In the following example, we instantiate the BashOperator as two separate tasks in order to run two
+separate bash scripts. The first argument for each instantiation, ``task_id``,
+acts as a unique identifier for the task.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
@@ -383,7 +403,7 @@ The steps below should be sufficient, but see the quick-start documentation for 
 .. code-block:: bash
 
   # Download the docker-compose.yaml file
-  curl -Lf0 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
+  curl -LfO 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
 
   # Make expected directories and set an expected environment variable
   mkdir -p ./dags ./logs ./plugins
@@ -538,7 +558,7 @@ Completing our DAG:
 ~~~~~~~~~~~~~~~~~~~
 We've developed our tasks, now we need to wrap them in a DAG, which enables us to define when and how tasks should run, and state any dependencies that tasks have on other tasks. The DAG below is configured to:
 
-* run every day a midnight starting on Jan 1, 2021,
+* run every day at midnight starting on Jan 1, 2021,
 * only run once in the event that days are missed, and
 * timeout after 60 minutes
 
@@ -567,7 +587,7 @@ Putting all of the pieces together, we have our completed DAG.
 
 
   @dag(
-      schedule_interval="0 0 * * *",
+      schedule="0 0 * * *",
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       dagrun_timeout=datetime.timedelta(minutes=60),

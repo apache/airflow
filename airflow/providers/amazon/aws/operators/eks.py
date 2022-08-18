@@ -37,7 +37,6 @@ DEFAULT_CONN_ID = 'aws_default'
 DEFAULT_FARGATE_PROFILE_NAME = 'profile'
 DEFAULT_NAMESPACE_NAME = 'default'
 DEFAULT_NODEGROUP_NAME = 'nodegroup'
-DEFAULT_POD_NAME = 'pod'
 
 ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
 CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
@@ -139,20 +138,6 @@ class EksCreateClusterOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        if compute:
-            if compute not in SUPPORTED_COMPUTE_VALUES:
-                raise ValueError("Provided compute type is not supported.")
-            elif (compute == 'nodegroup') and not nodegroup_role_arn:
-                raise ValueError(
-                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
-                )
-            elif (compute == 'fargate') and not fargate_pod_execution_role_arn:
-                raise ValueError(
-                    MISSING_ARN_MSG.format(
-                        compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
-                    )
-                )
-
         self.compute = compute
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
@@ -170,6 +155,20 @@ class EksCreateClusterOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
+        if self.compute:
+            if self.compute not in SUPPORTED_COMPUTE_VALUES:
+                raise ValueError("Provided compute type is not supported.")
+            elif (self.compute == 'nodegroup') and not self.nodegroup_role_arn:
+                raise ValueError(
+                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
+                )
+            elif (self.compute == 'fargate') and not self.fargate_pod_execution_role_arn:
+                raise ValueError(
+                    MISSING_ARN_MSG.format(
+                        compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
+                    )
+                )
+
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -275,23 +274,23 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
-        nodegroup_subnets_list: List[str] = []
-        if isinstance(nodegroup_subnets, str):
-            if nodegroup_subnets != "":
+        self.nodegroup_subnets = nodegroup_subnets
+        super().__init__(**kwargs)
+
+    def execute(self, context: 'Context'):
+        if isinstance(self.nodegroup_subnets, str):
+            nodegroup_subnets_list: List[str] = []
+            if self.nodegroup_subnets != "":
                 try:
-                    nodegroup_subnets_list = cast(List, literal_eval(nodegroup_subnets))
+                    nodegroup_subnets_list = cast(List, literal_eval(self.nodegroup_subnets))
                 except ValueError:
                     self.log.warning(
                         "The nodegroup_subnets should be List or string representing "
                         "Python list and is %s. Defaulting to []",
-                        nodegroup_subnets,
+                        self.nodegroup_subnets,
                     )
-        else:
-            nodegroup_subnets_list = nodegroup_subnets
-        self.nodegroup_subnets = nodegroup_subnets_list
-        super().__init__(**kwargs)
+            self.nodegroup_subnets = nodegroup_subnets_list
 
-    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -654,15 +653,6 @@ class EksPodOperator(KubernetesPodOperator):
         is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
-        if pod_name is None:
-            warnings.warn(
-                "Default value of pod name is deprecated. "
-                "We recommend that you pass pod name explicitly. ",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            pod_name = DEFAULT_POD_NAME
-
         if is_delete_operator_pod is None:
             warnings.warn(
                 f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
@@ -687,20 +677,6 @@ class EksPodOperator(KubernetesPodOperator):
             is_delete_operator_pod=is_delete_operator_pod,
             **kwargs,
         )
-        if pod_username:
-            warnings.warn(
-                "This pod_username parameter is deprecated, because changing the value does not make any "
-                "visible changes to the user.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if pod_context:
-            warnings.warn(
-                "This pod_context parameter is deprecated, because changing the value does not make any "
-                "visible changes to the user.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the EksPodOperator.
         if self.config_file:
@@ -715,115 +691,3 @@ class EksPodOperator(KubernetesPodOperator):
             eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
         ) as self.config_file:
             return super().execute(context)
-
-
-class EKSCreateClusterOperator(EksCreateClusterOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksCreateClusterOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksCreateClusterOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSCreateNodegroupOperator(EksCreateNodegroupOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksCreateNodegroupOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksCreateNodegroupOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSCreateFargateProfileOperator(EksCreateFargateProfileOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksCreateFargateProfileOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksCreateFargateProfileOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSDeleteClusterOperator(EksDeleteClusterOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSDeleteNodegroupOperator(EksDeleteNodegroupOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSDeleteFargateProfileOperator(EksDeleteFargateProfileOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksDeleteFargateProfileOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksDeleteFargateProfileOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EKSPodOperator(EksPodOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.eks.EksPodOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.eks.EksPodOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

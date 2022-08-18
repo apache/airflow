@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -85,17 +84,6 @@ class S3ToRedshiftOperator(BaseOperator):
         upsert_keys: Optional[List[str]] = None,
         **kwargs,
     ) -> None:
-
-        if 'truncate_table' in kwargs:
-            warnings.warn(
-                """`truncate_table` is deprecated. Please use `REPLACE` method.""",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if kwargs['truncate_table']:
-                method = 'REPLACE'
-            kwargs.pop('truncate_table', None)
-
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
@@ -140,7 +128,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
         copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
 
-        sql: Union[list, str]
+        sql: Union[str, Iterable[str]]
 
         if self.method == 'REPLACE':
             sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]

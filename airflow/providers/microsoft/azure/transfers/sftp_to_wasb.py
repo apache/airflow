@@ -17,7 +17,6 @@
 # under the License.
 """This module contains SFTP to Azure Blob Storage operator."""
 import os
-import sys
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
@@ -25,12 +24,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook

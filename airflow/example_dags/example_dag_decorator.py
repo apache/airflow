@@ -39,7 +39,7 @@ class GetRequestOperator(BaseOperator):
 
 # [START dag_decorator_usage]
 @dag(
-    schedule_interval=None,
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
@@ -67,5 +67,5 @@ def example_dag_decorator(email: str = 'example@example.com'):
     )
 
 
-dag = example_dag_decorator()
+example_dag = example_dag_decorator()
 # [END dag_decorator_usage]

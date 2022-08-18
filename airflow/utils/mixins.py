@@ -30,7 +30,7 @@ class MultiprocessingStartMethodMixin:
         mp_start_method is set in configs, else, it uses the OS default.
         """
         if conf.has_option('core', 'mp_start_method'):
-            return conf.get('core', 'mp_start_method')
+            return conf.get_mandatory_value('core', 'mp_start_method')
 
         method = multiprocessing.get_start_method()
         if not method:

@@ -56,7 +56,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -81,7 +82,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -107,7 +109,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -132,7 +135,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -158,7 +162,8 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -251,7 +256,8 @@ class TestCloudSpanner(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -267,7 +273,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerQueryDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, query=INSERT_QUERY, task_id="id"
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -311,7 +318,8 @@ class TestCloudSpanner(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id",
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -330,7 +338,8 @@ class TestCloudSpanner(unittest.TestCase):
             query=[INSERT_QUERY, INSERT_QUERY_2],
             task_id="id",
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -352,7 +361,8 @@ class TestCloudSpanner(unittest.TestCase):
             ddl_statements=DDL_STATEMENTS,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -369,7 +379,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerDeployDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS, task_id="id"
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -390,7 +401,8 @@ class TestCloudSpanner(unittest.TestCase):
             ddl_statements=DDL_STATEMENTS,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -432,7 +444,8 @@ class TestCloudSpanner(unittest.TestCase):
             ddl_statements=DDL_STATEMENTS,
             task_id="id",
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -452,7 +465,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerUpdateDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS, task_id="id"
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,

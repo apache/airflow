@@ -17,16 +17,17 @@
 # under the License.
 
 """
-Example DAG demonstrating the usage of BranchPythonOperator with depends_on_past=True, where tasks may be run
-or skipped on alternating runs.
+Example DAG demonstrating the usage of ``@task.branch`` TaskFlow API decorator with depends_on_past=True,
+where tasks may be run or skipped on alternating runs.
 """
 import pendulum
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator
 
 
+@task.branch()
 def should_run(**kwargs):
     """
     Determine which empty_task should be run based on if the execution date minute is even or odd.
@@ -46,16 +47,13 @@ def should_run(**kwargs):
 
 with DAG(
     dag_id='example_branch_dop_operator_v3',
-    schedule_interval='*/1 * * * *',
+    schedule='*/1 * * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     default_args={'depends_on_past': True},
     tags=['example'],
 ) as dag:
-    cond = BranchPythonOperator(
-        task_id='condition',
-        python_callable=should_run,
-    )
+    cond = should_run()
 
     empty_task_1 = EmptyOperator(task_id='empty_task_1')
     empty_task_2 = EmptyOperator(task_id='empty_task_2')

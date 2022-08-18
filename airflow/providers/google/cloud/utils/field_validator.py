@@ -102,7 +102,7 @@ You can see some of the field examples in EXAMPLE_VALIDATION_SPECIFICATION.
 Forward-compatibility notes
 ---------------------------
 Certain decisions are crucial to allow the client APIs to work also with future API
-versions. Since body attached is passed to the API’s call, this is entirely
+versions. Since body attached is passed to the API's call, this is entirely
 possible to pass-through any new fields in the body (for future API versions) -
 albeit without validation on the client side - they can and will still be validated
 on the server side usually.
@@ -120,7 +120,7 @@ Here are the guidelines that you should follow to make validation forward-compat
   remains successful). This is very nice feature to protect against typos in names.
 * For unions, newly added union variants can be added by future calls and they will
   pass validation, however the content or presence of those fields will not be validated.
-  This means that it’s possible to send a new non-validated union field together with an
+  This means that it's possible to send a new non-validated union field together with an
   old validated field and this problem will not be detected by the client. In such case
   warning will be printed.
 * When you add validator to an operator, you should also add ``validate_body`` parameter

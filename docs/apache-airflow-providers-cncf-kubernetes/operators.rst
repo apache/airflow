@@ -89,7 +89,7 @@ Using this method will ensure correctness
 and type safety. While we have removed almost all Kubernetes convenience classes, we have kept the
 :class:`~airflow.kubernetes.secret.Secret` class to simplify the process of generating secret volumes/env variables.
 
-.. exampleinclude:: /../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes.py
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes.py
     :language: python
     :start-after: [START howto_operator_k8s_cluster_resources]
     :end-before: [END howto_operator_k8s_cluster_resources]
@@ -122,7 +122,7 @@ Create the Secret using ``kubectl``:
 
 Then use it in your pod like so:
 
-.. exampleinclude:: /../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes.py
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes.py
     :language: python
     :start-after: [START howto_operator_k8s_private_image]
     :end-before: [END howto_operator_k8s_private_image]
@@ -136,7 +136,7 @@ alongside the Pod. The Pod must write the XCom value into this location at the `
 
 See the following example on how this occurs:
 
-.. exampleinclude:: /../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes.py
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes.py
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom]
     :end-before: [END howto_operator_k8s_write_xcom]

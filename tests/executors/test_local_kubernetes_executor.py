@@ -17,6 +17,7 @@
 # under the License.
 from unittest import mock
 
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
@@ -67,3 +68,14 @@ class TestLocalKubernetesExecutor:
         LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
 
         assert k8s_executor_mock.kubernetes_queue == conf.get('local_kubernetes_executor', 'kubernetes_queue')
+
+    def test_send_callback(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        local_k8s_exec.callback_sink = mock.MagicMock()
+
+        callback = CallbackRequest(full_filepath="fake")
+        local_k8s_exec.send_callback(callback)
+
+        local_k8s_exec.callback_sink.send.assert_called_once_with(callback)

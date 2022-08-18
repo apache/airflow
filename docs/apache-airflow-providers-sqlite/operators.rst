@@ -51,14 +51,14 @@ the connection metadata is structured as follows:
 
 An example usage of the SqliteOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/sqlite/example_dags/example_sqlite.py
+.. exampleinclude:: /../../tests/system/providers/sqlite/example_sqlite.py
     :language: python
     :start-after: [START howto_operator_sqlite]
     :end-before: [END howto_operator_sqlite]
 
 Furthermore, you can use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
-.. exampleinclude:: /../../airflow/providers/sqlite/example_dags/example_sqlite.py
+.. exampleinclude:: /../../tests/system/providers/sqlite/example_sqlite.py
     :language: python
     :start-after: [START howto_operator_sqlite_external_file]
     :end-before: [END howto_operator_sqlite_external_file]

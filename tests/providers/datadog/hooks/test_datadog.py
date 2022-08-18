@@ -28,6 +28,7 @@ from airflow.providers.datadog.hooks.datadog import DatadogHook
 
 APP_KEY = 'app_key'
 API_KEY = 'api_key'
+API_HOST = 'api_host'
 METRIC_NAME = 'metric'
 DATAPOINT = 7
 TAGS = ['tag']
@@ -53,6 +54,7 @@ class TestDatadogHook(unittest.TestCase):
                 {
                     'app_key': APP_KEY,
                     'api_key': API_KEY,
+                    'api_host': API_HOST,
                 }
             )
         )

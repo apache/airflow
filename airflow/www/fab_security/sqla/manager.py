@@ -173,13 +173,13 @@ class SecurityManager(BaseSecurityManager):
                         .one_or_none()
                     )
             except MultipleResultsFound:
-                log.error(f"Multiple results found for user {username}")
+                log.error("Multiple results found for user %s", username)
                 return None
         elif email:
             try:
                 return self.get_session.query(self.user_model).filter_by(email=email).one_or_none()
             except MultipleResultsFound:
-                log.error(f"Multiple results found for user with email {email}")
+                log.error("Multiple results found for user with email %s", email)
                 return None
 
     def get_all_users(self):

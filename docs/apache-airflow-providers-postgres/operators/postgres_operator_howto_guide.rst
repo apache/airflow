@@ -26,7 +26,7 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
-The purpose of Postgres Operator is to define tasks involving interactions with the PostgreSQL database.
+The purpose of Postgres Operator is to define tasks involving interactions with a PostgreSQL database.
  In ``Airflow-2.0``, the ``PostgresOperator`` class resides at ``airflow.providers.postgres.operators.postgres``.
 
 Under the hood, the :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator` delegates its heavy lifting to the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook`.
@@ -42,7 +42,7 @@ Creating a Postgres database table
 
 The code snippets below are based on Airflow-2.0
 
-.. exampleinclude:: /../../airflow/providers/postgres/example_dags/example_postgres.py
+.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_operator_howto_guide]
     :end-before: [END postgres_operator_howto_guide_create_pet_table]
@@ -160,7 +160,7 @@ Passing Server Configuration Parameters into PostgresOperator
 PostgresOperator provides the optional ``runtime_parameters`` attribute which makes it possible to set
 the `server configuration parameter values <https://www.postgresql.org/docs/current/runtime-config-client.html>`_ for the SQL request during runtime.
 
-.. exampleinclude:: /../../airflow/providers/postgres/example_dags/example_postgres.py
+.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_operator_howto_guide_get_birth_date]
     :end-before: [END postgres_operator_howto_guide_get_birth_date]
@@ -171,7 +171,7 @@ The complete Postgres Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../airflow/providers/postgres/example_dags/example_postgres.py
+.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_operator_howto_guide]
     :end-before: [END postgres_operator_howto_guide]

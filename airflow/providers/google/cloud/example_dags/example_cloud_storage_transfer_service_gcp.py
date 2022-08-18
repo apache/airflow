@@ -101,7 +101,6 @@ update_body = {
 
 with models.DAG(
     "example_gcp_transfer",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],

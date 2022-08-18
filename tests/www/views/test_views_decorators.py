@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import DagBag, DagRun, Log, TaskInstance
-from airflow.utils import dates, timezone
+from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www import app
@@ -30,7 +30,7 @@ from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response
 
-EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 @pytest.fixture(scope="module")
@@ -213,9 +213,9 @@ def test_action_has_dag_edit_access(create_task_instance, class_type, no_instanc
     else:
         test_items = tis if class_type == TaskInstance else [ti.get_dagrun() for ti in tis]
         test_items = test_items[0] if len(test_items) == 1 else test_items
-
-    with app.create_app(testing=True).app_context():
-        with mock.patch("airflow.www.views.current_app.appbuilder.sm.can_edit_dag") as mocked_can_edit:
+    application = app.create_app(testing=True)
+    with application.app_context():
+        with mock.patch.object(application.appbuilder.sm, "can_edit_dag") as mocked_can_edit:
             mocked_can_edit.return_value = True
             assert not isinstance(test_items, list) or len(test_items) == no_instances
             assert some_view_action_which_requires_dag_edit_access(None, test_items) is True

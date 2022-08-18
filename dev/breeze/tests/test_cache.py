@@ -27,7 +27,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
 )
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 
 
 @pytest.mark.parametrize(

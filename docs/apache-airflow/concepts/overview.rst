@@ -74,11 +74,13 @@ Or, with the ``set_upstream`` and ``set_downstream`` methods::
 
 These dependencies are what make up the "edges" of the graph, and how Airflow works out which order to run your tasks in. By default, a task will wait for all of its upstream tasks to succeed before it runs, but this can be customized using features like :ref:`Branching <concepts:branching>`, :ref:`LatestOnly <concepts:latest-only>`, and :ref:`Trigger Rules <concepts:trigger-rules>`.
 
-To pass data between tasks you have two options:
+To pass data between tasks you have three options:
 
 * :doc:`xcoms` ("Cross-communications"), a system where you can have tasks push and pull small bits of metadata.
 
 * Uploading and downloading large files from a storage service (either one you run, or part of a public cloud)
+
+* TaskFlow API automatically passes data between tasks via implicit :doc:`xcoms`
 
 Airflow sends out Tasks to run on Workers as space becomes available, so there's no guarantee all the tasks in your DAG will run on the same worker or the same machine.
 

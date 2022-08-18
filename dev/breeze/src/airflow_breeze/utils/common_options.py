@@ -23,6 +23,8 @@ from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_CONSTRAINTS_MODES_CI,
+    ALLOWED_CONSTRAINTS_MODES_PROD,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
@@ -35,6 +37,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    SINGLE_PLATFORMS,
     get_available_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -131,7 +134,7 @@ option_use_airflow_version = click.option(
     '--use-airflow-version',
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
     " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
-    "folder respectively. Important! Using it Implies --mount-sources `none`.",
+    "folder respectively. Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar='USE_AIRFLOW_VERSION',
 )
@@ -147,7 +150,7 @@ option_mount_sources = click.option(
     type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
     show_default=True,
-    help="Choose scope of local sources should be mounted (default = selected).",
+    help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
 option_force_build = click.option(
     '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
@@ -174,11 +177,6 @@ option_docker_cache = click.option(
     show_default=True,
     type=BetterChoice(ALLOWED_BUILD_CACHE),
 )
-option_login_to_github_registry = click.option(
-    '--login-to-github-registry',
-    help='Logs in to GitHub registry.',
-    envvar='LOGIN_TO_GITHUB_REGISTRY',
-)
 option_github_token = click.option(
     '--github-token',
     help='The token used to authenticate to GitHub.',
@@ -189,26 +187,45 @@ option_github_username = click.option(
     help='The user name used to authenticate to GitHub.',
     envvar='GITHUB_USERNAME',
 )
-option_github_image_id = click.option(
-    '-s',
-    '--github-image-id',
-    help='Commit SHA of the image. \
-    Breeze can automatically pull the commit SHA id specified Default: latest',
-)
-option_image_tag = click.option(
+option_image_tag_for_pulling = click.option(
     '-t',
     '--image-tag',
-    help='Tag added to the default naming conventions of Airflow CI/PROD images.',
+    help='Tag of the image which is used to pull the image',
+    envvar='IMAGE_TAG',
+    required=True,
+)
+option_image_tag_for_building = click.option(
+    '-t',
+    '--image-tag',
+    help='Tag the image after building it',
+    envvar='IMAGE_TAG',
+)
+option_image_tag_for_running = click.option(
+    '-t',
+    '--image-tag',
+    help='Tag of the image which is used to run the image (implies --mount-sources=skip)',
+    envvar='IMAGE_TAG',
+)
+option_image_tag_for_verifying = click.option(
+    '-t',
+    '--image-tag',
+    help='Tag of the image when verifying it',
     envvar='IMAGE_TAG',
 )
 option_image_name = click.option(
     '-n', '--image-name', help='Name of the image to verify (overrides --python and --image-tag).'
 )
-option_platform = click.option(
+option_platform_multiple = click.option(
     '--platform',
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(ALLOWED_PLATFORMS),
+)
+option_platform_single = click.option(
+    '--platform',
+    help='Platform for Airflow image.',
+    envvar='PLATFORM',
+    type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_debian_version = click.option(
     '--debian-version',
@@ -285,24 +302,17 @@ option_runtime_apt_deps = click.option(
     help='Apt runtime dependencies to use when building the images.',
     envvar='RUNTIME_APT_DEPS',
 )
-option_skip_rebuild_check = click.option(
-    '-r',
-    '--skip-rebuild-check',
-    help="Skips checking if rebuild is needed",
-    is_flag=True,
-    envvar='SKIP_REBUILD_CHECK',
-)
 option_prepare_buildx_cache = click.option(
     '--prepare-buildx-cache',
-    help='Prepares build cache rather than build images locally.',
+    help='Prepares build cache (this is done as separate per-platform steps instead of building the image).',
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
 )
-option_push_image = click.option(
-    '--push-image',
+option_push = click.option(
+    '--push',
     help='Push image after building it.',
     is_flag=True,
-    envvar='PUSH_IMAGE',
+    envvar='PUSH',
 )
 option_empty_image = click.option(
     '--empty-image',
@@ -319,16 +329,22 @@ option_wait_for_image = click.option(
 option_tag_as_latest = click.option(
     '--tag-as-latest',
     help='Tags the image as latest and update checksum of all files after pulling. '
-    'Used in CI to pull the image built in another job.',
+    'Useful when you build or pull image with --image-tag.',
     is_flag=True,
     envvar='TAG_AS_LATEST',
 )
-option_verify_image = click.option(
-    '--verify-image',
+option_verify = click.option(
+    '--verify',
     help='Verify image.',
     is_flag=True,
-    envvar='VERIFY_IMAGE',
+    envvar='VERIFY',
 )
+option_additional_pip_install_flags = click.option(
+    '--additional-pip-install-flags',
+    help='Additional flags added to `pip install` commands (except reinstalling `pip` itself).',
+    envvar='ADDITIONAL_PIP_INSTALL_FLAGS',
+)
+
 option_install_providers_from_sources = click.option(
     '--install-providers-from-sources',
     help="Install providers from sources when installing.",
@@ -392,12 +408,6 @@ option_parallelism = click.option(
     envvar='PARALLELISM',
     show_default=True,
 )
-option_build_multiple_images = click.option(
-    '--build-multiple-images',
-    help="Run the operation sequentially on all or selected subset of Python versions.",
-    is_flag=True,
-    envvar='BUILD_MULTIPLE_IMAGES',
-)
 argument_packages = click.argument(
     "packages",
     nargs=-1,
@@ -423,8 +433,47 @@ option_max_age = click.option(
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
-    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
     "constraints for the installed version and to find newer dependencies",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+)
+option_airflow_constraints_reference_build = click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use when building the image.",
+    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+)
+
+option_airflow_constraints_mode_ci = click.option(
+    '--airflow-constraints-mode',
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    default=ALLOWED_CONSTRAINTS_MODES_CI[0],
+    show_default=True,
+    help='Mode of constraints for CI image building',
+)
+option_airflow_constraints_mode_prod = click.option(
+    '--airflow-constraints-mode',
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_PROD),
+    default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
+    show_default=True,
+    help='Mode of constraints for PROD image building',
+)
+option_pull = click.option(
+    '--pull',
+    help="Pull image is missing before attempting to verify it.",
+    is_flag=True,
+    envvar='PULL',
+)
+option_python_image = click.option(
+    '--python-image',
+    help="If specified this is the base python image used to build the image. "
+    "Should be something like: python:VERSION-slim-bullseye",
+    envvar='PYTHON_IMAGE',
+)
+option_builder = click.option(
+    '--builder',
+    help="Buildx builder used to perform `docker buildx build` commands",
+    envvar='BUILDER',
+    default='default',
 )

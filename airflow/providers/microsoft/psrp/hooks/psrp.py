@@ -19,7 +19,7 @@
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import Any, Callable, Dict, Iterator, Optional
+from typing import Any, Callable, Dict, Generator, Optional
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -155,7 +155,7 @@ class PsrpHook(BaseHook):
         return pool
 
     @contextmanager
-    def invoke(self) -> Iterator[PowerShell]:
+    def invoke(self) -> Generator[PowerShell, None, None]:
         """
         Context manager that yields a PowerShell object to which commands can be
         added. Upon exit, the commands will be invoked.

@@ -19,6 +19,43 @@
 
 Changelog
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test connection functionality to 'GithubHook' (#24903)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Only assert stuff for mypy when type checking (#24937)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Bug Fixes
+~~~~~~~~~
+
+   * ``Remove 'GithubOperator' use in  'GithubSensor.__init__()'' (#24214)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate GitHub example DAGs to new design #22446 (#24134)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Change 'Github' to 'GitHub' (#23764)``
+   * ``Prepare provider documentation 2022.05.11 (#23631)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
 1.0.3
 .....
 

@@ -117,9 +117,7 @@ class VerticaToHiveOperator(BaseOperator):
         with NamedTemporaryFile("w") as f:
             csv_writer = csv.writer(f, delimiter=self.delimiter, encoding='utf-8')
             field_dict = OrderedDict()
-            col_count = 0
-            for field in cursor.description:
-                col_count += 1
+            for col_count, field in enumerate(cursor.description, start=1):
                 col_position = f"Column{col_count}"
                 field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
             csv_writer.writerows(cursor.iterate())

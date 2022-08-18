@@ -22,6 +22,8 @@ description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
 versions:
+  - 4.0.0
+  - 3.4.0
   - 3.3.0
   - 3.2.1
   - 3.2.0
@@ -32,8 +34,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.2.0
+  - apache-beam>=2.39.0
 
 integrations:
   - integration-name: Apache Beam
@@ -53,4 +56,6 @@ hooks:
       - airflow.providers.apache.beam.hooks.beam
 
 additional-extras:
-  google: apache-beam[gcp]
+  - name: google
+    dependencies:
+      - apache-beam[gcp]

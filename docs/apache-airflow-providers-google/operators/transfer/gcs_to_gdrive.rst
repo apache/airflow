@@ -47,7 +47,7 @@ Copy single files
 
 The following Operator would copy a single file.
 
-.. exampleinclude:: /../../airflow/providers/google/suite/example_dags/example_gcs_to_gdrive.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gdrive.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_copy_single_file]
@@ -58,7 +58,7 @@ Copy multiple files
 
 The following Operator would copy all the multiples files (i.e. using wildcard).
 
-.. exampleinclude:: /../../airflow/providers/google/suite/example_dags/example_gcs_to_gdrive.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gdrive.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_copy_files]
@@ -70,7 +70,7 @@ Move files
 Using the ``move_object`` parameter allows you to move the files. After copying the file to Google Drive,
 the original file from the bucket is deleted.
 
-.. exampleinclude:: /../../airflow/providers/google/suite/example_dags/example_gcs_to_gdrive.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gdrive.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_move_files]

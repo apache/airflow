@@ -22,6 +22,7 @@ from typing import Any, Optional
 
 from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, reconstructor, synonym
 
@@ -47,7 +48,7 @@ class Variable(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
-    _val = Column('val', Text)
+    _val = Column('val', Text().with_variant(MEDIUMTEXT, 'mysql'))
     description = Column(Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 

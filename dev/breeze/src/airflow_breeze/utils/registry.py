@@ -14,36 +14,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
-from typing import Tuple, Union
+import subprocess
+from typing import Optional, Tuple
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.params.common_build_params import CommonBuildParams
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import run_command
 
 
-def login_to_docker_registry(
-    image_params: Union[BuildProdParams, BuildCiParams], dry_run: bool
+def login_to_github_docker_registry(
+    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
 ) -> Tuple[int, str]:
     """
-    In case of CI environment, we need to login to GitHub Registry if we want to prepare cache.
-    This method logs in using the params specified.
+    In case of CI environment, we need to login to GitHub Registry.
 
     :param image_params: parameters to use for Building prod image
+    :param output: Output to redirect to
     :param dry_run: whether we are in dry_run mode
+    :param verbose: whether to show commands.
     """
     if os.environ.get("CI"):
         if len(image_params.github_token) == 0:
-            get_console().print("\n[info]Skip logging in to GitHub Registry. No Token available!")
-        elif image_params.login_to_github_registry != "true":
-            get_console().print(
-                "\n[info]Skip logging in to GitHub Registry.\
-                    LOGIN_TO_GITHUB_REGISTRY is set as false"
+            get_console(output=output).print(
+                "\n[info]Skip logging in to GitHub Registry. No Token available!"
             )
         elif len(image_params.github_token) > 0:
-            run_command(['docker', 'logout', 'ghcr.io'], verbose=True, text=False, check=False)
+            run_command(
+                ['docker', 'logout', 'ghcr.io'],
+                dry_run=dry_run,
+                verbose=verbose,
+                stdout=output.file if output else None,
+                stderr=subprocess.STDOUT,
+                text=False,
+                check=False,
+            )
             command_result = run_command(
                 [
                     'docker',
@@ -53,7 +58,9 @@ def login_to_docker_registry(
                     '--password-stdin',
                     'ghcr.io',
                 ],
-                verbose=True,
+                verbose=verbose,
+                stdout=output.file if output else None,
+                stderr=subprocess.STDOUT,
                 text=True,
                 input=image_params.github_token,
                 check=False,

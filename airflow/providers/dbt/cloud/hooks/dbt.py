@@ -16,7 +16,6 @@
 # under the License.
 
 import json
-import sys
 import time
 from enum import Enum
 from functools import wraps
@@ -27,15 +26,11 @@ from requests import PreparedRequest, Session
 from requests.auth import AuthBase
 from requests.models import Response
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.typing_compat import TypedDict
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 def fallback_to_default_account(func: Callable) -> Callable:
@@ -92,7 +87,7 @@ class TokenAuth(AuthBase):
 class JobRunInfo(TypedDict):
     """Type class for the ``job_run_info`` dictionary."""
 
-    account_id: int
+    account_id: Optional[int]
     run_id: int
 
 
@@ -144,14 +139,17 @@ class DbtCloudHook(HttpHook):
     def get_ui_field_behaviour() -> Dict[str, Any]:
         """Builds custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
-            "hidden_fields": ["host", "port", "schema", "extra"],
-            "relabeling": {"login": "Account ID", "password": "API Token"},
+            "hidden_fields": ["host", "port", "extra"],
+            "relabeling": {"login": "Account ID", "password": "API Token", "schema": "Tenant"},
+            "placeholders": {"schema": "Defaults to 'cloud'."},
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        self.base_url = "https://cloud.getdbt.com/api/v2/accounts/"
+        tenant = self.connection.schema if self.connection.schema else 'cloud'
+
+        self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 
     @cached_property
     def connection(self) -> Connection:
@@ -168,28 +166,22 @@ class DbtCloudHook(HttpHook):
         return session
 
     def _paginate(self, endpoint: str, payload: Optional[Dict[str, Any]] = None) -> List[Response]:
-        results = []
         response = self.run(endpoint=endpoint, data=payload)
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
         num_total_results = resp_json["extra"]["pagination"]["total_count"]
         num_current_results = resp_json["extra"]["pagination"]["count"]
-        results.append(response)
-
-        if not num_current_results == num_total_results:
+        results = [response]
+        if num_current_results != num_total_results:
             _paginate_payload = payload.copy() if payload else {}
             _paginate_payload["offset"] = limit
 
-            while True:
-                if num_current_results < num_total_results:
-                    response = self.run(endpoint=endpoint, data=_paginate_payload)
-                    resp_json = response.json()
-                    results.append(response)
-                    num_current_results += resp_json["extra"]["pagination"]["count"]
-                    _paginate_payload["offset"] += limit
-                else:
-                    break
-
+            while not num_current_results >= num_total_results:
+                response = self.run(endpoint=endpoint, data=_paginate_payload)
+                resp_json = response.json()
+                results.append(response)
+                num_current_results += resp_json["extra"]["pagination"]["count"]
+                _paginate_payload["offset"] += limit
         return results
 
     def _run_and_get_response(

@@ -15,22 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Salesforce to Amazon S3 Transfer Operator
-=========================================
+=======================
+Salesforce to Amazon S3
+=======================
 
-Use the
-:class:`~airflow.providers.amazon.aws.transfers.salesforce_to_s3.SalesforceToS3Operator`
-to execute a Salesforce query to fetch data and upload to an Amazon S3 bucket.
+Use the ``SalesforceToS3Operator`` transfer to execute a Salesforce query to fetch data and upload to an Amazon Simple
+Storage Service (S3) file.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:SalesforceToS3Operator:
 
-Extract Account data from Salesforce
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Extract data from Salesforce to Amazon S3 transfer operator
+===========================================================
 
 The following example demonstrates a use case of extracting account data from a Salesforce
 instance and upload to an Amazon S3 bucket.
@@ -45,3 +48,4 @@ Reference
 ---------
 
 * `Simple Salesforce Documentation <https://simple-salesforce.readthedocs.io/en/latest/>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

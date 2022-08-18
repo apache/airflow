@@ -28,6 +28,7 @@ from airflow.utils import dates, timezone
 
 
 class TestDates(unittest.TestCase):
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_days_ago(self):
         today = pendulum.today()
         today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()))

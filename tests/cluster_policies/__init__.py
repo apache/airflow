@@ -62,7 +62,7 @@ def _check_task_rules(current_task: BaseOperator):
         )
 
 
-def cluster_policy(task: BaseOperator):
+def example_task_policy(task: BaseOperator):
     """Ensure Tasks have non-default owners."""
     _check_task_rules(task)
 
@@ -81,11 +81,11 @@ def dag_policy(dag: DAG):
 # [END example_dag_cluster_policy]
 
 
+# [START example_task_cluster_policy]
 class TimedOperator(BaseOperator, ABC):
     timeout: timedelta
 
 
-# [START example_task_cluster_policy]
 def task_policy(task: TimedOperator):
     if task.task_type == 'HivePartitionSensor':
         task.queue = "sensor_queue"

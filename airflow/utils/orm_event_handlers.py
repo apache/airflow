@@ -43,7 +43,7 @@ def setup_event_handlers(engine):
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
-    # this ensures sanity in mysql when storing datetimes (not required for postgres)
+    # this ensures coherence in mysql when storing datetimes (not required for postgres)
     if engine.dialect.name == "mysql":
 
         @event.listens_for(engine, "connect")

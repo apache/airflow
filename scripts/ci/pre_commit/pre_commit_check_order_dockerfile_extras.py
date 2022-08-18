@@ -29,9 +29,9 @@ from rich import print
 
 errors = []
 
-MY_DIR_PATH = Path(__file__).parent.absolute()
+MY_DIR_PATH = Path(__file__).parent.resolve()
 
-SOURCE_DIR_PATH = MY_DIR_PATH.parents[2].absolute()
+SOURCE_DIR_PATH = MY_DIR_PATH.parents[2].resolve()
 BUILD_ARGS_REF_PATH = SOURCE_DIR_PATH / "docs" / "docker-stack" / "build-arg-ref.rst"
 GLOBAL_CONSTANTS_PATH = SOURCE_DIR_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
 

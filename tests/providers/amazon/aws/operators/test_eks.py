@@ -19,6 +19,8 @@ import unittest
 from typing import Any, Dict, List
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -201,6 +203,42 @@ class TestEksCreateClusterOperator(unittest.TestCase):
         mock_create_fargate_profile.assert_called_once_with(
             **convert_keys(self.create_fargate_profile_params)
         )
+
+    def test_invalid_compute_value(self):
+        invalid_compute = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute='infinite',
+        )
+
+        with pytest.raises(ValueError, match="Provided compute type is not supported."):
+            invalid_compute.execute({})
+
+    def test_nodegroup_compute_missing_nodegroup_role_arn(self):
+        missing_nodegroup_role_arn = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute='nodegroup',
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Creating an Amazon EKS managed node groups requires nodegroup_role_arn to be passed in.",
+        ):
+            missing_nodegroup_role_arn.execute({})
+
+    def test_fargate_compute_missing_fargate_pod_execution_role_arn(self):
+        missing_fargate_pod_execution_role_arn = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute='fargate',
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Creating an AWS Fargate profiles requires fargate_pod_execution_role_arn to be passed in.",
+        ):
+            missing_fargate_pod_execution_role_arn.execute({})
 
 
 class TestEksCreateFargateProfileOperator(unittest.TestCase):

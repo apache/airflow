@@ -14,19 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 from typing import List, Optional
 
 import hvac
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath, VaultError
 from requests import Response
 
+from airflow.compat.functools import cached_property
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
@@ -123,7 +118,7 @@ class _VaultClient(LoggingMixin):
             )
         if auth_type not in VALID_AUTH_TYPES:
             raise VaultError(
-                f"The auth_type is not supported: {auth_type}. " f"It should be one of {VALID_AUTH_TYPES}"
+                f"The auth_type is not supported: {auth_type}. It should be one of {VALID_AUTH_TYPES}"
             )
         if auth_type == "token" and not token and not token_path:
             raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
@@ -261,9 +256,11 @@ class _VaultClient(LoggingMixin):
         with open(self.kubernetes_jwt_path) as f:
             jwt = f.read().strip()
             if self.auth_mount_point:
-                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point)
+                Kubernetes(_client.adapter).login(
+                    role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point
+                )
             else:
-                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
+                Kubernetes(_client.adapter).login(role=self.kubernetes_role, jwt=jwt)
 
     def _auth_github(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:

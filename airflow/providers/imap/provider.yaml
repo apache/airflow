@@ -18,10 +18,12 @@
 ---
 package-name: apache-airflow-providers-imap
 name: Internet Message Access Protocol (IMAP)
+
 description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 versions:
+  - 3.0.0
   - 2.2.3
   - 2.2.2
   - 2.2.1
@@ -31,6 +33,8 @@ versions:
   - 2.0.0
   - 1.0.1
   - 1.0.0
+
+dependencies: []
 
 integrations:
   - integration-name: Internet Message Access Protocol (IMAP)
@@ -47,9 +51,6 @@ hooks:
   - integration-name: Internet Message Access Protocol (IMAP)
     python-modules:
       - airflow.providers.imap.hooks.imap
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.imap.hooks.imap.ImapHook
 
 connection-types:
   - hook-class-name: airflow.providers.imap.hooks.imap.ImapHook

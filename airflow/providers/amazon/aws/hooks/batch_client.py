@@ -24,7 +24,6 @@ A client for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-import warnings
 from random import uniform
 from time import sleep
 from typing import Dict, List, Optional, Union
@@ -191,6 +190,12 @@ class BatchClientHook(AwsBaseHook):
         'STARTING',
         RUNNING_STATE,
     )
+
+    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ('VALID', 'DELETED')
+    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+
+    JOB_QUEUE_TERMINAL_STATUS = ('VALID', 'DELETED')
+    JOB_QUEUE_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
 
     def __init__(
         self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
@@ -410,6 +415,45 @@ class BatchClientHook(AwsBaseHook):
 
         return matching_jobs[0]
 
+    def get_job_awslogs_info(self, job_id: str) -> Optional[Dict[str, str]]:
+        """
+        Parse job description to extract AWS CloudWatch information.
+
+        :param job_id: AWS Batch Job ID
+        """
+        job_container_desc = self.get_job_description(job_id=job_id).get("container", {})
+        log_configuration = job_container_desc.get("logConfiguration", {})
+
+        # In case if user select other "logDriver" rather than "awslogs"
+        # than CloudWatch logging should be disabled.
+        # If user not specify anything than expected that "awslogs" will use
+        # with default settings:
+        #   awslogs-group = /aws/batch/job
+        #   awslogs-region = `same as AWS Batch Job region`
+        log_driver = log_configuration.get("logDriver", "awslogs")
+        if log_driver != "awslogs":
+            self.log.warning(
+                "AWS Batch job (%s) uses logDriver (%s). AWS CloudWatch logging disabled.", job_id, log_driver
+            )
+            return None
+
+        awslogs_stream_name = job_container_desc.get("logStreamName")
+        if not awslogs_stream_name:
+            # In case of call this method on very early stage of running AWS Batch
+            # there is possibility than AWS CloudWatch Stream Name not exists yet.
+            # AWS CloudWatch Stream Name also not created in case of misconfiguration.
+            self.log.warning("AWS Batch job (%s) doesn't create AWS CloudWatch Stream.", job_id)
+            return None
+
+        # Try to get user-defined log configuration options
+        log_options = log_configuration.get("options", {})
+
+        return {
+            "awslogs_stream_name": awslogs_stream_name,
+            "awslogs_group": log_options.get("awslogs-group", "/aws/batch/job"),
+            "awslogs_region": log_options.get("awslogs-region", self.conn_region_name),
+        }
+
     @staticmethod
     def add_jitter(
         delay: Union[int, float], width: Union[int, float] = 1, minima: Union[int, float] = 0
@@ -506,35 +550,3 @@ class BatchClientHook(AwsBaseHook):
         delay = 1 + pow(tries * 0.6, 2)
         delay = min(max_interval, delay)
         return uniform(delay / 3, delay)
-
-
-class AwsBatchProtocol(BatchProtocol, Protocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class AwsBatchClientHook(BatchClientHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchClientHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchClientHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -48,7 +48,7 @@ the connection metadata is structured as follows:
 
 An example usage of the TelegramOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/telegram/example_dags/example_telegram.py
+.. exampleinclude:: /../../tests/system/providers/telegram/example_telegram.py
     :language: python
     :start-after: [START howto_operator_telegram]
     :end-before: [END howto_operator_telegram]

@@ -16,30 +16,32 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import unittest
 from unittest import mock
+
+import boto3
+import pytest
 
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 
 try:
-    from moto import mock_iam
+    from moto import mock_glue, mock_iam
 except ImportError:
-    mock_iam = None
+    mock_iam = mock_glue = None
 
 
-class TestGlueJobHook(unittest.TestCase):
-    def setUp(self):
+class TestGlueJobHook:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         self.some_aws_region = "us-west-2"
 
-    @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
+    @pytest.mark.skipif(mock_glue is None, reason="mock_glue package not present")
     @mock_iam
-    def test_get_iam_execution_role(self):
-        hook = GlueJobHook(
-            job_name='aws_test_glue_job', s3_bucket='some_bucket', iam_role_name='my_test_role'
-        )
-        iam_role = hook.get_client_type('iam').create_role(
-            Path="/",
-            RoleName='my_test_role',
+    @pytest.mark.parametrize("role_path", ["/", "/custom-path/"])
+    def test_get_iam_execution_role(self, role_path):
+        expected_role = "my_test_role"
+        boto3.client("iam").create_role(
+            Path=role_path,
+            RoleName=expected_role,
             AssumeRolePolicyDocument=json.dumps(
                 {
                     "Version": "2012-10-17",
@@ -51,29 +53,70 @@ class TestGlueJobHook(unittest.TestCase):
                 }
             ),
         )
+
+        hook = GlueJobHook(
+            aws_conn_id=None,
+            job_name='aws_test_glue_job',
+            s3_bucket='some_bucket',
+            iam_role_name=expected_role,
+        )
         iam_role = hook.get_iam_execution_role()
         assert iam_role is not None
         assert "Role" in iam_role
         assert "Arn" in iam_role['Role']
-        assert iam_role['Role']['Arn'] == "arn:aws:iam::123456789012:role/my_test_role"
+        assert iam_role['Role']['Arn'] == f"arn:aws:iam::123456789012:role{role_path}{expected_role}"
 
-    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "get_conn")
-    def test_get_or_create_glue_job(self, mock_get_conn, mock_get_iam_execution_role):
-        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
+    def test_get_or_create_glue_job_get_existing_job(self, mock_get_conn):
+        """
+        Calls 'get_or_create_glue_job' with a existing job.
+        Should retrieve existing one.
+        """
+        expected_job_name = "simple-job"
+        mock_get_conn.return_value.get_job.return_value = {"Job": {"Name": expected_job_name}}
+
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        mock_glue_job = mock_get_conn.return_value.get_job()['Job']['Name']
-        glue_job = GlueJobHook(
-            job_name='aws_test_glue_job',
-            desc='This is test case job from Airflow',
+        hook = GlueJobHook(
+            job_name="aws_test_glue_job",
+            desc="This is test case job from Airflow",
             script_location=some_script,
-            iam_role_name='my_test_role',
+            iam_role_name="my_test_role",
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
-        ).get_or_create_glue_job()
-        assert glue_job == mock_glue_job
+        )
+
+        result = hook.get_or_create_glue_job()
+
+        mock_get_conn.assert_called_once()
+        mock_get_conn.return_value.get_job.assert_called_once_with(JobName=hook.job_name)
+        assert result == expected_job_name
+
+    @pytest.mark.skipif(mock_glue is None, reason="mock_glue package not present")
+    @mock_glue
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    def test_get_or_create_glue_job_create_new_job(self, mock_get_iam_execution_role):
+        """
+        Calls 'get_or_create_glue_job' with no existing job.
+        Should create a new job.
+        """
+        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": "my_test_role", "Arn": "test_role"}}
+        expected_job_name = "aws_test_glue_job"
+
+        hook = GlueJobHook(
+            job_name=expected_job_name,
+            desc="This is test case job from Airflow",
+            iam_role_name="my_test_role",
+            script_location="s3://bucket",
+            s3_bucket="bucket",
+            region_name=self.some_aws_region,
+            create_job_kwargs={"Command": {}},
+        )
+
+        result = hook.get_or_create_glue_job()
+
+        assert result == expected_job_name
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -101,10 +144,7 @@ class TestGlueJobHook(unittest.TestCase):
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        with self.assertRaises(
-            ValueError,
-            msg="ValueError should be raised for specifying the num_of_dpus and worker type together!",
-        ):
+        with pytest.raises(ValueError, match="Cannot specify num_of_dpus with custom WorkerType"):
             GlueJobHook(
                 job_name='aws_test_glue_job',
                 desc='This is test case job from Airflow',
@@ -141,7 +181,3 @@ class TestGlueJobHook(unittest.TestCase):
         glue_job_run = glue_job_hook.initialize_job(some_script_arguments, some_run_kwargs)
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run['JobName'], glue_job_run['JobRunId'])
         assert glue_job_run_state == mock_job_run_state, 'Mocks but be equal'
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -42,7 +42,6 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.dates import days_ago
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -389,7 +388,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag = DAG(
             'branch_operator_test',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
@@ -597,7 +596,7 @@ class TestShortCircuitOperator:
         self.dag = DAG(
             "short_circuit_op_test",
             start_date=DEFAULT_DATE,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         with self.dag:
@@ -844,7 +843,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
             template_searchpath=TEMPLATE_SEARCHPATH,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -867,6 +866,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         return task
+
+    def test_template_fields(self):
+        assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
 
     def test_add_dill(self):
         def f():
@@ -1158,7 +1160,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 DEFAULT_ARGS = {
     "owner": "test",
     "depends_on_past": True,
-    "start_date": days_ago(1),
+    "start_date": timezone.datetime(2022, 1, 1),
     "end_date": datetime.today(),
     "schedule_interval": "@once",
     "retries": 1,
@@ -1301,7 +1303,7 @@ def test_virtualenv_serializable_context_fields(create_task_instance):
     ti = create_task_instance(
         dag_id="test_virtualenv_serializable_context_fields",
         task_id="test_virtualenv_serializable_context_fields_task",
-        schedule_interval=None,
+        schedule=None,
     )
     context = ti.get_template_context()
 

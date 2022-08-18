@@ -89,16 +89,11 @@ existing code to use other variables instead.
 Deprecated Variable                     Description
 =====================================   ====================================
 ``{{ execution_date }}``                the execution date (logical date), same as ``dag_run.logical_date``
-``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.DateTime`_)
-                                        if ``{{ execution_date }}`` is ``2018-01-01 00:00:00`` and
-                                        ``schedule_interval`` is ``@weekly``, ``{{ next_execution_date }}``
-                                        will be ``2018-01-08 00:00:00``
+``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
+                                        you may be able to use ``data_interval_end`` instead
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
 ``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.DateTime`_)
-                                        if ``{{ execution_date }}`` is ``2018-01-08 00:00:00`` and
-                                        ``schedule_interval`` is ``@weekly``, ``{{ prev_execution_date }}``
-                                        will be ``2018-01-01 00:00:00``
+``{{ prev_execution_date }}``           the logical date of the previous scheduled run (if applicable)
 ``{{ prev_ds }}``                       the previous execution date as ``YYYY-MM-DD`` if exists, else ``None``
 ``{{ prev_ds_nodash }}``                the previous execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ yesterday_ds }}``                  the day before the execution date as ``YYYY-MM-DD``
@@ -115,8 +110,10 @@ dot notation. Here are some examples of what is possible:
 Refer to the models documentation for more information on the objects'
 attributes and methods.
 
-The ``var`` template variable allows you to access variables defined in Airflow's
-UI. You can access them as either plain-text or JSON. If you use JSON, you are
+Airflow Variables in Templates
+------------------------------
+The ``var`` template variable allows you to access Airflow Variables.
+You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``.
 
@@ -125,11 +122,17 @@ It is also possible to fetch a variable by string if needed with
 ``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
 supplied in case the variable does not exist.
 
-Similarly, Airflow Connections data can be accessed via the ``conn`` template variable.
-For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
+
+Airflow Connections in Templates
+---------------------------------
+Similarly, Airflow Connections data can be accessed via the ``conn`` template variable. For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
 ``{{ conn.my_conn_id.password }}``, etc.
+
 Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{ conn.get('my_conn_id_'+index).host }}``
-) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``)
+) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``).
+
+Additionally, the ``extras`` field of a connection can be fetched as a Python Dictionary with the ``extra_dejson`` field, e.g.
+``conn.my_aws_conn_id.extra_dejson.region_name`` would fetch ``region_name`` out of ``extras``.
 
 Filters
 -------

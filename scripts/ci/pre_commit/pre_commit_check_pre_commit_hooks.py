@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,7 +25,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.absolute()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 
 from collections import defaultdict  # noqa: E402
 from functools import lru_cache  # noqa: E402
@@ -38,7 +38,7 @@ from tabulate import tabulate  # noqa: E402
 
 console = Console(width=400, color_system="standard")
 
-AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_PATH / "dev" / "breeze"
 PRE_COMMIT_IDS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "pre_commit_ids.py"
 PRE_COMMIT_YAML_FILE = AIRFLOW_SOURCES_PATH / ".pre-commit-config.yaml"
@@ -56,15 +56,17 @@ def get_errors_and_hooks(content: Any, max_length: int) -> Tuple[List[str], Dict
             else:
                 errors.append(f"The id is missing in {hook}")
                 continue
-            if hook_id == 'mypy':
+            if hook_id == 'run-mypy':
                 needs_image = True
             if 'name' not in hook:
-                errors.append(f"Name is missing in hook {hook_id} in {PRE_COMMIT_YAML_FILE}. Please add it!")
+                errors.append(
+                    f"Name is missing in hook `{hook_id}` in {PRE_COMMIT_YAML_FILE}. Please add it!"
+                )
                 continue
             name = hook['name']
             if len(name) > max_length:
                 errors.append(
-                    f"Name is too long for hook {hook_id} in {PRE_COMMIT_YAML_FILE}. " f"Please shorten it!"
+                    f"Name is too long for hook `{hook_id}` in {PRE_COMMIT_YAML_FILE}. Please shorten it!"
                 )
                 continue
             hooks[hook_id].append(name)

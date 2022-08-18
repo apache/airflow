@@ -17,17 +17,12 @@
 # under the License.
 
 """Connect to Asana."""
-import sys
 from typing import Any, Dict, Optional
 
 from asana import Client  # type: ignore[attr-defined]
 from asana.error import NotFoundError  # type: ignore[attr-defined]
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 

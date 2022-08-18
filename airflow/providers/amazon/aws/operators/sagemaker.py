@@ -16,44 +16,40 @@
 # under the License.
 
 import json
-import sys
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from botocore.exceptions import ClientError
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+DEFAULT_CONN_ID: str = 'aws_default'
+CHECK_INTERVAL_SECOND: int = 30
 
 
 class SageMakerBaseOperator(BaseOperator):
     """This is the base operator for all SageMaker operators.
 
     :param config: The configuration necessary to start a training job (templated)
-    :param aws_conn_id: The AWS connection ID to use.
     """
 
     template_fields: Sequence[str] = ('config',)
     template_ext: Sequence[str] = ()
-    template_fields_renderers = {'config': 'json'}
-    ui_color = '#ededed'
+    template_fields_renderers: Dict = {'config': 'json'}
+    ui_color: str = '#ededed'
     integer_fields: List[List[Any]] = []
 
-    def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
+    def __init__(self, *, config: Dict, **kwargs):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.config = config
 
-    def parse_integer(self, config, field):
+    def parse_integer(self, config: Dict, field: Union[List[str], str]) -> None:
         """Recursive method for parsing string fields holding integer values to integers."""
         if len(field) == 1:
             if isinstance(config, list):
@@ -73,19 +69,17 @@ class SageMakerBaseOperator(BaseOperator):
             self.parse_integer(config[head], tail)
         return
 
-    def parse_config_integers(self):
-        """
-        Parse the integer fields of training config to integers in case the config is rendered by Jinja and
-        all fields are str
-        """
+    def parse_config_integers(self) -> None:
+        """Parse the integer fields to ints in case the config is rendered by Jinja and all fields are str."""
         for field in self.integer_fields:
             self.parse_integer(self.config, field)
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         """Placeholder for calling boto3's `expand_role`, which expands an IAM role name into an ARN."""
 
-    def preprocess_config(self):
+    def preprocess_config(self) -> None:
         """Process the config into a usable form."""
+        self._create_integer_fields()
         self.log.info('Preprocessing the config and doing required s3_operations')
         self.hook.configure_s3_resources(self.config)
         self.parse_config_integers()
@@ -95,12 +89,19 @@ class SageMakerBaseOperator(BaseOperator):
             json.dumps(self.config, sort_keys=True, indent=4, separators=(',', ': ')),
         )
 
-    def execute(self, context: 'Context'):
+    def _create_integer_fields(self) -> None:
+        """
+        Set fields which should be cast to integers.
+        Child classes should override this method if they need integer fields parsed.
+        """
+        self.integer_fields = []
+
+    def execute(self, context: 'Context') -> Union[None, Dict]:
         raise NotImplementedError('Please implement execute() in sub class!')
 
     @cached_property
     def hook(self):
-        """Return SageMakerHook"""
+        """Return SageMakerHook."""
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
 
@@ -117,6 +118,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
     :param config: The configuration necessary to start a processing job (templated).
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_processing_job`
+    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
         that the operation waits to check the status of the processing job.
     :param print_log: if the operator should print the cloudwatch log during processing
@@ -133,10 +135,11 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     def __init__(
         self,
         *,
-        config: dict,
+        config: Dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         print_log: bool = True,
-        check_interval: int = 30,
+        check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: Optional[int] = None,
         action_if_job_exists: str = 'increment',
         **kwargs,
@@ -148,27 +151,28 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 Provided value: '{action_if_job_exists}'."
             )
         self.action_if_job_exists = action_if_job_exists
+        self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
-        self._create_integer_fields()
 
     def _create_integer_fields(self) -> None:
-        """Set fields which should be casted to integers."""
-        self.integer_fields = [
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[Union[List[str], List[List[str]]]] = [
             ['ProcessingResources', 'ClusterConfig', 'InstanceCount'],
             ['ProcessingResources', 'ClusterConfig', 'VolumeSizeInGB'],
         ]
         if 'StoppingCondition' in self.config:
-            self.integer_fields += [['StoppingCondition', 'MaxRuntimeInSeconds']]
+            self.integer_fields.append(['StoppingCondition', 'MaxRuntimeInSeconds'])
 
     def expand_role(self) -> None:
+        """Expands an IAM role name into an ARN."""
         if 'RoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         processing_job_name = self.config['ProcessingJobName']
         if self.hook.find_processing_job_by_name(processing_job_name):
@@ -205,13 +209,22 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the endpoint config created in Amazon SageMaker.
     """
 
-    integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
-
-    def __init__(self, *, config: dict, **kwargs):
+    def __init__(
+        self,
+        *,
+        config: Dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        **kwargs,
+    ):
         super().__init__(config=config, **kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> dict:
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[List[str]] = [['ProductionVariants', 'InitialInstanceCount']]
+
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         self.log.info('Creating SageMaker Endpoint Config %s.', self.config['EndpointConfigName'])
         response = self.hook.create_endpoint_config(self.config)
@@ -265,35 +278,40 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     :param max_ingestion_time: If wait is set to True, this operation fails if the endpoint creation doesn't
         finish within max_ingestion_time seconds. If you set this parameter to None it never times out.
     :param operation: Whether to create an endpoint or update an endpoint. Must be either 'create or 'update'.
+    :param aws_conn_id: The AWS connection ID to use.
     :return Dict: Returns The ARN of the endpoint created in Amazon SageMaker.
     """
 
     def __init__(
         self,
         *,
-        config: dict,
+        config: Dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
-        check_interval: int = 30,
+        check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: Optional[int] = None,
         operation: str = 'create',
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.operation = operation.lower()
         if self.operation not in ['create', 'update']:
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
-        self.create_integer_fields()
 
-    def create_integer_fields(self) -> None:
-        """Set fields which should be casted to integers."""
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
         if 'EndpointConfig' in self.config:
-            self.integer_fields = [['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']]
+            self.integer_fields: List[List[str]] = [
+                ['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']
+            ]
 
     def expand_role(self) -> None:
+        """Expands an IAM role name into an ARN."""
         if 'Model' not in self.config:
             return
         hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
@@ -301,7 +319,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         model_info = self.config.get('Model')
         endpoint_config_info = self.config.get('EndpointConfig')
@@ -375,33 +393,50 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         For details of the configuration parameter of model_config, See:
         :py:meth:`SageMaker.Client.create_model`
 
+    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: Set to True to wait until the transform job finishes.
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the transform job.
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the transform job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
+    :param check_if_job_exists: If set to true, then the operator will check whether a transform job
+        already exists for the name in the config.
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
+        (default) and "fail".
+        This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
     def __init__(
         self,
         *,
-        config: dict,
+        config: Dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
-        check_interval: int = 30,
+        check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: Optional[int] = None,
+        check_if_job_exists: bool = True,
+        action_if_job_exists: str = 'increment',
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
-        self.create_integer_fields()
+        self.check_if_job_exists = check_if_job_exists
+        if action_if_job_exists in ('increment', 'fail'):
+            self.action_if_job_exists = action_if_job_exists
+        else:
+            raise AirflowException(
+                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                Provided value: '{action_if_job_exists}'."
+            )
 
-    def create_integer_fields(self) -> None:
-        """Set fields which should be casted to integers."""
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
         self.integer_fields: List[List[str]] = [
             ['Transform', 'TransformResources', 'InstanceCount'],
             ['Transform', 'MaxConcurrentTransforms'],
@@ -412,6 +447,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 field.pop(0)
 
     def expand_role(self) -> None:
+        """Expands an IAM role name into an ARN."""
         if 'Model' not in self.config:
             return
         config = self.config['Model']
@@ -419,10 +455,12 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         model_config = self.config.get('Model')
         transform_config = self.config.get('Transform', self.config)
+        if self.check_if_job_exists:
+            self._check_if_transform_job_exists()
         if model_config:
             self.log.info('Creating SageMaker Model %s for transform job', model_config['ModelName'])
             self.hook.create_model(model_config)
@@ -441,6 +479,21 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 'Transform': self.hook.describe_transform_job(transform_config['TransformJobName']),
             }
 
+    def _check_if_transform_job_exists(self) -> None:
+        transform_config = self.config.get('Transform', self.config)
+        transform_job_name = transform_config['TransformJobName']
+        transform_jobs = self.hook.list_transform_jobs(name_contains=transform_job_name)
+        if transform_job_name in [tj['TransformJobName'] for tj in transform_jobs]:
+            if self.action_if_job_exists == 'increment':
+                self.log.info("Found existing transform job with name '%s'.", transform_job_name)
+                new_transform_job_name = f'{transform_job_name}-{(len(transform_jobs) + 1)}'
+                transform_config['TransformJobName'] = new_transform_job_name
+                self.log.info("Incremented transform job name to '%s'.", new_transform_job_name)
+            elif self.action_if_job_exists == 'fail':
+                raise AirflowException(
+                    f'A SageMaker transform job with name {transform_job_name} already exists.'
+                )
+
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
     """
@@ -458,6 +511,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
 
         For details of the configuration parameter see
         :py:meth:`SageMaker.Client.create_hyper_parameter_tuning_job`
+    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: Set to True to wait until the tuning job finishes.
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the tuning job.
@@ -467,37 +521,42 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the tuning job created in Amazon SageMaker.
     """
 
-    integer_fields = [
-        ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
-        ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
-        ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
-        ['TrainingJobDefinition', 'ResourceConfig', 'VolumeSizeInGB'],
-        ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds'],
-    ]
-
     def __init__(
         self,
         *,
-        config: dict,
+        config: Dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
-        check_interval: int = 30,
+        check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
 
     def expand_role(self) -> None:
+        """Expands an IAM role name into an ARN."""
         if 'TrainingJobDefinition' in self.config:
             config = self.config['TrainingJobDefinition']
             if 'RoleArn' in config:
                 hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
                 config['RoleArn'] = hook.expand_role(config['RoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[List[str]] = [
+            ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
+            ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
+            ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
+            ['TrainingJobDefinition', 'ResourceConfig', 'VolumeSizeInGB'],
+            ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds'],
+        ]
+
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         self.log.info(
             'Creating SageMaker Hyper-Parameter Tuning Job %s', self.config['HyperParameterTuningJobName']
@@ -528,19 +587,22 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     :param config: The configuration necessary to create a model.
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_model`
+    :param aws_conn_id: The AWS connection ID to use.
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
-    def __init__(self, *, config, **kwargs):
+    def __init__(self, *, config: Dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
         super().__init__(config=config, **kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
 
     def expand_role(self) -> None:
+        """Expands an IAM role name into an ARN."""
         if 'ExecutionRoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['ExecutionRoleArn'] = hook.expand_role(self.config['ExecutionRoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         self.log.info('Creating SageMaker Model %s.', self.config['ModelName'])
         response = self.hook.create_model(self.config)
@@ -562,6 +624,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param config: The configuration necessary to start a training job (templated).
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_training_job`
+    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
         that the operation waits to check the status of the training job.
     :param print_log: if the operator should print the cloudwatch log during training
@@ -574,29 +637,25 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         already exists for the name in the config.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
-        This is only relevant if check_if
+        This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
-
-    integer_fields = [
-        ['ResourceConfig', 'InstanceCount'],
-        ['ResourceConfig', 'VolumeSizeInGB'],
-        ['StoppingCondition', 'MaxRuntimeInSeconds'],
-    ]
 
     def __init__(
         self,
         *,
-        config: dict,
+        config: Dict,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         print_log: bool = True,
-        check_interval: int = 30,
+        check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: Optional[int] = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = 'increment',
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
+        self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
@@ -611,11 +670,20 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             )
 
     def expand_role(self) -> None:
+        """Expands an IAM role name into an ARN."""
         if 'RoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[List[str]] = [
+            ['ResourceConfig', 'InstanceCount'],
+            ['ResourceConfig', 'VolumeSizeInGB'],
+            ['StoppingCondition', 'MaxRuntimeInSeconds'],
+        ]
+
+    def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
         if self.check_if_job_exists:
             self._check_if_job_exists()
@@ -657,13 +725,15 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
 
     :param config: The configuration necessary to delete the model.
         For details of the configuration parameter see :py:meth:`SageMaker.Client.delete_model`
+    :param aws_conn_id: The AWS connection ID to use.
     """
 
-    def __init__(self, *, config, **kwargs):
+    def __init__(self, *, config: Dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
         super().__init__(config=config, **kwargs)
         self.config = config
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context') -> Any:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config['ModelName'])
-        self.log.info(f"Model {self.config['ModelName']} deleted Successfully.")
+        self.log.info("Model %s deleted successfully.", self.config['ModelName'])

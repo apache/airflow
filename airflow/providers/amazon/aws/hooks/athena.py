@@ -23,7 +23,6 @@ This module contains AWS Athena hook.
 
     PageIterator
 """
-import warnings
 from time import sleep
 from typing import Any, Dict, Optional
 
@@ -91,8 +90,7 @@ class AthenaHook(AwsBaseHook):
         if client_request_token:
             params['ClientRequestToken'] = client_request_token
         response = self.get_conn().start_query_execution(**params)
-        query_execution_id = response['QueryExecutionId']
-        return query_execution_id
+        return response['QueryExecutionId']
 
     def check_query_status(self, query_execution_id: str) -> Optional[str]:
         """
@@ -253,18 +251,3 @@ class AthenaHook(AwsBaseHook):
         :return: dict
         """
         return self.get_conn().stop_query_execution(QueryExecutionId=query_execution_id)
-
-
-class AWSAthenaHook(AthenaHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.athena.AthenaHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

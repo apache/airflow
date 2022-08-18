@@ -29,10 +29,9 @@ class TestSsmSecrets(TestCase):
         "airflow.providers.amazon.aws.secrets.systems_manager."
         "SystemsManagerParameterStoreBackend.get_conn_value"
     )
-    def test_aws_ssm_get_connections(self, mock_get_value):
+    def test_aws_ssm_get_connection(self, mock_get_value):
         mock_get_value.return_value = "scheme://user:pass@host:100"
-        conn_list = SystemsManagerParameterStoreBackend().get_connections("fake_conn")
-        conn = conn_list[0]
+        conn = SystemsManagerParameterStoreBackend().get_connection("fake_conn")
         assert conn.host == 'host'
 
     @mock_ssm
@@ -53,7 +52,7 @@ class TestSsmSecrets(TestCase):
     def test_get_conn_uri_non_existent_key(self):
         """
         Test that if the key with connection ID is not present in SSM,
-        SystemsManagerParameterStoreBackend.get_connections should return None
+        SystemsManagerParameterStoreBackend.get_connection should return None
         """
         conn_id = "test_mysql"
         param = {
@@ -66,7 +65,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend.client.put_parameter(**param)
 
         assert ssm_backend.get_conn_uri(conn_id=conn_id) is None
-        assert [] == ssm_backend.get_connections(conn_id=conn_id)
+        assert ssm_backend.get_connection(conn_id=conn_id) is None
 
     @mock_ssm
     def test_get_variable(self):
@@ -117,11 +116,14 @@ class TestSsmSecrets(TestCase):
         {
             ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
             'SystemsManagerParameterStoreBackend',
-            ('secrets', 'backend_kwargs'): '{"use_ssl": false}',
+            (
+                'secrets',
+                'backend_kwargs',
+            ): '{"use_ssl": false, "role_arn": "arn:aws:iam::222222222222:role/awesome-role"}',
         }
     )
-    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager.boto3.Session.client")
-    def test_passing_client_kwargs(self, mock_ssm_client):
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
+    def test_passing_client_kwargs(self, mock_session_factory):
         backends = initialize_secrets_backends()
         systems_manager = [
             backend
@@ -129,8 +131,24 @@ class TestSsmSecrets(TestCase):
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
         ][0]
 
+        # Mock SessionFactory, session and client
+        mock_session_factory_instance = mock_session_factory.return_value
+        mock_ssm_client = mock.MagicMock(return_value="mock-ssm-client")
+        mock_session = mock.MagicMock()
+        mock_session.client = mock_ssm_client
+        mock_create_session = mock.MagicMock(return_value=mock_session)
+        mock_session_factory_instance.create_session = mock_create_session
+
         systems_manager.client
-        mock_ssm_client.assert_called_once_with('ssm', use_ssl=False)
+        assert mock_session_factory.call_count == 1
+        mock_session_factory_call_kwargs = mock_session_factory.call_args[1]
+        assert "conn" in mock_session_factory_call_kwargs
+        conn_wrapper = mock_session_factory_call_kwargs["conn"]
+
+        assert conn_wrapper.conn_id == "SystemsManagerParameterStoreBackend__connection"
+        assert conn_wrapper.role_arn == "arn:aws:iam::222222222222:role/awesome-role"
+
+        mock_ssm_client.assert_called_once_with(service_name='ssm', use_ssl=False)
 
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager."

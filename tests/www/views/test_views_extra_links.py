@@ -24,7 +24,7 @@ import pytest
 
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.utils import dates, timezone
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -157,9 +157,8 @@ def test_global_extra_links_works(dag_run, task_1, viewer_client, session):
 
 
 def test_extra_link_in_gantt_view(dag, create_dag_run, viewer_client):
-    exec_date = dates.days_ago(2)
+    exec_date = timezone.datetime(2022, 1, 1)
     start_date = timezone.datetime(2020, 4, 10, 2, 0, 0)
-    end_date = exec_date + datetime.timedelta(seconds=30)
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=exec_date, session=session)
@@ -167,7 +166,7 @@ def test_extra_link_in_gantt_view(dag, create_dag_run, viewer_client):
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.state = TaskInstanceState.SUCCESS
             ti.start_date = start_date
-            ti.end_date = end_date
+            ti.end_date = start_date + datetime.timedelta(seconds=30)
             session.merge(ti)
 
     url = f'gantt?dag_id={dag.dag_id}&execution_date={exec_date}'

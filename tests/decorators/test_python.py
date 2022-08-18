@@ -28,10 +28,11 @@ from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -613,7 +614,7 @@ def test_mapped_decorator():
     assert isinstance(t2, XComArg)
     assert isinstance(t2.operator, DecoratedMappedOperator)
     assert t2.operator.task_id == "print_everything"
-    assert t2.operator.mapped_op_kwargs == {"any_key": [1, 2], "works": t1}
+    assert t2.operator.op_kwargs_expand_input == DictOfListsExpandInput({"any_key": [1, 2], "works": t1})
 
     assert t0.operator.task_id == "print_info"
     assert t1.operator.task_id == "print_info__1"
@@ -648,15 +649,18 @@ def test_partial_mapped_decorator() -> None:
 
         product.partial(multiple=2)  # No operator is actually created.
 
+    assert isinstance(doubled, PlainXComArg)
+    assert isinstance(trippled, PlainXComArg)
+    assert isinstance(quadrupled, PlainXComArg)
+
     assert dag.task_dict == {
         "product": quadrupled.operator,
         "product__1": doubled.operator,
         "product__2": trippled.operator,
     }
 
-    assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
-    assert doubled.operator.mapped_op_kwargs == {"number": literal}
+    assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput({"number": literal})
     assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
     assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
@@ -678,7 +682,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    unmapped = dag.get_task("task2").unmap()
+    unmapped = dag.get_task("task2").unmap(None)
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
@@ -697,11 +701,11 @@ def test_mapped_decorator_converts_partial_kwargs():
 
     mapped_task2 = dag.get_task("task2")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
-    assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
+    assert mapped_task2.unmap(None).retry_delay == timedelta(seconds=30)
 
     mapped_task1 = dag.get_task("task1")
     assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
-    mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
+    mapped_task1.unmap(None).retry_delay == timedelta(seconds=300)  # Operator default.
 
 
 def test_mapped_render_template_fields(dag_maker, session):
@@ -738,3 +742,57 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     assert op.op_kwargs['arg1'] == "{{ ds }}"
     assert op.op_kwargs['arg2'] == "fn"
+
+
+def test_task_decorator_has_wrapped_attr():
+    """
+    Test  @task original underlying function is accessible
+    through the __wrapped__ attribute.
+    """
+
+    def org_test_func():
+        pass
+
+    decorated_test_func = task_decorator(org_test_func)
+
+    assert hasattr(
+        decorated_test_func, '__wrapped__'
+    ), "decorated function does not have __wrapped__ attribute"
+    assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
+
+
+def test_upstream_exception_produces_none_xcom(dag_maker, session):
+    from airflow.exceptions import AirflowSkipException
+    from airflow.models.dagrun import DagRun
+    from airflow.utils.trigger_rule import TriggerRule
+
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> str:
+            return "example"
+
+        @dag.task()
+        def up2() -> None:
+            raise AirflowSkipException()
+
+        @dag.task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        def down(a, b):
+            nonlocal result
+            result = f"{a!r} {b!r}"
+
+        down(up1(), up2())
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == "'example' None"

@@ -260,7 +260,7 @@ class PodTemplateFileTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
@@ -295,7 +295,7 @@ class PodTemplateFileTest(unittest.TestCase):
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'} in jmespath.search(
+        assert {'configMap': {'name': 'release-name-airflow-config'}, 'name': 'config'} in jmespath.search(
             "spec.volumes", docs[0]
         )
         assert {
@@ -564,6 +564,30 @@ class PodTemplateFileTest(unittest.TestCase):
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
+    def test_workers_pod_annotations(self):
+        docs = render_chart(
+            values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "my_annotation" in annotations
+        assert "annotated!" in annotations["my_annotation"]
+
+    def test_airflow_and_workers_pod_annotations(self):
+        # should give preference to workers.podAnnotations
+        docs = render_chart(
+            values={
+                "airflowPodAnnotations": {"my_annotation": "airflowPodAnnotations"},
+                "workers": {"podAnnotations": {"my_annotation": "workerPodAnnotations"}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "my_annotation" in annotations
+        assert "workerPodAnnotations" in annotations["my_annotation"]
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
@@ -610,7 +634,7 @@ class PodTemplateFileTest(unittest.TestCase):
         assert {
             "label1": "value1",
             "label2": "value2",
-            "release": "RELEASE-NAME",
+            "release": "release-name",
             "component": "worker",
             "tier": "airflow",
         } == jmespath.search("metadata.labels", docs[0])

@@ -22,10 +22,7 @@ from unittest import mock
 
 from parameterized import parameterized
 
-from airflow import PY38
-
-if not PY38:
-    from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
+from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
 
 TASK_ID = 'test-mssql-to-gcs'
 MSSQL_CONN_ID = 'mssql_conn_test'
@@ -51,7 +48,6 @@ SCHEMA_JSON = [
 ]
 
 
-@unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
     @parameterized.expand(
         [
@@ -97,7 +93,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
             assert 'application/json' == mime_type
@@ -126,7 +122,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert 'application/json' == mime_type
             assert GZIP == gzip
@@ -154,7 +150,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     assert b''.join(SCHEMA_JSON) == file.read()
