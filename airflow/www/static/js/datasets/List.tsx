@@ -72,13 +72,13 @@ const DatasetsList = ({ onSelect }: Props) => {
       },
       {
         Header: UpstreamHeader,
-        accessor: 'upstreamTaskReferences',
+        accessor: 'producingTasks',
         Cell: ({ cell: { value } }: any) => value.length,
         disableSortBy: true,
       },
       {
         Header: DownstreamHeader,
-        accessor: 'downstreamDagReferences',
+        accessor: 'consumingDags',
         Cell: ({ cell: { value } }: any) => value.length,
         disableSortBy: true,
       },
@@ -92,7 +92,7 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    if (row.original.id) onSelect(row.original.id.toString());
+    if (row.original.uri) onSelect(row.original.uri);
   };
 
   const docsUrl = getMetaValue('datasets_docs');
