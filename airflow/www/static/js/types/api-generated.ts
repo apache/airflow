@@ -422,6 +422,8 @@ export interface paths {
          * By default, only the first fragment will be returned.
          */
         full_content?: components["parameters"]["FullContent"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -489,13 +491,13 @@ export interface paths {
   "/datasets": {
     get: operations["get_datasets"];
   };
-  "/datasets/{id}": {
-    /** Get a dataset by id. */
+  "/datasets/{uri}": {
+    /** Get a dataset by uri. */
     get: operations["get_dataset"];
     parameters: {
       path: {
-        /** The Dataset ID */
-        id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
   };
@@ -1475,8 +1477,8 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      downstream_dag_references?: components["schemas"]["DatasetDagRef"][];
-      upstream_task_references?: components["schemas"]["DatasetTaskRef"][];
+      consuming_dags?: components["schemas"]["DatasetDagRef"][];
+      producing_tasks?: components["schemas"]["DatasetTaskRef"][];
     };
     /**
      * @description A datasets reference to an upstream task.
@@ -1575,7 +1577,7 @@ export interface components {
        */
       dry_run?: boolean;
     };
-    ClearTaskInstance: {
+    ClearTaskInstances: {
       /**
        * @description If set, don't actually run this operation. The response will contain a list of task instances
        * planned to be cleaned, but not modified in any way.
@@ -1615,6 +1617,28 @@ export interface components {
       include_parentdag?: boolean;
       /** @description Set state of DAG runs to RUNNING. */
       reset_dag_runs?: boolean;
+      /** @description The DagRun ID for this task instance */
+      dag_run_id?: string | null;
+      /**
+       * @description If set to true, upstream tasks are also affected.
+       * @default false
+       */
+      include_upstream?: boolean;
+      /**
+       * @description If set to true, downstream tasks are also affected.
+       * @default false
+       */
+      include_downstream?: boolean;
+      /**
+       * @description If set to True, also tasks from future DAG Runs are affected.
+       * @default false
+       */
+      include_future?: boolean;
+      /**
+       * @description If set to True, also tasks from past DAG Runs are affected.
+       * @default false
+       */
+      include_past?: boolean;
     };
     UpdateTaskInstancesState: {
       /**
@@ -2003,8 +2027,8 @@ export interface components {
     EventLogID: number;
     /** @description The import error ID. */
     ImportErrorID: number;
-    /** @description The Dataset ID */
-    DatasetID: number;
+    /** @description The encoded Dataset URI */
+    DatasetURI: string;
     /** @description The pool name. */
     PoolName: string;
     /** @description The variable Key. */
@@ -2091,6 +2115,8 @@ export interface components {
     FilterSourceRunID: string;
     /** @description The map index that updated the dataset. */
     FilterSourceMapIndex: number;
+    /** @description Filter on map index for mapped task. */
+    FilterMapIndex: number;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -2450,7 +2476,7 @@ export interface operations {
     /** Parameters of action */
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ClearTaskInstance"];
+        "application/json": components["schemas"]["ClearTaskInstances"];
       };
     };
   };
@@ -3410,6 +3436,8 @@ export interface operations {
          * By default, only the first fragment will be returned.
          */
         full_content?: components["parameters"]["FullContent"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -3591,12 +3619,12 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  /** Get a dataset by id. */
+  /** Get a dataset by uri. */
   get_dataset: {
     parameters: {
       path: {
-        /** The Dataset ID */
-        id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
     responses: {
@@ -4094,7 +4122,7 @@ export type ConfigSection = CamelCasedPropertiesDeep<components['schemas']['Conf
 export type Config = CamelCasedPropertiesDeep<components['schemas']['Config']>;
 export type VersionInfo = CamelCasedPropertiesDeep<components['schemas']['VersionInfo']>;
 export type ClearDagRun = CamelCasedPropertiesDeep<components['schemas']['ClearDagRun']>;
-export type ClearTaskInstance = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstance']>;
+export type ClearTaskInstances = CamelCasedPropertiesDeep<components['schemas']['ClearTaskInstances']>;
 export type UpdateTaskInstancesState = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstancesState']>;
 export type ListDagRunsForm = CamelCasedPropertiesDeep<components['schemas']['ListDagRunsForm']>;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['ListTaskInstanceForm']>;

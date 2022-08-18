@@ -24,7 +24,7 @@ import { getMetaValue } from 'src/utils';
 import { useAutoRefresh } from 'src/context/autorefresh';
 import type { API, DagRun } from 'src/types';
 
-const mappedInstancesUrl = getMetaValue('mapped_instances_api') || '';
+const mappedInstancesUrl = getMetaValue('mapped_instances_api');
 
 interface MappedInstanceData {
   taskInstances: API.TaskInstance[];

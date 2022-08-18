@@ -26,11 +26,7 @@ import pytest
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.interval import (
-    CronDataIntervalTimetable,
-    CronTriggerTimetable,
-    DeltaDataIntervalTimetable,
-)
+from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
 
@@ -41,14 +37,13 @@ PREV_DATA_INTERVAL_EXACT = DataInterval.exact(PREV_DATA_INTERVAL_END)
 
 CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
+OLD_INTERVAL = DataInterval(start=YESTERDAY, end=CURRENT_TIME)
 
 HOURLY_CRON_TIMETABLE = CronDataIntervalTimetable("@hourly", TIMEZONE)
-HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("@hourly", TIMEZONE)
 HOURLY_TIMEDELTA_TIMETABLE = DeltaDataIntervalTimetable(datetime.timedelta(hours=1))
 HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedelta.relativedelta(hours=1))
 
 CRON_TIMETABLE = CronDataIntervalTimetable("30 16 * * *", TIMEZONE)
-CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("30 16 * * *", TIMEZONE)
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 
@@ -70,20 +65,26 @@ def test_no_catchup_first_starts_at_current_time(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval",
-    [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL_EXACT, id="subsequent")],
+    "earliest",
+    [pytest.param(None, id="none"), pytest.param(START_DATE, id="start_date")],
+)
+@pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
 )
 @freezegun.freeze_time(CURRENT_TIME)
-def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
-    last_automated_data_interval: Optional[DataInterval],
+def test_new_schedule_interval_next_info_starts_at_new_time(
+    earliest: Optional[pendulum.DateTime],
+    catchup: bool,
 ) -> None:
-    """If ``catchup=False`` and start_date is a day before"""
-    next_info = CRON_TRIGGER_TIMETABLE.next_dagrun_info(
-        last_automated_data_interval=last_automated_data_interval,
-        restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
+    """First run after DAG has new schedule interval."""
+    next_info = CRON_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=OLD_INTERVAL,
+        restriction=TimeRestriction(earliest=earliest, latest=None, catchup=catchup),
     )
-    expected = CURRENT_TIME + DELTA_FROM_MIDNIGHT
-    assert next_info == DagRunInfo.exact(expected)
+    expected_start = YESTERDAY + datetime.timedelta(hours=16, minutes=30)
+    expected_end = CURRENT_TIME + datetime.timedelta(hours=16, minutes=30)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
 
 
 @pytest.mark.parametrize(
@@ -131,87 +132,9 @@ def test_catchup_next_info_starts_at_previous_interval_end(timetable: Timetable)
 
 
 @pytest.mark.parametrize(
-    "current_time, earliest, expected",
-    [
-        pytest.param(
-            pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE),
-            START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
-            id="current_time_on_boundary",
-        ),
-        pytest.param(
-            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
-            START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
-            id="current_time_not_on_boundary",
-        ),
-        pytest.param(
-            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
-            pendulum.DateTime(2199, 12, 31, 22, 30, 0, tzinfo=TIMEZONE),
-            DagRunInfo.exact(pendulum.DateTime(2199, 12, 31, 23, 0, 0, tzinfo=TIMEZONE)),
-            id="future_start_date",
-        ),
-    ],
-)
-def test_hourly_cron_trigger_no_catchup_next_info(
-    current_time: pendulum.DateTime,
-    earliest: pendulum.DateTime,
-    expected: DagRunInfo,
-) -> None:
-    with freezegun.freeze_time(current_time):
-        next_info = HOURLY_CRON_TRIGGER_TIMETABLE.next_dagrun_info(
-            last_automated_data_interval=PREV_DATA_INTERVAL_EXACT,
-            restriction=TimeRestriction(earliest=earliest, latest=None, catchup=False),
-        )
-    assert next_info == expected
-
-
-@pytest.mark.parametrize(
-    "last_automated_data_interval, earliest, expected",
-    [
-        pytest.param(
-            DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
-            START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
-            id="last_automated_on_boundary",
-        ),
-        pytest.param(
-            DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE)),
-            START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
-            id="last_automated_not_on_boundary",
-        ),
-        pytest.param(
-            None,
-            pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE),
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
-            id="no_last_automated_with_earliest_on_boundary",
-        ),
-        pytest.param(
-            None,
-            pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
-            id="no_last_automated_with_earliest_not_on_boundary",
-        ),
-    ],
-)
-def test_hourly_cron_trigger_catchup_next_info(
-    last_automated_data_interval: DataInterval,
-    earliest: pendulum.DateTime,
-    expected: DagRunInfo,
-) -> None:
-    next_info = HOURLY_CRON_TRIGGER_TIMETABLE.next_dagrun_info(
-        last_automated_data_interval=last_automated_data_interval,
-        restriction=TimeRestriction(earliest=earliest, latest=None, catchup=True),
-    )
-    assert next_info == expected
-
-
-@pytest.mark.parametrize(
     "timetable",
     [
         pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
-        pytest.param(HOURLY_CRON_TRIGGER_TIMETABLE, id="cron_trigger"),
         pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
         pytest.param(HOURLY_RELATIVEDELTA_TIMETABLE, id="relativedelta"),
     ],
@@ -227,11 +150,6 @@ def test_validate_success(timetable: Timetable) -> None:
             CronDataIntervalTimetable("0 0 1 13 0", TIMEZONE),
             "[0 0 1 13 0] is not acceptable, out of range",
             id="invalid-cron",
-        ),
-        pytest.param(
-            CronTriggerTimetable("0 0 1 13 0", TIMEZONE),
-            "[0 0 1 13 0] is not acceptable, out of range",
-            id="invalid-cron-trigger",
         ),
         pytest.param(
             DeltaDataIntervalTimetable(datetime.timedelta()),
@@ -265,3 +183,72 @@ def test_validate_failure(timetable: Timetable, error_message: str) -> None:
 def test_cron_interval_timezone_from_string():
     timetable = CronDataIntervalTimetable("@hourly", "UTC")
     assert timetable.serialize()['timezone'] == 'UTC'
+
+
+@pytest.mark.parametrize(
+    "trigger_at, expected_interval",
+    [
+        # Arbitrary trigger time.
+        pytest.param(
+            pendulum.DateTime(2022, 8, 8, 1, tzinfo=TIMEZONE),
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            id="adhoc",
+        ),
+        # Trigger time falls exactly on interval boundary.
+        pytest.param(
+            pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            id="exact",
+        ),
+    ],
+)
+def test_cron_infer_manual_data_interval_alignment(
+    trigger_at: pendulum.DateTime,
+    expected_interval: DataInterval,
+) -> None:
+    timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
+    assert timetable.infer_manual_data_interval(run_after=trigger_at) == expected_interval
+
+
+@pytest.mark.parametrize(
+    "last_data_interval, expected_info",
+    [
+        pytest.param(
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+            ),
+            DagRunInfo.interval(
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 9, tzinfo=TIMEZONE),
+            ),
+            id="exact",
+        ),
+        pytest.param(
+            # Previous data interval does not align with the current timetable.
+            # This is possible if the user edits a DAG with existing runs.
+            DataInterval(
+                pendulum.DateTime(2022, 8, 7, 1, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 8, 1, tzinfo=TIMEZONE),
+            ),
+            DagRunInfo.interval(
+                pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),
+                pendulum.DateTime(2022, 8, 9, tzinfo=TIMEZONE),
+            ),
+            id="changed",
+        ),
+    ],
+)
+def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expected_info: DagRunInfo):
+    timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=last_data_interval,
+        restriction=TimeRestriction(None, None, True),
+    )
+    assert info == expected_info

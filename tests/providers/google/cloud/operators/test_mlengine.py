@@ -100,7 +100,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 'start_date': DEFAULT_DATE,
                 'end_date': DEFAULT_DATE,
             },
-            schedule_interval='@daily',
+            schedule='@daily',
         )
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')

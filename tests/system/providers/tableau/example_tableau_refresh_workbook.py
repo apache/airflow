@@ -33,7 +33,7 @@ DAG_ID = "example_tableau_refresh_workbook"
 with DAG(
     dag_id=DAG_ID,
     dagrun_timeout=timedelta(hours=2),
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     default_args={'site_id': 'my_site'},
     tags=['example'],

@@ -100,17 +100,28 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import (
+    Connection,
+    DagModel,
+    DagOwnerAttributes,
+    DagTag,
+    Log,
+    SlaMiss,
+    TaskFail,
+    XCom,
+    errors,
+)
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import Dataset
+from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -311,13 +322,11 @@ def dag_to_grid(dag, dag_runs, session):
                             record['state'] = state
                             break
                     if None in record['mapped_states']:
-                        # When turnong the dict into JSON we can't have None as a key, so use the string that
-                        # the UI does
+                        # When turning the dict into JSON we can't have None as a key,
+                        # so use the string that the UI does.
                         record['mapped_states']['no_status'] = record['mapped_states'].pop(None)
 
                 for ti_summary in ti_summaries:
-                    if ti_summary.state is None:
-                        ti_summary.state == 'no_status'
                     if run_id != ti_summary.run_id:
                         run_id = ti_summary.run_id
                         if record:
@@ -354,8 +363,8 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
-                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
-                'operator': item.task_type,
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in (item.outlets or [])),
+                'operator': item.operator_name,
             }
 
         # Task Group
@@ -882,6 +891,8 @@ class Airflow(AirflowBaseView):
                 for name, in dagtags
             ]
 
+            owner_links_dict = DagOwnerAttributes.get_all(session)
+
             import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id)
 
             if (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG) not in user_permissions:
@@ -973,6 +984,7 @@ class Airflow(AirflowBaseView):
             ),
             num_runs=num_runs,
             tags=tags,
+            owner_links=owner_links_dict,
             state_color=state_color_mapping,
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
@@ -1307,6 +1319,10 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
+        owner_links = (
+            session.query(models.DagOwnerAttributes).filter(models.DagOwnerAttributes.dag_id == dag_id).all()
+        )
+
         attrs_to_avoid = [
             "NUM_DAGS_PER_DAGRUN_QUERY",
             "serialized_dag",
@@ -1319,6 +1335,7 @@ class Airflow(AirflowBaseView):
             "max_active_tasks",
             "schedule_interval",
             "owners",
+            "dag_owner_links",
             "is_paused",
         ]
         attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
@@ -1342,6 +1359,7 @@ class Airflow(AirflowBaseView):
             State=State,
             active_runs=active_runs,
             tags=tags,
+            owner_links=owner_links,
             dag_model_attrs=dag_model_attrs,
         )
 
@@ -2727,6 +2745,7 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
             default_dag_run_display_number=default_dag_run_display_number,
+            default_wrap=conf.getboolean('webserver', 'default_wrap'),
             filters_drop_down_values=htmlsafe_json_dumps(
                 {
                     "taskStates": [state.value for state in TaskInstanceState],
@@ -3449,7 +3468,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = end_date
             task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
-            task_dict['operator'] = task.task_type
+            task_dict['operator'] = task.operator_name
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
             task_dict['execution_date'] = dttm.isoformat()
@@ -3605,14 +3624,50 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            dag_runs = query.order_by(DagRun.execution_date.desc()).limit(num_runs).all()
+            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
+            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
             dag_runs.reverse()
+
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
             }
         # avoid spaces to reduce payload size
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
+    @expose('/object/next_run_datasets/<string:dag_id>')
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+    def next_run_datasets(self, dag_id):
+        """Returns datasets necessary, and their status, for the next dag run"""
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        if not dag:
+            return {'error': f"can't find dag {dag_id}"}, 404
+
+        with create_session() as session:
+            data = [
+                dict(info)
+                for info in session.query(
+                    DatasetModel.id,
+                    DatasetModel.uri,
+                    DatasetDagRunQueue.created_at,
+                )
+                .join(DatasetDagRef, DatasetModel.id == DatasetDagRef.dataset_id)
+                .join(
+                    DatasetDagRunQueue,
+                    and_(
+                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                    ),
+                    isouter=True,
+                )
+                .filter(DatasetDagRef.dag_id == dag_id)
+                .order_by(DatasetModel.id)
+                .all()
+            ]
         return (
             htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},

@@ -16,7 +16,6 @@
 # under the License.
 
 """Publish message to SQS queue"""
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
@@ -95,19 +94,3 @@ class SqsPublishOperator(BaseOperator):
         self.log.info('send_message result: %s', result)
 
         return result
-
-
-class SQSPublishOperator(SqsPublishOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

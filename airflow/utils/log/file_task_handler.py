@@ -50,8 +50,11 @@ class FileTaskHandler(logging.Handler):
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
-                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
+                "Passing filename_template to a log handler is deprecated and has no effect",
                 DeprecationWarning,
+                # We want to reference the stack that actually instantiates the
+                # handler, not the one that calls super()__init__.
+                stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
     def set_context(self, ti: "TaskInstance"):

@@ -33,8 +33,8 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, SerializationError
-from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -574,7 +574,7 @@ class DependencyDetector:
                     dependency_id=task.task_id,
                 )
             )
-        for obj in getattr(task, '_outlets', []):
+        for obj in task.outlets or []:
             if isinstance(obj, Dataset):
                 deps.append(
                     DagDependency(
@@ -589,7 +589,7 @@ class DependencyDetector:
     @staticmethod
     def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.schedule_on:
+        if dag and dag.dataset_triggers:
             return [
                 DagDependency(
                     source="dataset",
@@ -597,7 +597,7 @@ class DependencyDetector:
                     dependency_type="dataset",
                     dependency_id=x.uri,
                 )
-                for x in dag.schedule_on
+                for x in dag.dataset_triggers
             ]
         else:
             return []
@@ -640,10 +640,19 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def task_type(self, task_type: str):
         self._task_type = task_type
 
+    @property
+    def operator_name(self) -> str:
+        # Overwrites operator_name of BaseOperator to use _operator_name instead of
+        # __class__.operator_name.
+        return self._operator_name
+
+    @operator_name.setter
+    def operator_name(self, operator_name: str):
+        self._operator_name = operator_name
+
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
-
+        serialized_op = cls._serialize_node(op, include_deps=op.deps != MappedOperator.deps_for(BaseOperator))
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
         serialized_op[op._expand_input_attr] = {
@@ -675,6 +684,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = getattr(op, "_task_type", type(op).__name__)
         serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
+        serialize_op['_operator_name'] = op.operator_name
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op['_is_empty'] = op.inherits_from_empty_operator
@@ -763,6 +773,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
             if k == "_is_dummy":
                 k = "_is_empty"
+
+            if k in ("_outlets", "_inlets"):
+                # `_outlets` -> `outlets`
+                k = k[1:]
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
@@ -803,7 +817,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = _ExpandInputRef(v["type"], cls._deserialize(v["value"]))
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
-            elif k in ("_outlets", "_inlets"):
+            elif k in ("outlets", "inlets"):
                 v = cls._deserialize(v)
 
             # else use v as it is
@@ -847,6 +861,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 is_empty=False,
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["_task_type"],
+                operator_name=encoded_op["_operator_name"],
                 dag=None,
                 task_group=None,
                 start_date=None,
@@ -863,20 +878,30 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> Set['DagDependency']:
         """Detects between DAG dependencies for the operator."""
+
+        def get_custom_dep() -> List[DagDependency]:
+            """
+            If custom dependency detector is configured, use it.
+
+            TODO: Remove this logic in 3.0.
+            """
+            custom_dependency_detector_cls = conf.getimport('scheduler', 'dependency_detector', fallback=None)
+            if not (
+                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
+            ):
+                warnings.warn(
+                    "Use of a custom dependency detector is deprecated. "
+                    "Support will be removed in a future release.",
+                    DeprecationWarning,
+                )
+                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
+                if type(dep) is DagDependency:
+                    return [dep]
+            return []
+
         dependency_detector = DependencyDetector()
-        custom_dependency_detector = conf.getimport('scheduler', 'dependency_detector', fallback=None)
-        deps = set()
-        if not (custom_dependency_detector is None or type(dependency_detector) is DependencyDetector):
-            warnings.warn(
-                "Use of a custom dependency detector is deprecated. "
-                "Support will be removed in a future release.",
-                DeprecationWarning,
-            )
-            dep = custom_dependency_detector.detect_task_dependencies(op)
-            if type(dep) is DagDependency:
-                deps.add(dep)
-        deps.update(dependency_detector.detect_task_dependencies(op))
-        deps.update(dependency_detector.detect_dag_dependencies(op.dag))
+        deps = set(dependency_detector.detect_task_dependencies(op))
+        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
@@ -1048,14 +1073,13 @@ class SerializedDAG(DAG, BaseSerialization):
                 del serialized_dag["timetable"]
 
             serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            dag_deps = [
-                t.__dict__
+            dag_deps = {
+                dep
                 for task in dag.task_dict.values()
-                for t in SerializedBaseOperator.detect_dependencies(task)
-                if t is not None
-            ]
-
-            serialized_dag["dag_dependencies"] = dag_deps
+                for dep in SerializedBaseOperator.detect_dependencies(task)
+            }
+            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1102,7 +1126,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k == "schedule_on":
+            elif k == "dataset_triggers":
                 v = cls._deserialize(v)
             # else use v as it is
 
@@ -1240,7 +1264,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         return group
 
 
-@dataclass
+@dataclass(frozen=True)
 class DagDependency:
     """Dataclass for representing dependencies between DAGs.
     These are calculated during serialization and attached to serialized DAGs.
@@ -1260,9 +1284,6 @@ class DagDependency:
         if self.dependency_id:
             val += f":{self.dependency_id}"
         return val
-
-    def __hash__(self):
-        return hash((self.source, self.target, self.dependency_type, self.dependency_id))
 
 
 def _has_kubernetes() -> bool:

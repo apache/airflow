@@ -32,7 +32,6 @@ S3_KEY = getenv("S3_KEY", "s3_filename")
 
 with DAG(
     dag_id="example_salesforce_to_s3",
-    schedule_interval=None,
     start_date=datetime(2021, 7, 8),
     catchup=False,
     tags=["example"],

@@ -26,7 +26,6 @@ An Airflow operator for AWS Batch services
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
 import sys
-import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -377,19 +376,3 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.hook.client.create_compute_environment(**trim_none_values(kwargs))
 
         self.log.info('AWS Batch compute environment created successfully')
-
-
-class AwsBatchOperator(BatchOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.operators.batch.BatchOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

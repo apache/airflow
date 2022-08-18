@@ -25,6 +25,7 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
+from uuid import uuid4
 
 from flask import current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
@@ -70,6 +71,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow.configuration import conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.www.views import ResourceModelView
 
@@ -854,6 +856,14 @@ class BaseSecurityManager:
             user.fail_login_count += 1
         self.update_user(user)
 
+    def _rotate_session_id(self):
+        """
+        Upon successful authentication when using the database session backend,
+        we need to rotate the session id
+        """
+        if conf.get('webserver', 'SESSION_BACKEND') == 'database':
+            session.sid = str(uuid4())
+
     def auth_user_db(self, username, password):
         """
         Method for authenticating user, auth db style
@@ -878,6 +888,7 @@ class BaseSecurityManager:
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
             return None
         elif check_password_hash(user.password, password):
+            self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
         else:
@@ -1174,6 +1185,7 @@ class BaseSecurityManager:
 
             # LOGIN SUCCESS (only if user is now registered)
             if user:
+                self._rotate_session_id()
                 self.update_user_auth_stat(user)
                 return user
             else:
@@ -1201,6 +1213,7 @@ class BaseSecurityManager:
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(email))
             return None
         else:
+            self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
 
@@ -1230,6 +1243,7 @@ class BaseSecurityManager:
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
             return None
 
+        self._rotate_session_id()
         self.update_user_auth_stat(user)
         return user
 
@@ -1315,6 +1329,7 @@ class BaseSecurityManager:
 
         # LOGIN SUCCESS (only if user is now registered)
         if user:
+            self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
         else:

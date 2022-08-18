@@ -24,6 +24,22 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make extra link work in UI (#25500)``
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Correctly render 'results_parser_callable' param in Qubole docs (#25514)``
+
+
 3.1.0
 .....
 
