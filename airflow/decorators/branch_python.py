@@ -38,8 +38,6 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
         Defaults to False.
     """
 
-    custom_operator_name = "@task.branch"
-
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
