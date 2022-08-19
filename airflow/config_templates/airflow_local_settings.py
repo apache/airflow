@@ -56,7 +56,10 @@ DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
     'logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION'
 )
 
-FILENAME_TEMPLATE: str = conf.get_mandatory_value('logging', 'LOG_FILENAME_TEMPLATE')
+# FILENAME_TEMPLATE only uses in Remote Logging Handlers since Airflow 2.3.3
+# All of these handlers inherited from FileTaskHandler and providing any value rather than None
+# would raise deprecation warning.
+FILENAME_TEMPLATE: Optional[str] = None
 
 PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value('logging', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
@@ -190,7 +193,7 @@ if REMOTE_LOGGING:
     REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'REMOTE_BASE_LOG_FOLDER')
 
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
-        S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        S3_REMOTE_HANDLERS: Dict[str, Dict[str, Optional[str]]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler',
                 'formatter': 'airflow',
@@ -203,7 +206,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
         url_parts = urlparse(REMOTE_BASE_LOG_FOLDER)
-        CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, Optional[str]]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
                 'formatter': 'airflow',
@@ -216,7 +219,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG['handlers'].update(CLOUDWATCH_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         key_path = conf.get_mandatory_value('logging', 'GOOGLE_KEY_PATH', fallback=None)
-        GCS_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        GCS_REMOTE_HANDLERS: Dict[str, Dict[str, Optional[str]]] = {
             'task': {
                 'class': 'airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler',
                 'formatter': 'airflow',
@@ -229,7 +232,7 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(GCS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
-        WASB_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        WASB_REMOTE_HANDLERS: Dict[str, Dict[str, Optional[Union[str, bool]]]] = {
             'task': {
                 'class': 'airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler',
                 'formatter': 'airflow',
@@ -277,7 +280,7 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value('elasticsearch', 'HOST_FIELD')
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value('elasticsearch', 'OFFSET_FIELD')
 
-        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Optional[Union[str, bool]]]] = {
             'task': {
                 'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
