@@ -37,7 +37,7 @@ There are two possible terminal states for the DAG Run:
 - ``failed`` if any of the leaf nodes state is either ``failed`` or ``upstream_failed``.
 
 .. note::
-    Be careful if some of your tasks have defined some specific `trigger rule <dags.html#trigger-rules>`_.
+    Be careful if some of your tasks have defined some specific :ref:`trigger rule <concepts:trigger-rules>`.
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole DAG Run will also be marked as ``success``, even if something failed in the middle.
 
 Cron Presets
