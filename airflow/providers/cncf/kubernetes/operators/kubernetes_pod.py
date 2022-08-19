@@ -234,6 +234,7 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
+        self.env_vars: Union[List[k8s.V1EnvVar], str]
         if env_vars:
             if isinstance(env_vars, str):
                 self.env_vars = env_vars
