@@ -385,17 +385,15 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
         f"AS check_table {partition_clause_statement};"
 
-        records = hook.get_pandas_df(self.sql)
+        records = hook.get_records(self.sql)
 
-        if records.empty:
+        if not records:
             raise AirflowException(f"The following query returned zero rows: {self.sql}")
 
-        records.columns = records.columns.str.lower()
         self.log.info("Record:\n%s", records)
 
-        for row in records.iterrows():
-            check = row[1].get("check_name")
-            result = row[1].get("check_result")
+        for row in records:
+            check, result = row
             self.checks[check]["success"] = parse_boolean(str(result))
 
         failed_tests = _get_failed_checks(self.checks)
