@@ -27,6 +27,7 @@ This DAG relies on the following OS environment variables
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.operators.dummy import DummyOperator
@@ -39,6 +40,8 @@ QUEUE_NAME = os.environ.get('GCP_QUEUE_NAME', 'testqueue')
 
 with models.DAG(
     'example_gcp_cloud_tasks_sensor',
+    start_date=datetime(2022, 8, 8),
+    catchup=False,
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
