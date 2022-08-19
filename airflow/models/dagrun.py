@@ -875,7 +875,7 @@ class DagRun(Base, LoggingMixin):
         :param ti_mutation_hook: task_instance_mutation_hook function
         :param session: Sqlalchemy ORM Session
 
-        :return: List of task_ids in the dagrun
+        :return: Task IDs in the DAG run
 
         """
         tis = self.get_task_instances(session=session)
