@@ -30,7 +30,6 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.google.cloud.sensors.tasks import TaskQueueEmptySensor
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -45,7 +44,7 @@ with models.DAG(
     schedule=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
-    start = EmptyOperator(task_id="start")
+    # start = EmptyOperator(task_id="start")
     # [START cloud_tasks_empty_sensor]
     gcp_cloud_tasks_sensor = TaskQueueEmptySensor(
         project_id=GCP_PROJECT_ID,
@@ -54,4 +53,4 @@ with models.DAG(
         queue_name=QUEUE_NAME,
     )
     # [END cloud_tasks_empty_sensor]
-    end = EmptyOperator(task_id="end")
+    # end = EmptyOperator(task_id="end")
