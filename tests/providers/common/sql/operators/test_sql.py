@@ -20,7 +20,6 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pandas as pd
 import pytest
 
 from airflow import DAG
@@ -47,7 +46,7 @@ class MockHook:
     def get_first(self):
         return
 
-    def get_pandas_df(self):
+    def get_records(self):
         return
 
 
@@ -120,32 +119,22 @@ class TestTableCheckOperator:
     }
 
     def _construct_operator(self, monkeypatch, checks, return_df):
-        def get_pandas_df_return(*arg):
+        def get_records(*arg):
             return return_df
 
         operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
-        monkeypatch.setattr(MockHook, "get_pandas_df", get_pandas_df_return)
+        monkeypatch.setattr(MockHook, "get_records", get_records)
         return operator
 
     def test_pass_all_checks_check(self, monkeypatch):
-        df = pd.DataFrame(
-            data={
-                "check_name": ["row_count_check", "column_sum_check"],
-                "check_result": [
-                    "1",
-                    "y",
-                ],
-            }
-        )
-        operator = self._construct_operator(monkeypatch, self.checks, df)
+        records = [('row_count_check', 1), ('column_sum_check', 'y')]
+        operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
 
     def test_fail_all_checks_check(self, monkeypatch):
-        df = pd.DataFrame(
-            data={"check_name": ["row_count_check", "column_sum_check"], "check_result": ["0", "n"]}
-        )
-        operator = self._construct_operator(monkeypatch, self.checks, df)
+        records = [('row_count_check', 0), ('column_sum_check', 'n')]
+        operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
