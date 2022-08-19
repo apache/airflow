@@ -788,22 +788,6 @@ class TestDagFileProcessor:
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
 
-    @conf_vars({("logging", "dag_processor_log_target"): "file"})
-    @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
-    @mock.patch('airflow.dag_processing.processor.redirect_stdout')
-    def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess('abc.txt', False, [], [])
-        processor._run_file_processor(
-            result_channel=MagicMock(),
-            parent_channel=MagicMock(),
-            file_path="fake_file_path",
-            pickle_dags=False,
-            dag_ids=[],
-            thread_name="fake_thread_name",
-            callback_requests=[],
-        )
-        mock_redirect_stdout_for_file.assert_called_once()
-
     @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
     @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
     @mock.patch('airflow.dag_processing.processor.redirect_stdout')
@@ -819,6 +803,22 @@ class TestDagFileProcessor:
             callback_requests=[],
         )
         mock_redirect_stdout_for_file.assert_not_called()
+
+    @conf_vars({("logging", "dag_processor_log_target"): "file"})
+    @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
+    @mock.patch('airflow.dag_processing.processor.redirect_stdout')
+    def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
+        processor = DagFileProcessorProcess('abc.txt', False, [], [])
+        processor._run_file_processor(
+            result_channel=MagicMock(),
+            parent_channel=MagicMock(),
+            file_path="fake_file_path",
+            pickle_dags=False,
+            dag_ids=[],
+            thread_name="fake_thread_name",
+            callback_requests=[],
+        )
+        mock_redirect_stdout_for_file.assert_called_once()
 
 
 class TestProcessorAgent:
