@@ -409,7 +409,8 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
         """Generate Run ID based on Run Type and Execution Date"""
-        return f"{run_type}__{execution_date.isoformat()}"
+        # _Ensure_ run_type is a DagRunType, not just a string from user code
+        return DagRunType(run_type).generate_run_id(execution_date)
 
     @provide_session
     def get_task_instances(
