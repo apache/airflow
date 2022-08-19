@@ -702,6 +702,32 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ]
         assert self.expected_pod == actual_pod
 
+    def test_env_vars_are_templatized(self):
+        # WHEN
+        env_vars = '{"ENV1": "val{{n1}}", "ENV2": "val{{n1 + n1}}"}'
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            env_vars=env_vars,
+            labels={"foo": "bar"},
+            name="test-" + str(random.randint(0, 1000000)),
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        # THEN
+        context = create_context(k)
+        context.update(n1=1)
+        k = k.render_template_fields(context)
+        k.pre_execute(context)
+        actual_pod = self.api_client.sanitize_for_serialization(k.build_pod_request_obj(context))
+        assert actual_pod["spec"]["containers"][0]["env"] == [
+            {'name': 'ENV1', 'value': 'val1'},
+            {'name': 'ENV2', 'value': 'val2'},
+        ]
+
     def test_pod_template_file_system(self):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'

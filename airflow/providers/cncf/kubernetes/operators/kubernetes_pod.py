@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes task in a Kubernetes POD"""
+import ast
 import json
 import logging
 import re
 import warnings
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from kubernetes.client import CoreV1Api, models as k8s
 
@@ -177,7 +178,7 @@ class KubernetesPodOperator(BaseOperator):
         ports: Optional[List[k8s.V1ContainerPort]] = None,
         volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
         volumes: Optional[List[k8s.V1Volume]] = None,
-        env_vars: Optional[List[k8s.V1EnvVar]] = None,
+        env_vars: Optional[Union[List[k8s.V1EnvVar], str]] = None,
         env_from: Optional[List[k8s.V1EnvFromSource]] = None,
         secrets: Optional[List[Secret]] = None,
         in_cluster: Optional[bool] = None,
@@ -233,9 +234,23 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.env_vars = convert_env_vars(env_vars) if env_vars else []
+        if env_vars:
+            if isinstance(env_vars, str):
+                self.env_vars = env_vars
+            else:
+                self.env_vars = convert_env_vars(env_vars)
+        else:
+            self.env_vars = []
         if pod_runtime_info_envs:
-            self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
+            pod_runtime_info_envs = [convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs]
+            if isinstance(self.env_vars, str):
+                # env_vars is templated. Save this field to be applied later.
+                self.pod_runtime_info_envs = pod_runtime_info_envs
+            else:
+                # env_vars is a normal value. Add pod_runtime_info_envs now.
+                self.env_vars.extend(pod_runtime_info_envs)
+        else:
+            self.pod_runtime_info_envs = []
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
@@ -408,6 +423,12 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self.log.info("xcom result: \n%s", result)
             return json.loads(result)
+
+    def pre_execute(self, context):
+        if isinstance(self.env_vars, str):
+            self.env_vars = convert_env_vars(ast.literal_eval(self.env_vars.strip()))
+            self.env_vars.extend(self.pod_runtime_info_envs)
+        super().pre_execute(context)
 
     def execute(self, context: 'Context'):
         remote_pod = None
