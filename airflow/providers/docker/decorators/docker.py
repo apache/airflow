@@ -62,6 +62,8 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         Defaults to False.
     """
 
+    custom_operator_name = "@task.docker"
+
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
 
     # since we won't mutate the arguments, we should just do the shallow copy

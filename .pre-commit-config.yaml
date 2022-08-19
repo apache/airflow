@@ -506,6 +506,12 @@ repos:
           (?x)
           ^airflow/providers/.*\.py$
         exclude: ^airflow/_vendor/
+      - id: check-decorated-operator-implements-custom-name
+        name: Check @task decorator implements custom_operator_name
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_decorator_operator_implements_custom_name.py
+        pass_filenames: true
+        files: ^airflow/.*\.py$
       - id: check-provide-create-sessions-imports
         language: pygrep
         name: Check provide_session and create_session imports

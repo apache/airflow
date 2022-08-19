@@ -157,6 +157,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-example-dags-urls                                | Check that example dags url include provider versions            |         |
