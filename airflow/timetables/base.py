@@ -212,6 +212,4 @@ class Timetable(Protocol):
         data_interval: Optional[DataInterval],
         **extra,
     ) -> str:
-        from airflow.models.dagrun import DagRun
-
-        return DagRun.generate_run_id(run_type, logical_date)
+        return run_type.generate_run_id(logical_date)
