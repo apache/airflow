@@ -151,7 +151,6 @@ serialized_simple_dag_ground_truth = {
                 "template_fields_renderers": {'bash_command': 'bash', 'env': 'json'},
                 "bash_command": "echo {{ task.task_id }}",
                 "_task_type": "BashOperator",
-                "_operator_name": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
                 "executor_config": {
@@ -1854,7 +1853,6 @@ def test_operator_expand_serde():
         '_is_mapped': True,
         '_task_module': 'airflow.operators.bash',
         '_task_type': 'BashOperator',
-        '_operator_name': 'BashOperator',
         'downstream_task_ids': [],
         'expand_input': {
             "type": "dict-of-lists",
@@ -1886,7 +1884,6 @@ def test_operator_expand_serde():
 
     assert op.operator_class == {
         '_task_type': 'BashOperator',
-        '_operator_name': 'BashOperator',
         'downstream_task_ids': [],
         'task_id': 'a',
         'template_ext': ['.sh', '.bash'],
@@ -1913,7 +1910,6 @@ def test_operator_expand_xcomarg_serde():
         '_is_mapped': True,
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
-        '_operator_name': 'MockOperator',
         'downstream_task_ids': [],
         'expand_input': {
             "type": "dict-of-lists",
@@ -1963,7 +1959,6 @@ def test_operator_expand_kwargs_serde(strict):
         '_is_mapped': True,
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
-        '_operator_name': 'MockOperator',
         'downstream_task_ids': [],
         'expand_input': {
             "type": "list-of-dicts",
@@ -2236,7 +2231,6 @@ def test_dummy_operator_serde(is_inherit):
         '_is_empty': is_inherit,
         '_task_module': 'tests.serialization.test_dag_serialization',
         '_task_type': 'MyDummyOperator',
-        '_operator_name': 'MyDummyOperator',
         'downstream_task_ids': [],
         "pool": "default_pool",
         'task_id': 'my_task',
