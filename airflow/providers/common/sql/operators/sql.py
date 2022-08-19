@@ -350,7 +350,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
-        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table)
+        FROM (SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS sq
     """
 
     def __init__(
@@ -382,8 +382,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
             ]
         )
         partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
-        f"AS check_table {partition_clause_statement};"
+        self.sql = f"""
+            SELECT check_name, check_result FROM ({checks_sql})
+            AS check_table {partition_clause_statement}
+        """
 
         records = hook.get_records(self.sql)
 
