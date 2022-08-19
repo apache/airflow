@@ -169,6 +169,36 @@ class WebserverDeploymentTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "waitForMigrations": {
+                        "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.initContainers[0].env", docs[0]
+        )
+
     @parameterized.expand(
         [
             ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
