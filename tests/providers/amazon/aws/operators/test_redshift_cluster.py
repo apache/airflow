@@ -223,7 +223,8 @@ class TestResumeClusterOperator:
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
-        redshift_operator.execute(None)
+        with pytest.raises(Exception):
+            redshift_operator.execute(None)
         mock_get_conn.return_value.resume_cluster.assert_not_called()
 
 
@@ -253,7 +254,8 @@ class TestPauseClusterOperator:
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
-        redshift_operator.execute(None)
+        with pytest.raises(Exception):
+            redshift_operator.execute(None)
         mock_get_conn.return_value.pause_cluster.assert_not_called()
 
 

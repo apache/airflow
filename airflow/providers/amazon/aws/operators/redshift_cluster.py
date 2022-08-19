@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -396,9 +396,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
             self.log.info("Starting Redshift cluster %s", self.cluster_identifier)
             redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
         else:
-            self.log.warning(
-                "Unable to resume cluster since cluster is currently in status: %s", cluster_state
-            )
+            raise Exception(f'Unable to resume cluster - cluster state is {cluster_state}')
 
 
 class RedshiftPauseClusterOperator(BaseOperator):
@@ -435,9 +433,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
             self.log.info("Pausing Redshift cluster %s", self.cluster_identifier)
             redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
         else:
-            self.log.warning(
-                "Unable to pause cluster since cluster is currently in status: %s", cluster_state
-            )
+            raise Exception(f'Unable to pause cluster - cluster state is {cluster_state}')
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
@@ -480,24 +476,16 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
         self.poll_interval = poll_interval
 
-    def execute(self, context: Context):
-        self.delete_cluster()
-
-        if self.wait_for_completion:
-            cluster_status: str = self.check_status()
-            while cluster_status != "cluster_not_found":
-                self.log.info(
-                    "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
-                )
-                time.sleep(self.poll_interval)
-                cluster_status = self.check_status()
-
-    def delete_cluster(self) -> None:
+    def execute(self, context: 'Context'):
         self.redshift_hook.delete_cluster(
             cluster_identifier=self.cluster_identifier,
             skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
             final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
         )
 
-    def check_status(self) -> str:
-        return self.redshift_hook.cluster_status(self.cluster_identifier)
+        if self.wait_for_completion:
+            waiter = self.redshift_hook.get_conn().get_waiter('cluster_deleted')
+            waiter.wait(
+                ClusterIdentifier=self.cluster_identifier,
+                WaiterConfig={'Delay': self.poll_interval, 'MaxAttempts': 30},
+            )
