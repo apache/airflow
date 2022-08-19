@@ -18,8 +18,8 @@
 """This module contains a Google Cloud Task sensor."""
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
-from airflow.sensors.base import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
+from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -41,6 +41,7 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
     template_fields: Sequence[str] = (
         "project_id",
         "location",
@@ -81,6 +82,6 @@ class TaskQueueEmptySensor(BaseSensorOperator):
             # page_size=1
         )
 
-        self.log.info(f"tasks exhausted in cloud task queue?: {len(tasks)==0}")
+        self.log.info("tasks exhausted in cloud task queue?: %s" % (len(tasks) == 0))
 
         return len(tasks) == 0

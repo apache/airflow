@@ -48,8 +48,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_ZONE,
         task_id='gcp_sense_cloud_tasks_empty',
-        queue_name=QUEUE_NAME
+        queue_name=QUEUE_NAME,
     )
     # [END cloud_tasks_empty_sensor]
     end = DummyOperator(task_id="end")
-
