@@ -34,7 +34,7 @@ class TestCloudTranslateHook(unittest.TestCase):
         ):
             self.hook = CloudTranslateHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.Client")
     def test_translate_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

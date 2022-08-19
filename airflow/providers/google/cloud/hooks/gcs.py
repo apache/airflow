@@ -157,7 +157,7 @@ class GCSHook(GoogleBaseHook):
         """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
-                credentials=self._get_credentials(), client_info=CLIENT_INFO, project=self.project_id
+                credentials=self.get_credentials(), client_info=CLIENT_INFO, project=self.project_id
             )
 
         return self._conn

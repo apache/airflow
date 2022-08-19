@@ -328,7 +328,7 @@ class TestGoogleBaseHook(unittest.TestCase):
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id', return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_get_creds_and_proj_id):
         self.instance.extras = {}
-        result = self.instance._get_credentials_and_project_id()
+        result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
@@ -364,7 +364,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         self.instance.extras = {'extra__google_cloud_platform__key_path': "KEY_PATH.json"}
-        result = self.instance._get_credentials_and_project_id()
+        result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path='KEY_PATH.json',
             keyfile_dict=None,
@@ -380,12 +380,12 @@ class TestGoogleBaseHook(unittest.TestCase):
     def test_get_credentials_and_project_id_with_service_account_file_and_p12_key(self):
         self.instance.extras = {'extra__google_cloud_platform__key_path': "KEY_PATH.p12"}
         with pytest.raises(AirflowException):
-            self.instance._get_credentials_and_project_id()
+            self.instance.get_credentials_and_project_id()
 
     def test_get_credentials_and_project_id_with_service_account_file_and_unknown_key(self):
         self.instance.extras = {'extra__google_cloud_platform__key_path': "KEY_PATH.unknown"}
         with pytest.raises(AirflowException):
-            self.instance._get_credentials_and_project_id()
+            self.instance.get_credentials_and_project_id()
 
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
     def test_get_credentials_and_project_id_with_service_account_info(self, mock_get_creds_and_proj_id):
@@ -393,7 +393,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         service_account = {'private_key': "PRIVATE_KEY"}
         self.instance.extras = {'extra__google_cloud_platform__keyfile_dict': json.dumps(service_account)}
-        result = self.instance._get_credentials_and_project_id()
+        result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=service_account,
@@ -412,7 +412,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         self.instance.extras = {}
         self.instance.delegate_to = "USER"
-        result = self.instance._get_credentials_and_project_id()
+        result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
@@ -440,14 +440,14 @@ class TestGoogleBaseHook(unittest.TestCase):
                 "does not support account impersonate. Please use service-account for authorization."
             ),
         ):
-            self.instance._get_credentials_and_project_id()
+            self.instance.get_credentials_and_project_id()
 
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id', return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth_and_overridden_project_id(
         self, mock_get_creds_and_proj_id
     ):
         self.instance.extras = {'extra__google_cloud_platform__project': "SECOND_PROJECT_ID"}
-        result = self.instance._get_credentials_and_project_id()
+        result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
@@ -474,7 +474,7 @@ class TestGoogleBaseHook(unittest.TestCase):
                 "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive. "
             ),
         ):
-            self.instance._get_credentials_and_project_id()
+            self.instance.get_credentials_and_project_id()
 
     def test_get_credentials_and_project_id_with_invalid_keyfile_dict(
         self,
@@ -483,7 +483,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             'extra__google_cloud_platform__keyfile_dict': 'INVALID_DICT',
         }
         with pytest.raises(AirflowException, match=re.escape('Invalid key JSON.')):
-            self.instance._get_credentials_and_project_id()
+            self.instance.get_credentials_and_project_id()
 
     @unittest.skipIf(
         not default_creds_available, 'Default Google Cloud credentials not available to run tests'
@@ -501,7 +501,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             ),
         }
 
-        credentials = self.instance._get_credentials()
+        credentials = self.instance.get_credentials()
 
         if not hasattr(credentials, 'scopes') or credentials.scopes is None:
             # Some default credentials don't have any scopes associated with
@@ -518,7 +518,7 @@ class TestGoogleBaseHook(unittest.TestCase):
     def test_default_creds_no_scopes(self):
         self.instance.extras = {'extra__google_cloud_platform__project': default_project}
 
-        credentials = self.instance._get_credentials()
+        credentials = self.instance.get_credentials()
 
         if not hasattr(credentials, 'scopes') or credentials.scopes is None:
             # Some default credentials don't have any scopes associated with
@@ -588,7 +588,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         assert self.instance.num_retries == 5
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.build_http")
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
     def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
         """
         Verify that if 'num_retires' in extras is not set, the default value
@@ -612,7 +612,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         assert response == new_response
         assert content == new_content
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
     def test_authorize_assert_http_308_is_excluded(self, mock_get_credentials):
         """
         Verify that 308 status code is excluded from httplib2's redirect codes
@@ -620,7 +620,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         http_authorized = self.instance._authorize().http
         assert 308 not in http_authorized.redirect_codes
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
     def test_authorize_assert_http_timeout_is_present(self, mock_get_credentials):
         """
         Verify that http client has a timeout set
@@ -652,7 +652,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, PROJECT_ID)
         self.instance.impersonation_chain = impersonation_chain
-        result = self.instance._get_credentials_and_project_id()
+        result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,

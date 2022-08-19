@@ -86,7 +86,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         :rtype: google.cloud.automl_v1beta1.AutoMlClient
         """
         if self._client is None:
-            self._client = AutoMlClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = AutoMlClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property
@@ -97,7 +97,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         :return: Google Cloud AutoML PredictionServiceClient client object.
         :rtype: google.cloud.automl_v1beta1.PredictionServiceClient
         """
-        return PredictionServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+        return PredictionServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_model(

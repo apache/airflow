@@ -49,7 +49,7 @@ class DatasetHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return DatasetServiceClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):

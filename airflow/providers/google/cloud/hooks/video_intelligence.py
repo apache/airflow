@@ -70,7 +70,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = VideoIntelligenceServiceClient(
-                credentials=self._get_credentials(), client_info=CLIENT_INFO
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
             )
         return self._conn
 

@@ -59,7 +59,7 @@ TABLE_REFERENCE = TableReference.from_api_repr(TABLE_REFERENCE_REPR)
 class _BigQueryBaseTestClass:
     def setup_method(self) -> None:
         class MockedBigQueryHook(BigQueryHook):
-            def _get_credentials_and_project_id(self):
+            def get_credentials_and_project_id(self):
                 return CREDENTIALS, PROJECT_ID
 
         self.hook = MockedBigQueryHook()
@@ -1719,7 +1719,7 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
         assert kwargs["configuration"]['query']['useLegacySql'] is True
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

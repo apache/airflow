@@ -86,7 +86,7 @@ class CloudBuildHook(GoogleBaseHook):
         :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
         """
         if not self._client:
-            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = CloudBuildClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

@@ -57,7 +57,7 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
         ):
             self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")
     def test_bigtable_client_creation(self, mock_client, mock_get_creds):
         result = self.bigtable_hook_no_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
@@ -153,7 +153,7 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         ):
             self.bigtable_hook_default_project_id = BigtableHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")
     def test_bigtable_client_creation(self, mock_client, mock_get_creds):
         result = self.bigtable_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)

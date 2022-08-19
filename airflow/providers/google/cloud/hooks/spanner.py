@@ -61,7 +61,7 @@ class SpannerHook(GoogleBaseHook):
         """
         if not self._client:
             self._client = Client(
-                project=project_id, credentials=self._get_credentials(), client_info=CLIENT_INFO
+                project=project_id, credentials=self.get_credentials(), client_info=CLIENT_INFO
             )
         return self._client
 

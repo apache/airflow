@@ -83,7 +83,7 @@ class PubSubHook(GoogleBaseHook):
         :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
-            self._client = PublisherClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = PublisherClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property
@@ -94,7 +94,7 @@ class PubSubHook(GoogleBaseHook):
         :return: Google Cloud Pub/Sub client object.
         :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
-        return SubscriberClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+        return SubscriberClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def publish(

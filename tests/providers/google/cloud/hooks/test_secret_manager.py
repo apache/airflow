@@ -35,7 +35,7 @@ INTERNAL_CLIENT_PACKAGE = 'airflow.providers.google.cloud._internal_client.secre
 class TestSecretsManagerHook(unittest.TestCase):
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
     @patch(
-        SECRETS_HOOK_PACKAGE + 'SecretsManagerHook._get_credentials_and_project_id',
+        SECRETS_HOOK_PACKAGE + 'SecretsManagerHook.get_credentials_and_project_id',
         return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
     )
     @patch(BASE_PACKAGE + 'GoogleBaseHook.__init__', new=mock_base_gcp_hook_default_project_id)
@@ -51,7 +51,7 @@ class TestSecretsManagerHook(unittest.TestCase):
 
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
     @patch(
-        SECRETS_HOOK_PACKAGE + 'SecretsManagerHook._get_credentials_and_project_id',
+        SECRETS_HOOK_PACKAGE + 'SecretsManagerHook.get_credentials_and_project_id',
         return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
     )
     @patch(BASE_PACKAGE + 'GoogleBaseHook.__init__', new=mock_base_gcp_hook_default_project_id)

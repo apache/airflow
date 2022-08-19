@@ -63,7 +63,7 @@ class TestCloudDLPHook(unittest.TestCase):
         ):
             self.hook = CloudDLPHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.DlpServiceClient")
     def test_dlp_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

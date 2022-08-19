@@ -69,7 +69,7 @@ class DataplexHook(GoogleBaseHook):
         client_options = ClientOptions(api_endpoint='dataplex.googleapis.com:443')
 
         return DataplexServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def wait_for_operation(self, timeout: Optional[float], operation: Operation):

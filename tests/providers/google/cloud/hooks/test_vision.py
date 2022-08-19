@@ -81,7 +81,7 @@ class TestGcpVisionHook(unittest.TestCase):
         ):
             self.hook = CloudVisionHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.vision.ProductSearchClient")
     def test_product_search_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

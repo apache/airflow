@@ -57,7 +57,7 @@ class TestAuoMLHook(unittest.TestCase):
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudAutoMLHook()
-            self.hook._get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
+            self.hook.get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient")
     def test_get_conn(self, mock_automl_client):

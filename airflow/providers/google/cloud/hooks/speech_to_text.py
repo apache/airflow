@@ -66,7 +66,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         :rtype: google.cloud.speech_v1.SpeechClient
         """
         if not self._client:
-            self._client = SpeechClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = SpeechClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.quota_retry()

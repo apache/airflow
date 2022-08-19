@@ -226,7 +226,7 @@ class GoogleBaseHook(BaseHook):
         self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
         self._cached_project_id: Optional[str] = None
 
-    def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
+    def get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """Returns the Credentials object for Google API and the associated project_id"""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
@@ -264,14 +264,14 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
-    def _get_credentials(self) -> google.auth.credentials.Credentials:
+    def get_credentials(self) -> google.auth.credentials.Credentials:
         """Returns the Credentials object for Google API"""
-        credentials, _ = self._get_credentials_and_project_id()
+        credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials"""
-        credentials = self._get_credentials()
+        credentials = self.get_credentials()
         auth_req = google.auth.transport.requests.Request()
         # credentials.token is None
         # Need to refresh credentials to populate the token
@@ -286,7 +286,7 @@ class GoogleBaseHook(BaseHook):
         If a service account is used, it returns the service account.
         If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
         """
-        credentials = self._get_credentials()
+        credentials = self.get_credentials()
 
         if isinstance(credentials, compute_engine.Credentials):
             try:
@@ -311,7 +311,7 @@ class GoogleBaseHook(BaseHook):
         Returns an authorized HTTP object to be used to build a Google cloud
         service hook connection.
         """
-        credentials = self._get_credentials()
+        credentials = self.get_credentials()
         http = build_http()
         http = set_user_agent(http, "airflow/" + version.version)
         authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
@@ -338,7 +338,7 @@ class GoogleBaseHook(BaseHook):
         :return: id of the project
         :rtype: str
         """
-        _, project_id = self._get_credentials_and_project_id()
+        _, project_id = self.get_credentials_and_project_id()
         return project_id
 
     @property

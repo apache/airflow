@@ -76,7 +76,7 @@ class CustomJobHook(GoogleBaseHook):
         else:
             client_options = ClientOptions()
         return PipelineServiceClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_service_client(
@@ -90,7 +90,7 @@ class CustomJobHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_custom_container_training_job(
@@ -134,7 +134,7 @@ class CustomJobHook(GoogleBaseHook):
             model_prediction_schema_uri=model_prediction_schema_uri,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -184,7 +184,7 @@ class CustomJobHook(GoogleBaseHook):
             model_prediction_schema_uri=model_prediction_schema_uri,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -234,7 +234,7 @@ class CustomJobHook(GoogleBaseHook):
             model_prediction_schema_uri=model_prediction_schema_uri,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,

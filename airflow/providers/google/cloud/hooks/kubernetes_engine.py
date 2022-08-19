@@ -73,7 +73,7 @@ class GKEHook(GoogleBaseHook):
     def get_cluster_manager_client(self) -> ClusterManagerClient:
         """Returns ClusterManagerClient."""
         if self._client is None:
-            self._client = ClusterManagerClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     # To preserve backward compatibility

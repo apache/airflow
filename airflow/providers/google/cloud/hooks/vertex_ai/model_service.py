@@ -49,7 +49,7 @@ class ModelServiceHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return ModelServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     @staticmethod

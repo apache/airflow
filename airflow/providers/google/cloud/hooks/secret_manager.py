@@ -56,7 +56,7 @@ class SecretsManagerHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self.client = _SecretManagerClient(credentials=self._get_credentials())
+        self.client = _SecretManagerClient(credentials=self.get_credentials())
 
     def get_conn(self) -> _SecretManagerClient:
         """

@@ -75,7 +75,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         """
         if not self._client:
 
-            self._client = TextToSpeechClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = TextToSpeechClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
         return self._client
 

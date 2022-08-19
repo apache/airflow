@@ -65,7 +65,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def get_hyperparameter_tuning_job_object(
@@ -97,7 +97,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             measurement_selection=measurement_selection,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             encryption_spec_key_name=encryption_spec_key_name,
         )
@@ -120,7 +120,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             base_output_dir=base_output_dir,
             project=project,
             location=location,
-            credentials=self._get_credentials,
+            credentials=self.get_credentials,
             labels=labels,
             encryption_spec_key_name=encryption_spec_key_name,
             staging_bucket=staging_bucket,

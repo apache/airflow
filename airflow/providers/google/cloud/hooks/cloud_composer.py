@@ -43,7 +43,7 @@ class CloudComposerHook(GoogleBaseHook):
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieves client library object that allow access Environments service."""
         return EnvironmentsClient(
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
@@ -53,7 +53,7 @@ class CloudComposerHook(GoogleBaseHook):
     ) -> ImageVersionsClient:
         """Retrieves client library object that allow access Image Versions service."""
         return ImageVersionsClient(
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
