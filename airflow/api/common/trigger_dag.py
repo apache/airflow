@@ -20,8 +20,6 @@ import json
 from datetime import datetime
 from typing import List, Optional, Union
 
-import pendulum
-
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
@@ -67,9 +65,11 @@ def _trigger_dag(
                 f"The execution_date [{execution_date.isoformat()}] should be >= start_date "
                 f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
             )
+    logical_date = timezone.coerce_datetime(execution_date)
 
+    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
     run_id = run_id or dag.timetable.generate_run_id(
-        run_type=DagRunType.MANUAL, logical_date=execution_date, data_interval=None
+        run_type=DagRunType.MANUAL, logical_date=logical_date, data_interval=data_interval
     )
     dag_run = DagRun.find_duplicate(dag_id=dag_id, execution_date=execution_date, run_id=run_id)
 
@@ -92,9 +92,7 @@ def _trigger_dag(
             conf=run_conf,
             external_trigger=True,
             dag_hash=dag_bag.dags_hash.get(dag_id),
-            data_interval=_dag.timetable.infer_manual_data_interval(
-                run_after=pendulum.instance(execution_date)
-            ),
+            data_interval=data_interval,
         )
         dag_runs.append(dag_run)
 
