@@ -19,89 +19,28 @@
 
 import React, { useState, useEffect, RefObject } from 'react';
 import { Box, IconButton, Spinner } from '@chakra-ui/react';
-import ELK, { ElkExtendedEdge, ElkShape } from 'elkjs';
 import { Zoom } from '@visx/zoom';
 import { MdOutlineZoomOutMap } from 'react-icons/md';
 import { debounce } from 'lodash';
 
 import { useDatasetDependencies } from 'src/api';
-import type { DepNode, DepEdge } from 'src/types';
 
-import Node, { NodeType } from './Node';
+import Node from './Node';
 import Edge from './Edge';
-
-interface GenerateProps {
-  nodes: DepNode[];
-  edges: DepEdge[];
-  font: string;
-}
-
-// Take text and font to calculate how long each node should be
-function getTextWidth(text: string, font: string) {
-  const context = document.createElement('canvas').getContext('2d');
-  if (context) {
-    context.font = font;
-    const metrics = context.measureText(text);
-    return metrics.width;
-  }
-  return text.length * 9;
-}
-
-const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
-  id: 'root',
-  layoutOptions: {
-    'spacing.nodeNodeBetweenLayers': '40.0',
-    'spacing.edgeNodeBetweenLayers': '10.0',
-    'layering.strategy': 'INTERACTIVE',
-    algorithm: 'layered',
-    'spacing.edgeEdgeBetweenLayers': '10.0',
-    'spacing.edgeNode': '10.0',
-    'spacing.edgeEdge': '10.0',
-    'spacing.nodeNode': '20.0',
-    'elk.direction': 'DOWN',
-  },
-  children: nodes.map(({ id, value }) => ({
-    id,
-    // calculate text width and add space for padding/icon
-    width: getTextWidth(value.label, font) + 36,
-    height: 40,
-    value,
-  })),
-  edges: edges.map((e) => ({ id: `${e.u}-${e.v}`, sources: [e.u], targets: [e.v] })),
-});
 
 interface Props {
   onSelect: (datasetId: string) => void;
   selectedUri: string | null;
 }
 
-interface Data extends ElkShape {
-  children: NodeType[];
-  edges: ElkExtendedEdge[];
-}
-
 const Graph = ({ onSelect, selectedUri }: Props) => {
-  const { data: { edges, nodes }, isLoading } = useDatasetDependencies();
-
-  // get computed style to calculate how large each node should be
-  const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
-
-  const elk = new ELK();
-  const [data, setData] = useState<Data | undefined>();
+  const { data, isLoading } = useDatasetDependencies();
   const [dimensions, setDimensions] = useState({
     height: window.innerHeight,
     width: window.innerWidth,
   });
 
-  useEffect(() => {
-    if (edges.length && nodes.length) {
-      elk.layout(generateGraph({ nodes, edges, font }))
-        .then((g) => setData(g as Data))
-        .catch(console.error);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges]);
-
+  // Reset the graph div when the window size changes
   useEffect(() => {
     const handleResize = debounce(() => {
       setDimensions({
@@ -114,7 +53,7 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
     return () => window.removeEventListener('resize', handleResize);
   });
 
-  if (isLoading && !edges.length) return <Spinner />;
+  if (isLoading && !data) return <Spinner />;
   if (!data) return null;
 
   const initialTransform = {
@@ -127,10 +66,10 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
   };
 
   const selectedEdges = selectedUri
-    ? data?.edges?.filter(({ sources, targets }) => (
+    ? data.edges?.filter(({ sources, targets }) => (
       sources[0].includes(selectedUri) || targets[0].includes(selectedUri)))
     : [];
-  const highlightedNodes = data.children
+  const highlightedNodes = data?.children
     .filter((n) => (
       selectedEdges.some(({ sources, targets }) => (
         sources[0] === n.id || targets[0] === n.id))));
