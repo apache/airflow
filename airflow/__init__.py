@@ -46,7 +46,8 @@ __all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39', 'PY310
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 # Perform side-effects unless someone has explicitly opted out before import
-if not os.environ.get("AIRFLOW__AS_LIBRARY", None):
+# WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
     settings.initialize()
 
 login: Optional[Callable] = None
