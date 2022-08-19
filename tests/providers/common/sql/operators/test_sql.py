@@ -128,6 +128,43 @@ class TestTableCheckOperator:
         monkeypatch.setattr(MockHook, "get_pandas_df", get_pandas_df_return)
         return operator
 
+    @pytest.mark.parametrize(
+        ['conn_id'],
+        [
+            pytest.param('postgres_default', marks=[pytest.mark.backend('postgres')]),
+            pytest.param('mysql_default', marks=[pytest.mark.backend('mysql')]),
+        ],
+    )
+    def test_sql_check(self, conn_id):
+        operator = SQLTableCheckOperator(
+            task_id="test_task",
+            table="employees",
+            checks={"row_count_check": {"check_statement": "COUNT(*) >= 3"}},
+            conn_id=conn_id,
+        )
+
+        hook = operator.get_db_hook()
+        hook.run(
+            [
+                """
+                CREATE TABLE IF NOT EXISTS employees (
+                    employee_name VARCHAR(50) NOT NULL,
+                    employment_year INT NOT NULL
+                );
+                """,
+                "INSERT INTO employees VALUES ('Adam', 2021)",
+                "INSERT INTO employees VALUES ('Chris', 2021)",
+                "INSERT INTO employees VALUES ('Frank', 2021)",
+                "INSERT INTO employees VALUES ('Fritz', 2021)",
+                "INSERT INTO employees VALUES ('Magda', 2022)",
+                "INSERT INTO employees VALUES ('Phil', 2021)",
+            ]
+        )
+        try:
+            operator.execute({})
+        finally:
+            hook.run(["DROP TABLE employees"])
+
     def test_pass_all_checks_check(self, monkeypatch):
         df = pd.DataFrame(
             data={
