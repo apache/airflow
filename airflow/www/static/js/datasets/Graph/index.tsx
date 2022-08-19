@@ -17,15 +17,14 @@
  * under the License.
  */
 
-/* global depNodes, depEdges */
-
 import React, { useState, useEffect, RefObject } from 'react';
-import { Box, IconButton } from '@chakra-ui/react';
+import { Box, IconButton, Spinner } from '@chakra-ui/react';
 import ELK, { ElkExtendedEdge, ElkShape } from 'elkjs';
 import { Zoom } from '@visx/zoom';
 import { MdOutlineZoomOutMap } from 'react-icons/md';
 import { debounce } from 'lodash';
 
+import { useDatasetDependencies } from 'src/api';
 import type { DepNode, DepEdge } from 'src/types';
 
 import Node, { NodeType } from './Node';
@@ -71,13 +70,6 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
   edges: edges.map((e) => ({ id: `${e.u}-${e.v}`, sources: [e.u], targets: [e.v] })),
 });
 
-const edges = depEdges.filter((e) => {
-  const edgeNodes = depNodes.filter((n) => n.id === e.u || n.id === e.v);
-  return edgeNodes.length === 2;
-});
-
-const nodes = depNodes.filter((n) => edges.some((e) => e.u === n.id || e.v === n.id));
-
 interface Props {
   onSelect: (datasetId: string) => void;
   selectedUri: string | null;
@@ -89,6 +81,8 @@ interface Data extends ElkShape {
 }
 
 const Graph = ({ onSelect, selectedUri }: Props) => {
+  const { data: { edges, nodes }, isLoading } = useDatasetDependencies();
+
   // get computed style to calculate how large each node should be
   const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
 
@@ -120,6 +114,7 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
     return () => window.removeEventListener('resize', handleResize);
   });
 
+  if (isLoading && !edges.length) return <Spinner />;
   if (!data) return null;
 
   const initialTransform = {
