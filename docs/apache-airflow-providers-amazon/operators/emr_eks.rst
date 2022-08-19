@@ -39,7 +39,7 @@ Create an Amazon EMR EKS virtual cluster
 ========================================
 
 
-The ``EmrEksCreateClusterOperator`` will create an Amazon EMR on EKS virtual cluster
+The ``EmrEksCreateClusterOperator`` will create an Amazon EMR on EKS virtual cluster.
 The example DAG below shows how to create an EMR on EKS virtual cluster.
 
 To create an Amazon EMR cluster on Amazon EKS, you need to specify a virtual cluster name,
