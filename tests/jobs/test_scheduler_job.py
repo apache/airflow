@@ -3042,20 +3042,38 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id="datasets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset1])
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        ti.state = TaskInstanceState.SUCCESS
+        dr = dag_maker.create_dagrun(
+            run_id="run1",
+            execution_date=(DEFAULT_DATE + timedelta(days=100)),
+            data_interval=(DEFAULT_DATE + timedelta(days=10), DEFAULT_DATE + timedelta(days=11)),
+        )
 
         ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
 
-        event = DatasetEvent(
+        event1 = DatasetEvent(
             dataset_id=ds1_id,
-            source_task_id=ti.task_id,
-            source_dag_id=ti.dag_id,
-            source_run_id=ti.run_id,
-            source_map_index=ti.map_index,
+            source_task_id="task",
+            source_dag_id=dr.dag_id,
+            source_run_id=dr.run_id,
+            source_map_index=-1,
         )
-        session.add(event)
+        session.add(event1)
+
+        # Create a second event, creation time is more recent, but data interval is older
+        dr = dag_maker.create_dagrun(
+            run_id="run2",
+            execution_date=(DEFAULT_DATE + timedelta(days=101)),
+            data_interval=(DEFAULT_DATE + timedelta(days=5), DEFAULT_DATE + timedelta(days=6)),
+        )
+
+        event2 = DatasetEvent(
+            dataset_id=ds1_id,
+            source_task_id="task",
+            source_dag_id=dr.dag_id,
+            source_run_id=dr.run_id,
+            source_map_index=-1,
+        )
+        session.add(event2)
 
         with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]):
             pass
@@ -3083,13 +3101,15 @@ class TestSchedulerJob:
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one()
         assert created_run.state == State.QUEUED
         assert created_run.start_date is None
-        assert created_run.consumed_dataset_events == [event]
-        # dag3 DDRQ record should still be there since the dag run was *not* triggered
-        assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag3.dag_id).one() is not None
+        assert created_run.consumed_dataset_events == [event1, event2]
+        assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
+        assert created_run.data_interval_end == DEFAULT_DATE + timedelta(days=11)
+        # dag2 DDRQ record should still be there since the dag run was *not* triggered
+        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag2.dag_id).one() is not None
         # dag2 should not be triggered since it depends on both dataset 1  and 2
         assert session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
-        # dag2 DDRQ record should be deleted since the dag run was triggered
-        assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
+        # dag3 DDRQ record should be deleted since the dag run was triggered
+        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
         assert dag3.get_last_dagrun().creating_job_id == self.scheduler_job.id
 
