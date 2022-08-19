@@ -41,7 +41,6 @@ with models.DAG(
     'example_gcp_cloud_tasks_sensor',
     start_date=datetime(2022, 8, 8),
     catchup=False,
-    schedule=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
     # start = EmptyOperator(task_id="start")
