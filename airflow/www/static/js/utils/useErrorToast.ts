@@ -19,20 +19,18 @@
 
 import { useToast } from '@chakra-ui/react';
 import type { ReactNode } from 'react';
+import axios from 'axios';
 
-interface ErrorObj {
-  response: {
-    data: string,
-  }
-}
-
-type ErrorType = Error | string | ErrorObj | null;
+type ErrorType = Error | string | null;
 
 export const getErrorDescription = (error?: ErrorType, fallbackMessage?: string) => {
   if (typeof error === 'string') return error;
-  if (error instanceof Error) return error.message;
-  if (error?.response?.data) {
-    return error.response.data;
+  if (error instanceof Error) {
+    let { message } = error;
+    if (axios.isAxiosError(error)) {
+      message = error.response?.data || error.message;
+    }
+    return message;
   }
   return fallbackMessage || 'Something went wrong.';
 };

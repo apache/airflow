@@ -61,6 +61,10 @@ def skip_upgrade_check():
     return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
+def skip_group_putput():
+    return in_autocomplete() or in_help()
+
+
 def get_package_setup_metadata_hash() -> str:
     """
     Retrieves hash of setup files from the source of installation of Breeze.
@@ -290,4 +294,3 @@ def create_directories_and_files() -> None:
     (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
     (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
     (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
-    create_static_check_volumes()

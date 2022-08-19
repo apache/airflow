@@ -16,41 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useMemo } from 'react';
-import {
-  Box, Heading, Text,
-} from '@chakra-ui/react';
 
+import React, { useMemo, useState } from 'react';
+import { snakeCase } from 'lodash';
+import type { SortingRule } from 'react-table';
+
+import { useDatasetEvents } from 'src/api';
 import {
-  CodeCell, DatasetLink, Table, TaskInstanceLink, TimeCell,
+  Table, TimeCell, TaskInstanceLink,
 } from 'src/components/Table';
-import { useUpstreamDatasetEvents } from 'src/api';
-import type { DagRun as DagRunType } from 'src/types';
 
-interface Props {
-  runId: DagRunType['runId'];
-}
+const Events = ({
+  datasetId,
+}: { datasetId: number }) => {
+  const limit = 25;
+  const [offset, setOffset] = useState(0);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
 
-const UpstreamEvents = ({ runId }: Props) => {
-  const { data: { datasetEvents }, isLoading } = useUpstreamDatasetEvents({ runId });
+  const sort = sortBy[0];
+  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+
+  const {
+    data: { datasetEvents, totalEntries },
+    isLoading: isEventsLoading,
+  } = useDatasetEvents({
+    datasetId, limit, offset, order,
+  });
 
   const columns = useMemo(
     () => [
       {
-        Header: 'Dataset URI',
-        accessor: 'datasetUri',
-        Cell: DatasetLink,
-      },
-      {
         Header: 'Source Task Instance',
         accessor: 'sourceTaskId',
         Cell: TaskInstanceLink,
-      },
-      {
-        Header: 'Extra',
-        accessor: 'extra',
-        disableSortBy: true,
-        Cell: CodeCell,
       },
       {
         Header: 'When',
@@ -66,17 +64,26 @@ const UpstreamEvents = ({ runId }: Props) => {
     [datasetEvents],
   );
 
+  const memoSort = useMemo(() => sortBy, [sortBy]);
+
   return (
-    <Box mt={3} flexGrow={1}>
-      <Heading size="md">Upstream Dataset Events</Heading>
-      <Text>Dataset events that triggered this DAG run.</Text>
-      <Table
-        data={data}
-        columns={columns}
-        isLoading={isLoading}
-      />
-    </Box>
+    <Table
+      data={data}
+      columns={columns}
+      manualPagination={{
+        offset,
+        setOffset,
+        totalEntries,
+      }}
+      manualSort={{
+        setSortBy,
+        sortBy,
+        initialSortBy: memoSort,
+      }}
+      pageSize={limit}
+      isLoading={isEventsLoading}
+    />
   );
 };
 
-export default UpstreamEvents;
+export default Events;

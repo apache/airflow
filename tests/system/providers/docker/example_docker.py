@@ -27,7 +27,7 @@ DAG_ID = 'docker_test'
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "docker"],
