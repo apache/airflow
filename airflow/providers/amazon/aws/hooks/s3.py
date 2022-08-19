@@ -469,7 +469,7 @@ class S3Hook(AwsBaseHook):
             verify=self.verify,
         )
         obj = s3_resource.Object(bucket_name, key)
-        obj.load()
+        obj.load(**self.extra_args)
         return obj
 
     @provide_bucket_name
