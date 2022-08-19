@@ -857,7 +857,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
             try:
                 operator_name = encoded_op["_operator_name"]
-            except:
+            except KeyError:
                 operator_name = encoded_op["_task_type"]
             op = MappedOperator(
                 operator_class=op_data,
