@@ -54,7 +54,7 @@ setup:params:bc6b726d05240c22ac8522edc4a200ee
 setup:short_help:37a6259cc0c1dae299a7866489dff0bd
 shell:7baeb98c0103c594502ccf3d32ae24c6
 start-airflow:3e793b11dc2158c54bfc189bfe20d6f2
-static-checks:03e96245e60c225ed94514ad7b42ceb0
+static-checks:a86b25f9281c47abf362a221b316c7a2
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:chain:68934a3e9455fa72420237eb05902327
 testing:commands:c56d4fed05849ebfca609bd725200582
