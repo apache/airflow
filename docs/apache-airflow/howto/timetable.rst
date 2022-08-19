@@ -295,14 +295,14 @@ For our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
 
 .. code-block:: python
 
-    description = "Schedule: after each workday, at {_schedule_at}"
+    description = "Schedule: after each workday"
 
 You can also wrap this inside ``__init__``, if you want to derive description.
 
 .. code-block:: python
 
     def __init__(self) -> None:
-        self.description = "Schedule: after each workday, at {self._schedule_at}"
+        self.description = "Schedule: after each workday, at f{self._schedule_at}"
 
 
 This is specially useful when you want to provide comprehensive description which is different from ``summary`` property.

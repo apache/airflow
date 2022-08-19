@@ -51,6 +51,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -1085,6 +1086,13 @@ class SchedulerJob(BaseJob):
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
+            if not isinstance(dag.timetable, DatasetTriggeredTimetable):
+                self.log.error(
+                    "DAG '%s' was dataset-scheduled, but didn't have a DatasetTriggeredTimetable!",
+                    dag_model.dag_id,
+                )
+                continue
+
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
 
             # Explicitly check if the DagRun already exists. This is an edge case
@@ -1117,21 +1125,25 @@ class SchedulerJob(BaseJob):
                 dataset_events = (
                     session.query(DatasetEvent)
                     .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
+                    .join(DatasetEvent.source_dag_run)
                     .filter(*dataset_event_filters)
                     .all()
                 )
 
+                data_interval = dag.timetable.data_interval_for_events(exec_date, dataset_events)
                 run_id = dag.timetable.generate_run_id(
                     run_type=DagRunType.DATASET_TRIGGERED,
                     logical_date=exec_date,
-                    data_interval=None,
+                    data_interval=data_interval,
+                    session=session,
+                    events=dataset_events,
                 )
 
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
                     run_type=DagRunType.DATASET_TRIGGERED,
                     execution_date=exec_date,
-                    data_interval=(exec_date, exec_date),
+                    data_interval=data_interval,
                     state=DagRunState.QUEUED,
                     external_trigger=False,
                     session=session,
