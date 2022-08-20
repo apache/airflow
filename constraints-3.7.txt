@@ -131,7 +131,6 @@ apache-airflow-providers-trino==4.0.0
 apache-airflow-providers-vertica==3.2.0
 apache-airflow-providers-yandex==3.1.0
 apache-airflow-providers-zendesk==4.0.0
-apache-airflow==2.3.4
 apache-beam==2.40.0
 apispec==3.3.2
 appdirs==1.4.4
