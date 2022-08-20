@@ -36,8 +36,7 @@ class NetezzaHook(DbApiHook):
         port: int = conn.port
         db: str = conn.extra
 
-        conn = nzpy.connect(user=login, password=psw,
-                            host=host, port=port, database=db)
+        conn = nzpy.connect(user=login, password=psw, host=host, port=port, database=db)
 
         return conn
 
