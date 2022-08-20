@@ -51,4 +51,3 @@ with models.DAG(
         queue_name=QUEUE_NAME,
     )
     # [END cloud_tasks_empty_sensor]
-    # end = EmptyOperator(task_id="end")
