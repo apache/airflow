@@ -29,6 +29,7 @@ isort:skip_file
 
 # flake8: noqa: F401
 
+import os
 import sys
 from typing import Callable, Optional
 
@@ -44,7 +45,10 @@ __all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39', 'PY310
 # lib.)
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
-settings.initialize()
+# Perform side-effects unless someone has explicitly opted out before import
+# WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
+    settings.initialize()
 
 login: Optional[Callable] = None
 

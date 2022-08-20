@@ -2453,15 +2453,33 @@ class DAG(LoggingMixin):
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
         """
+        logical_date = timezone.coerce_datetime(execution_date)
+
+        if data_interval and not isinstance(data_interval, DataInterval):
+            data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
+
+        if data_interval is None and logical_date is not None:
+            warnings.warn(
+                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            if run_type == DagRunType.MANUAL:
+                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            else:
+                data_interval = self.infer_automated_data_interval(logical_date)
+
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
                 raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
             if not run_type:
                 run_type = DagRunType.from_run_id(run_id)
-        elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
+        elif run_type and logical_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
                 raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
-            run_id = DagRun.generate_run_id(run_type, execution_date)
+            run_id = self.timetable.generate_run_id(
+                run_type=run_type, logical_date=logical_date, data_interval=data_interval
+            )
         else:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
@@ -2474,18 +2492,6 @@ class DAG(LoggingMixin):
                 DeprecationWarning,
                 stacklevel=3,
             )
-
-        logical_date = timezone.coerce_datetime(execution_date)
-        if data_interval is None and logical_date is not None:
-            warnings.warn(
-                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            if run_type == DagRunType.MANUAL:
-                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
-            else:
-                data_interval = self.infer_automated_data_interval(logical_date)
 
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
@@ -2666,7 +2672,7 @@ class DAG(LoggingMixin):
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
                 input_datasets[DatasetModel.from_public(dataset)] = None
             for task in dag.tasks:
-                for obj in getattr(task, '_outlets', []):  # type: Dataset
+                for obj in task.outlets or []:
                     if isinstance(obj, Dataset):
                         outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
                         outlet_datasets[DatasetModel.from_public(obj)] = None
@@ -3157,14 +3163,31 @@ class DagModel(Base):
                 continue
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session):
+    def dags_needing_dagruns(cls, session: Session) -> Tuple[Query, Dict[str, Tuple[datetime, datetime]]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
-        This will return a resultset of rows  that is row-level-locked with a "SELECT ... FOR UPDATE" query,
+        This will return a resultset of rows that is row-level-locked with a "SELECT ... FOR UPDATE" query,
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
+
+        # these dag ids are triggered by datasets, and they are ready to go.
+        dataset_triggered_dag_info_list = {
+            x.dag_id: (x.first_event_time, x.last_event_time)
+            for x in session.query(
+                DatasetDagRef.dag_id,
+                func.max(DDRQ.created_at).label('last_event_time'),
+                func.max(DDRQ.created_at).label('first_event_time'),
+            )
+            .join(DatasetDagRef.queue_records, isouter=True)
+            .group_by(DatasetDagRef.dag_id)
+            .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
+            .all()
+        }
+        dataset_triggered_dag_ids = list(dataset_triggered_dag_info_list.keys())
+
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
@@ -3175,13 +3198,19 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
-                cls.next_dagrun_create_after <= func.now(),
+                or_(
+                    cls.next_dagrun_create_after <= func.now(),
+                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                ),
             )
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
 
-        return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
+        return (
+            with_row_locks(query, of=cls, session=session, **skip_locked(session=session)),
+            dataset_triggered_dag_info_list,
+        )
 
     def calculate_dagrun_date_fields(
         self,

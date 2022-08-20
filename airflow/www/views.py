@@ -363,8 +363,8 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
-                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
-                'operator': item.task_type,
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in (item.outlets or [])),
+                'operator': item.operator_name,
             }
 
         # Task Group
@@ -2745,6 +2745,7 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
             default_dag_run_display_number=default_dag_run_display_number,
+            default_wrap=conf.getboolean('webserver', 'default_wrap'),
             filters_drop_down_values=htmlsafe_json_dumps(
                 {
                     "taskStates": [state.value for state in TaskInstanceState],
@@ -3467,7 +3468,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = end_date
             task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
-            task_dict['operator'] = task.task_type
+            task_dict['operator'] = task.operator_name
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
             task_dict['execution_date'] = dttm.isoformat()
@@ -3623,8 +3624,10 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            dag_runs = query.order_by(DagRun.execution_date.desc()).limit(num_runs).all()
+            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
+            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
             dag_runs.reverse()
+
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),

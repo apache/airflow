@@ -268,3 +268,31 @@ class TestSecretsManagerBackend(TestCase):
 
         assert secrets_manager_backend.get_config("config") is None
         mock_get_secret.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
+    def test_passing_client_kwargs(self, mock_session_factory):
+        secrets_manager_backend = SecretsManagerBackend(
+            use_ssl=False, role_arn="arn:aws:iam::222222222222:role/awesome-role", region_name="eu-central-1"
+        )
+
+        # Mock SessionFactory, session and client
+        mock_session_factory_instance = mock_session_factory.return_value
+        mock_ssm_client = mock.MagicMock(return_value="mock-secretsmanager-client")
+        mock_session = mock.MagicMock()
+        mock_session.client = mock_ssm_client
+        mock_create_session = mock.MagicMock(return_value=mock_session)
+        mock_session_factory_instance.create_session = mock_create_session
+
+        secrets_manager_backend.client
+        assert mock_session_factory.call_count == 1
+        mock_session_factory_call_kwargs = mock_session_factory.call_args[1]
+        assert "conn" in mock_session_factory_call_kwargs
+        conn_wrapper = mock_session_factory_call_kwargs["conn"]
+
+        assert conn_wrapper.conn_id == "SecretsManagerBackend__connection"
+        assert conn_wrapper.role_arn == "arn:aws:iam::222222222222:role/awesome-role"
+        assert conn_wrapper.region_name == "eu-central-1"
+
+        mock_ssm_client.assert_called_once_with(
+            service_name='secretsmanager', region_name="eu-central-1", use_ssl=False
+        )

@@ -51,7 +51,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 )
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
-from airflow.models.dataset import DatasetDagRef, DatasetEvent
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -116,41 +115,10 @@ def get_upstream_dataset_events(
             "DAGRun not found",
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
-    events = _get_upstream_dataset_events(dag_run=dag_run, session=session)
+    events = dag_run.consumed_dataset_events
     return dataset_event_collection_schema.dump(
         DatasetEventCollection(dataset_events=events, total_entries=len(events))
     )
-
-
-def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session) -> List["DagRun"]:
-    if not dag_run.run_type == DagRunType.DATASET_TRIGGERED:
-        return []
-
-    previous_dag_run = (
-        session.query(DagRun)
-        .filter(
-            DagRun.dag_id == dag_run.dag_id,
-            DagRun.execution_date < dag_run.execution_date,
-            DagRun.run_type == DagRunType.DATASET_TRIGGERED,
-        )
-        .order_by(DagRun.execution_date.desc())
-        .first()
-    )
-
-    dataset_event_filters = [
-        DatasetDagRef.dag_id == dag_run.dag_id,
-        DatasetEvent.timestamp <= dag_run.execution_date,
-    ]
-    if previous_dag_run:
-        dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
-    dataset_events = (
-        session.query(DatasetEvent)
-        .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
-        .filter(*dataset_event_filters)
-        .order_by(DatasetEvent.timestamp)
-        .all()
-    )
-    return dataset_events
 
 
 def _fetch_dag_runs(

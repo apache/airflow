@@ -143,9 +143,7 @@ serialized_simple_dag_ground_truth = {
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
                 "downstream_task_ids": [],
-                "_inlets": [],
                 "_is_empty": False,
-                "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
                 "template_ext": ['.sh', '.bash'],
@@ -173,9 +171,7 @@ serialized_simple_dag_ground_truth = {
                 "max_retry_delay": 600.0,
                 "sla": 100.0,
                 "downstream_task_ids": [],
-                "_inlets": [],
                 "_is_empty": False,
-                "_outlets": [],
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
@@ -183,6 +179,7 @@ serialized_simple_dag_ground_truth = {
                 "template_fields": ['bash_command'],
                 "template_fields_renderers": {},
                 "_task_type": "CustomOperator",
+                "_operator_name": "@custom",
                 "_task_module": "tests.test_utils.mock_operators",
                 "pool": "default_pool",
             },
@@ -537,6 +534,7 @@ class TestStringifiedDAGs:
         fields_to_check = task.get_serialized_fields() - {
             # Checked separately
             '_task_type',
+            '_operator_name',
             'subdag',
             # Type is excluded, so don't check it
             '_log',
@@ -1115,31 +1113,31 @@ class TestStringifiedDAGs:
         base_operator = BaseOperator(task_id="10")
         fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
         assert fields == {
-            '_inlets': [],
             '_log': base_operator.log,
-            '_outlets': [],
-            '_pre_execute_hook': None,
             '_post_execute_hook': None,
+            '_pre_execute_hook': None,
             'depends_on_past': False,
-            'ignore_first_depends_on_past': True,
-            'downstream_task_ids': set(),
             'do_xcom_push': True,
             'doc': None,
             'doc_json': None,
             'doc_md': None,
             'doc_rst': None,
             'doc_yaml': None,
+            'downstream_task_ids': set(),
             'email': None,
             'email_on_failure': True,
             'email_on_retry': True,
             'execution_timeout': None,
             'executor_config': {},
+            'ignore_first_depends_on_past': True,
+            'inlets': [],
             'max_active_tis_per_dag': None,
             'max_retry_delay': None,
             'on_execute_callback': None,
             'on_failure_callback': None,
             'on_retry_callback': None,
             'on_success_callback': None,
+            'outlets': [],
             'owner': 'airflow',
             'params': {},
             'pool': 'default_pool',
@@ -1434,7 +1432,12 @@ class TestStringifiedDAGs:
                 mode="reschedule",
             )
             BashOperator(task_id='dataset_writer', bash_command="echo hello", outlets=[d2, d3])
-            BashOperator(task_id='other_dataset_writer', bash_command="echo hello", outlets=[d4])
+
+            @dag.task(outlets=[d4])
+            def other_dataset_writer(x):
+                pass
+
+            other_dataset_writer.expand(x=[1, 2])
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag['dag']['dag_dependencies'], key=lambda x: tuple(x.values()))
@@ -2041,6 +2044,7 @@ def test_taskflow_expand_serde():
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
+        print('**', type(x), type(x.partial), type(x.expand))
         x.partial(arg1=[1, 2, {"a": "b"}]).expand(arg2={"a": 1, "b": 2}, arg3=XComArg(op1))
 
     original = dag.get_task("x")
@@ -2051,6 +2055,7 @@ def test_taskflow_expand_serde():
         '_is_mapped': True,
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
+        '_operator_name': '@task',
         'downstream_task_ids': [],
         'partial_kwargs': {
             'op_args': [],
@@ -2136,6 +2141,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         '_is_mapped': True,
         '_task_module': 'airflow.decorators.python',
         '_task_type': '_PythonDecoratedOperator',
+        '_operator_name': '@task',
         'downstream_task_ids': [],
         'partial_kwargs': {
             'op_args': [],
@@ -2225,8 +2231,6 @@ def test_dummy_operator_serde(is_inherit):
         '_is_empty': is_inherit,
         '_task_module': 'tests.serialization.test_dag_serialization',
         '_task_type': 'MyDummyOperator',
-        '_outlets': [],
-        '_inlets': [],
         'downstream_task_ids': [],
         "pool": "default_pool",
         'task_id': 'my_task',

@@ -39,24 +39,24 @@ const cache = createCache({
 });
 const mainElement = document.getElementById('react-container');
 
-const DATASET_ID = 'dataset_id';
+const DATASET_URI = 'dataset_uri';
 
 const Datasets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const onBack = () => {
-    searchParams.delete(DATASET_ID);
+    searchParams.delete(DATASET_URI);
     setSearchParams(searchParams);
   };
 
-  const onSelect = (datasetId: string) => {
-    searchParams.set(DATASET_ID, datasetId);
+  const onSelect = (datasetUri: string) => {
+    searchParams.set(DATASET_URI, datasetUri);
     setSearchParams(searchParams);
   };
 
-  const datasetId = searchParams.get(DATASET_ID);
-  return (datasetId
-    ? <DatasetDetails datasetId={datasetId} onBack={onBack} />
+  const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || '');
+  return (datasetUri
+    ? <DatasetDetails datasetUri={datasetUri} onBack={onBack} />
     : <DatasetsList onSelect={onSelect} />
   );
 };
