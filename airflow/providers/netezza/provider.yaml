@@ -1,0 +1,30 @@
+---
+package-name: apache-airflow-providers-nz
+name: Netezza
+description: |
+    `Netezza <https://www.ibm.com/products/netezza>`__
+
+versions:
+  - 1.0.0
+
+dependencies:
+  - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql>=1.1.0
+  - nzpy>=1.13.2
+
+integrations:
+  - integration-name: Netezza
+    external-doc-url: https://www.ibm.com/products/netezza
+
+operators:
+  - integration-name: Netezza
+    python-modules:
+      - airflow.providers.netezza.operators.netezza
+hooks:
+  - integration-name: Netezza
+    python-modules:
+      - airflow.providers.netezza.hooks.netezza
+
+connection-types:
+  - hook-class-name: airflow.providers.netezza.hooks.netezza.NetezzaHook
+    connection-type: nz
