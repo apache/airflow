@@ -163,6 +163,7 @@ class KubernetesPodOperator(BaseOperator):
         'pod_template_file',
         'namespace',
     )
+    template_fields_renderers = {'env_vars': 'py'}
 
     def __init__(
         self,
