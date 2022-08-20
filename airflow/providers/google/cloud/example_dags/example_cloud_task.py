@@ -43,7 +43,6 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    # start = EmptyOperator(task_id="start")
     # [START cloud_tasks_empty_sensor]
     gcp_cloud_tasks_sensor = TaskQueueEmptySensor(
         project_id=GCP_PROJECT_ID,
