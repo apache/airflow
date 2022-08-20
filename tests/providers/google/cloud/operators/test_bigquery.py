@@ -717,6 +717,7 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
             max_results=max_results,
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
@@ -725,6 +726,7 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
             max_results=max_results,
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,

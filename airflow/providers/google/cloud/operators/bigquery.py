@@ -361,6 +361,7 @@ class BigQueryGetDataOperator(BaseOperator):
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
             table_id='Transaction_partitions',
+            project_id='internal-gcp-project',
             max_results=100,
             selected_fields='DATE',
             gcp_conn_id='airflow-conn-id'
@@ -368,6 +369,8 @@ class BigQueryGetDataOperator(BaseOperator):
 
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
+    :param project_id: (Optional) The name of the project where the data
+        will be returned from. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -390,6 +393,7 @@ class BigQueryGetDataOperator(BaseOperator):
     template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
+        'project_id',
         'max_results',
         'selected_fields',
         'impersonation_chain',
@@ -401,6 +405,7 @@ class BigQueryGetDataOperator(BaseOperator):
         *,
         dataset_id: str,
         table_id: str,
+        project_id: Optional[str] = None,
         max_results: int = 100,
         selected_fields: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
@@ -419,6 +424,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.project_id = project_id
 
     def execute(self, context: 'Context') -> list:
         self.log.info(
@@ -445,6 +451,7 @@ class BigQueryGetDataOperator(BaseOperator):
             max_results=self.max_results,
             selected_fields=self.selected_fields,
             location=self.location,
+            project_id=self.project_id,
         )
 
         self.log.info('Total extracted rows: %s', len(rows))
