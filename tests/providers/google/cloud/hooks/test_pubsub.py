@@ -78,7 +78,7 @@ class TestPubSubHook(unittest.TestCase):
             for i in range(1, count + 1)
         ]
 
-    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
     def test_publisher_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None
@@ -87,7 +87,7 @@ class TestPubSubHook(unittest.TestCase):
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
 
-    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.SubscriberClient")
     def test_subscriber_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None

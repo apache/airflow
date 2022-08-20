@@ -39,7 +39,7 @@ class TestTextToSpeechHook(unittest.TestCase):
         ):
             self.gcp_text_to_speech_hook = CloudTextToSpeechHook(gcp_conn_id="test")
 
-    @patch("airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook._get_credentials")
+    @patch("airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.get_credentials")
     @patch("airflow.providers.google.cloud.hooks.text_to_speech.TextToSpeechClient")
     def test_text_to_speech_client_creation(self, mock_client, mock_get_creds):
         result = self.gcp_text_to_speech_hook.get_conn()
