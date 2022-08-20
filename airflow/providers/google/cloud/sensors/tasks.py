@@ -69,7 +69,6 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: "Context") -> bool:
-        # self.log.info('Sensor checks existence of tasks in, %s', self.queue_name)
 
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,
