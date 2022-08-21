@@ -225,7 +225,7 @@ extensions for running Dataflow streaming jobs.
 Here is an example of running Dataflow SQL job with
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow_sql.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_sql_job]
