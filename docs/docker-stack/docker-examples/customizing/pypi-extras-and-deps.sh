@@ -27,12 +27,11 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
 export AIRFLOW_VERSION=2.3.3
-export DEBIAN_VERSION="bullseye"
 export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-${DEBIAN_VERSION}" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="oauth2client" \
