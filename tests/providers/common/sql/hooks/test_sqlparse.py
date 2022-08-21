@@ -24,16 +24,13 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
     "line,parsed_statements",
     [
         ('SELECT * FROM table', ['SELECT * FROM table']),
-        ('SELECT * FROM table;', ['SELECT * FROM table']),
-        ('SELECT * FROM table; # comment', ['SELECT * FROM table']),
-        ('SELECT * FROM table; # comment;', ['SELECT * FROM table']),
-        (' SELECT * FROM table ; # comment;', ['SELECT * FROM table']),
-        ('SELECT * FROM table;;;;;', ['SELECT * FROM table']),
-        ('SELECT * FROM table;;# comment;;;', ['SELECT * FROM table']),
-        ('SELECT * FROM table;;# comment;; ;', ['SELECT * FROM table']),
+        ('SELECT * FROM table;', ['SELECT * FROM table;']),
+        ('SELECT * FROM table; # comment', ['SELECT * FROM table;']),
+        ('SELECT * FROM table; # comment;', ['SELECT * FROM table;']),
+        (' SELECT * FROM table ; # comment;', ['SELECT * FROM table ;']),
         (
             'SELECT * FROM table; SELECT * FROM table2 # comment',
-            ['SELECT * FROM table', 'SELECT * FROM table2'],
+            ['SELECT * FROM table;', 'SELECT * FROM table2'],
         ),
     ],
 )
