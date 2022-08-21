@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
+from build.lib.airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -240,6 +241,63 @@ class RedshiftCreateClusterOperator(BaseOperator):
         )
         self.log.info("Created Redshift cluster %s", self.cluster_identifier)
         self.log.info(cluster)
+
+
+class RedshiftCreateClusterSnapshotOperator(BaseOperator):
+    """
+    Creates a manual snapshot of the specified cluster. The cluster must be in the available state
+
+    :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
+    :param cluster_identifier: The cluster identifier for which you want a snapshot
+    :param retention_period: The number of days that a manual snapshot is retained
+    :param wait_for_completion: Whether wait for cluster to be in ``available`` state
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    """
+
+    def __init__(
+        self,
+        *,
+        snapshot_identifier: str,
+        cluster_identifier: str,
+        retention_period: int = -1,
+        wait_for_completion: bool = False,
+        poll_interval: float = 5.0,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.snapshot_identifier = snapshot_identifier
+        self.cluster_identifier = cluster_identifier
+        self.retention_period = retention_period
+        self.wait_for_completion = wait_for_completion
+        self.poll_interval = poll_interval
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
+
+    def execute(self, context: Context) -> Any:
+        cluster_state = self.redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
+        if cluster_state != "available":
+            raise AirflowException(
+                f"Redshift cluster must be in available state."
+                f"Redshift cluster current state is {cluster_state}"
+            )
+
+        self.redshift_hook.create_cluster_snapshot(
+            cluster_identifier=self.cluster_identifier,
+            snapshot_identifier=self.snapshot_identifier,
+            retention_period=self.retention_period,
+        )
+
+        if self.wait_for_completion:
+            cluster_status: str = self.check_status()
+            while cluster_status != "available":
+                self.log.info(
+                    "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
+                )
+                time.sleep(self.poll_interval)
+                cluster_status = self.check_status()
+
+    def check_status(self) -> str:
+        return self.redshift_hook.cluster_status(self.cluster_identifier)
 
 
 class RedshiftResumeClusterOperator(BaseOperator):
