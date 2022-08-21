@@ -47,7 +47,7 @@ HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kuberne
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
-def create_context(task):
+def create_context(task, conf=None):
     dag = DAG(dag_id="dag")
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
@@ -55,6 +55,7 @@ def create_context(task):
         dag_id=dag.dag_id,
         execution_date=execution_date,
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+        conf=conf,
     )
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
@@ -62,6 +63,7 @@ def create_context(task):
     task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,
+        "dag_run": dag_run,
         "run_id": dag_run.run_id,
         "task": task,
         "ti": task_instance,
@@ -704,7 +706,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_env_vars_are_templatized(self):
         # WHEN
-        env_vars = '{"ENV1": "val{{n1}}", "ENV2": "val{{n1 + n1}}"}'
+        task_id = "task" + self.get_current_task_name()
+        conf = {
+            task_id: {
+                "foo1": "bar1",
+                "foo2": "bar2",
+            },
+        }
+        env_vars = f'{{{{ dag_run.conf["{task_id}"] }}}}'  # | propagate_run_id(task_instance)'
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -713,19 +722,19 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             env_vars=env_vars,
             labels={"foo": "bar"},
             name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
+            task_id=task_id,
             in_cluster=False,
             do_xcom_push=False,
         )
         # THEN
-        context = create_context(k)
+        context = create_context(k, conf=conf)
         context.update(n1=1)
         k = k.render_template_fields(context)
         k.pre_execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.build_pod_request_obj(context))
         assert actual_pod["spec"]["containers"][0]["env"] == [
-            {'name': 'ENV1', 'value': 'val1'},
-            {'name': 'ENV2', 'value': 'val2'},
+            {'name': 'foo1', 'value': 'bar1'},
+            {'name': 'foo2', 'value': 'bar2'},
         ]
 
     def test_pod_template_file_system(self):
