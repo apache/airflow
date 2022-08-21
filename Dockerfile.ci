@@ -31,39 +31,89 @@ FROM ${PYTHON_BASE_IMAGE} as scripts
 # make the PROD Dockerfile standalone
 ##############################################################################################
 
-# The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
-COPY <<"EOF" /determine_debian_version_specific_variables.sh
-function determine_debian_version_specific_variables() {
-    local color_red
-    color_red=$'\e[31m'
-    local color_reset
-    color_reset=$'\e[0m'
+# The content below is automatically copied from scripts/docker/install_os_dependencies.sh
+COPY <<"EOF" /install_os_dependencies.sh
+set -euo pipefail
 
-    local debian_version
-    debian_version=$(lsb_release -cs)
-    if [[ ${debian_version} == "buster" ]]; then
-        export DISTRO_LIBENCHANT="libenchant-dev"
-        export DISTRO_LIBGCC="libgcc-8-dev"
-        export DISTRO_SELINUX="python-selinux"
-        export DISTRO_LIBFFI="libffi6"
-        # Note missing man directories on debian-buster
-        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-        mkdir -pv /usr/share/man/man1
-        mkdir -pv /usr/share/man/man7
-    elif [[ ${debian_version} == "bullseye" ]]; then
-        export DISTRO_LIBENCHANT="libenchant-2-2"
-        export DISTRO_LIBGCC="libgcc-10-dev"
-        export DISTRO_SELINUX="python3-selinux"
-        export DISTRO_LIBFFI="libffi7"
-    else
-        echo
-        echo "${color_red}Unknown distro version ${debian_version}${color_reset}"
-        echo
-        exit 1
+if [[ "$#" != 1 ]]; then
+    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    exit 1
+fi
+
+if [[ "${1}" == "runtime" ]]; then
+    INSTALLATION_TYPE="RUNTIME"
+elif   [[ "${1}" == "dev" ]]; then
+    INSTALLATION_TYPE="dev"
+else
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    exit 1
+fi
+
+function get_dev_apt_deps() {
+    if [[ "${DEV_APT_DEPS=}" == "" ]]; then
+        DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+freetds-bin freetds-dev git gosu krb5-user ldap-utils libffi-dev \
+libkrb5-dev libldap2-dev libsasl2-2 libsasl2-dev libsasl2-modules \
+libssl-dev locales lsb-release openssh-client sasl2-bin \
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
+        export DEV_APT_DEPS
     fi
 }
 
-determine_debian_version_specific_variables
+function get_runtime_apt_deps() {
+    if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
+        RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
+curl dumb-init freetds-bin gosu krb5-user \
+ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
+lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
+        export RUNTIME_APT_DEPS
+    fi
+}
+
+function install_debian_dev_dependencies() {
+    apt-get update
+    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    # shellcheck disable=SC2086
+    export ${ADDITIONAL_DEV_APT_ENV?}
+    if [[ ${DEV_APT_COMMAND} != "" ]]; then
+        bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}"
+    fi
+    if [[ ${ADDITIONAL_DEV_APT_COMMAND} != "" ]]; then
+        bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}"
+    fi
+    apt-get update
+    # shellcheck disable=SC2086
+    apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+}
+
+function install_debian_runtime_dependencies() {
+    apt-get update
+    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    # shellcheck disable=SC2086
+    export ${ADDITIONAL_RUNTIME_APT_ENV?}
+    if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
+        bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}"
+    fi
+    if [[ "${ADDITIONAL_RUNTIME_APT_COMMAND}" != "" ]]; then
+        bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}"
+    fi
+    apt-get update
+    # shellcheck disable=SC2086
+    apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
+    apt-get autoremove -yqq --purge
+    apt-get clean
+    rm -rf /var/lib/apt/lists/* /var/log/*
+}
+
+if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
+    get_runtime_apt_deps
+    install_debian_runtime_dependencies
+else
+    get_dev_apt_deps
+    install_debian_dev_dependencies
+fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
@@ -138,8 +188,6 @@ set -euo pipefail
 
 COLOR_BLUE=$'\e[34m'
 readonly COLOR_BLUE
-COLOR_YELLOW=$'\e[33m'
-readonly COLOR_YELLOW
 COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
@@ -157,19 +205,8 @@ function install_mssql_client() {
     local distro
     local version
     distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-    version_name=$(lsb_release -cs | tr '[:upper:]' '[:lower:]')
     version=$(lsb_release -rs)
-    local driver
-    if [[ ${version_name} == "buster" ]]; then
-        driver=msodbcsql17
-    elif [[ ${version_name} == "bullseye" ]]; then
-        driver=msodbcsql18
-    else
-        echo
-        echo "${COLOR_YELLOW}Only Buster or Bullseye are supported. Skipping MSSQL installation${COLOR_RESET}"
-        echo
-        return
-    fi
+    local driver=msodbcsql18
     curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
     curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
         /etc/apt/sources.list.d/mssql-release.list
@@ -960,65 +997,40 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
 
 RUN echo "Base image version: ${PYTHON_BASE_IMAGE}"
 
-ARG ADDITIONAL_DEV_APT_DEPS=""
-ARG DEV_APT_COMMAND="\
-    curl --silent --fail https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - >/dev/null 2>&1 \
-    && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
+ARG ADDITIONAL_DEV_APT_DEPS="git graphviz gosu libpq-dev netcat rsync"
+ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_ENV_VARS=""
+ARG ADDITIONAL_DEV_APT_DEPS="bash-completion dumb-init git graphviz gosu krb5-user \
+less libenchant-2-2 libgcc-10-dev libpq-dev net-tools netcat \
+openssh-server postgresql-client software-properties-common rsync tmux unzip vim xxd"
+
+ARG ADDITIONAL_DEV_APT_ENV=""
 
 ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-COPY --from=scripts determine_debian_version_specific_variables.sh /scripts/docker/
+COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+RUN bash /scripts/docker/install_os_dependencies.sh dev
 
-# Install basic and additional apt dependencies
-RUN apt-get update \
-    && apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1 \
-    && apt-get install -y --no-install-recommends curl gnupg2 lsb-release \
-    && mkdir -pv /usr/share/man/man1 \
-    && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_DEV_ENV_VARS?} \
-    && source /scripts/docker/determine_debian_version_specific_variables.sh \
-    && bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}" \
-    && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}" \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-           apt-utils \
-           build-essential \
-           dirmngr \
-           dumb-init \
-           freetds-bin \
-           freetds-dev \
-           git \
-           graphviz \
-           gosu \
-           libffi-dev \
-           libldap2-dev \
-           libkrb5-dev \
-           libpq-dev \
-           libsasl2-2 \
-           libsasl2-dev \
-           libsasl2-modules \
-           libssl-dev \
-           "${DISTRO_LIBENCHANT}" \
-           locales  \
-           netcat \
-           rsync \
-           sasl2-bin \
-           sudo \
-           unixodbc \
-           unixodbc-dev \
-           yarn \
-           ${ADDITIONAL_DEV_APT_DEPS} \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ARG DOCKER_CLI_VERSION=20.10.9
+ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
+
+RUN  curl --silent "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+    |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+
+ARG HOME=/root
+ARG AIRFLOW_HOME=/root/airflow
+ARG AIRFLOW_SOURCES=/opt/airflow
+
+ENV HOME=${HOME} \
+    AIRFLOW_HOME=${AIRFLOW_HOME} \
+    AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
 
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
@@ -1034,26 +1046,6 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-ARG RUNTIME_APT_DEPS="\
-      apt-transport-https \
-      bash-completion \
-      ca-certificates \
-      software-properties-common \
-      krb5-user \
-      krb5-user \
-      ldap-utils \
-      less \
-      lsb-release \
-      net-tools \
-      openssh-client \
-      openssh-server \
-      postgresql-client \
-      sqlite3 \
-      tmux \
-      unzip \
-      vim \
-      xxd"
-
 # Install Helm
 ARG HELM_VERSION="v3.9.2"
 
@@ -1062,42 +1054,6 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-${PLATFORM}.tar.gz" \
     && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}-${PLATFORM}/helm" > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
-
-ARG ADDITIONAL_RUNTIME_APT_DEPS=""
-ARG RUNTIME_APT_COMMAND=""
-ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
-ARG ADDITIONAL_DEV_APT_ENV=""
-ARG ADDITIONAL_RUNTIME_APT_ENV=""
-
-ARG DOCKER_CLI_VERSION=19.03.9
-ARG HOME=/root
-ARG AIRFLOW_HOME=/root/airflow
-ARG AIRFLOW_SOURCES=/opt/airflow
-
-ENV RUNTIME_APT_DEP=${RUNTIME_APT_DEPS} \
-    ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
-    RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}  \
-    ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}\
-    DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION} \
-    HOME=${HOME} \
-    AIRFLOW_HOME=${AIRFLOW_HOME} \
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
-
-RUN export ${ADDITIONAL_DEV_APT_ENV?} \
-    && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
-    && source /scripts/docker/determine_debian_version_specific_variables.sh \
-    && bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}" \
-    && bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
-      "${DISTRO_LIBGCC}" \
-      ${RUNTIME_APT_DEPS} \
-      ${ADDITIONAL_RUNTIME_APT_DEPS} \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl --silent "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
-    |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
 WORKDIR ${AIRFLOW_SOURCES}
 
