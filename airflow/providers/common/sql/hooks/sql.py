@@ -232,6 +232,10 @@ class DbApiHook(BaseForDbApiHook):
                 return cur.fetchone()
 
     @staticmethod
+    def strip_sql_string(sql: str) -> str:
+        return sql.strip().rstrip(';')
+
+    @staticmethod
     def split_sql_string(sql: str) -> List[str]:
         """
         Splits string into multiple SQL expressions
