@@ -339,8 +339,6 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
-    export DEBIAN_VERSION=${DEBIAN_VERSION:="bullseye"}
-
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
         awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
@@ -613,7 +611,7 @@ function initialization::get_github_container_registry_image_prefix() {
 
 function initialization::get_docker_cache_image_names() {
     # Python base image to use
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-${DEBIAN_VERSION}"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-bullseye"
 
     local image_name
     image_name="ghcr.io/$(initialization::get_github_container_registry_image_prefix)"

@@ -14,7 +14,7 @@ ci:name:acfd600dd00e51cb9aee63a773ea796f
 ci:params:bc6b726d05240c22ac8522edc4a200ee
 ci:short_help:37a6259cc0c1dae299a7866489dff0bd
 ci-image:chain:68934a3e9455fa72420237eb05902327
-ci-image:commands:bd889b1fd072636faad779e495019a6c
+ci-image:commands:22c9e4ca0dd8d2fd84ecf9b1cc35bb2b
 ci-image:deprecated:68934a3e9455fa72420237eb05902327
 ci-image:epilog:37a6259cc0c1dae299a7866489dff0bd
 ci-image:help:c72b2b4bb402fe4168d23dacd879cf68
@@ -26,7 +26,7 @@ cleanup:9bf46a1dfd9db4fe13a1c233ad1bb96b
 compile-www-assets:23675c1862d0968cbff6ab6f1d93d488
 exec:89b81bc34d45b0fe6653a6db5482258c
 prod-image:chain:68934a3e9455fa72420237eb05902327
-prod-image:commands:9b60954b229d7c6720958fbf53c1d61e
+prod-image:commands:2c54e682cc87457d006e4f8f011c56d1
 prod-image:deprecated:68934a3e9455fa72420237eb05902327
 prod-image:epilog:37a6259cc0c1dae299a7866489dff0bd
 prod-image:help:57b6db594b341bc5d22a1195db4fbae9
@@ -52,7 +52,7 @@ setup:hidden:68934a3e9455fa72420237eb05902327
 setup:name:2e5fb4b1fd75f804556bdf9c033f9086
 setup:params:bc6b726d05240c22ac8522edc4a200ee
 setup:short_help:37a6259cc0c1dae299a7866489dff0bd
-shell:7baeb98c0103c594502ccf3d32ae24c6
+shell:1cefbacc29c6aff3c5fb2d1be2cd1950
 start-airflow:3e793b11dc2158c54bfc189bfe20d6f2
 static-checks:a86b25f9281c47abf362a221b316c7a2
 stop:8ebd8a42f1003495d37b884de5ac7ce6

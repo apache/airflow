@@ -41,7 +41,6 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_db_reset,
-    option_debian_version,
     option_dry_run,
     option_force_build,
     option_forward_credentials,
@@ -93,7 +92,6 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, C
 @option_python
 @option_platform_single
 @option_backend
-@option_debian_version
 @option_github_repository
 @option_postgres_version
 @option_mysql_version
@@ -121,7 +119,6 @@ def shell(
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
-    debian_version: str,
     forward_credentials: bool,
     mount_sources: str,
     use_packages_from_dist: bool,
@@ -161,7 +158,6 @@ def shell(
         db_reset=db_reset,
         extra_args=extra_args,
         answer=answer,
-        debian_version=debian_version,
         image_tag=image_tag,
         platform=platform,
     )
