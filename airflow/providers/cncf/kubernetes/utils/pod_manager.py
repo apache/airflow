@@ -354,6 +354,18 @@ class PodManager(LoggingMixin):
         except BaseHTTPError as e:
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
+    def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
+        self.log.info("Checking if xcom sidecar container is started.")
+        warned = False
+        while True:
+            if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+                self.log.info("The xcom sidecar container is started.")
+                break
+            if not warned:
+                self.log.warning("The xcom sidecar container is not yet started.")
+                warned = True
+            time.sleep(1)
+
     def extract_xcom(self, pod: V1Pod) -> str:
         """Retrieves XCom value and kills xcom sidecar container"""
         with closing(
