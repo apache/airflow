@@ -25,8 +25,8 @@ PythonOperator
 Use the ``@task`` decorator to execute Python callables.
 
 .. warning::
-    Previous versions of Airflow required using :class:`~airflow.operators.python.PythonOperator`
-    to execute Python callables. The ``@task`` decorater is now the recommended method.
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    to execute Python callables.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -67,8 +67,8 @@ Use the ``@task.virtualenv`` decorator to execute Python callables inside a new 
 The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
 
 .. warning::
-    Previous versions of Airflow required using the :class:`~airflow.operators.python.PythonVirtualenvOperator`.
-    The ``@task.virtualenv`` decorater is now the recommended method.
+    The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`
+    to execute Python callables inside new Python virtual environments.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
