@@ -83,7 +83,7 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
         assert schema == test_schema
         assert results == []
 
-        cur.execute.assert_has_calls([mock.call(q) for q in [query.rstrip(';')]])
+        cur.execute.assert_has_calls([mock.call(q) for q in [query]])
         cur.close.assert_called()
 
     def test_no_query(self):
