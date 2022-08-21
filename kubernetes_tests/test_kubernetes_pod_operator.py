@@ -22,7 +22,7 @@ import shutil
 import sys
 import textwrap
 import unittest
-from copy import copy
+from copy import copy, deepcopy
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -47,8 +47,8 @@ HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kuberne
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
-def create_context(task, conf=None):
-    dag = DAG(dag_id="dag")
+def create_context(task, conf=None, user_defined_filters=None):
+    dag = DAG(dag_id="dag", user_defined_filters=user_defined_filters)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(
@@ -704,16 +704,33 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ]
         assert self.expected_pod == actual_pod
 
+    @staticmethod
+    def propagate_run_id(conf, run_id):
+        """Jinja filter. Test DAG uses this via user_defined_filters."""
+        if run_id:
+            conf = deepcopy(conf)
+            # In a real DAG, this value might be provided by XCOM output of an
+            # upstream task.
+            conf["run_id"] = run_id
+        return conf
+
     def test_env_vars_are_templatized(self):
         # WHEN
         task_id = "task" + self.get_current_task_name()
         conf = {
             task_id: {
+                # These become environment variables passed to the pod. There
+                # could be *any number* of variables.
                 "foo1": "bar1",
                 "foo2": "bar2",
             },
         }
-        env_vars = f'{{{{ dag_run.conf["{task_id}"] }}}}'  # | propagate_run_id(task_instance)'
+
+        # Templated environment variables from two sources:
+        # - dag_run.conf: Arbitrary number of variables
+        # - Jinja filter propagate_run_id: Could add an arbitrary number of
+        #   additional variables. In this case, it's 0 or 1 variables.
+        env_vars = f'{{{{ dag_run.conf["{task_id}"] | propagate_run_id(run_id) }}}}'
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -727,14 +744,17 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        context = create_context(k, conf=conf)
+        context = create_context(
+            k, conf=conf, user_defined_filters={"propagate_run_id": self.propagate_run_id}
+        )
         context.update(n1=1)
-        k = k.render_template_fields(context)
+        k = k.render_template_fields(context, jinja_env=context["dag"].get_template_env())
         k.pre_execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.build_pod_request_obj(context))
         assert actual_pod["spec"]["containers"][0]["env"] == [
             {'name': 'foo1', 'value': 'bar1'},
             {'name': 'foo2', 'value': 'bar2'},
+            {'name': 'run_id', 'value': context["run_id"]},
         ]
 
     def test_pod_template_file_system(self):
