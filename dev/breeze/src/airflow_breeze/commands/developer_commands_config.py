@@ -71,7 +71,6 @@ DEVELOPER_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--force-build",
                 "--image-tag",
                 "--mount-sources",
-                "--debian-version",
             ],
         },
     ],

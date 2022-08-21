@@ -26,12 +26,11 @@ pushd "${TEMP_DOCKER_DIR}"
 cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
-export DEBIAN_VERSION="bullseye"
 export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/main.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --tag "my-github-main:0.0.1"

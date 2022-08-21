@@ -24,7 +24,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
-    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
@@ -59,7 +58,6 @@ class ShellParams:
     backend: str = ALLOWED_BACKENDS[0]
     ci: bool = False
     db_reset: bool = False
-    debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
     dry_run: bool = False
     extra_args: Tuple = ()
     force_build: bool = False
@@ -174,12 +172,7 @@ class ShellParams:
             get_console().print(f'[info]Airflow used at runtime: {self.use_airflow_version}[/]')
 
     def get_backend_compose_files(self, backend: str):
-        if backend == "mssql":
-            backend_docker_compose_file = (
-                f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}-{self.debian_version}.yml"
-            )
-        else:
-            backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}.yml"
+        backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}.yml"
         backend_port_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}-port.yml"
         return backend_docker_compose_file, backend_port_docker_compose_file
 

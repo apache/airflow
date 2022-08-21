@@ -55,14 +55,19 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
-
-Airflow 2.3
+Airflow 2.4
 ~~~~~~~~~~~
 
 * 2.4.0
 
   * You can specify additional ``pip install`` flags when you build the image via ``ADDITIONAL_PIP_INSTALL_FLAGS``
     build arg.
+  * Support for ``Debian Buster`` was dropped, including the possibility of building customized images as
+    ``Debian Buster`` reached end of life.
+
+
+Airflow 2.3
+~~~~~~~~~~~
 
 * 2.3.0
 
@@ -74,7 +79,8 @@ Airflow 2.3
     or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_
     and running ``docker buildx build`` command.
   * Add Python 3.10 support
-  * Add support for Bullseye Debian release (Debian Buster is deprecated)
+  * Switch to ``Debian Bullseye`` based images. ``Debian Buster`` is deprecated and only available for
+    customized image building.
   * Add Multi-Platform support (AMD64/ARM64) in order to accommodate MacOS M1 users
   * Build parameters which control if packages and Airflow should be installed from context file were
     unified

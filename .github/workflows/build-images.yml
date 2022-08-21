@@ -66,7 +66,6 @@ jobs:
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      debian-version: ${{ steps.selective-checks.outputs.debian-version }}
       target-commit-sha: "${{steps.discover-pr-merge-commit.outputs.target-commit-sha ||
           github.event.pull_request.head.sha ||
           github.sha
@@ -129,16 +128,13 @@ jobs:
           DEFAULTS_CONTENT = Path('dev/breeze/src/airflow_breeze/branch_defaults.py').read_text()
           BRANCH_PATTERN = r'^AIRFLOW_BRANCH = "(.*)"$'
           CONSTRAINTS_BRANCH_PATTERN = r'^DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "(.*)"$'
-          DEBIAN_VERSION_PATTERN = r'^DEBIAN_VERSION = "(.*)"$'
 
           branch = re.search(BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
           constraints_branch = re.search(CONSTRAINTS_BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
-          debian_version = re.search(DEBIAN_VERSION_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
 
           output = f"""
           DEFAULT_BRANCH={branch}
           DEFAULT_CONSTRAINTS_BRANCH={constraints_branch}
-          DEBIAN_VERSION={debian_version}
           """.strip()
 
           print(output)
@@ -177,7 +173,6 @@ jobs:
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
@@ -271,7 +266,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
       BACKEND: sqlite
     steps:
@@ -384,7 +378,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}

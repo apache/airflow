@@ -40,7 +40,6 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
-    option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
@@ -150,7 +149,6 @@ def prod_image():
 @option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform_multiple
-@option_debian_version
 @option_github_repository
 @option_github_token
 @option_github_username

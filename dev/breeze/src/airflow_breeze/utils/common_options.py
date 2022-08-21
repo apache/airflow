@@ -25,7 +25,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
-    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_INTEGRATIONS,
@@ -226,14 +225,6 @@ option_platform_single = click.option(
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(SINGLE_PLATFORMS),
-)
-option_debian_version = click.option(
-    '--debian-version',
-    help='Debian version used for the image.',
-    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
-    default=ALLOWED_DEBIAN_VERSIONS[0],
-    show_default=True,
-    envvar='DEBIAN_VERSION',
 )
 option_upgrade_to_newer_dependencies = click.option(
     "-u",

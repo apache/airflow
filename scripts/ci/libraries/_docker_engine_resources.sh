@@ -33,12 +33,12 @@ function docker_engine_resources::print_overall_stats() {
 }
 
 function docker_engine_resources::get_available_cpus_in_docker() {
-    CPUS_AVAILABLE_FOR_DOCKER=$(docker run --rm "debian:${DEBIAN_VERSION}-slim" grep -cE 'cpu[0-9]+' /proc/stat)
+    CPUS_AVAILABLE_FOR_DOCKER=$(docker run --rm "debian:bullseye-slim" grep -cE 'cpu[0-9]+' /proc/stat)
     export CPUS_AVAILABLE_FOR_DOCKER
 }
 
 function docker_engine_resources::get_available_memory_in_docker() {
-    MEMORY_AVAILABLE_FOR_DOCKER=$(docker run --rm  --entrypoint /bin/bash "debian:${DEBIAN_VERSION}-slim" -c 'echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE) / (1024 * 1024)))')
+    MEMORY_AVAILABLE_FOR_DOCKER=$(docker run --rm  --entrypoint /bin/bash "debian:bullseye-slim" -c 'echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE) / (1024 * 1024)))')
     export MEMORY_AVAILABLE_FOR_DOCKER
 }
 

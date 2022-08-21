@@ -133,7 +133,7 @@ function testing::setup_docker_compose_backend() {
     local TEST_TYPE
     TEST_TYPE="${1}"
     if [[ ${BACKEND} == "mssql" ]]; then
-        local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-${DEBIAN_VERSION}.yml")
+        local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
         local docker_filesystem
         docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")
         if [[ ${docker_filesystem} == "tmpfs" ]]; then

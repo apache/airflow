@@ -38,9 +38,13 @@ class BuildProdParams(CommonBuildParams):
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
+    additional_runtime_apt_command: str = ""
+    additional_runtime_apt_deps: str = ""
+    additional_runtime_apt_env: str = ""
     airflow_constraints_mode: str = "constraints"
     airflow_constraints_reference: str = ""
     cleanup_context: bool = False
+    airflow_extras: str = get_airflow_extras()
     disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
@@ -49,7 +53,8 @@ class BuildProdParams(CommonBuildParams):
     install_airflow_version: str = ""
     install_packages_from_context: bool = False
     installation_method: str = "."
-    airflow_extras: str = get_airflow_extras()
+    runtime_apt_command: str = ""
+    runtime_apt_deps: str = ""
 
     @property
     def airflow_version(self) -> str:
