@@ -278,7 +278,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
             self._await_status(
                 item_type,
                 self.target_db_snapshot_identifier,
-                wait_statuses=['copying'],
+                wait_statuses=['creating', 'copying'],
                 ok_statuses=['available'],
             )
         return copy_response
