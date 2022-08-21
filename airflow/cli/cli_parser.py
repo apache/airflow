@@ -1666,6 +1666,12 @@ ROLES_COMMANDS = (
         args=(ARG_ROLES, ARG_VERBOSE),
     ),
     ActionCommand(
+        name='delete',
+        help='Delete role',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_delete'),
+        args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name='export',
         help='Export roles (without permissions) from db to JSON file',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_export'),
