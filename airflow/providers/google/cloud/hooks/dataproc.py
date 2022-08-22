@@ -996,7 +996,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return ClusterControllerAsyncClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_template_client(self, region: Optional[str] = None) -> WorkflowTemplateServiceAsyncClient:
@@ -1006,7 +1006,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return WorkflowTemplateServiceAsyncClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_client(self, region: Optional[str] = None) -> JobControllerAsyncClient:
@@ -1016,7 +1016,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return JobControllerAsyncClient(
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
             client_options=client_options,
         )
@@ -1028,7 +1028,7 @@ class DataprocAsyncHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return BatchControllerAsyncClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
