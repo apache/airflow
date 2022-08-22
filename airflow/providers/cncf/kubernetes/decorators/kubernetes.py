@@ -54,6 +54,8 @@ def _read_file_contents(filename):
 
 
 class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
+    custom_operator_name = "@task.kubernetes"
+
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
 
     # since we won't mutate the arguments, we should just do the shallow copy
