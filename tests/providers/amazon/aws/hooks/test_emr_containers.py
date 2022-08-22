@@ -28,6 +28,8 @@ SUBMIT_JOB_SUCCESS_RETURN = {
     'virtualClusterId': 'vc1234',
 }
 
+CREATE_EMR_ON_EKS_CLUSTER_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}, 'id': 'vc1234'}
+
 JOB1_RUN_DESCRIPTION = {
     'jobRun': {
         'id': 'job123456',
@@ -52,6 +54,21 @@ class TestEmrContainerHook(unittest.TestCase):
     def test_init(self):
         assert self.emr_containers.aws_conn_id == 'aws_default'
         assert self.emr_containers.virtual_cluster_id == 'vc1234'
+
+    @mock.patch("boto3.session.Session")
+    def test_create_emr_on_eks_cluster(self, mock_session):
+        emr_client_mock = mock.MagicMock()
+        emr_client_mock.create_virtual_cluster.return_value = CREATE_EMR_ON_EKS_CLUSTER_RETURN
+        emr_session_mock = mock.MagicMock()
+        emr_session_mock.client.return_value = emr_client_mock
+        mock_session.return_value = emr_session_mock
+
+        emr_on_eks_create_cluster_response = self.emr_containers.create_emr_on_eks_cluster(
+            virtual_cluster_name="test_virtual_cluster",
+            eks_cluster_name="test_eks_cluster",
+            eks_namespace="test_eks_namespace",
+        )
+        assert emr_on_eks_create_cluster_response == "vc1234"
 
     @mock.patch("boto3.session.Session")
     def test_submit_job(self, mock_session):

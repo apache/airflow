@@ -24,13 +24,15 @@ import pytest
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
-from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
+from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     'ResponseMetadata': {'HTTPStatusCode': 200},
     'id': 'job123456',
     'virtualClusterId': 'vc1234',
 }
+
+CREATE_EMR_ON_EKS_CLUSTER_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}, 'id': 'vc1234'}
 
 GENERATED_UUID = '800647a9-adda-4237-94e6-f542c85fa55b'
 
@@ -137,3 +139,42 @@ class TestEmrContainerOperator(unittest.TestCase):
             assert mock_check_query_status.call_count == 3
             assert 'Final state of EMR Containers job is SUBMITTED' in str(ctx.value)
             assert 'Max tries of poll status exceeded' in str(ctx.value)
+
+
+class TestEmrEksCreateClusterOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.amazon.aws.hooks.emr.EmrContainerHook')
+    def setUp(self, emr_hook_mock):
+        configuration.load_test_config()
+
+        self.emr_hook_mock = emr_hook_mock
+        self.emr_container = EmrEksCreateClusterOperator(
+            task_id='start_cluster',
+            virtual_cluster_name="test_virtual_cluster",
+            eks_cluster_name="test_eks_cluster",
+            eks_namespace="test_eks_namespace",
+            tags={},
+        )
+
+    @mock.patch.object(EmrContainerHook, 'create_emr_on_eks_cluster')
+    def test_emr_on_eks_execute_without_failure(self, mock_create_emr_on_eks_cluster):
+        mock_create_emr_on_eks_cluster.return_value = "vc1234"
+
+        self.emr_container.execute(None)
+
+        mock_create_emr_on_eks_cluster.assert_called_once_with(
+            'test_virtual_cluster', 'test_eks_cluster', 'test_eks_namespace', {}
+        )
+        assert self.emr_container.virtual_cluster_name == 'test_virtual_cluster'
+
+    @mock.patch.object(EmrContainerHook, 'create_emr_on_eks_cluster')
+    def test_emr_on_eks_execute_with_failure(self, mock_create_emr_on_eks_cluster):
+        expected_exception_msg = (
+            "An error occurred (ValidationException) when calling the "
+            "CreateVirtualCluster "
+            "operation:"
+            "A virtual cluster already exists in the given namespace"
+        )
+        mock_create_emr_on_eks_cluster.side_effect = AirflowException(expected_exception_msg)
+        with pytest.raises(AirflowException) as ctx:
+            self.emr_container.execute(None)
+        assert expected_exception_msg in str(ctx.value)

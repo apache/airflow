@@ -20,10 +20,9 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
+from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
-VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
 JOB_ROLE_ARN = os.getenv("JOB_ROLE_ARN", "arn:aws:iam::012345678912:role/emr_eks_default_role")
 
 # [START howto_operator_emr_eks_config]
@@ -58,10 +57,19 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
+    # [START howto_operator_emr_eks_create_cluster]
+    create_emr_eks_cluster = EmrEksCreateClusterOperator(
+        task_id="create_emr_eks_cluster",
+        virtual_cluster_name="emr_eks_virtual_cluster",
+        eks_cluster_name="eks_cluster",
+        eks_namespace="eks_namespace",
+    )
+    # [END howto_operator_emr_eks_create_cluster]
+
     # [START howto_operator_emr_container]
     job_starter = EmrContainerOperator(
         task_id="start_job",
-        virtual_cluster_id=VIRTUAL_CLUSTER_ID,
+        virtual_cluster_id=str(create_emr_eks_cluster.output),
         execution_role_arn=JOB_ROLE_ARN,
         release_label="emr-6.3.0-latest",
         job_driver=JOB_DRIVER_ARG,
@@ -73,7 +81,9 @@ with DAG(
 
     # [START howto_sensor_emr_container]
     job_waiter = EmrContainerSensor(
-        task_id="job_waiter", virtual_cluster_id=VIRTUAL_CLUSTER_ID, job_id=str(job_starter.output)
+        task_id="job_waiter",
+        virtual_cluster_id=str(create_emr_eks_cluster.output),
+        job_id=str(job_starter.output),
     )
     # [END howto_sensor_emr_container]
 

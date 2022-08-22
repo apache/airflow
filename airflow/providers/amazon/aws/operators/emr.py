@@ -118,6 +118,62 @@ class EmrAddStepsOperator(BaseOperator):
             return response['StepIds']
 
 
+class EmrEksCreateClusterOperator(BaseOperator):
+    """
+    An operator that creates EMR on EKS virtual clusters.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrEksCreateClusterOperator`
+
+    :param virtual_cluster_name: The name of the EMR EKS virtual cluster to create.
+    :param eks_cluster_name: The EKS cluster used by the EMR virtual cluster.
+    :param eks_namespace: namespace used by the EKS cluster.
+    :param virtual_cluster_id: The EMR on EKS virtual cluster id.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param tags: The tags assigned to created cluster.
+        Defaults to None
+    """
+
+    template_fields: Sequence[str] = (
+        "virtual_cluster_name",
+        "eks_cluster_name",
+        "eks_namespace",
+    )
+    ui_color = "#f9c915"
+
+    def __init__(
+        self,
+        *,
+        virtual_cluster_name: str,
+        eks_cluster_name: str,
+        eks_namespace: str,
+        virtual_cluster_id: str = '',
+        aws_conn_id: str = "aws_default",
+        tags: Optional[dict] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.virtual_cluster_name = virtual_cluster_name
+        self.eks_cluster_name = eks_cluster_name
+        self.eks_namespace = eks_namespace
+        self.virtual_cluster_id = virtual_cluster_id
+        self.aws_conn_id = aws_conn_id
+        self.tags = tags
+
+    @cached_property
+    def hook(self) -> EmrContainerHook:
+        """Create and return an EmrContainerHook."""
+        return EmrContainerHook(self.aws_conn_id)
+
+    def execute(self, context: 'Context') -> Optional[str]:
+        """Create EMR on EKS virtual Cluster"""
+        self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
+            self.virtual_cluster_name, self.eks_cluster_name, self.eks_namespace, self.tags
+        )
+        return self.virtual_cluster_id
+
+
 class EmrContainerOperator(BaseOperator):
     """
     An operator that submits jobs to EMR on EKS virtual clusters.

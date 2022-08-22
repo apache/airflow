@@ -31,7 +31,32 @@ Prerequisite Tasks
 Operators
 ---------
 
+
+.. _howto/operator:EmrEksCreateClusterOperator:
+
+
+Create an Amazon EMR EKS virtual cluster
+========================================
+
+
+The ``EmrEksCreateClusterOperator`` will create an Amazon EMR on EKS virtual cluster.
+The example DAG below shows how to create an EMR on EKS virtual cluster.
+
+To create an Amazon EMR cluster on Amazon EKS, you need to specify a virtual cluster name,
+the eks cluster that you would like to use , and an eks namespace.
+
+Refer to the `EMR on EKS Development guide <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/virtual-cluster.html>`__
+for more details.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_eks.py
+    :language: python
+    :start-after: [START howto_operator_emr_eks_create_cluster]
+    :end-before: [END howto_operator_emr_eks_create_cluster]
+
+
+
 .. _howto/operator:EmrContainerOperator:
+
 
 Submit a job to an Amazon EMR virtual cluster
 =============================================
@@ -71,6 +96,7 @@ that gets passed to the operator with the ``aws_conn_id`` parameter. The operato
     :dedent: 4
     :start-after: [START howto_operator_emr_container]
     :end-before: [END howto_operator_emr_container]
+
 
 Sensors
 -------
