@@ -110,6 +110,9 @@ dependencies:
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
+  # Google bigtable client require protobuf <= 3.20.0. We can remove the limitation
+  # when this limitation is removed
+  - protobuf<=3.20.0
 
 integrations:
   - integration-name: Google Analytics360
