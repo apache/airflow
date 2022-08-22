@@ -2758,7 +2758,6 @@ class TestSchedulerJob:
         ignored_files = {
             'no_dags.py',
             'test_invalid_cron.py',
-            'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
             'test_invalid_param.py',
             'test_nested_dag.py',

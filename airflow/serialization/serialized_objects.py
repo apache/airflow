@@ -593,20 +593,17 @@ class DependencyDetector:
         return deps
 
     @staticmethod
-    def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
+    def detect_dag_dependencies(dag: Optional[DAG]) -> Iterable["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.dataset_triggers:
-            return [
-                DagDependency(
-                    source="dataset",
-                    target=dag.dag_id,
-                    dependency_type="dataset",
-                    dependency_id=x.uri,
-                )
-                for x in dag.dataset_triggers
-            ]
-        else:
-            return []
+        if not dag:
+            return
+        for x in dag.dataset_triggers:
+            yield DagDependency(
+                source="dataset",
+                target=dag.dag_id,
+                dependency_type="dataset",
+                dependency_id=x.uri,
+            )
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -1092,7 +1089,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for task in dag.task_dict.values()
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             }
-            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
