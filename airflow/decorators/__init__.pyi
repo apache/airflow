@@ -22,11 +22,14 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
 
+from kubernetes.client import models as k8s
+
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
+from airflow.kubernetes.secret import Secret
 from airflow.models.dag import dag
 
 # Please keep this in sync with __init__.py's __all__.
@@ -239,5 +242,120 @@ class TaskDecoratorCollection:
         :param cap_add: Include container capabilities
         """
         # [END decorator_signature]
+    def kubernetes(
+        self,
+        *,
+        image: str,
+        kubernetes_conn_id: str = ...,
+        namespace: str = "default",
+        name: str = ...,
+        random_name_suffix: bool = True,
+        ports: Optional[List[k8s.V1ContainerPort]] = None,
+        volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
+        volumes: Optional[List[k8s.V1Volume]] = None,
+        env_vars: Optional[List[k8s.V1EnvVar]] = None,
+        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
+        secrets: Optional[List[Secret]] = None,
+        in_cluster: Optional[bool] = None,
+        cluster_context: Optional[str] = None,
+        labels: Optional[Dict] = None,
+        reattach_on_restart: bool = True,
+        startup_timeout_seconds: int = 120,
+        get_logs: bool = True,
+        image_pull_policy: Optional[str] = None,
+        annotations: Optional[Dict] = None,
+        container_resources: Optional[k8s.V1ResourceRequirements] = None,
+        affinity: Optional[k8s.V1Affinity] = None,
+        config_file: str = ...,
+        node_selector: Optional[dict] = None,
+        image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
+        service_account_name: Optional[str] = None,
+        is_delete_operator_pod: bool = True,
+        hostnetwork: bool = False,
+        tolerations: Optional[List[k8s.V1Toleration]] = None,
+        security_context: Optional[Dict] = None,
+        dnspolicy: Optional[str] = None,
+        schedulername: Optional[str] = None,
+        init_containers: Optional[List[k8s.V1Container]] = None,
+        log_events_on_failure: bool = False,
+        do_xcom_push: bool = False,
+        pod_template_file: Optional[str] = None,
+        priority_class_name: Optional[str] = None,
+        pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
+        termination_grace_period: Optional[int] = None,
+        configmaps: Optional[List[str]] = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to convert a callable to a Kubernetes Pod task.
+
+        :param kubernetes_conn_id: The Kubernetes cluster's
+            :ref:`connection ID <howto/connection:kubernetes>`.
+        :param namespace: Namespace to run within Kubernetes. Defaults to *default*.
+        :param image: Docker image to launch. Defaults to *hub.docker.com*, but
+            a fully qualified URL will point to a custom repository. (templated)
+        :param name: Name of the pod to run. This will be used (plus a random
+            suffix if *random_name_suffix* is *True*) to generate a pod ID
+            (DNS-1123 subdomain, containing only ``[a-z0-9.-]``). Defaults to
+            ``k8s_airflow_pod_{RANDOM_UUID}``.
+        :param random_name_suffix: If *True*, will generate a random suffix.
+        :param ports: Ports for the launched pod.
+        :param volume_mounts: *volumeMounts* for the launched pod.
+        :param volumes: Volumes for the launched pod. Includes *ConfigMaps* and
+            *PersistentVolumes*.
+        :param env_vars: Environment variables initialized in the container.
+            (templated)
+        :param env_from: List of sources to populate environment variables in
+            the container.
+        :param secrets: Kubernetes secrets to inject in the container. They can
+            be exposed as environment variables or files in a volume.
+        :param in_cluster: Run kubernetes client with *in_cluster* configuration.
+        :param cluster_context: Context that points to the Kubernetes cluster.
+            Ignored when *in_cluster* is *True*. If *None*, current-context will
+            be used.
+        :param reattach_on_restart: If the worker dies while the pod is running,
+            reattach and monitor during the next try. If *False*, always create
+            a new pod for each try.
+        :param labels: Labels to apply to the pod. (templated)
+        :param startup_timeout_seconds: Timeout in seconds to startup the pod.
+        :param get_logs: Get the stdout of the container as logs of the tasks.
+        :param image_pull_policy: Specify a policy to cache or always pull an
+            image.
+        :param annotations: Non-identifying metadata you can attach to the pod.
+            Can be a large range of data, and can include characters that are
+            not permitted by labels.
+        :param container_resources: Resources for the launched pod.
+        :param affinity: Affinity scheduling rules for the launched pod.
+        :param config_file: The path to the Kubernetes config file. If not
+            specified, default value is ``~/.kube/config``. (templated)
+        :param node_selector: A dict containing a group of scheduling rules.
+        :param image_pull_secrets: Any image pull secrets to be given to the
+            pod. If more than one secret is required, provide a comma separated
+            list, e.g. ``secret_a,secret_b``.
+        :param service_account_name: Name of the service account.
+        :param is_delete_operator_pod: What to do when the pod reaches its final
+            state, or the execution is interrupted. If *True* (default), delete
+            the pod; otherwise leave the pod.
+        :param hostnetwork: If *True*, enable host networking on the pod.
+        :param tolerations: A list of Kubernetes tolerations.
+        :param security_context: Security options the pod should run with
+            (PodSecurityContext).
+        :param dnspolicy: DNS policy for the pod.
+        :param schedulername: Specify a scheduler name for the pod
+        :param init_containers: Init containers for the launched pod.
+        :param log_events_on_failure: Log the pod's events if a failure occurs.
+        :param do_xcom_push: If *True*, the content of
+            ``/airflow/xcom/return.json`` in the container will also be pushed
+            to an XCom when the container completes.
+        :param pod_template_file: Path to pod template file (templated)
+        :param priority_class_name: Priority class name for the launched pod.
+        :param pod_runtime_info_envs: A list of environment variables
+            to be set in the container.
+        :param termination_grace_period: Termination grace period if task killed
+            in UI, defaults to kubernetes default
+        :param configmaps: A list of names of config maps from which it collects
+            ConfigMaps to populate the environment variables with. The contents
+            of the target ConfigMap's Data field will represent the key-value
+            pairs as environment variables. Extends env_from.
+        """
 
 task: TaskDecoratorCollection
