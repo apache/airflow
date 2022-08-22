@@ -20,7 +20,7 @@
 import React, { useState, useEffect, RefObject } from 'react';
 import { Box, IconButton, Spinner } from '@chakra-ui/react';
 import { Zoom } from '@visx/zoom';
-import { MdOutlineZoomOutMap } from 'react-icons/md';
+import { MdOutlineZoomOutMap, MdFilterCenterFocus } from 'react-icons/md';
 import { debounce } from 'lodash';
 
 import { useDatasetDependencies } from 'src/api';
@@ -126,6 +126,17 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
                 title="Reset zoom"
                 aria-label="Reset zoom"
                 icon={<MdOutlineZoomOutMap />}
+              />
+              <IconButton
+                onClick={() => zoom.translateTo({
+                  x: (width - (data.width ?? 0)) / 2,
+                  y: (height - (data.height ?? 0)) / 2,
+                })}
+                fontSize="2xl"
+                m={2}
+                title="Center"
+                aria-label="Center"
+                icon={<MdFilterCenterFocus />}
               />
             </Box>
           </Box>
