@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-08-20T13:51:56Z
+# This constraints file was automatically generated on 2022-08-22T13:11:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -338,7 +338,7 @@ jsonpatch==1.32
 jsonpath-ng==1.5.3
 jsonpickle==2.2.0
 jsonpointer==2.3
-jsonschema==4.13.0
+jsonschema==4.14.0
 junit-xml==1.9
 jupyter-client==7.3.4
 jupyter-core==4.11.1
@@ -484,7 +484,7 @@ pytzdata==2020.1
 pywinrm==0.4.3
 pyzmq==23.2.1
 qds-sdk==1.16.1
-readme-renderer==36.0
+readme-renderer==37.0
 redis==3.5.3
 redshift-connector==2.0.908
 requests-file==1.5.1
@@ -566,7 +566,7 @@ traitlets==5.3.0
 trino==0.315.0
 twine==4.0.1
 types-Deprecated==1.2.9
-types-Markdown==3.4.0
+types-Markdown==3.4.1
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.11
 types-boto==2.49.17
@@ -580,7 +580,7 @@ types-protobuf==3.19.22
 types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
 types-pytz==2022.2.1.0
-types-redis==4.3.14
+types-redis==4.3.16
 types-requests==2.28.9
 types-setuptools==65.1.0
 types-six==1.16.18
@@ -611,7 +611,7 @@ yamllint==1.27.1
 yandexcloud==0.178.0
 yarl==1.8.1
 zeep==4.1.0
-zenpy==2.0.24
+zenpy==2.0.25
 zict==2.2.0
 zipp==3.8.1
 zope.event==4.5.0
