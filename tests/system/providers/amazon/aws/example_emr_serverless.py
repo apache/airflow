@@ -40,7 +40,6 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

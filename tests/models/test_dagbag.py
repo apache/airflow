@@ -21,9 +21,11 @@ import pathlib
 import shutil
 import sys
 import textwrap
+import zipfile
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
+from typing import Iterator
 from unittest import mock
 from unittest.mock import patch
 
@@ -56,14 +58,12 @@ def db_clean_up():
 
 
 class TestDagBag:
-    @classmethod
-    def setup_class(cls):
-        cls.empty_dir = mkdtemp()
+    def setup_class(self):
+        self.empty_dir = mkdtemp()
         db_clean_up()
 
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls.empty_dir)
+    def teardown_class(self):
+        shutil.rmtree(self.empty_dir)
         db_clean_up()
 
     def test_get_existing_dag(self):
@@ -257,18 +257,25 @@ class TestDagBag:
         ):
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
 
-    def test_process_file_cron_validity_check(self):
-        """
-        test if an invalid cron expression
-        as schedule interval can be identified
-        """
-        invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+    @pytest.fixture()
+    def invalid_cron_dag(self) -> str:
+        return os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
 
+    @pytest.fixture()
+    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> Iterator[str]:
+        zipped = os.path.join(tmp_path, "test_zip_invalid_cron.zip")
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.write(invalid_cron_dag, os.path.basename(invalid_cron_dag))
+        yield zipped
+        os.unlink(zipped)
+
+    @pytest.mark.parametrize("invalid_dag_name", ["invalid_cron_dag", "invalid_cron_zipped_dag"])
+    def test_process_file_cron_validity_check(self, request: pytest.FixtureRequest, invalid_dag_name: str):
+        """test if an invalid cron expression as schedule interval can be identified"""
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         assert len(dagbag.import_errors) == 0
-        for file in invalid_dag_files:
-            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
-        assert len(dagbag.import_errors) == len(invalid_dag_files)
+        dagbag.process_file(request.getfixturevalue(invalid_dag_name))
+        assert len(dagbag.import_errors) == 1
         assert len(dagbag.dags) == 0
 
     def test_process_file_invalid_param_check(self):

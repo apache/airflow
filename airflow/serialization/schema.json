@@ -118,14 +118,9 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
-        "dataset_triggers":{
-            "anyOf": [
-                { "type": "null" },
-                {
-                  "type": "array",
-                  "items": { "$ref": "#/definitions/typed_dataset" }
-                }
-            ]
+        "dataset_triggers": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/typed_dataset" }
         },
         "owner_links": { "type": "object" },
         "timetable": {
