@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import subprocess
 import sys
 from subprocess import DEVNULL
 from typing import Optional, Tuple
@@ -39,8 +38,7 @@ def verify_an_image(
         dry_run=dry_run,
         verbose=verbose,
         check=False,
-        stdout=DEVNULL,
-        stderr=output.file if output else None,
+        output=output,
     )
     if command_result.returncode != 0:
         get_console(output=output).print(
@@ -61,8 +59,7 @@ def verify_an_image(
         dry_run=dry_run,
         verbose=verbose,
         env=env,
-        stdout=output.file if output else None,
-        stderr=subprocess.STDOUT,
+        output=output,
         check=False,
     )
     return command_result.returncode, f"Testing {image_type} python {image_name}"
