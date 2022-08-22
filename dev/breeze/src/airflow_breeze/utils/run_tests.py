@@ -14,25 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
+import subprocess
 import sys
 from subprocess import DEVNULL
-from typing import Tuple
+from typing import Optional, Tuple
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
 
 def verify_an_image(
-    image_name: str, image_type: str, dry_run: bool, verbose: bool, slim_image: bool, extra_pytest_args: Tuple
+    image_name: str,
+    image_type: str,
+    output: Optional[Output],
+    dry_run: bool,
+    verbose: bool,
+    slim_image: bool,
+    extra_pytest_args: Tuple,
 ) -> Tuple[int, str]:
     command_result = run_command(
-        ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
+        ["docker", "inspect", image_name],
+        dry_run=dry_run,
+        verbose=verbose,
+        check=False,
+        stdout=DEVNULL,
+        stderr=output.file if output else None,
     )
     if command_result.returncode != 0:
-        get_console().print(
+        get_console(output=output).print(
             f"[error]Error when inspecting {image_type} image: {command_result.returncode}[/]"
         )
         return command_result.returncode, f"Testing {image_type} python {image_name}"
@@ -50,6 +61,8 @@ def verify_an_image(
         dry_run=dry_run,
         verbose=verbose,
         env=env,
+        stdout=output.file if output else None,
+        stderr=subprocess.STDOUT,
         check=False,
     )
     return command_result.returncode, f"Testing {image_type} python {image_name}"

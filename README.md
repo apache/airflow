@@ -327,14 +327,17 @@ The version of the base OS image is the stable version of Debian. Airflow suppor
 stable versions - as soon as all Airflow dependencies support building, and we set up the CI pipeline for
 building and testing the OS version. Approximately 6 months before the end-of-life of a previous stable
 version of the OS, Airflow switches the images released to use the latest supported version of the OS.
-For example since Debian Buster end-of-life is August 2022, Airflow switches the images in `main` branch
-to use Debian Bullseye in February/March 2022. The version will be used in the next MINOR release after
-the switch happens. In case of the Bullseye switch - 2.3.0 version will use Bullseye. The images released
-in the previous MINOR version continue to use the version that all other releases for the MINOR version
-used.
+For example since ``Debian Buster`` end-of-life was August 2022, Airflow switched the images in `main` branch
+to use ``Debian Bullseye`` in February/March 2022. The version was used in the next MINOR release after
+the switch happened. In case of the Bullseye switch - 2.3.0 version used ``Debian Bullseye``.
+The images released  in the previous MINOR version continue to use the version that all other releases
+for the MINOR version used.
+
+Support for ``Debian Buster`` image was dropped in August 2022 completely and everyone is expected to
+stop building their images using ``Debian Buster``.
 
 Users will continue to be able to build their images using stable Debian releases until the end of life and
-building and verifying of the images happens in our CI but no unit tests are executed using this image in
+building and verifying of the images happens in our CI but no unit tests were executed using this image in
 the `main` branch.
 
 ## Approach to dependencies of Airflow

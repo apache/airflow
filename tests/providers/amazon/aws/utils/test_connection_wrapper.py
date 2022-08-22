@@ -116,6 +116,26 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
 
+    @pytest.mark.parametrize("aws_access_key_id", ["mock-aws-access-key-id"])
+    @pytest.mark.parametrize("aws_secret_access_key", ["mock-aws-secret-access-key"])
+    @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
+    def test_get_credentials_from_session_kwargs(
+        self, aws_access_key_id, aws_secret_access_key, aws_session_token
+    ):
+        mock_conn_extra = {
+            "session_kwargs": {
+                "aws_access_key_id": aws_access_key_id,
+                "aws_secret_access_key": aws_secret_access_key,
+                "aws_session_token": aws_session_token,
+            },
+        }
+        mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
+
+        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        assert wrap_conn.aws_access_key_id == aws_access_key_id
+        assert wrap_conn.aws_secret_access_key == aws_secret_access_key
+        assert wrap_conn.aws_session_token == aws_session_token
+
     # This function never tested and mark as deprecated. Only test expected output
     @mock.patch("airflow.providers.amazon.aws.utils.connection_wrapper._parse_s3_config")
     @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
@@ -140,6 +160,79 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
 
+    @pytest.mark.parametrize("aws_access_key_id", [None, "mock-aws-access-key-id"])
+    @pytest.mark.parametrize("aws_secret_access_key", [None, "mock-aws-secret-access-key"])
+    @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
+    @pytest.mark.parametrize("profile_name", [None, "mock-profile"])
+    @pytest.mark.parametrize("region_name", [None, "mock-region-name"])
+    def test_get_session_kwargs_from_wrapper(
+        self, aws_access_key_id, aws_secret_access_key, aws_session_token, profile_name, region_name
+    ):
+        mock_conn_extra = {
+            "aws_access_key_id": aws_access_key_id,
+            "aws_secret_access_key": aws_secret_access_key,
+            "aws_session_token": aws_session_token,
+            "profile_name": profile_name,
+            "region_name": region_name,
+        }
+        mock_conn = mock_connection_factory(extra=mock_conn_extra)
+        expected = {}
+        if aws_access_key_id:
+            expected["aws_access_key_id"] = aws_access_key_id
+        if aws_secret_access_key:
+            expected["aws_secret_access_key"] = aws_secret_access_key
+        if aws_session_token:
+            expected["aws_session_token"] = aws_session_token
+        if profile_name:
+            expected["profile_name"] = profile_name
+        if region_name:
+            expected["region_name"] = region_name
+        with pytest.warns(None):
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        session_kwargs = wrap_conn.session_kwargs
+        assert session_kwargs == expected
+
+        # Test that session parameters immutable
+        session_kwargs["botocore_session"] = "foo.bar"
+        assert wrap_conn.session_kwargs == expected
+        assert wrap_conn.session_kwargs != session_kwargs
+
+    @pytest.mark.parametrize("aws_access_key_id", [None, "mock-aws-access-key-id"])
+    @pytest.mark.parametrize("aws_secret_access_key", [None, "mock-aws-secret-access-key"])
+    @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
+    @pytest.mark.parametrize("profile_name", [None, "mock-profile"])
+    @pytest.mark.parametrize("region_name", [None, "mock-region-name"])
+    def test_get_session_kwargs_deprecation(
+        self, aws_access_key_id, aws_secret_access_key, aws_session_token, profile_name, region_name
+    ):
+        mock_conn_extra_session_kwargs = {
+            "aws_access_key_id": aws_access_key_id,
+            "aws_secret_access_key": aws_secret_access_key,
+            "aws_session_token": aws_session_token,
+            "profile_name": profile_name,
+            "region_name": region_name,
+        }
+        mock_conn = mock_connection_factory(extra={"session_kwargs": mock_conn_extra_session_kwargs})
+        expected = {}
+        if aws_access_key_id and aws_secret_access_key:
+            expected["aws_access_key_id"] = aws_access_key_id
+            expected["aws_secret_access_key"] = aws_secret_access_key
+        if aws_session_token:
+            expected["aws_session_token"] = aws_session_token
+        if profile_name:
+            expected["profile_name"] = profile_name
+        if region_name:
+            expected["region_name"] = region_name
+
+        warning_message = (
+            r"'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
+            r"Please specify arguments passed to boto3 Session directly in .* extra."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        session_kwargs = wrap_conn.session_kwargs
+        assert session_kwargs == expected
+
     @pytest.mark.parametrize(
         "region_name,conn_region_name",
         [
@@ -158,15 +251,6 @@ class TestAwsConnectionWrapper:
             assert wrap_conn.region_name == region_name, "Expected provided region_name"
         else:
             assert wrap_conn.region_name == conn_region_name, "Expected connection region_name"
-
-    @pytest.mark.parametrize("session_kwargs", [None, {"profile_name": "mock-profile"}])
-    def test_get_session_kwargs(self, session_kwargs):
-        mock_conn = mock_connection_factory(
-            extra={"session_kwargs": session_kwargs} if session_kwargs else None
-        )
-        expected = session_kwargs or {}
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-        assert wrap_conn.session_kwargs == expected
 
     def test_warn_wrong_profile_param_used(self):
         mock_conn = mock_connection_factory(extra={"profile": "mock-profile"})
@@ -381,3 +465,20 @@ class TestAwsConnectionWrapper:
             AwsConnectionWrapper(conn=mock_conn)
 
             assert str(record[0].message) == expected_deprecation_message
+
+    @pytest.mark.parametrize("conn_id", [None, "mock-conn-id"])
+    @pytest.mark.parametrize("profile_name", [None, "mock-profile"])
+    @pytest.mark.parametrize("role_arn", [None, MOCK_ROLE_ARN])
+    def test_get_wrapper_from_metadata(self, conn_id, profile_name, role_arn):
+        mock_conn = mock_connection_factory(
+            conn_id=conn_id,
+            extra={
+                "role_arn": role_arn,
+                "profile_name": profile_name,
+            },
+        )
+        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        assert wrap_conn
+        assert wrap_conn.conn_id == conn_id
+        assert wrap_conn.role_arn == role_arn
+        assert wrap_conn.profile_name == profile_name

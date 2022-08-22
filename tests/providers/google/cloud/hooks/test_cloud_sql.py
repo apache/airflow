@@ -45,7 +45,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             self.cloudsql_hook = CloudSQLHook(api_version='v1', gcp_conn_id='test')
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     def test_instance_import_exception(self, mock_get_credentials):
@@ -59,7 +59,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     def test_instance_export_exception(self, mock_get_credentials):
@@ -73,7 +73,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -93,7 +93,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -140,7 +140,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -159,7 +159,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -179,7 +179,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -213,7 +213,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -247,7 +247,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -267,7 +267,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -287,7 +287,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -321,7 +321,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -342,7 +342,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -362,7 +362,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -396,7 +396,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -418,7 +418,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -452,7 +452,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
@@ -474,7 +474,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+        'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id',
         return_value=(mock.MagicMock(), 'example-project'),
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
