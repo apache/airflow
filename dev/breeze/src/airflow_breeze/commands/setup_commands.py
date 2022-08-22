@@ -276,8 +276,9 @@ def command_hash_export(verbose: bool, output: IO):
         for command in sorted(commands_dict.keys()):
             current_command_dict = commands_dict[command]
             if 'commands' in current_command_dict:
-                for subcommand in sorted(current_command_dict.keys()):
-                    output.write(f"{command}:{subcommand}:{dict_hash(current_command_dict[subcommand])}\n")
+                subcommands = current_command_dict['commands']
+                for subcommand in sorted(subcommands.keys()):
+                    output.write(f"{command}:{subcommand}:{dict_hash(subcommands[subcommand])}\n")
             else:
                 output.write(f"{command}:{dict_hash(current_command_dict)}\n")
 
