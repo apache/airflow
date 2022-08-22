@@ -144,7 +144,7 @@ class BaseDatabricksHook(BaseHook):
         python_version = platform.python_version()
         system = platform.system().lower()
         ua_string = (
-            f"databricks-aiflow/{version} _/0.0.0 python/{python_version} os/{system} "
+            f"databricks-airflow/{version} _/0.0.0 python/{python_version} os/{system} "
             f"airflow/{__version__} operator/{self.caller}"
         )
         return ua_string
