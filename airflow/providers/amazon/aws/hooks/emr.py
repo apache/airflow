@@ -197,6 +197,32 @@ class EmrContainerHook(AwsBaseHook):
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 
+    def create_emr_on_eks_cluster(
+        self,
+        virtual_cluster_name: str,
+        eks_cluster_name: str,
+        eks_namespace: str,
+        tags: Optional[dict] = None,
+    ) -> str:
+        response = self.conn.create_virtual_cluster(
+            name=virtual_cluster_name,
+            containerProvider={
+                "id": eks_cluster_name,
+                "type": "EKS",
+                "info": {"eksInfo": {"namespace": eks_namespace}},
+            },
+            tags=tags or {},
+        )
+
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise AirflowException(f'Create EMR EKS Cluster failed: {response}')
+        else:
+            self.log.info(
+                "Create EMR EKS Cluster success - virtual cluster id %s",
+                response['id'],
+            )
+            return response['id']
+
     def submit_job(
         self,
         name: str,
