@@ -374,7 +374,7 @@ class KubernetesPodOperator(BaseOperator):
         num_pods = len(pod_list)
         if num_pods > 1:
             raise AirflowException(f'More than one pod running with labels {label_selector}')
-        elif num_pods == 1:
+        elif num_pods == 1 and pod.metadata.name == self.name:
             pod = pod_list[0]
             self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
             self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
