@@ -1507,7 +1507,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the worker pods.",
+                    "description": "Labels to add to the worker objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {

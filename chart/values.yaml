@@ -702,7 +702,7 @@ scheduler:
 
   podAnnotations: {}
 
-  # Label Specific to scheduler app
+  # Labels specific to scheduler objects and pods
   labels: {}
 
   logGroomerSidecar:
