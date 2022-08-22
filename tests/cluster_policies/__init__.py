@@ -89,8 +89,8 @@ class TimedOperator(BaseOperator, ABC):
 def task_policy(task: TimedOperator):
     if task.task_type == 'HivePartitionSensor':
         task.queue = "sensor_queue"
-    if task.timeout > timedelta(hours=48):
-        task.timeout = timedelta(hours=48)
+    if task.execution_timeout > timedelta(hours=48):
+        task.execution_timeout = timedelta(hours=48)
 
 
 # [END example_task_cluster_policy]
