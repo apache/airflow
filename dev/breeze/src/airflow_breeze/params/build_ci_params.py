@@ -90,8 +90,12 @@ class BuildCiParams(CommonBuildParams):
             "additional_runtime_apt_env",
             "dev_apt_command",
             "dev_apt_deps",
-            "runtime_apt_command",
-            "runtime_apt_deps",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_airflow_extras",
+            "additional_pip_install_flags",
+            "additional_python_deps",
         ]
 
     def __post_init__(self):
