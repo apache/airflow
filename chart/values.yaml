@@ -586,7 +586,7 @@ workers:
 
   podAnnotations: {}
 
-  # Labels specific to workers
+  # Labels specific to workers objects and pods
   labels: {}
 
   logGroomerSidecar:
@@ -760,7 +760,7 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
-  # Labels specific to createUserJob
+  # Labels specific to createUserJob objects and pods
   labels: {}
 
   # When not set, the values defined in the global securityContext will be used
@@ -1106,7 +1106,7 @@ triggerer:
 
   podAnnotations: {}
 
-  # Labels specific to triggerer app
+  # Labels specific to triggerer objects and pods
   labels: {}
 
   waitForMigrations:
@@ -1306,7 +1306,7 @@ flower:
 
   podAnnotations: {}
 
-  # Labels specific to flower app
+  # Labels specific to flower objects and pods
   labels: {}
   env: []
 
@@ -1602,7 +1602,7 @@ cleanup:
 
   podAnnotations: {}
 
-  # Labels specific to cleanup
+  # Labels specific to cleanup objects and pods
   labels: {}
 
   resources: {}

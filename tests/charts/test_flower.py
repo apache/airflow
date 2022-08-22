@@ -265,7 +265,7 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
-     def test_should_add_extraEnvs(self):
+    def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
                 "flower": {
@@ -280,7 +280,7 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
-     def test_should_add_component_specific_labels(self):
+    def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
                 "flower": {

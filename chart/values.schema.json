@@ -1893,7 +1893,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the scheduler pods.",
+                    "description": "Labels to add to the scheduler objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2269,7 +2269,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the triggerer pods.",
+                    "description": "Labels to add to the triggerer objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2716,7 +2716,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the create user job pod.",
+                    "description": "Labels to add to the create user job objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3518,7 +3518,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the webserver pods.",
+                    "description": "Labels to add to the webserver objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3897,7 +3897,7 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the Flower pods.",
+                    "description": "Labels to add to the flower objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
