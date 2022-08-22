@@ -265,6 +265,21 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                }
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
 
 class TestFlowerService:
     @pytest.mark.parametrize(
