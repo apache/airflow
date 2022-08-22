@@ -164,9 +164,7 @@ def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run
         shell_params.airflow_image_name_with_tag,
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
-    run_command(
-        cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False, enabled_output_group=True
-    )
+    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
     # Always succeed
     sys.exit(0)
 

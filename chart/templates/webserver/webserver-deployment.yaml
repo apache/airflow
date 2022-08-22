@@ -139,6 +139,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.webserver.waitForMigrations.env }}
+{{ tpl (toYaml .Values.webserver.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
@@ -227,6 +230,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.webserver.env) | indent 10 }}
 {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
 {{- include "git_sync_container" . | indent 8 }}
 {{- end }}

@@ -64,7 +64,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
@@ -225,7 +225,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
             labels=labels,
             project=project_id,
             location=region,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             encryption_spec_key_name=encryption_spec_key_name,
             sync=sync,
         )

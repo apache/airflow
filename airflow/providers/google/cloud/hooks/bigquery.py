@@ -136,7 +136,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             client_info=CLIENT_INFO,
             project=project_id,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
         )
 
     def get_uri(self) -> str:
@@ -247,7 +247,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
-        credentials, project_id = self._get_credentials_and_project_id()
+        credentials, project_id = self.get_credentials_and_project_id()
 
         return read_gbq(
             sql, project_id=project_id, dialect=dialect, verbose=False, credentials=credentials, **kwargs

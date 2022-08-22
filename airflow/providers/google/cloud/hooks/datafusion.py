@@ -143,7 +143,7 @@ class DataFusionHook(GoogleBaseHook):
         headers: Dict[str, str] = {"Content-Type": "application/json"}
         request = google.auth.transport.requests.Request()
 
-        credentials = self._get_credentials()
+        credentials = self.get_credentials()
         credentials.before_request(request=request, method=method, url=url, headers=headers)
 
         payload = json.dumps(body) if body else None

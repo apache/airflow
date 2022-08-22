@@ -350,7 +350,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
         SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
-        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table)
+        FROM (SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table) AS sq
     """
 
     def __init__(
@@ -382,20 +382,20 @@ class SQLTableCheckOperator(BaseSQLOperator):
             ]
         )
         partition_clause_statement = f"WHERE {self.partition_clause}" if self.partition_clause else ""
-        self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) "
-        f"AS check_table {partition_clause_statement};"
+        self.sql = f"""
+            SELECT check_name, check_result FROM ({checks_sql})
+            AS check_table {partition_clause_statement}
+        """
 
-        records = hook.get_pandas_df(self.sql)
+        records = hook.get_records(self.sql)
 
-        if records.empty:
+        if not records:
             raise AirflowException(f"The following query returned zero rows: {self.sql}")
 
-        records.columns = records.columns.str.lower()
         self.log.info("Record:\n%s", records)
 
-        for row in records.iterrows():
-            check = row[1].get("check_name")
-            result = row[1].get("check_result")
+        for row in records:
+            check, result = row
             self.checks[check]["success"] = parse_boolean(str(result))
 
         failed_tests = _get_failed_checks(self.checks)

@@ -46,6 +46,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import (
@@ -1640,7 +1641,7 @@ class TestBackfillJob:
             assert ti.end_date is not None
 
     def test_mapped_dag_pre_existing_tis(self, dag_maker, session):
-        """If the DagRun already some mapped TIs, ensure that we re-run them successfully"""
+        """If the DagRun already has some mapped TIs, ensure that we re-run them successfully"""
         from airflow.decorators import task
         from airflow.operators.python import PythonOperator
 
@@ -1729,3 +1730,34 @@ class TestBackfillJob:
                 dag_id=dr.dag_id, task_id='make_arg_lists', run_id='test', try_number=1, map_index=-1
             ),
         }
+
+    def test_mapped_dag_unexpandable(self, dag_maker, session):
+        with dag_maker(session=session) as dag:
+
+            @dag.task
+            def get_things():
+                return [1, 2]
+
+            @dag.task
+            def this_fails() -> None:
+                raise RuntimeError("sorry!")
+
+            @dag.task(trigger_rule=TriggerRule.ALL_DONE)
+            def consumer(a, b):
+                print(a, b)
+
+            consumer.expand(a=get_things(), b=this_fails())
+
+        executor = MockExecutor()
+        when = timezone.datetime(2022, 1, 1)
+        BackfillJob(dag=dag, start_date=when, end_date=when, donot_pickle=True, executor=executor).run()
+
+        (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)
+        assert dr.state == DagRunState.FAILED
+
+        # Check that every task has a start and end date
+        tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+        assert len(tis) == 3
+        tis[("get_things", -1)].state == TaskInstanceState.SUCCESS
+        tis[("this_fails", -1)].state == TaskInstanceState.FAILED
+        tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED

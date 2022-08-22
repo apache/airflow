@@ -45,6 +45,8 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
+    custom_operator_name: str = "@task.branch"
+
     def __init__(
         self,
         **kwargs,

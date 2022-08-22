@@ -214,6 +214,11 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
 
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
+
         op = MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
@@ -230,6 +235,7 @@ class OperatorPartial:
             is_empty=issubclass(self.operator_class, EmptyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,
@@ -279,6 +285,7 @@ class MappedOperator(AbstractOperator):
     _is_empty: bool
     _task_module: str
     _task_type: str
+    _operator_name: str
 
     dag: Optional["DAG"]
     task_group: Optional["TaskGroup"]
@@ -377,6 +384,10 @@ class MappedOperator(AbstractOperator):
     def task_type(self) -> str:
         """Implementing Operator."""
         return self._task_type
+
+    @property
+    def operator_name(self) -> str:
+        return self._operator_name
 
     @property
     def inherits_from_empty_operator(self) -> bool:
@@ -494,13 +505,21 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
-    @property
-    def inlets(self) -> Optional[Any]:
+    @property  # type: ignore[override]
+    def inlets(self) -> Optional[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("inlets", None)
 
-    @property
-    def outlets(self) -> Optional[Any]:
+    @inlets.setter
+    def inlets(self, value):  # type: ignore[override]
+        self.partial_kwargs["inlets"] = value
+
+    @property  # type: ignore[override]
+    def outlets(self) -> Optional[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("outlets", None)
+
+    @outlets.setter
+    def outlets(self, value):  # type: ignore[override]
+        self.partial_kwargs["outlets"] = value
 
     @property
     def doc(self) -> Optional[str]:
@@ -623,7 +642,17 @@ class MappedOperator(AbstractOperator):
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import task_instance_mutation_hook
 
-        total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        total_length: Optional[int]
+        try:
+            total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        except NotFullyPopulated as e:
+            self.log.info(
+                "Cannot expand %r for run %s; missing upstream values: %s",
+                self,
+                run_id,
+                sorted(e.missing),
+            )
+            total_length = None
 
         state: Optional[TaskInstanceState] = None
         unmapped_ti: Optional[TaskInstance] = (
@@ -643,23 +672,32 @@ class MappedOperator(AbstractOperator):
         if unmapped_ti:
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
-            if total_length < 1:
-                # If the upstream maps this to a zero-length value, simply marked the
-                # unmapped task instance as SKIPPED (if needed).
+            if total_length is None:
+                # If the map length cannot be calculated (due to unavailable
+                # upstream sources), fail the unmapped task.
+                unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+                indexes_to_map: Iterable[int] = ()
+            elif total_length < 1:
+                # If the upstream maps this to a zero-length value, simply mark
+                # the unmapped task instance as SKIPPED (if needed).
                 self.log.info(
                     "Marking %s as SKIPPED since the map has %d values to expand",
                     unmapped_ti,
                     total_length,
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
+                indexes_to_map = ()
             else:
                 # Otherwise convert this into the first mapped index, and create
                 # TaskInstance for other indexes.
                 unmapped_ti.map_index = 0
                 self.log.debug("Updated in place to become %s", unmapped_ti)
                 all_expanded_tis.append(unmapped_ti)
+                indexes_to_map = range(1, total_length)
             state = unmapped_ti.state
-            indexes_to_map = range(1, total_length)
+        elif not total_length:
+            # Nothing to fixup.
+            indexes_to_map = ()
         else:
             # Only create "missing" ones.
             current_max_mapping = (
@@ -682,17 +720,21 @@ class MappedOperator(AbstractOperator):
             ti.refresh_from_task(self)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
+        # Coerce the None case to 0 -- these two are almost treated identically,
+        # except the unmapped ti (if exists) is marked to different states.
+        total_expanded_ti_count = total_length or 0
+
         # Set to "REMOVED" any (old) TaskInstances with map indices greater
         # than the current map value
         session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == run_id,
-            TaskInstance.map_index >= total_length,
+            TaskInstance.map_index >= total_expanded_ti_count,
         ).update({TaskInstance.state: TaskInstanceState.REMOVED})
 
         session.flush()
-        return all_expanded_tis, total_length
+        return all_expanded_tis, total_expanded_ti_count - 1
 
     def prepare_for_execution(self) -> "MappedOperator":
         # Since a mapped operator cannot be used for execution, and an unmapped
@@ -730,10 +772,11 @@ class MappedOperator(AbstractOperator):
             return None
 
     def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Since the mapped kwargs are already resolved during unmapping,
-        # they must be removed from the list of templated fields to avoid
-        # being rendered again (which breaks escaping).
-        return set(self.template_fields).difference(expanded)
+        # Mapped kwargs from XCom are already resolved during unmapping, so they
+        # must be removed from the list of templated fields to avoid being
+        # rendered again.
+        unexpanded_keys = {k for k, _ in self._get_specified_expand_input().iter_parse_time_resolved_kwargs()}
+        return set(self.template_fields).difference(k for k in expanded if k not in unexpanded_keys)
 
     def render_template_fields(
         self,
