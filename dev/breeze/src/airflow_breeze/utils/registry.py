@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import subprocess
 from typing import Optional, Tuple
 
 from airflow_breeze.params.common_build_params import CommonBuildParams
@@ -44,8 +43,7 @@ def login_to_github_docker_registry(
                 ['docker', 'logout', 'ghcr.io'],
                 dry_run=dry_run,
                 verbose=verbose,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
                 text=False,
                 check=False,
             )
@@ -59,8 +57,7 @@ def login_to_github_docker_registry(
                     'ghcr.io',
                 ],
                 verbose=verbose,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
                 text=True,
                 input=image_params.github_token,
                 check=False,

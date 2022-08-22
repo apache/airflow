@@ -17,11 +17,10 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
-import subprocess
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
+from subprocess import CalledProcessError, CompletedProcess
 from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
@@ -207,8 +206,7 @@ def check_docker_is_running(verbose: bool):
         verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
-        stdout=DEVNULL,
-        stderr=STDOUT,
+        capture_output=True,
         check=False,
     )
     if response.returncode != 0:
@@ -519,8 +517,7 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
-            stdout=output.file if output else None,
-            stderr=subprocess.STDOUT,
+            output=output,
             check=False,
             text=True,
         )
