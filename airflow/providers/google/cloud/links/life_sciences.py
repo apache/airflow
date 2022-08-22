@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
@@ -37,7 +37,7 @@ class LifeSciencesLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance,
-        project_id: Optional[str],
+        project_id: str,
     ):
         task_instance.xcom_push(
             context=context,

@@ -124,7 +124,7 @@ with models.DAG(
         # TEST BODY
         simple_life_science_action_pipeline,
         multiple_life_science_action_pipeline,
-        # # TEST TEARDOWN
+        # TEST TEARDOWN
         delete_bucket,
     )
 
