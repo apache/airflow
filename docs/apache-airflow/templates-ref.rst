@@ -26,12 +26,29 @@ The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`/plugins`, or at a DAG level through the
 ``DAG.user_defined_macros`` argument.
 
+.. _templates:basics:
+
+Note on Scheduling Basics
+-------------------------
+
+Airflow schedules tasks at the **end** of the interval (see :doc:`/scheduler`).
+
+Meaning that when you do:
+ | start_date: datetime(2018, 1, 1, 8, 0,0)
+ | schedule_interval: '0 8 * * *'
+ 
+The first run will kick in at ``2018-01-02 at 08:00+-`` (depends on resources) - but ds and ds_nodash will 
+contain ``2018-01-01``/``20180101`` as **logical** start date. That is **yesterday** from the point of view
+of the actual execution day.
+
+(Elad Kalif/Peter Mortensen: https://stackoverflow.com/a/65196624)
+
 .. _templates:variables:
 
 Variables
 ---------
 The Airflow engine passes a few variables by default that are accessible
-in all templates
+in all templates:
 
 ==========================================  ====================================
 Variable                                    Description
@@ -40,7 +57,9 @@ Variable                                    Description
 ``{{ data_interval_end }}``                 End of the data interval (`pendulum.DateTime`_).
 ``{{ ds }}``                                The DAG run's logical date as ``YYYY-MM-DD``.
                                             Same as ``{{ dag_run.logical_date | ds }}``.
+                                            Example: ``2018-01-01``.
 ``{{ ds_nodash }}``                         Same as ``{{ dag_run.logical_date | ds_nodash }}``.
+                                            Example: ``20180101``.
 ``{{ ts }}``                                Same as ``{{ dag_run.logical_date | ts }}``.
                                             Example: ``2018-01-01T00:00:00+00:00``.
 ``{{ ts_nodash_with_tz }}``                 Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
