@@ -36,28 +36,6 @@ We call it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
-.. note::
-  We are currently migrating old Bash-based ./breeze-legacy to the Python-based breeze. Some of the
-  commands are already converted to breeze, but some old commands should use breeze-legacy. The
-  documentation mentions when ``./breeze-legacy`` is involved.
-
-  The new ``breeze`` after installing is available on your PATH and you should launch it simply as
-  ``breeze <COMMAND> <FLAGS>``. Previously you had to prepend breeze with ``./`` but this is removed now
-  You can still use the legacy Breeze with ``./breeze-legacy``.
-
-Watch the video below about Airflow Breeze. It explains the motivation for Breeze
-and screencast all its uses. The video describes old ``./breeze-legacy`` (in video it still
-called ``./breeze`` ).
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68">
-        <img src="images/breeze/overlayed_breeze.png" width="640"
-             alt="Airflow Breeze - Development and Test Environment for Apache Airflow">
-      </a>
-    </div>
-
 Prerequisites
 =============
 
@@ -380,9 +358,6 @@ default settings.
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
 .. raw:: html
 
     <div align="center">
@@ -434,8 +409,6 @@ Those are all available flags of ``build-docs`` command:
   :width: 100%
   :alt: Breeze build documentation
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
 
 .. raw:: html
 
@@ -497,17 +470,6 @@ Those are all available flags of ``static-checks`` command:
   :width: 100%
   :alt: Breeze static checks
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1675">
-        <img src="images/breeze/overlayed_breeze_static_checks.png" width="640"
-             alt="Airflow Breeze - Static checks">
-      </a>
-    </div>
 
 .. note::
 
@@ -535,7 +497,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql --use-airflow-version 2.2.5 start-airflow
+    breeze start-airflow --python 3.7 --backend mysql --use-airflow-version 2.2.5
 
 Those are all available flags of ``start-airflow`` command:
 
@@ -555,35 +517,11 @@ capability of creating multiple virtual terminals and multiplex between them. Mo
 found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
-Here is the part of Breeze video which is relevant:
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=824">
-        <img src="images/breeze/overlayed_breeze_using_tmux.png" width="640"
-             alt="Airflow Breeze - Using tmux">
-      </a>
-    </div>
-
-
 Another way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
 to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
-
-Here is the part of Breeze video which is relevant:
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=978">
-        <img src="images/breeze/overlayed_breeze_using_exec.png" width="640"
-             alt="Airflow Breeze - Using tmux">
-      </a>
-    </div>
-
 
 Those are all available flags of ``exec`` command:
 
@@ -651,19 +589,6 @@ Those are all available flags of ``stop`` command:
 .. image:: ./images/breeze/output_stop.svg
   :width: 100%
   :alt: Breeze stop
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=2639">
-        <img src="images/breeze/overlayed_breeze_stop.png" width="640"
-             alt="Airflow Breeze - Stop environment">
-      </a>
-    </div>
-
 
 Troubleshooting
 ===============
@@ -741,20 +666,7 @@ re-running the test to iterate over the tests. You can also add more flags when 
 in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
 on how to run them.
 
-This apply to all kind of tests - all our tests can be run using pytest.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the new ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=262">
-        <img src="images/breeze/overlayed_breeze_running_tests.png" width="640"
-             alt="Airflow Breeze - Running tests">
-      </a>
-    </div>
-
+This applies to all kind of tests - all our tests can be run using pytest.
 
 Running unit/integration tests in groups
 ........................................
@@ -806,32 +718,6 @@ through ``breeze testing docker-compose-tests`` command.
 
 The docker-compose tests are in ``docker-tests/`` folder in the main repo.
 
-Running Kubernetes tests
-........................
-
-Breeze helps with running Kubernetes tests in the same environment/way as CI tests are run.
-Breeze helps to setup KinD cluster for testing, setting up virtualenv and downloads the right tools
-automatically to run the tests.
-
-You can:
-
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze-legacy kind-cluster`` commands
-* Run Kubernetes tests  specified with ``./breeze-legacy kind-cluster tests`` command
-* Enter the interactive kubernetes test environment with ``./breeze-legacy kind-cluster shell`` command
-
-This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=2093">
-        <img src="images/breeze/overlayed_breeze_kubernetes_tests.png" width="640"
-             alt="Airflow Breeze - Kubernetes tests">
-      </a>
-    </div>
 
 CI Image tasks
 --------------
@@ -848,18 +734,6 @@ For all development tasks, unit tests, integration tests, and static code checks
 
 The CI image is built automatically as needed, however it can be rebuilt manually with
 ``ci image build`` command.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1387">
-        <img src="images/breeze/overlayed_breeze_build_images.png" width="640"
-             alt="Airflow Breeze - Building images">
-      </a>
-    </div>
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
@@ -969,18 +843,6 @@ Those are all available flags of ``build-prod-image`` command:
 .. image:: ./images/breeze/output_prod-image_build.svg
   :width: 100%
   :alt: Breeze prod-image build
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1496">
-        <img src="images/breeze/overlayed_breeze_build_images_prod.png" width="640"
-             alt="Airflow Breeze - Building Production images">
-      </a>
-    </div>
 
 Pulling PROD image
 ..................
@@ -1465,19 +1327,6 @@ Once integration is started, it will continue to run until the environment is st
 
 Note that running integrations uses significant resources - CPU and memory.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1187">
-        <img src="images/breeze/overlayed_breeze_integrations.png" width="640"
-             alt="Airflow Breeze - Integrations">
-      </a>
-    </div>
-
-
 
 Using local virtualenv environment in Your Host IDE
 ---------------------------------------------------
@@ -1513,18 +1362,6 @@ Note that you can also use the local virtualenv for Airflow development without 
 This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-but it is not available in the ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1920">
-        <img src="images/breeze/overlayed_breeze_initialize_virtualenv.png" width="640"
-             alt="Airflow Breeze - Initialize virtualenv">
-      </a>
-    </div>
 
 
 Internal details of Breeze
