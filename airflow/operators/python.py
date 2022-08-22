@@ -133,8 +133,6 @@ class PythonOperator(BaseOperator):
         'op_kwargs',
     )
 
-    mapped_arguments_validated_by_init = True
-
     def __init__(
         self,
         *,
