@@ -883,12 +883,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ]
         assert self.expected_pod == actual_pod
 
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
     @mock.patch(HOOK_CLASS)
-    def test_pod_template_file(self, hook_mock, await_pod_completion_mock, extract_xcom_mock):
+    def test_pod_template_file(
+        self, hook_mock, await_pod_completion_mock, extract_xcom_mock, await_xcom_sidecar_container_start_mock
+    ):
         # todo: This isn't really a system test
+        await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
         extract_xcom_mock.return_value = '{}'
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'

@@ -51,11 +51,11 @@ def s3mock():
 class TestS3TaskHandler:
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template):
+    def setup(self, create_log_template, tmp_path_factory):
         self.remote_log_base = 's3://bucket/remote/log/location'
         self.remote_log_location = 's3://bucket/remote/log/location/1.log'
         self.remote_log_key = 'remote/log/location/1.log'
-        self.local_log_location = 'local/log/location'
+        self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
         create_log_template('{try_number}.log')
         self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
         # Vivfy the hook now with the config override
@@ -144,7 +144,7 @@ class TestS3TaskHandler:
             self.s3_task_handler.set_context(self.ti)
 
         assert self.s3_task_handler.upload_on_close
-        mock_open.assert_called_once_with(os.path.abspath('local/log/location/1.log'), 'w')
+        mock_open.assert_called_once_with(os.path.join(self.local_log_location, '1.log'), 'w')
         mock_open().write.assert_not_called()
 
     def test_read(self):

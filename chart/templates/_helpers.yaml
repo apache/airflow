@@ -782,3 +782,15 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
     {{- end -}}
   {{- end -}}
 {{- end -}}
+{{- define "container_extra_envs" -}}
+{{- $ := index . 0 -}}
+{{- $env := index . 1 -}}
+{{- range $i, $config := $env }}
+  - name: {{ $config.name }}
+    value: {{ $config.value | quote }}
+    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
+    value: {{ $config.value | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}

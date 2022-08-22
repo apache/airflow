@@ -157,6 +157,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.workers.waitForMigrations.env }}
+{{ tpl (toYaml .Values.workers.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
@@ -214,6 +217,7 @@ spec:
               value: "0"
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.workers.env) | indent 10 }}
           {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}

@@ -33,14 +33,10 @@ from airflow_breeze.utils.common_options import (
     option_additional_extras,
     option_additional_pip_install_flags,
     option_additional_python_deps,
-    option_additional_runtime_apt_command,
-    option_additional_runtime_apt_deps,
-    option_additional_runtime_apt_env,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
-    option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
@@ -64,8 +60,6 @@ from airflow_breeze.utils.common_options import (
     option_python_image,
     option_python_versions,
     option_run_in_parallel,
-    option_runtime_apt_command,
-    option_runtime_apt_deps,
     option_tag_as_latest,
     option_upgrade_to_newer_dependencies,
     option_verbose,
@@ -168,7 +162,6 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform_multiple
-@option_debian_version
 @option_github_token
 @option_github_username
 @option_docker_cache
@@ -179,20 +172,14 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_install_providers_from_sources
 @option_additional_extras
 @option_additional_dev_apt_deps
-@option_additional_runtime_apt_deps
 @option_additional_python_deps
 @option_additional_dev_apt_command
-@option_runtime_apt_command
 @option_additional_dev_apt_env
-@option_additional_runtime_apt_env
-@option_additional_runtime_apt_command
 @option_builder
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_force_build
 @option_python_image
-@option_runtime_apt_command
-@option_runtime_apt_deps
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
 @option_tag_as_latest

@@ -264,8 +264,23 @@ class TestFlowerDeployment:
         assert {"name": "myvolume", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
+        
+     def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                }
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
 
-    def test_should_add_component_specific_labels(self):
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+        
+     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
                 "flower": {
@@ -282,6 +297,7 @@ class TestFlowerDeployment:
             "release": "RELEASE-NAME",
             "test_label": "test_label_value",
         } == jmespath.search("spec.template.metadata.labels", docs[0])
+
 
 
 class TestFlowerService:

@@ -142,6 +142,7 @@ spec:
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.flower.env) | indent 10 }}
 {{- if .Values.flower.extraContainers }}
 {{- toYaml .Values.flower.extraContainers | nindent 8 }}
 {{- end }}
