@@ -174,6 +174,14 @@ Example of the configuration for a Spark Job:
     :start-after: [START how_to_cloud_dataproc_spark_config]
     :end-before: [END how_to_cloud_dataproc_spark_config]
 
+Example of the configuration for a Spark Job running in `deferrable mode <https://airflow.apache.org/docs/apache-airflow/stable/concepts/deferring.html>`__:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_spark_deferrable.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_spark_deferrable_config]
+    :end-before: [END how_to_cloud_dataproc_spark_deferrable_config]
+
 Example of the configuration for a Hive Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
