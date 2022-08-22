@@ -194,6 +194,16 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ("'_request_ctx_stack' is deprecated and will be remoevd in Flask 2.3.", 'flask_appbuilder'),
     ("'_request_ctx_stack' is deprecated and will be removed in Flask 2.3.", 'flask_appbuilder'),
     ("'_request_ctx_stack' is deprecated and will be removed in Flask 2.3.", 'flask_jwt_extended'),
+    (
+        "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
+        "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
+        'botocore',
+    ),
+    (
+        "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
+        "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
+        'requests_toolbelt',
+    ),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
