@@ -37,12 +37,33 @@ class _DataIntervalTimetable(Timetable):
     instance), and schedule a DagRun at the end of each interval.
     """
 
-    def _align(self, current: DateTime) -> DateTime:
-        """Align given time to the scheduled.
+    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+        """Bound the earliest time a run can be scheduled.
+
+        This is called when ``catchup=False``. See docstring of subclasses for
+        exact skipping behaviour of a schedule.
+        """
+        raise NotImplementedError()
+
+    def _align_to_next(self, current: DateTime) -> DateTime:
+        """Align given time to the next scheduled time.
 
         For fixed schedules (e.g. every midnight); this finds the next time that
         aligns to the declared time, if the given time does not align. If the
         schedule is not fixed (e.g. every hour), the given time is returned.
+        """
+        raise NotImplementedError()
+
+    def _align_to_prev(self, current: DateTime) -> DateTime:
+        """Align given time to the previous scheduled time.
+
+        For fixed schedules (e.g. every midnight); this finds the prev time that
+        aligns to the declared time, if the given time does not align. If the
+        schedule is not fixed (e.g. every hour), the given time is returned.
+
+        It is not enough to use ``_get_prev(_align_to_next())``, since when a
+        DAG's schedule changes, this alternative would make the first scheduling
+        after the schedule change remain the same.
         """
         raise NotImplementedError()
 
@@ -52,14 +73,6 @@ class _DataIntervalTimetable(Timetable):
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the last schedule before the current time."""
-        raise NotImplementedError()
-
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
-
-        This is called when ``catchup=False``. See docstring of subclasses for
-        exact skipping behaviour of a schedule.
-        """
         raise NotImplementedError()
 
     def next_dagrun_info(
@@ -72,7 +85,7 @@ class _DataIntervalTimetable(Timetable):
         if not restriction.catchup:
             earliest = self._skip_to_latest(earliest)
         elif earliest is not None:
-            earliest = self._align(earliest)
+            earliest = self._align_to_next(earliest)
         if last_automated_data_interval is None:
             # First run; schedule the run at the first available time matching
             # the schedule, and retrospectively create a data interval for it.
@@ -80,13 +93,15 @@ class _DataIntervalTimetable(Timetable):
                 return None
             start = earliest
         else:  # There's a previous run.
+            # Alignment is needed when DAG has new schedule interval.
+            align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
             if earliest is not None:
                 # Catchup is False or DAG has new start date in the future.
                 # Make sure we get the later one.
-                start = max(last_automated_data_interval.end, earliest)
+                start = max(align_last_data_interval_end, earliest)
             else:
                 # Data interval starts from the end of the previous interval.
-                start = last_automated_data_interval.end
+                start = align_last_data_interval_end
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
@@ -138,13 +153,13 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
             raise AssertionError("next schedule shouldn't be earlier")
         if earliest is None:
             return new_start
-        return max(new_start, self._align(earliest))
+        return max(new_start, self._align_to_next(earliest))
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is
         # scheduled at each midnight, the data interval of a manually triggered
         # run at 1am 25th is between 0am 24th and 0am 25th.
-        end = self._get_prev(self._align(run_after))
+        end = self._align_to_prev(run_after)
         return DataInterval(start=self._get_prev(end), end=end)
 
 
@@ -202,7 +217,10 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def _get_prev(self, current: DateTime) -> DateTime:
         return convert_to_utc(current - self._delta)
 
-    def _align(self, current: DateTime) -> DateTime:
+    def _align_to_next(self, current: DateTime) -> DateTime:
+        return current
+
+    def _align_to_prev(self, current: DateTime) -> DateTime:
         return current
 
     def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:

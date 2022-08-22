@@ -220,7 +220,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return ClusterControllerClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_template_client(self, region: Optional[str] = None) -> WorkflowTemplateServiceClient:
@@ -230,7 +230,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return WorkflowTemplateServiceClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_client(self, region: Optional[str] = None) -> JobControllerClient:
@@ -240,9 +240,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return JobControllerClient(
-            credentials=self._get_credentials(),
-            client_info=CLIENT_INFO,
-            client_options=client_options,
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_batch_client(self, region: Optional[str] = None) -> BatchControllerClient:
@@ -252,7 +250,7 @@ class DataprocHook(GoogleBaseHook):
             client_options = ClientOptions(api_endpoint=f'{region}-dataproc.googleapis.com:443')
 
         return BatchControllerClient(
-            credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):

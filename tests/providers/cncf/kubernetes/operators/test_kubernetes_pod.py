@@ -794,9 +794,13 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
-    def test_push_xcom_pod_info(self, mock_extract_xcom, do_xcom_push):
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    def test_push_xcom_pod_info(
+        self, mock_await_xcom_sidecar_container_start, mock_extract_xcom, do_xcom_push
+    ):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
         mock_extract_xcom.return_value = '{}'
+        mock_await_xcom_sidecar_container_start.return_value = None
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -845,6 +849,28 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
+
+    @pytest.mark.parametrize('do_xcom_push', [True, False])
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    def test_wait_for_xcom_sidecar_iff_push_xcom(self, mock_await, mock_extract_xcom, do_xcom_push):
+        """Assert we wait for xcom sidecar container if and only if we push xcom."""
+        mock_extract_xcom.return_value = '{}'
+        mock_await.return_value = None
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=do_xcom_push,
+        )
+        self.run_pod(k)
+        if do_xcom_push:
+            mock_await.assert_called_once()
+        else:
+            mock_await.assert_not_called()
 
     @pytest.mark.parametrize('should_fail', [True, False])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")

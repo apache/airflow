@@ -15,19 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from urllib.parse import urlparse
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Table,
+    text,
+)
 from sqlalchemy.orm import relationship
 
+from airflow.datasets import Dataset
 from airflow.models.base import ID_LEN, Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class Dataset(Base):
+class DatasetModel(Base):
     """
     A table to store datasets.
 
@@ -61,6 +74,10 @@ class Dataset(Base):
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
+    @classmethod
+    def from_public(cls, obj: Dataset) -> DatasetModel:
+        return cls(uri=obj.uri, extra=obj.extra)
+
     def __init__(self, uri: str, **kwargs):
         try:
             uri.encode('ascii')
@@ -72,7 +89,7 @@ class Dataset(Base):
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
-        if isinstance(other, self.__class__):
+        if isinstance(other, (self.__class__, Dataset)):
             return self.uri == other.uri
         else:
             return NotImplemented
@@ -92,7 +109,14 @@ class DatasetDagRef(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship('Dataset')
+    dataset = relationship('DatasetModel', back_populates="consuming_dags")
+    queue_records = relationship(
+        "DatasetDagRunQueue",
+        primaryjoin="""and_(
+            DatasetDagRef.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+            DatasetDagRef.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+        )""",
+    )
 
     __tablename__ = "dataset_dag_ref"
     __table_args__ = (
@@ -130,7 +154,7 @@ class DatasetTaskRef(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("Dataset")
+    dataset = relationship("DatasetModel")
 
     __tablename__ = "dataset_task_ref"
     __table_args__ = (
@@ -203,11 +227,21 @@ class DatasetDagRunQueue(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
+association_table = Table(
+    "dagrun_dataset_event",
+    Base.metadata,
+    Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dagrun_dataset_events_dag_run_id", "dag_run_id"),
+    Index("idx_dagrun_dataset_events_event_id", "event_id"),
+)
+
+
 class DatasetEvent(Base):
     """
     A table to store datasets events.
 
-    :param dataset_id: reference to Dataset record
+    :param dataset_id: reference to DatasetModel record
     :param extra: JSON field for arbitrary extra info
     :param source_task_id: the task_id of the TI which updated the dataset
     :param source_dag_id: the dag_id of the TI which updated the dataset
@@ -234,6 +268,12 @@ class DatasetEvent(Base):
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
+    created_dagruns = relationship(
+        "DagRun",
+        secondary=association_table,
+        backref="consumed_dataset_events",
+    )
+
     source_task_instance = relationship(
         "TaskInstance",
         primaryjoin="""and_(
@@ -257,8 +297,8 @@ class DatasetEvent(Base):
         uselist=False,
     )
     dataset = relationship(
-        Dataset,
-        primaryjoin="DatasetEvent.dataset_id == foreign(Dataset.id)",
+        DatasetModel,
+        primaryjoin="DatasetEvent.dataset_id == foreign(DatasetModel.id)",
         viewonly=True,
         lazy="select",
         uselist=False,
