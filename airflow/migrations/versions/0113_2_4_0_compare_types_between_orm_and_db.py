@@ -164,7 +164,7 @@ def downgrade():
             'created_at', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
         )
     with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
-        # drop server_default
+        # add server_default
         batch_op.alter_column(
             'dag_hash',
             existing_type=sa.String(32),
