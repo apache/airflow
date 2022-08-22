@@ -2214,6 +2214,13 @@ class DAG(LoggingMixin):
     def has_task(self, task_id: str):
         return task_id in self.task_dict
 
+    def has_task_group(self, task_group_id: str) -> bool:
+        return task_group_id in self.task_group_dict
+
+    @cached_property
+    def task_group_dict(self):
+        return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
+
     def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
