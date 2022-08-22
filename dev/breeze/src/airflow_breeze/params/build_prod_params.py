@@ -198,6 +198,10 @@ class BuildProdParams(CommonBuildParams):
         return "docker-context-files"
 
     @property
+    def airflow_image_kubernetes(self) -> str:
+        return f"{self.airflow_image_name}-kubernetes"
+
+    @property
     def required_image_args(self) -> List[str]:
         return [
             "airflow_branch",

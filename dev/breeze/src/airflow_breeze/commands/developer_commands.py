@@ -423,6 +423,8 @@ def compile_www_assets(
     verbose: bool,
     dry_run: bool,
 ):
+    perform_environment_checks(verbose=verbose)
+    assert_pre_commit_installed(verbose=verbose)
     compile_www_assets_result = run_compile_www_assets(dev=dev, verbose=verbose, dry_run=dry_run)
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")

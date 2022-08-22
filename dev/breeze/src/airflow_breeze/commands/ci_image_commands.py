@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -50,6 +49,7 @@ from airflow_breeze.utils.common_options import (
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
+    option_include_success_outputs,
     option_install_providers_from_sources,
     option_parallelism,
     option_platform_multiple,
@@ -79,11 +79,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
-from airflow_breeze.utils.parallel import (
-    check_async_run_results,
-    progress_method_docker_buildx,
-    run_with_pool,
-)
+from airflow_breeze.utils.parallel import DockerBuildxProgressMatcher, check_async_run_results, run_with_pool
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
@@ -121,6 +117,7 @@ def check_if_image_building_is_needed(
 def run_build_in_parallel(
     image_params_list: List[BuildCiParams],
     python_version_list: List[str],
+    include_success_outputs: bool,
     parallelism: int,
     dry_run: bool,
     verbose: bool,
@@ -129,7 +126,7 @@ def run_build_in_parallel(
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"CI {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
-            parallelism=parallelism, all_params=all_params, progress_method=progress_method_docker_buildx
+            parallelism=parallelism, all_params=all_params, progress_matcher=DockerBuildxProgressMatcher()
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
@@ -143,7 +140,12 @@ def run_build_in_parallel(
                 )
                 for index, image_params in enumerate(image_params_list)
             ]
-    check_async_run_results(results, outputs)
+    check_async_run_results(
+        results=results,
+        success="All images built correctly",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+    )
 
 
 def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
@@ -159,6 +161,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_python
 @option_run_in_parallel
 @option_parallelism
+@option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform_multiple
@@ -189,6 +192,7 @@ def build(
     dry_run: bool,
     run_in_parallel: bool,
     parallelism: int,
+    include_success_outputs,
     python_versions: str,
     answer: str,
     **kwargs,
@@ -222,6 +226,7 @@ def build(
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
+            include_success_outputs=include_success_outputs,
             parallelism=parallelism,
             dry_run=dry_run,
             verbose=verbose,
@@ -239,11 +244,13 @@ def build(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_include_success_outputs
 @option_python_versions
 @option_github_token
 @option_verify
 @option_wait_for_image
 @option_image_tag_for_pulling
+@option_include_success_outputs
 @option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def pull(
@@ -255,6 +262,7 @@ def pull(
     python_versions: str,
     github_token: str,
     parallelism: int,
+    include_success_outputs: bool,
     image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
@@ -284,6 +292,7 @@ def pull(
         run_pull_in_parallel(
             dry_run=dry_run,
             parallelism=parallelism,
+            include_success_outputs=include_success_outputs,
             image_params_list=ci_image_params_list,
             python_version_list=python_version_list,
             verbose=verbose,
@@ -474,8 +483,7 @@ def run_build_ci_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 env=env,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
             )
         else:
             get_console(output=output).print(
@@ -491,8 +499,7 @@ def run_build_ci_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 check=False,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
             )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:

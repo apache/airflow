@@ -47,6 +47,7 @@ env:
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
+  INCLUDE_SUCCESS_OUTPUTS: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -662,6 +663,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           VERBOSE: "false"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
+          SKIP_GROUP_OUTPUT: "true"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()

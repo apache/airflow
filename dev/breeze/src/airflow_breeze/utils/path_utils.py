@@ -61,8 +61,8 @@ def skip_upgrade_check():
     return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
-def skip_group_putput():
-    return in_autocomplete() or in_help()
+def skip_group_output():
+    return in_autocomplete() or in_help() or os.environ.get('SKIP_GROUP_OUTPUT') is not None
 
 
 def get_package_setup_metadata_hash() -> str:

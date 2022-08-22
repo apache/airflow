@@ -17,16 +17,20 @@
 
 import os
 from contextlib import contextmanager
+from typing import Optional
 
 from airflow_breeze.utils.console import MessageType, get_console
-from airflow_breeze.utils.path_utils import skip_group_putput
+from airflow_breeze.utils.parallel import Output
+from airflow_breeze.utils.path_utils import skip_group_output
 
 # only allow top-level group
 _in_ci_group = False
 
 
 @contextmanager
-def ci_group(title: str, message_type: MessageType = MessageType.INFO):
+def ci_group(
+    title: str, message_type: Optional[MessageType] = MessageType.INFO, output: Optional[Output] = None
+):
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.
@@ -35,11 +39,21 @@ def ci_group(title: str, message_type: MessageType = MessageType.INFO):
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
     global _in_ci_group
-    if _in_ci_group or skip_group_putput() or os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+    if _in_ci_group or skip_group_output():
+        yield
+        return
+    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+        if message_type is not None:
+            get_console(output=output).print(f"\n[{message_type.value}]{title}\n")
+        else:
+            get_console(output=output).print(f"\n{title}\n")
         yield
         return
     _in_ci_group = True
-    get_console().print(f"::group::[{message_type.value}]{title}[/]")
+    if message_type is not None:
+        get_console().print(f"::group::[{message_type.value}]{title}[/]")
+    else:
+        get_console().print(f"::group::{title}")
     yield
     get_console().print("::endgroup::")
     _in_ci_group = False

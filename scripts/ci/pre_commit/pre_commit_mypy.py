@@ -31,6 +31,7 @@ GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
 # allow "False", "false", "True", "true", "f", "F", "t", "T" and the like
 VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
 DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
+os.environ['SKIP_GROUP_OUTPUT'] = "true"
 
 if __name__ == '__main__':
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
