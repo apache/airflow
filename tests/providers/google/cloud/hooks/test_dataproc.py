@@ -467,7 +467,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocAsyncHook(gcp_conn_id="test")
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerAsyncClient"))
     def test_get_cluster_client(self, mock_client, mock_get_credentials):
         self.hook.get_cluster_client(region=GCP_LOCATION)
@@ -477,7 +477,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerAsyncClient"))
     def test_get_cluster_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_cluster_client(region='region1')
@@ -487,7 +487,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=ANY,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceAsyncClient"))
     def test_get_template_client_global(self, mock_client, mock_get_credentials):
         _ = self.hook.get_template_client()
@@ -497,7 +497,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceAsyncClient"))
     def test_get_template_client_region(self, mock_client, mock_get_credentials):
         _ = self.hook.get_template_client(region='region1')
@@ -507,7 +507,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=ANY,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerAsyncClient"))
     def test_get_job_client(self, mock_client, mock_get_credentials):
         self.hook.get_job_client(region=GCP_LOCATION)
@@ -517,7 +517,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerAsyncClient"))
     def test_get_job_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_job_client(region='region1')
@@ -527,7 +527,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=ANY,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerAsyncClient"))
     def test_get_batch_client(self, mock_client, mock_get_credentials):
         self.hook.get_batch_client(region=GCP_LOCATION)
@@ -537,7 +537,7 @@ class TestDataprocAsyncHook(unittest.TestCase):
             client_options=None,
         )
 
-    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerAsyncClient"))
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_batch_client(region='region1')
