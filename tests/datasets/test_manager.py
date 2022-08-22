@@ -61,7 +61,7 @@ class TestDatasetEventManager:
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
 
-    def test_register_dataset_change_with_dataset(self, mock_task_instance):
+    def test_register_dataset_change(self, mock_task_instance):
         dsem = DatasetEventManager()
 
         mock_dag_1 = mock.MagicMock()
@@ -69,29 +69,7 @@ class TestDatasetEventManager:
         mock_dag_2 = mock.MagicMock()
         mock_dag_2.dag_id = 2
 
-        ds = Dataset("test_dataset_uri")
-
-        dsm = DatasetModel(uri=ds.uri)
-        dsm.consuming_dags = [mock_dag_1, mock_dag_2]
-
-        mock_session = mock.Mock()
-        # Gotta mock up the query results
-        mock_session.query.return_value.filter.return_value.one_or_none.return_value = dsm
-
-        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=mock_session)
-
-        # Ensure we've created a dataset
-        mock_session.add.assert_called_once()
-        # Ensure that we've created DatasetDagRunQueue rows
-        assert mock_session.merge.call_count == 2
-
-    def test_register_dataset_change_with_datasetmodel(self, mock_task_instance):
-        dsem = DatasetEventManager()
-
-        mock_dag_1 = mock.MagicMock()
-        mock_dag_1.dag_id = 1
-        mock_dag_2 = mock.MagicMock()
-        mock_dag_2.dag_id = 2
+        ds = Dataset(uri="test_dataset_uri")
 
         dsm = DatasetModel(uri="test_dataset_uri")
         dsm.consuming_dags = [mock_dag_1, mock_dag_2]
@@ -100,7 +78,7 @@ class TestDatasetEventManager:
         # Gotta mock up the query results
         mock_session.query.return_value.filter.return_value.one_or_none.return_value = dsm
 
-        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=dsm, session=mock_session)
+        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=mock_session)
 
         # Ensure we've created a dataset
         mock_session.add.assert_called_once()

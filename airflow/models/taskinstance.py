@@ -80,6 +80,7 @@ from sqlalchemy.sql.expression import ColumnOperators
 from airflow import settings
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -1534,11 +1535,13 @@ class TaskInstance(Base, LoggingMixin):
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
-            self.dataset_event_manager.register_dataset_change(
-                task_instance=self,
-                dataset=obj,
-                session=session,
-            )
+            # Lineage can have other types of objects besides datasets
+            if isinstance(obj, Dataset):
+                self.dataset_event_manager.register_dataset_change(
+                    task_instance=self,
+                    dataset=obj,
+                    session=session,
+                )
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""

@@ -17,6 +17,9 @@
 # under the License.
 from sqlalchemy.orm.session import Session
 
+from airflow.datasets import Dataset
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -28,22 +31,20 @@ class DatasetEventManager(LoggingMixin):
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
-    def register_dataset_change(self, *, task_instance, dataset, extra=None, session: Session) -> None:
+    def register_dataset_change(
+        self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session
+    ) -> None:
         """
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
-        from airflow.datasets import Dataset
-        from airflow.models.dataset import DatasetEvent, DatasetModel
-
-        if isinstance(dataset, Dataset):
-            dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
-            if not dataset:
-                self.log.warning("Dataset %s not found", dataset)
-                return
+        dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
+        if not dataset_model:
+            self.log.warning("DatasetModel %s not found", dataset_model)
+            return
         session.add(
             DatasetEvent(
-                dataset_id=dataset.id,
+                dataset_id=dataset_model.id,
                 source_task_id=task_instance.task_id,
                 source_dag_id=task_instance.dag_id,
                 source_run_id=task_instance.run_id,
@@ -51,11 +52,9 @@ class DatasetEventManager(LoggingMixin):
                 extra=extra,
             )
         )
-        self._queue_dagruns(dataset, session)
+        self._queue_dagruns(dataset_model, session)
 
-    def _queue_dagruns(self, dataset, session: Session) -> None:
-        from airflow.models.dataset import DatasetDagRunQueue
-
+    def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
         self.log.debug("consuming dag ids %s", consuming_dag_ids)
         for dag_id in consuming_dag_ids:
