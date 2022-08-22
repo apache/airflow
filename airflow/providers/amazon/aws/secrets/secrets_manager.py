@@ -20,14 +20,17 @@
 import ast
 import json
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import unquote, urlencode
 
 from airflow.compat.functools import cached_property
-from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils import get_airflow_version, trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    # Avoid circular import problems when instantiating the backend during configuration.
+    from airflow.models.connection import Connection
 
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -193,8 +196,11 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_string
 
-    def get_connection(self, conn_id: str) -> Optional[Connection]:
+    def get_connection(self, conn_id: str) -> Optional["Connection"]:
         if not self.full_url_mode:
+            # Avoid circular import problems when instantiating the backend during configuration.
+            from airflow.models.connection import Connection
+
             secret_string = self._get_secret(self.connections_prefix, conn_id)
             secret_dict = self._deserialize_json_string(secret_string)
 

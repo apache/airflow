@@ -53,7 +53,7 @@ class CloudTranslateHook(GoogleBaseHook):
         :rtype: google.cloud.translate_v2.Client
         """
         if not self._client:
-            self._client = Client(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = Client(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.quota_retry()
