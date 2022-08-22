@@ -692,11 +692,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_date: Optional[pendulum.DateTime] = None
     end_date: Optional[pendulum.DateTime] = None
 
-    # How operator-mapping arguments should be validated. If True, a default validation implementation that
-    # calls the operator's constructor is used. If False, the operator should implement its own validation
-    # logic (default implementation is 'pass' i.e. no validation whatsoever).
-    mapped_arguments_validated_by_init: ClassVar[bool] = False
-
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
@@ -1505,12 +1500,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         which is caught in the main _execute_task wrapper.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
-
-    @classmethod
-    def validate_mapped_arguments(cls, **kwargs: Any) -> None:
-        """Validate arguments when this operator is being mapped."""
-        if cls.mapped_arguments_validated_by_init:
-            cls(**kwargs, _airflow_from_mapped=True, _airflow_mapped_validation_only=True)
 
     def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
