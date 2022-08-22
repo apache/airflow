@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
@@ -41,7 +41,12 @@ class CloudBuildLink(BaseGoogleLink):
     format_str = BUILD_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, build_id: str, project_id: Optional[str]):
+    def persist(
+        context: "Context",
+        task_instance,
+        build_id: str,
+        project_id: str,
+    ):
         task_instance.xcom_push(
             context=context,
             key=CloudBuildLink.key,
@@ -63,7 +68,7 @@ class CloudBuildListLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance,
-        project_id: Optional[str],
+        project_id: str,
     ):
         task_instance.xcom_push(
             context=context,
@@ -85,7 +90,7 @@ class CloudBuildTriggersListLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance,
-        project_id: Optional[str],
+        project_id: str,
     ):
         task_instance.xcom_push(
             context=context,
@@ -107,7 +112,7 @@ class CloudBuildTriggerDetailsLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance,
-        project_id: Optional[str],
+        project_id: str,
         trigger_id: str,
     ):
         task_instance.xcom_push(

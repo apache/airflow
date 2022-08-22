@@ -110,12 +110,14 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         )
 
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            build_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -203,12 +205,14 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         )
 
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            build_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -279,17 +283,19 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildTriggerDetailsLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            trigger_id=result.id,
-        )
-        CloudBuildTriggersListLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_id=result.id,
+            )
+            CloudBuildTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
         return BuildTrigger.to_dict(result)
 
 
@@ -353,11 +359,13 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        CloudBuildTriggersListLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
 
 class CloudBuildGetBuildOperator(BaseOperator):
@@ -422,12 +430,14 @@ class CloudBuildGetBuildOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        CloudBuildLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            build_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -493,12 +503,14 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        CloudBuildTriggerDetailsLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            trigger_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_id=result.id,
+            )
         return BuildTrigger.to_dict(result)
 
 
@@ -572,11 +584,13 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        CloudBuildTriggersListLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
         return [BuildTrigger.to_dict(result) for result in results]
 
 
@@ -650,10 +664,9 @@ class CloudBuildListBuildsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-
-        CloudBuildListLink.persist(
-            context=context, task_instance=self, project_id=self.project_id or hook.project_id
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildListLink.persist(context=context, task_instance=self, project_id=project_id)
         return [Build.to_dict(result) for result in results]
 
 
@@ -726,12 +739,14 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         )
 
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            build_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -807,12 +822,14 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            build_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -884,12 +901,14 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.xcom_push(context, key="id", value=result.id)
-        CloudBuildTriggerDetailsLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            trigger_id=result.id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_id=result.id,
+            )
         return BuildTrigger.to_dict(result)
 
 
