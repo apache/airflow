@@ -534,7 +534,7 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Mapping[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Tuple[Mapping[str, Any], Set[int]]:
         """Get the kwargs to create the unmapped operator.
 
         This exists because taskflow operators expand against op_kwargs, not the
@@ -584,7 +584,7 @@ class MappedOperator(AbstractOperator):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
             elif resolve is not None:
-                kwargs = self._expand_mapped_kwargs(*resolve)
+                kwargs, _ = self._expand_mapped_kwargs(*resolve)
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
@@ -748,13 +748,6 @@ class MappedOperator(AbstractOperator):
         except NotFullyPopulated:
             return None
 
-    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Mapped kwargs from XCom are already resolved during unmapping, so they
-        # must be removed from the list of templated fields to avoid being
-        # rendered again.
-        unexpanded_keys = {k for k, _ in self._get_specified_expand_input().iter_parse_time_resolved_kwargs()}
-        return set(self.template_fields).difference(k for k in expanded if k not in unexpanded_keys)
-
     def render_template_fields(
         self,
         context: Context,
@@ -770,14 +763,14 @@ class MappedOperator(AbstractOperator):
         # in the weeds here. We don't close this session for the same reason.
         session = settings.Session()
 
-        mapped_kwargs = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
         self._do_render_template_fields(
             parent=unmapped_task,
-            template_fields=self._get_template_fields_to_render(mapped_kwargs),
+            template_fields=self.template_fields,
             context=context,
             jinja_env=jinja_env,
-            seen_oids=set(),
+            seen_oids=seen_oids,
             session=session,
         )
         return unmapped_task
