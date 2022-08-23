@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamVali
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -844,8 +844,12 @@ class TestDag:
         assert [x.dag_id for x in d1.consuming_dags] == [dag_id1]
         assert [(x.task_id, x.dag_id) for x in d1.producing_tasks] == [(task_id, dag_id2)]
         assert set(
-            session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id)
-            .filter(DatasetTaskRef.dag_id.in_((dag_id1, dag_id2)))
+            session.query(
+                TaskOutletDatasetReference.task_id,
+                TaskOutletDatasetReference.dag_id,
+                TaskOutletDatasetReference.dataset_id,
+            )
+            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
             (task_id, dag_id1, d2.id),

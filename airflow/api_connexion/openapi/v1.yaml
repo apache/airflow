@@ -3526,10 +3526,10 @@ components:
         producing_tasks:
             type: array
             items:
-              $ref: '#/components/schemas/DatasetTaskRef'
+              $ref: '#/components/schemas/TaskOutletDatasetReference'
 
 
-    DatasetTaskRef:
+    TaskOutletDatasetReference:
       description: |
         A datasets reference to an upstream task.
 
