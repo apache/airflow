@@ -19,13 +19,12 @@
 
 import React from 'react';
 import {
-  Box, Heading, Flex, Text, Spinner, Button, Link,
+  Box, Heading, Flex, Spinner, Button,
 } from '@chakra-ui/react';
 
 import { useDataset } from 'src/api';
 import { ClipboardButton } from 'src/components/Clipboard';
 import InfoTooltip from 'src/components/InfoTooltip';
-import { getMetaValue } from 'src/utils';
 import Events from './DatasetEvents';
 
 interface Props {
@@ -33,64 +32,25 @@ interface Props {
   onBack: () => void;
 }
 
-const gridUrl = getMetaValue('grid_url');
-
 const DatasetDetails = ({ datasetUri, onBack }: Props) => {
   const { data: dataset, isLoading } = useDataset({ datasetUri });
-
   return (
-    <Box mt={[6, 3]} maxWidth="1500px">
+    <Box mt={[6, 3]}>
       <Button onClick={onBack}>See all datasets</Button>
       {isLoading && <Spinner display="block" />}
       <Box>
-        <Heading my={2} fontWeight="normal">
+        <Heading my={2} fontWeight="normal" size="lg">
           Dataset:
           {' '}
           {datasetUri}
           <ClipboardButton value={datasetUri} iconOnly ml={2} />
         </Heading>
-        {dataset?.producingTasks && !!dataset.producingTasks.length && (
-        <Box mb={2}>
-          <Flex alignItems="center">
-            <Heading size="md" fontWeight="normal">Producing Tasks</Heading>
-            <InfoTooltip label="Tasks that will update this dataset." size={14} />
-          </Flex>
-          {dataset.producingTasks.map(({ dagId, taskId }) => (
-            <Link
-              key={`${dagId}.${taskId}`}
-              color="blue.600"
-              href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
-              display="block"
-            >
-              {`${dagId}.${taskId}`}
-            </Link>
-          ))}
-        </Box>
-        )}
-        {dataset?.consumingDags && !!dataset.consumingDags.length && (
-        <Box>
-          <Flex alignItems="center">
-            <Heading size="md" fontWeight="normal">Consuming DAGs</Heading>
-            <InfoTooltip label="DAGs that depend on this dataset updating to trigger a run." size={14} />
-          </Flex>
-          {dataset.consumingDags.map(({ dagId }) => (
-            <Link
-              key={dagId}
-              color="blue.600"
-              href={dagId ? gridUrl?.replace('__DAG_ID__', dagId) : ''}
-              display="block"
-            >
-              {dagId}
-            </Link>
-          ))}
-        </Box>
-        )}
       </Box>
-      <Box>
-        <Heading size="lg" mt={3} mb={2} fontWeight="normal">History</Heading>
-        <Text>Whenever a DAG has updated this dataset.</Text>
-      </Box>
-      {dataset?.id && (
+      <Flex alignItems="center">
+        <Heading size="md" mt={3} mb={2} fontWeight="normal">History</Heading>
+        <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
+      </Flex>
+      {dataset && dataset.id && (
         <Events datasetId={dataset.id} />
       )}
     </Box>
