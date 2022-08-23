@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import collections
 import collections.abc
 import functools
 import operator
@@ -74,7 +73,7 @@ class DictOfListsExpandInput(NamedTuple):
 
     value: dict[str, OperatorExpandArgument]
 
-    def iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
+    def _iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
         """Generate kwargs with values available on parse-time."""
         from airflow.models.xcom_arg import XComArg
 
@@ -83,7 +82,7 @@ class DictOfListsExpandInput(NamedTuple):
     def get_parse_time_mapped_ti_count(self) -> int | None:
         if not self.value:
             return 0
-        literal_values = [len(v) for _, v in self.iter_parse_time_resolved_kwargs()]
+        literal_values = [len(v) for _, v in self._iter_parse_time_resolved_kwargs()]
         if len(literal_values) != len(self.value):
             return None  # None-literal type encountered, so give up.
         return functools.reduce(operator.mul, literal_values, 1)
@@ -149,7 +148,7 @@ class DictOfListsExpandInput(NamedTuple):
 
     def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         data = {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
-        literal_keys = {k for k, _ in self.iter_parse_time_resolved_kwargs()}
+        literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
         resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
         return data, resolved_oids
 
@@ -166,15 +165,16 @@ class ListOfDictsExpandInput(NamedTuple):
     This is created from ``expand_kwargs(xcom_arg)``.
     """
 
-    value: XComArg
-
-    def iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
-        return ()
+    value: OperatorExpandKwargsArgument
 
     def get_parse_time_mapped_ti_count(self) -> int | None:
+        if isinstance(self.value, collections.abc.Sized):
+            return len(self.value)
         return None
 
     def get_total_map_length(self, run_id: str, *, session: Session) -> int:
+        if isinstance(self.value, collections.abc.Sized):
+            return len(self.value)
         length = self.value.get_task_map_length(run_id, session=session)
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
@@ -184,12 +184,21 @@ class ListOfDictsExpandInput(NamedTuple):
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
-        mappings = self.value.resolve(context, session)
-        if not isinstance(mappings, collections.abc.Sequence):
-            raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
-        mapping = mappings[map_index]
+
+        mapping: Any
+        if isinstance(self.value, collections.abc.Sized):
+            mapping = self.value[map_index]
+            if not isinstance(mapping, collections.abc.Mapping):
+                mapping = mapping.resolve(context, session)
+        else:
+            mappings = self.value.resolve(context, session)
+            if not isinstance(mappings, collections.abc.Sequence):
+                raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
+            mapping = mappings[map_index]
+
         if not isinstance(mapping, collections.abc.Mapping):
             raise ValueError(f"expand_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]")
+
         for key in mapping:
             if not isinstance(key, str):
                 raise ValueError(

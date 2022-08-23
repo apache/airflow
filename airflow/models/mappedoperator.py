@@ -196,8 +196,12 @@ class OperatorPartial:
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> "MappedOperator":
         from airflow.models.xcom_arg import XComArg
 
-        if not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+        if isinstance(kwargs, collections.abc.Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, collections.abc.Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> "MappedOperator":
