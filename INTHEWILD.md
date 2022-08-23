@@ -340,6 +340,7 @@ Currently, **officially** using Airflow:
 1. [Pernod-Ricard](https://www.pernod-ricard.com/) [[@romain-nio](https://github.com/romain-nio)]
 1. [PEXA](https://www.pexa.com.au/) [[@andriyfedorov](https://github.com/andriyfedorov)]
 1. [Pinterest](https://www.pinterest.com/) [[@Acehaidrey](https://github.com/Acehaidrey), [@Arshrestha](https://github.com/arshrestha), [@Dinghang](https://github.com/Dinghang), [@Euccas](https://github.com/euccas), [@Yulei-li](https://github.com/yulei-li)]
+1. [Plaetos](https://www.plaetos.com/) [[@morningcloud](https://github.com/morningcloud) & [@csight](https://github.com/csight)]
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [Playsimple Games](https://playsimple.in/) [[@joshi95](https://github.com/joshi95)]
