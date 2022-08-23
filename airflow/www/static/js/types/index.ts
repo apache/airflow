@@ -79,6 +79,8 @@ interface Task {
   hasOutletDatasets?: boolean;
 }
 
+type RunOrdering = ('dataIntervalStart' | 'executionDate' | 'dataIntervalEnd')[];
+
 export type {
   Dag,
   DagRun,
@@ -87,4 +89,5 @@ export type {
   TaskInstance,
   Task,
   API,
+  RunOrdering,
 };
