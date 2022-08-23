@@ -18,7 +18,8 @@
  */
 
 import { isEmpty } from 'lodash';
-import { getTask, getTaskSummary } from '.';
+import type { DagRun } from 'src/types';
+import { getDagRunLabel, getTask, getTaskSummary } from '.';
 
 const sampleTasks = {
   id: null,
@@ -110,5 +111,30 @@ describe('Test getTaskSummary()', () => {
     expect(summary.groupCount).toBe(0);
     expect(summary.taskCount).toBe(1);
     expect(isEmpty(summary.operators)).toBeTruthy();
+  });
+});
+
+describe('Test getDagRunLabel', () => {
+  const dagRun = {
+    dagId: 'dagId',
+    runId: 'run1',
+    dataIntervalStart: '2021-12-07T21:14:19.704433+00:00',
+    dataIntervalEnd: '2021-12-08T21:14:19.704433+00:00',
+    startDate: '2021-11-08T21:14:19.704433+00:00',
+    endDate: '2021-11-08T21:17:13.206426+00:00',
+    state: 'failed',
+    runType: 'scheduled',
+    executionDate: '2021-12-09T21:14:19.704433+00:00',
+    lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
+  } as DagRun;
+
+  test('Defaults to dataIntervalStart', async () => {
+    const runLabel = getDagRunLabel({ dagRun });
+    expect(runLabel).toBe(dagRun.dataIntervalStart);
+  });
+
+  test('Passing an order overrides default', async () => {
+    const runLabel = getDagRunLabel({ dagRun, ordering: ['executionDate'] });
+    expect(runLabel).toBe(dagRun.executionDate);
   });
 });

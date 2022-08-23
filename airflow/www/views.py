@@ -3632,6 +3632,7 @@ class Airflow(AirflowBaseView):
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
+                'ordering': dag.timetable.run_ordering,
             }
         # avoid spaces to reduce payload size
         return (
