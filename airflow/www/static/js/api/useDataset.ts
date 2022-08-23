@@ -23,11 +23,15 @@ import { useQuery } from 'react-query';
 import { getMetaValue } from 'src/utils';
 import type { API } from 'src/types';
 
-export default function useDataset({ uri }: API.GetDatasetVariables) {
+interface Props {
+  datasetUri: string;
+}
+
+export default function useDataset({ datasetUri }: Props) {
   return useQuery(
     ['dataset', uri],
     () => {
-      const datasetUrl = `${getMetaValue('datasets_api') || '/api/v1/datasets'}/${encodeURIComponent(uri)}`;
+      const datasetUrl = getMetaValue('dataset_api').replace('__URI__', encodeURIComponent(datasetUri));
       return axios.get<AxiosResponse, API.Dataset>(datasetUrl);
     },
   );

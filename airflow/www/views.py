@@ -31,6 +31,7 @@ from bisect import insort_left
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
+from http.client import BAD_REQUEST
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable
@@ -3569,7 +3570,7 @@ class Airflow(AirflowBaseView):
         order_by = request.args.get("order_by", "id")
         lstriped_orderby = order_by.lstrip('-')
         if allowed_attrs and lstriped_orderby not in allowed_attrs:
-            raise BadRequest(
+            raise BAD_REQUEST(
                 detail=f"Ordering with '{lstriped_orderby}' is disallowed or "
                 f"the attribute does not exist on the model"
             )
@@ -3608,7 +3609,7 @@ class Airflow(AirflowBaseView):
                     .all()
                 )
             ]
-            data = ({"datasets": datasets, "total_entries": total_entries},)
+            data = {"datasets": datasets, "total_entries": total_entries}
 
             return (
                 htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),

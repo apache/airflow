@@ -25,25 +25,54 @@ import {
   Text,
   Link,
 } from '@chakra-ui/react';
-import { snakeCase } from 'lodash';
-import type { Row, SortingRule } from 'react-table';
+import type { Row } from 'react-table';
 
 import { useDatasets } from 'src/api';
 import { Table } from 'src/components/Table';
 import type { API } from 'src/types';
 import { getMetaValue } from 'src/utils';
+import Time from 'src/components/Time';
 
 interface Props {
   onSelect: (datasetId: string) => void;
 }
 
+interface CellProps {
+  cell: {
+    value: any;
+    row: {
+      original: Record<string, any>;
+    }
+  }
+}
+
+const DetailCell = ({ cell: { row } }: CellProps) => {
+  const { lastDatasetUpdate, totalUpdates, uri } = row.original;
+  return (
+    <Box>
+      <Text>{uri}</Text>
+      <Flex justifyContent="space-between" fontSize="sm" mt={2}>
+        <Text>
+          Last Update:
+          {' '}
+          <Time dateTime={lastDatasetUpdate} />
+        </Text>
+        <Text>
+          Total Updates:
+          {' '}
+          {totalUpdates}
+        </Text>
+      </Flex>
+    </Box>
+  );
+};
+
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([]);
 
-  const sort = sortBy[0];
-  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  // default to descending by latest update
+  const order = '-last_dataset_update';
 
   const { data: { datasets, totalEntries }, isLoading } = useDatasets({ limit, offset, order });
 
@@ -52,6 +81,7 @@ const DatasetsList = ({ onSelect }: Props) => {
       {
         Header: 'URI',
         accessor: 'uri',
+        Cell: DetailCell,
       },
     ],
     [],
@@ -76,7 +106,7 @@ const DatasetsList = ({ onSelect }: Props) => {
         </Heading>
       </Flex>
       {!datasets.length && !isLoading && (
-        <Text>
+        <Text mb={4}>
           Looks like you do not have any datasets yet. Check out the
           {' '}
           <Link color="blue" href={docsUrl} isExternal>docs</Link>
@@ -95,10 +125,6 @@ const DatasetsList = ({ onSelect }: Props) => {
             totalEntries,
           }}
           pageSize={limit}
-          manualSort={{
-            setSortBy,
-            sortBy,
-          }}
           onRowClicked={onDatasetSelect}
         />
       </Box>
