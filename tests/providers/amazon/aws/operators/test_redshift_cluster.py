@@ -123,6 +123,8 @@ class TestRedshiftCreateClusterSnapshotOperator:
             ManualSnapshotRetentionPeriod=1,
         )
 
+        mock_get_conn.return_value.get_waiter.return_value.wait.assert_not_called()
+
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     def test_raise_exception_when_cluster_is_not_available(self, mock_cluster_status):
         mock_cluster_status.return_value = "paused"
