@@ -309,10 +309,7 @@ class DatasetEvent(Base):
         return self.dataset.uri
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.timestamp == other.timestamp
-        else:
-            return NotImplemented
+        raise ValueError('this is a test')
 
     def __repr__(self) -> str:
         args = []
