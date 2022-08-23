@@ -314,9 +314,6 @@ class DatasetEvent(Base):
         else:
             return NotImplemented
 
-    def __hash__(self) -> int:
-        return hash((self.dataset_id, self.created_at))
-
     def __repr__(self) -> str:
         args = []
         for attr in [
