@@ -79,3 +79,26 @@ class TestSnsHook(unittest.TestCase):
         response = hook.publish_to_target(target, message)
 
         assert 'MessageId' in response
+
+    @mock_sns
+    def test_publish_to_target_error(self):
+        hook = SnsHook(aws_conn_id='aws_default')
+
+        message = "Hello world"
+        topic_name = "test-topic"
+        target = hook.get_conn().create_topic(Name=topic_name).get('TopicArn')
+
+        with self.assertRaises(TypeError) as ctx:
+            hook.publish_to_target(
+                target,
+                message,
+                message_attributes={
+                    'test-non-iterable': object(),
+                },
+            )
+
+        self.assertEqual(
+            "Values in MessageAttributes must be one of bytes, str, int, float, "
+            "or iterable; got <class 'object'>",
+            str(ctx.exception),
+        )
