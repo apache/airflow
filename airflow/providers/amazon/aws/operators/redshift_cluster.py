@@ -249,9 +249,12 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
 
     :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
     :param cluster_identifier: The cluster identifier for which you want a snapshot
-    :param retention_period: The number of days that a manual snapshot is retained
+    :param retention_period: The number of days that a manual snapshot is retained.
+        If the value is -1, the manual snapshot is retained indefinitely.
     :param wait_for_completion: Whether wait for cluster to be in ``available`` state
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        The default connection id is ``aws_default``
     """
 
     def __init__(
@@ -273,11 +276,11 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: "Context") -> Any:
         cluster_state = self.redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
         if cluster_state != "available":
             raise AirflowException(
-                f"Redshift cluster must be in available state."
+                "Redshift cluster must be in available state. "
                 f"Redshift cluster current state is {cluster_state}"
             )
 
