@@ -26,6 +26,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     NAME,
     CloudDataTransferServiceHook,
 )
+from airflow.providers.google.cloud.links.cloud_storage_transfer import CloudStorageTransferJobLink
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -65,6 +66,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         'impersonation_chain',
     )
     # [END gcp_transfer_job_sensor_template_fields]
+    operator_extra_links = (CloudStorageTransferJobLink(),)
 
     def __init__(
         self,
@@ -103,4 +105,10 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         if check:
             self.xcom_push(key="sensed_operations", value=operations, context=context)
 
+        CloudStorageTransferJobLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
+            job_name=self.job_name,
+        )
         return check
