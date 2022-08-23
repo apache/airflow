@@ -128,9 +128,9 @@ describe('Test getDagRunLabel', () => {
     lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
   } as DagRun;
 
-  test('Defaults to dataIntervalStart', async () => {
+  test('Defaults to dataIntervalEnd', async () => {
     const runLabel = getDagRunLabel({ dagRun });
-    expect(runLabel).toBe(dagRun.dataIntervalStart);
+    expect(runLabel).toBe(dagRun.dataIntervalEnd);
   });
 
   test('Passing an order overrides default', async () => {
