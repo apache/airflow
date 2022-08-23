@@ -157,7 +157,6 @@ def is_core_commit(files: List[str]) -> bool:
         ".devcontainer/",
         "docker-context-files/",
         # Misc
-        "airflow/ui",
         ".dockerignore",
         "docs/spelling_wordlist.txt",
         "docs/integration-logos/*",

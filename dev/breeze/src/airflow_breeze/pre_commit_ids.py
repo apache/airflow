@@ -83,7 +83,6 @@ PRE_COMMIT_LIST = [
     'lint-css',
     'lint-dockerfile',
     'lint-helm-chart',
-    'lint-javascript',
     'lint-json-schema',
     'lint-markdown',
     'lint-openapi',
