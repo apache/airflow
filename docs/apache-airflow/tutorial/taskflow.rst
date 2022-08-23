@@ -18,8 +18,8 @@
 
 
 
-Tutorial on the TaskFlow API
-============================
+Working with TaskFlow
+=====================
 
 This tutorial builds on the regular Airflow Tutorial and focuses specifically
 on writing data pipelines using the TaskFlow API paradigm which is introduced as
@@ -44,7 +44,7 @@ It's a DAG definition file
 
 If this is the first DAG file you are looking at, please note that this Python script
 is interpreted by Airflow and is a configuration file for your data pipeline.
-For a complete introduction to DAG files, please look at the core :doc:`Airflow tutorial<tutorial>`
+For a complete introduction to DAG files, please look at the core :doc:`fundamentals tutorial<fundamentals>`
 which covers DAG structure and definitions extensively.
 
 
