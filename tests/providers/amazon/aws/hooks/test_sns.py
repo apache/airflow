@@ -98,7 +98,7 @@ class TestSnsHook(unittest.TestCase):
             )
 
         self.assertEqual(
-            """Values in MessageAttributes must be one of bytes, str, int, float, """
-            """or iterable; got <class 'object'>""",
+            "Values in MessageAttributes must be one of bytes, str, int, float, "
+            "or iterable; got <class 'object'>",
             str(ctx.exception),
         )
