@@ -98,7 +98,6 @@ config_list: List[_TableConfig] = [
     _TableConfig(table_name='import_error', recency_column_name='timestamp'),
     _TableConfig(table_name='log', recency_column_name='dttm'),
     _TableConfig(table_name='rendered_task_instance_fields', recency_column_name='execution_date'),
-    _TableConfig(table_name='sensor_instance', recency_column_name='updated_at'),
     _TableConfig(table_name='sla_miss', recency_column_name='timestamp'),
     _TableConfig(table_name='task_fail', recency_column_name='start_date'),
     _TableConfig(table_name='task_instance', recency_column_name='start_date'),

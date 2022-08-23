@@ -153,7 +153,7 @@ def _create_dataset_event_dag_run_table():
         ),
         sa.PrimaryKeyConstraint('dag_run_id', 'event_id', name=op.f('dagrun_dataset_events_pkey')),
     )
-    with op.batch_alter_table('dagrun_dataset_events') as batch_op:
+    with op.batch_alter_table('dagrun_dataset_event') as batch_op:
         batch_op.create_index('idx_dagrun_dataset_events_dag_run_id', ['dag_run_id'], unique=False)
         batch_op.create_index('idx_dagrun_dataset_events_event_id', ['event_id'], unique=False)
 

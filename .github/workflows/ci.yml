@@ -1088,8 +1088,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Test downgrade"
         run: ./scripts/ci/testing/run_downgrade_test.sh
-      - name: "Test Offline SQL generation"
-        run: ./scripts/ci/testing/run_offline_sql_test.sh
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
