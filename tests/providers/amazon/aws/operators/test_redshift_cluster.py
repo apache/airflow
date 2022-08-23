@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
-from build.lib.airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class TestRedshiftCreateClusterOperator:
