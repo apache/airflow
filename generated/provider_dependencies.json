@@ -337,6 +337,7 @@
       "pandas-gbq",
       "pandas>=0.17.1",
       "proto-plus>=1.19.6",
+      "protobuf<=3.20.0",
       "sqlalchemy-bigquery>=1.2.1"
     ],
     "cross-providers-deps": [
