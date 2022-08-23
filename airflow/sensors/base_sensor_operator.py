@@ -19,8 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.base import BaseSensorOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.base`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.base`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

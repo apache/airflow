@@ -18,10 +18,11 @@
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.log.s3_task_handler`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.log.s3_task_handler`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

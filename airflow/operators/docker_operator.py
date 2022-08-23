@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.docker.operators.docker import DockerOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.docker.operators.docker`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

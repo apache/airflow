@@ -22,10 +22,11 @@ Please use :mod:`airflow.providers.amazon.aws.operators.s3_file_transform`
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.amazon.aws.operators.s3_file_transform import S3FileTransformOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_file_transform`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

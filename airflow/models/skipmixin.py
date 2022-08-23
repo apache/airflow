@@ -19,6 +19,7 @@
 import warnings
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -104,7 +105,7 @@ class SkipMixin(LoggingMixin):
 
             warnings.warn(
                 "Passing an execution_date to `skip()` is deprecated in favour of passing a dag_run",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 

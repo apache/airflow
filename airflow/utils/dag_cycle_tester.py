@@ -18,7 +18,7 @@
 from collections import defaultdict, deque
 from typing import TYPE_CHECKING, Deque, Dict
 
-from airflow.exceptions import AirflowDagCycleException
+from airflow.exceptions import AirflowDagCycleException, RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -38,7 +38,7 @@ def test_cycle(dag: 'DAG') -> None:
 
     warn(
         "Deprecated, please use `check_cycle` at the same module instead.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return check_cycle(dag)

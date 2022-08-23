@@ -18,6 +18,8 @@ import warnings
 from abc import ABC
 from typing import TYPE_CHECKING, List, Optional
 
+from airflow.exceptions import RemovedInAirflow3Warning
+
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
@@ -93,7 +95,7 @@ class BaseSecretsBackend(ABC):
             not_implemented_get_conn_value = True
             warnings.warn(
                 "Method `get_conn_uri` is deprecated. Please use `get_conn_value`.",
-                PendingDeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -121,7 +123,7 @@ class BaseSecretsBackend(ABC):
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.base_secrets.BaseSecretsBackend.get_connection`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         conn = self.get_connection(conn_id=conn_id)

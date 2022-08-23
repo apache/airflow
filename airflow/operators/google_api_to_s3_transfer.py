@@ -22,11 +22,12 @@ Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3`.
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -44,7 +45,7 @@ class GoogleApiToS3Transfer(GoogleApiToS3Operator):
             "Please use "
             "`airflow.providers.amazon.aws.transfers."
             "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         super().__init__(**kwargs)

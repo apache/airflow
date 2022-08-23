@@ -18,8 +18,11 @@
 """This module is deprecated. Please use :mod:`airflow.operators.latest_only`"""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.latest_only import LatestOnlyOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.latest_only`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.latest_only`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

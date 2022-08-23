@@ -28,7 +28,7 @@ from email.utils import formatdate
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
 
 log = logging.getLogger(__name__)
 
@@ -214,7 +214,7 @@ def send_mime_email(
         warnings.warn(
             "Fetching SMTP credentials from configuration variables will be deprecated in a future "
             "release. Please set credentials using a connection instead.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         try:

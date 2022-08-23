@@ -38,7 +38,7 @@ from typing import (
 )
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 from airflow.utils.types import NOTSET
@@ -235,7 +235,7 @@ def chain(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
@@ -245,7 +245,7 @@ def cross_downstream(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)

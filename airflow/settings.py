@@ -33,6 +33,7 @@ from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -496,7 +497,7 @@ def get_session_lifetime_config():
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
             'session lifetime in minutes. The `force_log_out_after` option has been removed '
             'from `[webserver]` section. Please update your configuration.',
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
         )
         if session_lifetime_days:
             session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)

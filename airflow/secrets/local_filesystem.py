@@ -30,6 +30,7 @@ from airflow.exceptions import (
     AirflowFileParseException,
     ConnectionNotUnique,
     FileSyntaxError,
+    RemovedInAirflow3Warning,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils import yaml
@@ -244,7 +245,7 @@ def load_connections(file_path) -> Dict[str, List[Any]]:
     """This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.","""
     warnings.warn(
         "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return {k: [v] for k, v in load_connections_dict(file_path).values()}
@@ -322,7 +323,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         conn = self.get_connection(conn_id=conn_id)

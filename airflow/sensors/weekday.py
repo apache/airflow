@@ -17,6 +17,7 @@
 # under the License.
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -79,7 +80,7 @@ class DayOfWeekSensor(BaseSensorOperator):
             self.use_task_logical_date = use_task_execution_day
             warnings.warn(
                 "Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         self._week_day_num = WeekDay.validate_week_day(week_day)

@@ -20,6 +20,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, List
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -49,7 +50,7 @@ class BaseHook(LoggingMixin):
         warnings.warn(
             "`BaseHook.get_connections` method will be deprecated in the future."
             "Please use `BaseHook.get_connection` instead.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return [cls.get_connection(conn_id)]

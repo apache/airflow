@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook, HDFSHookException  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.hdfs`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

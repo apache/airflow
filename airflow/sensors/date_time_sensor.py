@@ -19,8 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.date_time import DateTimeSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.date_time`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.date_time`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

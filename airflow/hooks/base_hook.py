@@ -19,6 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.hooks.base import BaseHook  # noqa
 
-warnings.warn("This module is deprecated. Please use `airflow.hooks.base`.", DeprecationWarning, stacklevel=2)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.hooks.base`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
+)

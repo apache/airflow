@@ -28,7 +28,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.providers_manager import ProvidersManager
@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 def parse_netloc_to_hostname(*args, **kwargs):
     """This method is deprecated."""
-    warnings.warn("This method is deprecated.", DeprecationWarning)
+    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
@@ -155,14 +155,14 @@ class Connection(Base, LoggingMixin):
                     "Encountered JSON value in `extra` which does not parse as a dictionary in "
                     f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
                     "representation of a Python dict.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                     stacklevel=3,
                 )
         except json.JSONDecodeError:
             warnings.warn(
                 f"Encountered non-JSON in `extra` field for connection {conn_id!r}. Support for "
                 "non-JSON `extra` will be removed in Airflow 3.0",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         return None
@@ -175,7 +175,8 @@ class Connection(Base, LoggingMixin):
     def parse_from_uri(self, **uri):
         """This method is deprecated. Please use uri parameter in constructor."""
         warnings.warn(
-            "This method is deprecated. Please use uri parameter in constructor.", DeprecationWarning
+            "This method is deprecated. Please use uri parameter in constructor.",
+            RemovedInAirflow3Warning,
         )
         self._parse_from_uri(**uri)
 
@@ -349,7 +350,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
             "use the default representation (__repr__).",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (
@@ -366,7 +367,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
             "use the default representation (__repr__).",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (

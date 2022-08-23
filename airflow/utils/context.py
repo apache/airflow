@@ -39,6 +39,7 @@ from typing import (
 
 import lazy_object_proxy
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.types import NOTSET
 
 # NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
@@ -136,11 +137,11 @@ class ConnectionAccessor:
             return default_conn
 
 
-class AirflowContextDeprecationWarning(DeprecationWarning):
+class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
+def _create_deprecation_warning(key: str, replacements: List[str]) -> RemovedInAirflow3Warning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
     if not replacements:
         return AirflowContextDeprecationWarning(message)

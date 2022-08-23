@@ -17,6 +17,7 @@
 # under the License.
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.common.sql.operators.sql import (  # noqa
     BaseSQLOperator,
     BranchSQLOperator,
@@ -32,6 +33,6 @@ from airflow.providers.common.sql.operators.sql import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.common.sql.operators.sql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

@@ -21,6 +21,8 @@ import warnings
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
+from airflow.exceptions import RemovedInAirflow3Warning
+
 T = TypeVar('T', bound=Callable)
 
 
@@ -40,7 +42,7 @@ def apply_defaults(func: T) -> T:
         "`default_args` feature to work properly.\n"
         "\n"
         "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=3,
     )
 

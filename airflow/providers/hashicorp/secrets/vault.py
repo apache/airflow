@@ -180,7 +180,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         warnings.warn(
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
             "in a future release.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         response = self.get_response(conn_id)

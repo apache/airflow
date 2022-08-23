@@ -142,7 +142,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 "The `secret_values_are_urlencoded` kwarg only exists to assist in migrating away from"
                 " URL-encoding secret values when `full_url_mode` is False. It will be considered deprecated"
                 " when values are not required to be URL-encoded by default.",
-                PendingDeprecationWarning,
+                DeprecationWarning,
                 stacklevel=2,
             )
             if full_url_mode and not are_secret_values_urlencoded:

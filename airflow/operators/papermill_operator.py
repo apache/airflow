@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.papermill.operators.papermill import PapermillOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.papermill.operators.papermill`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

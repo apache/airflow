@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.druid.operators.druid_check import DruidCheckOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.common.sql.operators.sql` module.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

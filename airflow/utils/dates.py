@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Union
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # for doctest
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
 
 cron_presets: Dict[str, str] = {
@@ -71,7 +72,7 @@ def date_range(
     """
     warnings.warn(
         "`airflow.utils.dates.date_range()` is deprecated. Please use `airflow.timetables`.",
-        category=DeprecationWarning,
+        category=RemovedInAirflow3Warning,
         stacklevel=2,
     )
 
@@ -256,7 +257,7 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     warnings.warn(
         "Function `days_ago` is deprecated and will be removed in Airflow 3.0. "
         "You can achieve equivalent behavior with `pendulum.today('UTC').add(days=-N, ...)`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
 

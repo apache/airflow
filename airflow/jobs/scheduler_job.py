@@ -39,6 +39,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -132,7 +133,7 @@ class SchedulerJob(BaseJob):
             warnings.warn(
                 "The 'processor_poll_interval' parameter is deprecated. "
                 "Please use 'scheduler_idle_sleep_time'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             scheduler_idle_sleep_time = processor_poll_interval

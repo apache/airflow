@@ -21,6 +21,7 @@ import os
 import warnings
 from typing import Optional
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
@@ -39,7 +40,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_conn_value`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_conn_value(conn_id)

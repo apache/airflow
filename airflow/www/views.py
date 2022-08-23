@@ -101,7 +101,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -1754,7 +1754,7 @@ class Airflow(AirflowBaseView):
             ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     (name, getattr(ti, name))
                     for name in dir(ti)

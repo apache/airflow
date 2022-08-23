@@ -66,7 +66,13 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagInconsistent, AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowDagInconsistent,
+    AirflowException,
+    DuplicateTaskIdFound,
+    RemovedInAirflow3Warning,
+    TaskNotFound,
+)
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.dagbag import DagBag
@@ -409,7 +415,7 @@ class DAG(LoggingMixin):
         if full_filepath:
             warnings.warn(
                 "Passing full_filepath to DAG() is deprecated and has no effect",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -420,7 +426,7 @@ class DAG(LoggingMixin):
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             max_active_tasks = concurrency
@@ -473,14 +479,14 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "Param `schedule_interval` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if timetable is not None:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -525,7 +531,7 @@ class DAG(LoggingMixin):
         elif default_view == 'tree':
             warnings.warn(
                 "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             self._default_view = 'grid'
@@ -697,7 +703,7 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
                 "Please use 'can_read' and 'can_edit', respectively.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=3,
             )
 
@@ -711,14 +717,14 @@ class DAG(LoggingMixin):
     ) -> List[datetime]:
         message = "`DAG.date_range()` is deprecated."
         if num is not None:
-            warnings.warn(message, category=DeprecationWarning, stacklevel=2)
+            warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 return utils_date_range(
                     start_date=start_date, num=num, delta=self.normalized_schedule_interval
                 )
         message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
-        warnings.warn(message, category=DeprecationWarning, stacklevel=2)
+        warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
         if end_date is None:
             coerced_end_date = timezone.utcnow()
         else:
@@ -729,7 +735,7 @@ class DAG(LoggingMixin):
     def is_fixed_time_schedule(self):
         warnings.warn(
             "`DAG.is_fixed_time_schedule()` is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         try:
@@ -746,7 +752,7 @@ class DAG(LoggingMixin):
         """
         warnings.warn(
             "`DAG.following_schedule()` is deprecated. Use `DAG.next_dagrun_info(restricted=False)` instead.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         data_interval = self.infer_automated_data_interval(timezone.coerce_datetime(dttm))
@@ -760,7 +766,7 @@ class DAG(LoggingMixin):
 
         warnings.warn(
             "`DAG.previous_schedule()` is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if not isinstance(self.timetable, _DataIntervalTimetable):
@@ -867,7 +873,7 @@ class DAG(LoggingMixin):
         if isinstance(last_automated_dagrun, datetime):
             warnings.warn(
                 "Passing a datetime to DAG.next_dagrun_info is deprecated. Use a DataInterval instead.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             data_interval = self.infer_automated_data_interval(
@@ -896,7 +902,7 @@ class DAG(LoggingMixin):
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         warnings.warn(
             "`DAG.next_dagrun_after_date()` is deprecated. Please use `DAG.next_dagrun_info()` instead.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if date_last_automated_dagrun is None:
@@ -1019,7 +1025,7 @@ class DAG(LoggingMixin):
         """
         warnings.warn(
             "`DAG.get_run_dates()` is deprecated. Please use `DAG.iter_dagrun_infos_between()` instead.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         earliest = timezone.coerce_datetime(start_date)
@@ -1032,16 +1038,16 @@ class DAG(LoggingMixin):
     def normalize_schedule(self, dttm):
         warnings.warn(
             "`DAG.normalize_schedule()` is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             following = self.following_schedule(dttm)
         if not following:  # in case of @once
             return dttm
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             previous_of_following = self.previous_schedule(following)
         if previous_of_following != dttm:
             return following
@@ -1079,7 +1085,7 @@ class DAG(LoggingMixin):
         """:meta private:"""
         warnings.warn(
             "DAG.full_filepath is deprecated in favour of fileloc",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.fileloc
@@ -1088,7 +1094,7 @@ class DAG(LoggingMixin):
     def full_filepath(self, value) -> None:
         warnings.warn(
             "DAG.full_filepath is deprecated in favour of fileloc",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         self.fileloc = value
@@ -1098,7 +1104,7 @@ class DAG(LoggingMixin):
         # TODO: Remove in Airflow 3.0
         warnings.warn(
             "The 'DAG.concurrency' attribute is deprecated. Please use 'DAG.max_active_tasks'.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self._max_active_tasks
@@ -1169,7 +1175,9 @@ class DAG(LoggingMixin):
     def filepath(self) -> str:
         """:meta private:"""
         warnings.warn(
-            "filepath is deprecated, use relative_fileloc instead", DeprecationWarning, stacklevel=2
+            "filepath is deprecated, use relative_fileloc instead",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         return str(self.relative_fileloc)
 
@@ -1220,7 +1228,7 @@ class DAG(LoggingMixin):
         """This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_concurrency_reached()
@@ -1240,7 +1248,7 @@ class DAG(LoggingMixin):
         """This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_is_paused()
@@ -1249,7 +1257,7 @@ class DAG(LoggingMixin):
     def normalized_schedule_interval(self) -> ScheduleInterval:
         warnings.warn(
             "DAG.normalized_schedule_interval() is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
@@ -1384,7 +1392,7 @@ class DAG(LoggingMixin):
         """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_latest_execution_date()
@@ -1898,7 +1906,7 @@ class DAG(LoggingMixin):
     ) -> None:
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         dag_ids = dag_ids or [self.dag_id]
@@ -1953,7 +1961,7 @@ class DAG(LoggingMixin):
         if get_tis:
             warnings.warn(
                 "Passing `get_tis` to dag.clear() is deprecated. Use `dry_run` parameter instead.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             dry_run = True
@@ -1961,13 +1969,13 @@ class DAG(LoggingMixin):
         if recursion_depth:
             warnings.warn(
                 "Passing `recursion_depth` to dag.clear() is deprecated.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if max_recursion_depth:
             warnings.warn(
                 "Passing `max_recursion_depth` to dag.clear() is deprecated.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -2101,7 +2109,7 @@ class DAG(LoggingMixin):
         """This method is deprecated in favor of partial_subset"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use partial_subset",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.partial_subset(*args, **kwargs)
@@ -2461,7 +2469,7 @@ class DAG(LoggingMixin):
         if data_interval is None and logical_date is not None:
             warnings.warn(
                 "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=3,
             )
             if run_type == DagRunType.MANUAL:
@@ -2489,7 +2497,7 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "Using forward slash ('/') in a DAG run ID is deprecated. Note that this character "
                 "also makes the run impossible to retrieve via Airflow's REST API.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=3,
             )
 
@@ -2528,7 +2536,7 @@ class DAG(LoggingMixin):
         """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return cls.bulk_write_to_db(dags, session)
@@ -3015,7 +3023,7 @@ class DagModel(Base):
             if concurrency:
                 warnings.warn(
                     "The 'DagModel.concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                     stacklevel=2,
                 )
                 self.max_active_tasks = concurrency
@@ -3229,7 +3237,7 @@ class DagModel(Base):
             warnings.warn(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is deprecated. "
                 "Provide a data interval instead.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             most_recent_data_interval = dag.infer_automated_data_interval(most_recent_dag_run)

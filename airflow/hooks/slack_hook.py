@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.slack.hooks.slack import SlackHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.slack.hooks.slack`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

@@ -22,11 +22,12 @@ Please use :mod:`airflow.providers.apache.hive.transfers.mssql_to_hive`.
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hive.transfers.mssql_to_hive import MsSqlToHiveOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.mssql_to_hive`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -43,7 +44,7 @@ class MsSqlToHiveTransfer(MsSqlToHiveOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlToHiveOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         super().__init__(**kwargs)

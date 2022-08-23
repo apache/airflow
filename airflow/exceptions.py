@@ -338,3 +338,17 @@ class TaskDeferralError(AirflowException):
 
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
+
+
+class RemovedInAirflow3Warning(DeprecationWarning):
+    """Issued for usage of deprecated features that will be removed in Airflow3."""
+
+    deprecated_since: Optional[str] = None
+    "Indicates the airflow version that started raising this deprecation warning"
+
+
+class AirflowProviderDeprecationWarning(DeprecationWarning):
+    """Issued for usage of deprecated features of Airflow provider."""
+
+    deprecated_provider_since: Optional[str] = None
+    "Indicates the provider version that started raising this deprecation warning"

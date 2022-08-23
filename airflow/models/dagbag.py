@@ -42,6 +42,7 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowTimetableInvalid,
     ParamValidationError,
+    RemovedInAirflow3Warning,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -105,7 +106,7 @@ class DagBag(LoggingMixin):
             warnings.warn(
                 "The store_serialized_dags parameter has been deprecated. "
                 "You should pass the read_dags_from_db parameter.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             read_dags_from_db = store_serialized_dags
@@ -143,7 +144,7 @@ class DagBag(LoggingMixin):
         """Whether or not to read dags from DB"""
         warnings.warn(
             "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.read_dags_from_db

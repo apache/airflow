@@ -89,6 +89,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
     DagRunNotFound,
+    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -257,7 +258,7 @@ def clear_task_instances(
         warnings.warn(
             "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
             "Please use `dag_run_state`",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if not activate_dag_runs:
@@ -541,7 +542,7 @@ class TaskInstance(Base, LoggingMixin):
 
             warnings.warn(
                 "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 # Stack level is 4 because SQLA adds some wrappers around the constructor
                 stacklevel=4,
             )
@@ -1061,7 +1062,7 @@ class TaskInstance(Base, LoggingMixin):
             This attribute is deprecated.
             Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_previous_ti()
@@ -1077,7 +1078,7 @@ class TaskInstance(Base, LoggingMixin):
             This attribute is deprecated.
             Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_previous_ti(state=DagRunState.SUCCESS)
@@ -1124,7 +1125,7 @@ class TaskInstance(Base, LoggingMixin):
             This attribute is deprecated.
             Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_previous_start_date(state=DagRunState.SUCCESS)
@@ -2047,7 +2048,7 @@ class TaskInstance(Base, LoggingMixin):
             if dag_run.external_trigger:
                 return logical_date
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 return dag.previous_schedule(logical_date)
 
         @cache
@@ -2354,7 +2355,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
             elif execution_date is not None:
                 message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
-                warnings.warn(message, DeprecationWarning, stacklevel=3)
+                warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
         XCom.set(
             key=key,

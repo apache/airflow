@@ -38,6 +38,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow import models
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
@@ -167,7 +168,7 @@ def get_sensitive_variables_fields():
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return get_sensitive_variables_fields()
@@ -181,7 +182,7 @@ def should_hide_value_for_key(key_name):
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return should_hide_value_for_key(key_name)

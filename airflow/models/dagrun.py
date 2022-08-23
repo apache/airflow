@@ -60,7 +60,7 @@ from sqlalchemy.sql.expression import false, select, true
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
 from airflow.models.base import Base, StringID
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
@@ -1136,7 +1136,7 @@ class DagRun(Base, LoggingMixin):
         """
         warnings.warn(
             "This method is deprecated. Please use SQLAlchemy directly",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (
@@ -1249,7 +1249,7 @@ class DagRun(Base, LoggingMixin):
     def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
         warnings.warn(
             "This method is deprecated. Please use get_log_template instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_log_template(session=session).filename

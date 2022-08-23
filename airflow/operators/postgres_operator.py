@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.postgres.operators.postgres import Mapping, PostgresOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.postgres.operators.postgres`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

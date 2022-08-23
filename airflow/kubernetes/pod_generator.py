@@ -34,7 +34,7 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowConfigException, PodReconciliationError
+from airflow.exceptions import AirflowConfigException, PodReconciliationError, RemovedInAirflow3Warning
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -172,7 +172,7 @@ class PodGenerator:
                 'Using a dictionary for the executor_config is deprecated and will soon be removed.'
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
                 ' instead. ',
-                category=DeprecationWarning,
+                category=RemovedInAirflow3Warning,
             )
             return PodGenerator.from_legacy_obj(obj)
         else:

@@ -18,10 +18,11 @@
 """This module is deprecated. Please use :mod:`airflow.providers.google.cloud.log.gcs_task_handler`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.log.gcs_task_handler`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

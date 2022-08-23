@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.postgres.hooks.postgres import PostgresHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.postgres.hooks.postgres`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

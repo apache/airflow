@@ -28,7 +28,7 @@ from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Opt
 
 import dill
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
@@ -68,7 +68,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
         from airflow.decorators import task
         @task
         def my_task()""",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
@@ -147,7 +147,7 @@ class PythonOperator(BaseOperator):
         if kwargs.get("provide_context"):
             warnings.warn(
                 "provide_context is deprecated as of 2.0 and is no longer required",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             kwargs.pop('provide_context', None)

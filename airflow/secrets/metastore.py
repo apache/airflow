@@ -19,6 +19,7 @@
 import warnings
 from typing import TYPE_CHECKING, List, Optional
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import provide_session
 
@@ -42,7 +43,7 @@ class MetastoreBackend(BaseSecretsBackend):
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         conn = self.get_connection(conn_id=conn_id, session=session)

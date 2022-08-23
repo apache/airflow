@@ -56,7 +56,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -762,7 +762,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). '
                 'Support for passing such arguments will be dropped in future. '
                 f'Invalid arguments were:\n**kwargs: {kwargs}',
-                category=PendingDeprecationWarning,
+                category=RemovedInAirflow3Warning,
                 stacklevel=3,
             )
         validate_key(task_id)
@@ -814,7 +814,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if trigger_rule == "dummy":
             warnings.warn(
                 "dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             trigger_rule = TriggerRule.ALWAYS
@@ -823,7 +823,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             warnings.warn(
                 "none_failed_or_skipped Trigger Rule is deprecated. "
                 "Please use `none_failed_min_one_success`.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
@@ -869,7 +869,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             max_active_tis_per_dag = task_concurrency

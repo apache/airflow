@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.sqlite.operators.sqlite`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

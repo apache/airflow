@@ -19,7 +19,7 @@ import datetime
 import warnings
 from typing import Iterable, Union
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -71,7 +71,7 @@ class BranchDateTimeOperator(BaseBranchOperator):
             self.use_task_logical_date = use_task_execution_date
             warnings.warn(
                 "Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
