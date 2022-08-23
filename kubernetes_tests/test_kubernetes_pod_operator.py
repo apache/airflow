@@ -1057,21 +1057,21 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def test_reattach_failing_pod_once(self):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
-        name = "test"
         namespace = "default"
+        task_id = "test"
 
-        def get_op():
+        def get_op(name: str = "good_name", is_delete_operator_pod: bool = False):
             return KubernetesPodOperator(
-                namespace='default',
+                namespace=namespace,
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=["exit 1"],
                 labels={"foo": "bar"},
-                name="test",
-                task_id=name,
+                name=name,
+                task_id=task_id,
                 in_cluster=False,
                 do_xcom_push=False,
-                is_delete_operator_pod=False,
+                is_delete_operator_pod=is_delete_operator_pod,
                 termination_grace_period=0,
             )
 
@@ -1097,6 +1097,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             while pod.status.phase != "Failed":
                 pod = client.read_namespaced_pod(name=name, namespace=namespace)
             assert 'already_checked' not in pod.metadata.labels
+
+        # create a new version of the same operator instance with a different name
+        k = get_op(name="bad_name", is_delete_operator_pod=True)
+
+        # `create_pod` should be called because the existing pod has a different name
+        with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
+            k.execute(context)
+            create_mock.assert_called()
 
         # create a new version of the same operator instance to remove the monkey patching in first
         # part of the test
