@@ -130,7 +130,7 @@ for examples of using those arguments.
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_COMMAND``                      | (see Dockerfile)                         | Dev apt command executed before dev deps |
+| ``DEV_APT_COMMAND``                      |                                          | Dev apt command executed before dev deps |
 |                                          |                                          | are installed in the Build image.        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
@@ -138,8 +138,8 @@ for examples of using those arguments.
 |                                          |                                          | in the Build image. Should start with    |
 |                                          |                                          | ``&&``.                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_DEPS``                         | (see Dockerfile)                         | Dev APT dependencies installed           |
-|                                          |                                          | in the Build image.                      |
+| ``DEV_APT_DEPS``                         | Empty - install default dependencies     | Dev APT dependencies installed           |
+|                                          | (see ``install_os_dependencies.sh``)     | in the Build image.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
 |                                          |                                          | installed in the Build image.            |
@@ -147,16 +147,16 @@ for examples of using those arguments.
 | ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
 |                                          |                                          | when installing dev deps.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_COMMAND``                  | (see Dockerfile)                         | Runtime apt command executed before deps |
-|                                          |                                          | are installed in the Main image.         |
+| ``RUNTIME_APT_COMMAND``                  |                                          | Runtime apt command executed before deps |
+|                                          |                                          | are installed in the ``main`` stage.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
 |                                          |                                          | before runtime dep are installed         |
-|                                          |                                          | in the Main image. Should start with     |
+|                                          |                                          | in the ``main`` stage. Should start with |
 |                                          |                                          | ``&&``.                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_DEPS``                     | (see Dockerfile)                         | Runtime APT dependencies installed       |
-|                                          |                                          | in the Main image.                       |
+| ``RUNTIME_APT_DEPS``                     | Empty - install default dependencies     | Runtime APT dependencies installed       |
+|                                          | (see ``install_os_dependencies.sh``)     | in the Main image.                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
 |                                          |                                          | installed in the Main image.             |
