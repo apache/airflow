@@ -214,7 +214,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if not dag:
             return set()
 
-        if not found_descendants:
+        if found_descendants is None:
             found_descendants = set()
         relative_ids = self.get_direct_relative_ids(upstream)
 
