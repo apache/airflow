@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, cast
 
 import boto3
 from botocore.client import BaseClient
@@ -174,7 +174,7 @@ with DAG(
         task_id='wait_for_job',
         job_name=glue_job_name,
         # Job ID extracted from previous Glue Job Operator task
-        run_id=submit_glue_job.output,
+        run_id=cast(str, submit_glue_job.output),
     )
     # [END howto_sensor_glue]
 

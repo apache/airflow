@@ -20,9 +20,9 @@ Example Airflow DAG that shows how to use DisplayVideo.
 """
 import os
 from datetime import datetime
-from typing import Dict
+from typing import Dict, cast
 
-from airflow import models
+from airflow import XComArg, models
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
@@ -91,7 +91,7 @@ with models.DAG(
 ) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
-    report_id = create_report.output["report_id"]
+    report_id = cast(str, XComArg(create_report, key="report_id"))
     # [END howto_google_display_video_createquery_report_operator]
 
     # [START howto_google_display_video_runquery_report_operator]

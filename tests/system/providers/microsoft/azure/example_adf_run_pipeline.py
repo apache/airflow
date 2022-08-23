@@ -16,7 +16,9 @@
 # under the License.
 import os
 from datetime import datetime, timedelta
+from typing import cast
 
+from airflow import XComArg
 from airflow.models import DAG
 
 try:
@@ -65,7 +67,7 @@ with DAG(
 
     pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor",
-        run_id=run_pipeline2.output["run_id"],
+        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
     )
     # [END howto_operator_adf_run_pipeline_async]
 

@@ -20,8 +20,9 @@ Example Airflow DAG that shows how to use SearchAds.
 """
 import os
 from datetime import datetime
+from typing import cast
 
-from airflow import models
+from airflow import XComArg, models
 from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsDownloadReportOperator,
     GoogleSearchAdsInsertReportOperator,
@@ -59,7 +60,7 @@ with models.DAG(
     # [END howto_search_ads_generate_report_operator]
 
     # [START howto_search_ads_get_report_id]
-    report_id = generate_report.output["report_id"]
+    report_id = cast(str, XComArg(generate_report, key="report_id"))
     # [END howto_search_ads_get_report_id]
 
     # [START howto_search_ads_get_report_operator]
