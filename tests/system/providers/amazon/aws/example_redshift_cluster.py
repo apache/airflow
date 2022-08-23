@@ -96,7 +96,6 @@ with DAG(
         snapshot_identifier=REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER,
         retention_period=1,
         poll_interval=5,
-        timeout=60 * 15,
     )
     # [END howto_operator_redshift_create_cluster_snapshot]
 
