@@ -3720,7 +3720,24 @@ class Airflow(AirflowBaseView):
             excluded_events = {event.strip() for event in excluded_events_raw.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
 
-        dag_audit_logs = query.all()
+        current_page = request.args.get('page', default=0, type=int)
+        arg_sorting_key = request.args.get('sorting_key', 'dttm')
+        arg_sorting_direction = request.args.get('sorting_direction', default='asc')
+
+        logs_per_page = PAGE_SIZE
+        audit_logs_count = query.count()
+        num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
+
+        start = current_page * logs_per_page
+        end = start + logs_per_page
+
+        sort_column = Log.__table__.c.get(arg_sorting_key)
+        if sort_column is not None:
+            if arg_sorting_direction == 'desc':
+                sort_column = sort_column.desc()
+            query = query.order_by(sort_column)
+
+        dag_audit_logs = query.offset(start).limit(logs_per_page).all()
         return self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
@@ -3728,7 +3745,16 @@ class Airflow(AirflowBaseView):
             root=request.args.get('root'),
             dag_id=dag_id,
             dag_logs=dag_audit_logs,
+            num_log_from=min(start + 1, audit_logs_count),
+            num_log_to=min(end, audit_logs_count),
+            audit_logs_count=audit_logs_count,
             page_size=PAGE_SIZE,
+            paging=wwwutils.generate_pages(
+                current_page,
+                num_of_pages,
+            ),
+            sorting_key=arg_sorting_key,
+            sorting_direction=arg_sorting_direction,
         )
 
 
