@@ -117,7 +117,7 @@ is used in the [Community managed DockerHub image](https://hub.docker.com/p/apac
 
 Visit the official Airflow website documentation (latest **stable** release) for help with
 [installing Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation.html),
-[getting started](https://airflow.apache.org/docs/apache-airflow/stable/start/index.html), or walking
+[getting started](https://airflow.apache.org/docs/apache-airflow/stable/start.html), or walking
 through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html).
 
 > Note: If you're looking for documentation for the main branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
