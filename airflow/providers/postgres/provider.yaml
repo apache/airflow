@@ -41,7 +41,7 @@ versions:
 dependencies:
   - apache-airflow>=2.2.0
   - apache-airflow-providers-common-sql>=1.1.0
-  - psycopg2-binary>=2.7.4
+  - psycopg2>=2.8.0
 
 integrations:
   - integration-name: PostgreSQL
