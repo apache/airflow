@@ -308,9 +308,6 @@ class DatasetEvent(Base):
     def uri(self):
         return self.dataset.uri
 
-    def __eq__(self, other) -> bool:
-        raise ValueError('this is a test')
-
     def __repr__(self) -> str:
         args = []
         for attr in [
