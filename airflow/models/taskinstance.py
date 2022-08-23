@@ -80,6 +80,7 @@ from sqlalchemy.sql.expression import ColumnOperators
 from airflow import settings
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -95,7 +96,6 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -583,6 +583,10 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = False
         # can be changed when calling 'run'
         self.test_mode = False
+
+        self.dataset_event_manager = conf.getimport(
+            'core', 'dataset_event_manager_class', fallback='airflow.datasets.manager.DatasetEventManager'
+        )()
 
     @staticmethod
     def insert_mapping(run_id: str, task: "Operator", map_index: int) -> dict:
@@ -1525,33 +1529,19 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(self.state, self))
             session.merge(self)
             if self.state == TaskInstanceState.SUCCESS:
-                self._create_dataset_dag_run_queue_records(session=session)
+                self._register_dataset_changes(session=session)
             session.commit()
 
-    def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
-        from airflow.datasets import Dataset
-        from airflow.models.dataset import DatasetModel
-
+    def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
+            # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                dataset = session.query(DatasetModel).filter(DatasetModel.uri == obj.uri).one_or_none()
-                if not dataset:
-                    self.log.warning("Dataset %s not found", obj)
-                    continue
-                consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
-                self.log.debug("consuming dag ids %s", consuming_dag_ids)
-                session.add(
-                    DatasetEvent(
-                        dataset_id=dataset.id,
-                        source_task_id=self.task_id,
-                        source_dag_id=self.dag_id,
-                        source_run_id=self.run_id,
-                        source_map_index=self.map_index,
-                    )
+                self.dataset_event_manager.register_dataset_change(
+                    task_instance=self,
+                    dataset=obj,
+                    session=session,
                 )
-                for dag_id in consuming_dag_ids:
-                    session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""
