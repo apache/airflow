@@ -25,8 +25,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
-    ALLOWED_DEBIAN_VERSIONS,
-    ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_INTEGRATIONS,
     ALLOWED_MOUNT_OPTIONS,
@@ -121,11 +119,6 @@ option_mssql_version = click.option(
     type=CacheableChoice(ALLOWED_MSSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MSSQL_VERSIONS[0]),
     show_default=True,
-)
-option_executor = click.option(
-    '--executor',
-    help='Executor to use for a kubernetes cluster. Default is KubernetesExecutor.',
-    type=BetterChoice(ALLOWED_EXECUTORS),
 )
 option_forward_credentials = click.option(
     '-f', '--forward-credentials', help="Forward local credentials to container when running.", is_flag=True
@@ -226,14 +219,6 @@ option_platform_single = click.option(
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(SINGLE_PLATFORMS),
-)
-option_debian_version = click.option(
-    '--debian-version',
-    help='Debian version used for the image.',
-    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
-    default=ALLOWED_DEBIAN_VERSIONS[0],
-    show_default=True,
-    envvar='DEBIAN_VERSION',
 )
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
@@ -476,4 +461,10 @@ option_builder = click.option(
     help="Buildx builder used to perform `docker buildx build` commands",
     envvar='BUILDER',
     default='default',
+)
+option_include_success_outputs = click.option(
+    '--include-success-outputs',
+    help="Whether to include outputs of successful parallel runs (by default they are not printed).",
+    is_flag=True,
+    envvar='INCLUDE_SUCCESS_OUTPUTS',
 )

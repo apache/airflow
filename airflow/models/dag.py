@@ -115,7 +115,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, List["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -234,19 +234,20 @@ class DAG(LoggingMixin):
     Note that if you plan to use time zones all the dates provided should be pendulum
     dates. See :ref:`timezone_aware_dags`.
 
+    .. versionadded:: 2.4
+        The *schedule* argument to specify either time-based scheduling logic
+        (timetable), or dataset-driven triggers.
+
+    .. deprecated:: 2.4
+        The arguments *schedule_interval* and *timetable*. Their functionalities
+        are merged into the new *schedule* argument.
+
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: Defines the rules according to which DAG runs are scheduled. Can
         accept cron string, timedelta object, Timetable, or list of Dataset objects.
         See also :doc:`/howto/timetable`.
-    :param schedule_interval: Defines how often that DAG runs, this
-        timedelta object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-        Note: deprecated in Airflow 2.4; use `schedule` instead.
-    :param timetable: Specify which timetable to use (in which case schedule_interval
-        must not be set). See :doc:`/howto/timetable` for more information
-        Note: deprecated in Airflow 2.4; use `schedule` instead.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
@@ -482,29 +483,21 @@ class DAG(LoggingMixin):
                 DeprecationWarning,
                 stacklevel=2,
             )
+
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: Optional[List["Dataset"]] = None
+        self.dataset_triggers: Collection[Dataset] = []
 
-        if schedule is not NOTSET:
-            if isinstance(schedule, List):
-                from airflow.datasets import Dataset
+        if isinstance(schedule, Collection) and not isinstance(schedule, str):
+            from airflow.datasets import Dataset
 
-                # if List, only support List[Dataset]
-                if any(isinstance(x, Dataset) for x in schedule):
-                    if not all(isinstance(x, Dataset) for x in schedule):
-                        raise ValueError(
-                            "If scheduling DAG with List[Dataset], all elements must be Dataset."
-                        )
-                    self.dataset_triggers = list(schedule)
-                else:
-                    raise ValueError(
-                        "Use of List object with `schedule` param is only supported for List[Dataset]."
-                    )
-            elif isinstance(schedule, Timetable):
-                timetable = schedule
-            else:  # assumed to be ScheduleIntervalArg
-                schedule_interval = schedule
+            if not all(isinstance(x, Dataset) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be datasets")
+            self.dataset_triggers = list(schedule)
+        elif isinstance(schedule, Timetable):
+            timetable = schedule
+        else:
+            schedule_interval = schedule
 
         if self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
@@ -2221,6 +2214,13 @@ class DAG(LoggingMixin):
     def has_task(self, task_id: str):
         return task_id in self.task_dict
 
+    def has_task_group(self, task_group_id: str) -> bool:
+        return task_group_id in self.task_group_dict
+
+    @cached_property
+    def task_group_dict(self):
+        return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
+
     def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
@@ -2453,15 +2453,33 @@ class DAG(LoggingMixin):
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
         """
+        logical_date = timezone.coerce_datetime(execution_date)
+
+        if data_interval and not isinstance(data_interval, DataInterval):
+            data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
+
+        if data_interval is None and logical_date is not None:
+            warnings.warn(
+                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            if run_type == DagRunType.MANUAL:
+                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            else:
+                data_interval = self.infer_automated_data_interval(logical_date)
+
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
                 raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
             if not run_type:
                 run_type = DagRunType.from_run_id(run_id)
-        elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
+        elif run_type and logical_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
                 raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
-            run_id = DagRun.generate_run_id(run_type, execution_date)
+            run_id = self.timetable.generate_run_id(
+                run_type=run_type, logical_date=logical_date, data_interval=data_interval
+            )
         else:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
@@ -2474,18 +2492,6 @@ class DAG(LoggingMixin):
                 DeprecationWarning,
                 stacklevel=3,
             )
-
-        logical_date = timezone.coerce_datetime(execution_date)
-        if data_interval is None and logical_date is not None:
-            warnings.warn(
-                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            if run_type == DagRunType.MANUAL:
-                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
-            else:
-                data_interval = self.infer_automated_data_interval(logical_date)
 
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
@@ -2662,7 +2668,7 @@ class DAG(LoggingMixin):
         outlet_datasets: Dict[Dataset, None] = {}
         input_datasets: Dict[Dataset, None] = {}
         for dag in dags:
-            for dataset in dag.dataset_triggers or []:
+            for dataset in dag.dataset_triggers:
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
                 input_datasets[DatasetModel.from_public(dataset)] = None
             for task in dag.tasks:

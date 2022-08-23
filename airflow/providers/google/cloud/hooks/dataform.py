@@ -34,7 +34,7 @@ class DataformHook(GoogleBaseHook):
         self,
     ) -> DataformClient:
         """Retrieves client library object that allow access to Cloud Dataform service."""
-        return DataformClient(credentials=self._get_credentials())
+        return DataformClient(credentials=self.get_credentials())
 
     @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_workflow_invocation(

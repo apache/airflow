@@ -244,9 +244,7 @@ class DbApiHook(BaseForDbApiHook):
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements: List[str] = list(
-            filter(None, [s.rstrip(';').strip() if s.endswith(';') else s.strip() for s in splits])
-        )
+        statements: List[str] = list(filter(None, splits))
         return statements
 
     def run(
@@ -278,7 +276,7 @@ class DbApiHook(BaseForDbApiHook):
             if split_statements:
                 sql = self.split_sql_string(sql)
             else:
-                sql = [self.strip_sql_string(sql)]
+                sql = [sql]
 
         if sql:
             self.log.debug("Executing following statements against DB: %s", list(sql))

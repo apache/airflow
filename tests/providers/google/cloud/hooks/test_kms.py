@@ -64,7 +64,7 @@ class TestCloudKMSHook(unittest.TestCase):
         ):
             self.kms_hook = CloudKMSHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kms.KeyManagementServiceClient")
     def test_kms_client_creation(self, mock_client, mock_get_creds):
         result = self.kms_hook.get_conn()
