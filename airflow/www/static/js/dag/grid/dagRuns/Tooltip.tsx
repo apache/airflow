@@ -19,9 +19,12 @@
 
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
+import { startCase } from 'lodash';
 
 import { formatDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
+import { getDagRunLabel } from 'src/utils';
+import { useGridData } from 'src/api';
 
 import type { RunWithDuration } from './index';
 
@@ -29,33 +32,32 @@ interface Props {
   dagRun: RunWithDuration;
 }
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalStart, executionDate, runType,
-  },
-}: Props) => (
-  <Box py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      <Time dateTime={dataIntervalStart || executionDate} />
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-    <Text>
-      Type:
-      {' '}
-      {runType}
-    </Text>
-  </Box>
-);
+const DagRunTooltip = ({ dagRun }: Props) => {
+  const { data: { ordering } } = useGridData();
+  return (
+    <Box py="2px">
+      <Text>
+        Status:
+        {' '}
+        {dagRun.state || 'no status'}
+      </Text>
+      <Text whiteSpace="nowrap">
+        {startCase(ordering[0] || ordering[1])}
+        {': '}
+        <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
+      </Text>
+      <Text>
+        Duration:
+        {' '}
+        {formatDuration(dagRun.duration)}
+      </Text>
+      <Text>
+        Type:
+        {' '}
+        {dagRun.runType}
+      </Text>
+    </Box>
+  );
+};
 
 export default DagRunTooltip;

@@ -26,7 +26,8 @@ import useErrorToast from 'src/utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
 } from 'src/dag/useFilters';
-import type { Task, DagRun } from 'src/types';
+import type { Task, DagRun, RunOrdering } from 'src/types';
+import { camelCase } from 'lodash';
 
 const DAG_ID_PARAM = 'dag_id';
 
@@ -38,6 +39,7 @@ const urlRoot = getMetaValue('root');
 interface GridData {
   dagRuns: DagRun[];
   groups: Task;
+  ordering: RunOrdering;
 }
 
 const emptyGridData: GridData = {
@@ -47,7 +49,13 @@ const emptyGridData: GridData = {
     label: null,
     instances: [],
   },
+  ordering: [],
 };
+
+const formatOrdering = (data: GridData) => ({
+  ...data,
+  ordering: data.ordering.map((o: string) => camelCase(o)) as RunOrdering,
+});
 
 export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['manual', 'manual'].includes(run.runType)).filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
@@ -88,6 +96,7 @@ const useGridData = () => {
         });
         throw (error);
       },
+      select: formatOrdering,
     },
   );
   return {

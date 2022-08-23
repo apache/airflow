@@ -25,7 +25,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 
-import { getMetaValue, getTask } from 'src/utils';
+import { getDagRunLabel, getMetaValue, getTask } from 'src/utils';
 import useSelection from 'src/dag/useSelection';
 import Time from 'src/components/Time';
 import { useGridData } from 'src/api';
@@ -36,7 +36,7 @@ import BreadcrumbText from './BreadcrumbText';
 const dagId = getMetaValue('dag_id');
 
 const Header = () => {
-  const { data: { dagRuns, groups } } = useGridData();
+  const { data: { dagRuns, groups, ordering } } = useGridData();
 
   const { selected: { taskId, runId, mapIndex }, onSelect, clearSelection } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
@@ -58,7 +58,7 @@ const Header = () => {
       || runId.includes('backfill__')
       || runId.includes('dataset_triggered__')
     )
-      ? <Time dateTime={dagRun.dataIntervalStart || dagRun.executionDate} />
+      ? <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
       : runId;
     runLabel = (
       <>
