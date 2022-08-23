@@ -80,7 +80,7 @@ Create an Amazon Redshift cluster snapshot
 ==========================================
 
 To create Amazon Redshift cluster snapshot you can use
-:class:`RedshiftDeleteClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+:class:`RedshiftCreateClusterSnapshotOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
   :language: python
