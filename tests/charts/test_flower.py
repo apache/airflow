@@ -291,12 +291,8 @@ class TestFlowerDeployment:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert {
-            "tier": "airflow",
-            "component": "flower",
-            "release": "RELEASE-NAME",
-            "test_label": "test_label_value",
-        } == jmespath.search("spec.template.metadata.labels", docs[0])
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
 class TestFlowerService:

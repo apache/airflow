@@ -156,12 +156,8 @@ class SchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {
-            "tier": "airflow",
-            "component": "scheduler",
-            "release": "RELEASE-NAME",
-            "test_label": "test_label_value",
-        } == jmespath.search("spec.template.metadata.labels", docs[0])
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):

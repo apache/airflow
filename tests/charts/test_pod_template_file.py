@@ -662,12 +662,8 @@ class PodTemplateFileTest(unittest.TestCase):
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {
-            "tier": "airflow",
-            "component": "worker",
-            "release": "RELEASE-NAME",
-            "test_label": "test_label_value",
-        } == jmespath.search("metadata.labels", docs[0])
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_should_add_resources(self):
         docs = render_chart(

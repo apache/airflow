@@ -201,12 +201,11 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        assert {
-            "tier": "airflow",
-            "component": "airflow-cleanup-pods",
-            "release": "RELEASE-NAME",
-            "test_label": "test_label_value",
-        } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+        assert "test_label" in jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_cleanup_resources_are_configurable(self):
         resources = {

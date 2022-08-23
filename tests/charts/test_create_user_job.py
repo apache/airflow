@@ -51,13 +51,8 @@ class CreateUserJobTest(unittest.TestCase):
             },
             show_only=["templates/jobs/create-user-job.yaml"],
         )
-
-        assert {
-            "tier": "airflow",
-            "component": "create-user-job",
-            "release": "RELEASE-NAME",
-            "test_label": "test_label_value",
-        } == jmespath.search("spec.template.metadata.labels", docs[0])
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
