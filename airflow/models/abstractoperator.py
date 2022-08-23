@@ -214,15 +214,18 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if not dag:
             return set()
 
-        if not found_descendants:
+        if found_descendants is None:
             found_descendants = set()
-        relative_ids = self.get_direct_relative_ids(upstream)
 
-        for relative_id in relative_ids:
-            if relative_id not in found_descendants:
-                found_descendants.add(relative_id)
-                relative_task = dag.task_dict[relative_id]
-                relative_task.get_flat_relative_ids(upstream, found_descendants)
+        task_ids_to_trace = self.get_direct_relative_ids(upstream)
+        while task_ids_to_trace:
+            task_ids_to_trace_next: Set[str] = set()
+            for task_id in task_ids_to_trace:
+                if task_id in found_descendants:
+                    continue
+                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
+                found_descendants.add(task_id)
+            task_ids_to_trace = task_ids_to_trace_next
 
         return found_descendants
 
