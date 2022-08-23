@@ -534,23 +534,13 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Mapping[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Mapping[str, Any]:
         """Get the kwargs to create the unmapped operator.
 
-        If *resolve* is not *None*, it must be a two-tuple to provide context to
-        resolve XComArgs (a templating context, and a database session).
-
-        When resolving is not possible (e.g. to perform parse-time validation),
-        *resolve* can be set to *None*. This will cause the dict-of-lists
-        variant to simply return a dict of XComArgs corresponding to each kwargs
-        to pass to the unmapped operator. Since it is impossible to perform any
-        operation on the list-of-dicts variant before execution time, an empty
-        dict will be returned for this case.
+        This exists because taskflow operators expand against op_kwargs, not the
+        entire operator kwargs dict.
         """
-        expand_input = self._get_specified_expand_input()
-        if resolve is not None:
-            return expand_input.resolve(*resolve)
-        return expand_input.get_unresolved_kwargs()
+        return self._get_specified_expand_input().resolve(context, session)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         """Get init kwargs to unmap the underlying operator class.
@@ -593,8 +583,10 @@ class MappedOperator(AbstractOperator):
         if isinstance(self.operator_class, type):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
+            elif resolve is not None:
+                kwargs = self._expand_mapped_kwargs(*resolve)
             else:
-                kwargs = self._expand_mapped_kwargs(resolve)
+                raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
@@ -778,7 +770,7 @@ class MappedOperator(AbstractOperator):
         # in the weeds here. We don't close this session for the same reason.
         session = settings.Session()
 
-        mapped_kwargs = self._expand_mapped_kwargs((context, session))
+        mapped_kwargs = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
         self._do_render_template_fields(
             parent=unmapped_task,

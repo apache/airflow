@@ -31,7 +31,6 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    Tuple,
     Type,
     TypeVar,
     cast,
@@ -460,10 +459,10 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Mapping[str, Any]:
         # We only use op_kwargs_expand_input so this must always be empty.
         assert self.expand_input is EXPAND_INPUT_EMPTY
-        return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
+        return {"op_kwargs": super()._expand_mapped_kwargs(context, session)}
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         if strict:
