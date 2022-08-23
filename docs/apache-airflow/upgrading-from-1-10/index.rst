@@ -476,6 +476,7 @@ In the new model a user can accomplish the same thing using the following code u
 
     from kubernetes.client import models as k8s
 
+
     @task(
         task_id="four_task",
         executor_config={
@@ -500,10 +501,11 @@ In the new model a user can accomplish the same thing using the following code u
                     ],
                 )
             )
-        }
+        },
     )
     def test_volume_mount():
         pass
+
 
     second_task = test_volume_mount()
 
