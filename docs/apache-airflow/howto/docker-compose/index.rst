@@ -22,13 +22,17 @@ Running Airflow in Docker
 
 This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </executor/celery>` in Docker.
 
-.. warning::
-    Setting up Airflow using Docker compose can be useful for learning and exploration, but has several operational shortcomings. For running Airflow in production, we recommend Kubernetes with the :doc:`Official Airflow Community Helm Chart<helm-chart:index>`.
+.. caution::
+    This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
+
+    For that reason, we recommend using Kubernetes with the :doc:`Official Airflow Community Helm Chart<helm-chart:index>` when you are ready to run Airflow in production.
 
 Before you begin
 ================
 
-Follow these steps to install the necessary tools.
+This procedure assumes familiarity with Docker and Docker Compose. If you haven't worked with these tools before, you should take a moment to run through the `Docker Quick Start <https://docs.docker.com/get-started/>`__ (especially the section on `Docker Compose <https://docs.docker.com/get-started/08_using_compose/>`__) so you are familiar with how they work.
+
+Follow these steps to install the necessary tools, if you have not already done so.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on your OS, you may need to configure Docker to use at least 4.00 GB of memory for the Airflow containers to run properly. Please refer to the Resources section in the `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ documentation for more information.
 2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 or newer on your workstation.
