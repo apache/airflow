@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
-from build.lib.airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
