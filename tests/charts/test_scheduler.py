@@ -690,22 +690,6 @@ class SchedulerNetworkPolicyTest(unittest.TestCase):
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class SchedulerPodDisruptionBudgetTest(unittest.TestCase):
-    def test_should_add_component_specific_labels(self):
-        docs = render_chart(
-            values={
-                "scheduler": {
-                    "podDisruptionBudget": {"enabled": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
-            },
-            show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
-        )
-
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-
-
 class SchedulerServiceTest(unittest.TestCase):
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
