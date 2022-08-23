@@ -25,6 +25,7 @@ Create Date: 2022-05-03 09:47:41.957710
 """
 
 from alembic import op
+from sqlalchemy import inspect
 
 from airflow.migrations.utils import get_mssql_table_constraints
 
@@ -39,14 +40,13 @@ airflow_version = '2.3.2'
 def upgrade():
     """Apply Add cascade to dag_tag foreignkey"""
     conn = op.get_bind()
-    if conn.dialect.name == 'sqlite':
-        naming_convention = {
-            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        }
+    if conn.dialect.name in ['sqlite', 'mysql']:
+        inspector = inspect(conn.engine)
+        foreignkey = inspector.get_foreign_keys('dag_tag')
         with op.batch_alter_table(
-            'dag_tag', naming_convention=naming_convention, recreate='always'
+            'dag_tag',
         ) as batch_op:
-            batch_op.drop_constraint('fk_dag_tag_dag_id_dag', type_='foreignkey')
+            batch_op.drop_constraint(foreignkey[0]['name'], type_='foreignkey')
             batch_op.create_foreign_key(
                 "dag_tag_dag_id_fkey", 'dag', ['dag_id'], ['dag_id'], ondelete='CASCADE'
             )
@@ -58,9 +58,6 @@ def upgrade():
                 batch_op.drop_constraint(Fk, type_='foreignkey')
             if conn.dialect.name == 'postgresql':
                 batch_op.drop_constraint('dag_tag_dag_id_fkey', type_='foreignkey')
-            if conn.dialect.name == 'mysql':
-                batch_op.drop_constraint('dag_tag_ibfk_1', type_='foreignkey')
-
             batch_op.create_foreign_key(
                 "dag_tag_dag_id_fkey", 'dag', ['dag_id'], ['dag_id'], ondelete='CASCADE'
             )
