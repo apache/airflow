@@ -19,11 +19,12 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hive.transfers.mysql_to_hive import MySqlToHiveOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.mysql_to_hive`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -38,7 +39,7 @@ class MySqlToHiveTransfer(MySqlToHiveOperator):
         warnings.warn(
             """This class is deprecated.
            Please use `airflow.providers.apache.hive.transfers.mysql_to_hive.MySqlToHiveOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         super().__init__(**kwargs)

@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.oracle.operators.oracle import OracleOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.oracle.operators.oracle`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

@@ -19,6 +19,7 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hive.hooks.hive import (  # noqa
     HIVE_QUEUE_PRIORITIES,
     HiveCliHook,
@@ -28,6 +29,6 @@ from airflow.providers.apache.hive.hooks.hive import (  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.hooks.hive`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

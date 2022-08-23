@@ -18,10 +18,11 @@
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.log.wasb_task_handler`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.log.wasb_task_handler`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
