@@ -82,13 +82,13 @@ def dag_policy(dag: DAG):
 
 
 # [START example_task_cluster_policy]
-class TimedOperator(BaseOperator, ABC):
-    timeout: timedelta
+class MyCustomOperator(BaseOperator, ABC):
+    pass
 
 
-def task_policy(task: TimedOperator):
-    if task.task_type == 'HivePartitionSensor':
-        task.queue = "sensor_queue"
+def task_policy(task: MyCustomOperator):
+    if task.task_type == 'BaseOperator':
+        task.queue = "priority_queue"
     if task.execution_timeout > timedelta(hours=48):
         task.execution_timeout = timedelta(hours=48)
 
