@@ -32,7 +32,7 @@ from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1 import Batch, Cluster
+from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -50,6 +50,7 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocLink,
     DataprocListLink,
 )
+from airflow.providers.google.cloud.triggers.dataproc import DataprocBaseTrigger
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -867,6 +868,9 @@ class DataprocJobBaseOperator(BaseOperator):
     :param asynchronous: Flag to return after submitting the job to the Dataproc API.
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
+    :param deferrable: Run operator in the deferrable mode
+    :param polling_interval_seconds: time in seconds between polling for job completion.
+        The value is considered only when running in deferrable mode. Must be greater than 0.
 
     :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
         This is useful for identifying or linking to the job in the Google Cloud Console
@@ -894,9 +898,13 @@ class DataprocJobBaseOperator(BaseOperator):
         job_error_states: Optional[Set[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
+        deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
@@ -914,6 +922,8 @@ class DataprocJobBaseOperator(BaseOperator):
         self.job: Optional[dict] = None
         self.dataproc_job_id = None
         self.asynchronous = asynchronous
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def create_job_template(self) -> DataProcJobBuilder:
         """Initialize `self.job_template` with default values"""
@@ -958,6 +968,19 @@ class DataprocJobBaseOperator(BaseOperator):
                 context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id
             )
 
+            if self.deferrable:
+                self.defer(
+                    trigger=DataprocBaseTrigger(
+                        job_id=job_id,
+                        project_id=self.project_id,
+                        region=self.region,
+                        delegate_to=self.delegate_to,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                        polling_interval_seconds=self.polling_interval_seconds,
+                    ),
+                    method_name="execute_complete",
+                )
             if not self.asynchronous:
                 self.log.info('Waiting for job %s to complete', job_id)
                 self.hook.wait_for_job(job_id=job_id, region=self.region, project_id=self.project_id)
@@ -965,6 +988,20 @@ class DataprocJobBaseOperator(BaseOperator):
             return job_id
         else:
             raise AirflowException("Create a job template before")
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        job_state = event["job_state"]
+        job_id = event["job_id"]
+        if job_state == JobStatus.State.ERROR:
+            raise AirflowException(f'Job failed:\n{job_id}')
+        if job_state == JobStatus.State.CANCELLED:
+            raise AirflowException(f'Job was cancelled:\n{job_id}')
+        self.log.info("%s completed successfully.", self.task_id)
 
     def on_kill(self) -> None:
         """
@@ -1771,6 +1808,9 @@ class DataprocSubmitJobOperator(BaseOperator):
     :param asynchronous: Flag to return after submitting the job to the Dataproc API.
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
+    :param deferrable: Run operator in the deferrable mode
+    :param polling_interval_seconds: time in seconds between polling for job completion.
+        The value is considered only when running in deferrable mode. Must be greater than 0.
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
     """
@@ -1793,11 +1833,15 @@ class DataprocSubmitJobOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
+        deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.project_id = project_id
         self.region = region
         self.job = job
@@ -1808,6 +1852,8 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
         self.cancel_on_kill = cancel_on_kill
         self.hook: Optional[DataprocHook] = None
         self.job_id: Optional[str] = None
@@ -1833,7 +1879,19 @@ class DataprocSubmitJobOperator(BaseOperator):
         )
 
         self.job_id = new_job_id
-        if not self.asynchronous:
+        if self.deferrable:
+            self.defer(
+                trigger=DataprocBaseTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    region=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
+        elif not self.asynchronous:
             self.log.info('Waiting for job %s to complete', new_job_id)
             self.hook.wait_for_job(
                 job_id=new_job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
@@ -1841,6 +1899,20 @@ class DataprocSubmitJobOperator(BaseOperator):
             self.log.info('Job %s completed successfully.', new_job_id)
 
         return self.job_id
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        job_state = event["job_state"]
+        job_id = event["job_id"]
+        if job_state == JobStatus.State.ERROR:
+            raise AirflowException(f'Job failed:\n{job_id}')
+        if job_state == JobStatus.State.CANCELLED:
+            raise AirflowException(f'Job was cancelled:\n{job_id}')
+        self.log.info("%s completed successfully.", self.task_id)
 
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:

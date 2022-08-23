@@ -16,7 +16,6 @@
 # under the License.
 import contextlib
 import os
-import subprocess
 import sys
 from typing import List, Optional, Tuple
 
@@ -52,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
+    option_include_success_outputs,
     option_install_providers_from_sources,
     option_parallelism,
     option_platform_multiple,
@@ -81,11 +81,7 @@ from airflow_breeze.utils.docker_command_utils import (
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
-from airflow_breeze.utils.parallel import (
-    check_async_run_results,
-    progress_method_docker_buildx,
-    run_with_pool,
-)
+from airflow_breeze.utils.parallel import DockerBuildxProgressMatcher, check_async_run_results, run_with_pool
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
@@ -108,6 +104,7 @@ def run_build_in_parallel(
     image_params_list: List[BuildProdParams],
     python_version_list: List[str],
     parallelism: int,
+    include_success_outputs: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -115,7 +112,7 @@ def run_build_in_parallel(
     with ci_group(f"Building for {python_version_list}"):
         all_params = [f"PROD {image_params.python}" for image_params in image_params_list]
         with run_with_pool(
-            parallelism=parallelism, all_params=all_params, progress_method=progress_method_docker_buildx
+            parallelism=parallelism, all_params=all_params, progress_matcher=DockerBuildxProgressMatcher()
         ) as (pool, outputs):
             results = [
                 pool.apply_async(
@@ -129,7 +126,12 @@ def run_build_in_parallel(
                 )
                 for index, image_params in enumerate(image_params_list)
             ]
-    check_async_run_results(results, outputs)
+    check_async_run_results(
+        results=results,
+        success="All images built correctly",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+    )
 
 
 @click.group(
@@ -146,6 +148,7 @@ def prod_image():
 @option_python
 @option_run_in_parallel
 @option_parallelism
+@option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform_multiple
@@ -217,6 +220,7 @@ def build(
     dry_run: bool,
     run_in_parallel: bool,
     parallelism: int,
+    include_success_outputs: bool,
     python_versions: str,
     answer: Optional[str],
     **kwargs,
@@ -250,6 +254,7 @@ def build(
             image_params_list=params_list,
             python_version_list=python_version_list,
             parallelism=parallelism,
+            include_success_outputs=include_success_outputs,
             dry_run=dry_run,
             verbose=verbose,
         )
@@ -266,6 +271,7 @@ def build(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_include_success_outputs
 @option_python_versions
 @option_github_token
 @option_image_tag_for_pulling
@@ -280,6 +286,7 @@ def pull_prod_image(
     github_repository: str,
     run_in_parallel: bool,
     parallelism: int,
+    include_success_outputs,
     python_versions: str,
     github_token: str,
     image_tag: str,
@@ -311,6 +318,7 @@ def pull_prod_image(
         run_pull_in_parallel(
             dry_run=dry_run,
             parallelism=parallelism,
+            include_success_outputs=include_success_outputs,
             image_params_list=prod_image_params_list,
             python_version_list=python_version_list,
             verbose=verbose,
@@ -497,8 +505,7 @@ def run_build_production_image(
                 check=False,
                 text=True,
                 env=env,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
             )
         else:
             build_command_result = run_command(
@@ -511,8 +518,7 @@ def run_build_production_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
                 text=True,
-                stdout=output.file if output else None,
-                stderr=subprocess.STDOUT,
+                output=output,
             )
             if build_command_result.returncode == 0:
                 if prod_image_params.tag_as_latest:
