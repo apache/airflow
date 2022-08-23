@@ -59,9 +59,9 @@ spec:
         tier: airflow
         component: triggerer
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+{{- if or (.Values.labels) (.Values.triggerer.labels) }}
+{{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 8 }}
+{{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}

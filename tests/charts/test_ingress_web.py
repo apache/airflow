@@ -152,3 +152,16 @@ class IngressWebTest(unittest.TestCase):
             del values["ingress"]
         docs = render_chart(values=values, show_only=["templates/webserver/webserver-ingress.yaml"])
         assert expected == (1 == len(docs))
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "ingress": {"enabled": True},
+                "webserver": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

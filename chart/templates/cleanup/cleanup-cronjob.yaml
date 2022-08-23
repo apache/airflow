@@ -54,9 +54,9 @@ spec:
             tier: airflow
             component: airflow-cleanup-pods
             release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 12 }}
-{{- end }}
+          {{- if or (.Values.labels) (.Values.cleanup.labels) }}
+          {{- mustMerge .Values.cleanup.labels .Values.labels | toYaml | nindent 12 }}
+          {{- end }}
           annotations:
             sidecar.istio.io/inject: "false"
             {{- if .Values.airflowPodAnnotations }}
