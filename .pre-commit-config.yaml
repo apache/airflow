@@ -512,6 +512,13 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_decorator_operator_implements_custom_name.py
         pass_filenames: true
         files: ^airflow/.*\.py$
+      - id: check-core-deprecation-classes
+        language: pygrep
+        name: Verify using of dedicated Airflow deprecation classes in core
+        entry: category=DeprecationWarning|category=PendingDeprecationWarning
+        files: \.py$
+        exclude: ^airflow/configuration.py|^airflow/providers|^scripts/in_container/verify_providers.py
+        pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
         name: Check provide_session and create_session imports

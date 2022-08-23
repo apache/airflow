@@ -22,11 +22,12 @@ Please use :mod:`airflow.providers.apache.druid.transfers.hive_to_druid`.
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.druid.transfers.hive_to_druid`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -43,7 +44,7 @@ class HiveToDruidTransfer(HiveToDruidOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         super().__init__(**kwargs)
