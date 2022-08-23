@@ -299,3 +299,18 @@ class CreateUserJobTest(unittest.TestCase):
             "-p",
             "whereisjane?",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+
+class CreateUserJobServiceAccountTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/create-user-job-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
