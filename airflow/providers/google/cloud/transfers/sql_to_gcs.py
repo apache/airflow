@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
-    Copy data from SQL to Google Cloud Storage in JSON or CSV format.
+    Copy data from SQL to Google Cloud Storage in JSON, CSV, or Parquet format.
 
     :param sql: The SQL to execute.
     :param bucket: The bucket to upload to.
@@ -50,7 +50,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         filename param docs above). This param allows developers to specify the
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
-    :param export_format: Desired format of files to be exported.
+    :param export_format: Desired format of files to be exported. (json, csv or parquet)
     :param field_delimiter: The delimiter to be used for CSV files.
     :param null_marker: The null marker to be used for CSV files.
     :param gzip: Option to compress file for upload (does not apply to schemas).
