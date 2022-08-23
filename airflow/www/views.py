@@ -31,7 +31,6 @@ from bisect import insort_left
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
-from http.client import BAD_REQUEST
 from json import JSONDecodeError
 from operator import itemgetter
 from typing import Any, Callable
@@ -3556,24 +3555,21 @@ class Airflow(AirflowBaseView):
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
+    # @format_parameters({'limit': check_limit})
     @expose('/object/list_datasets')
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
-    # @format_parameters({'limit': check_limit})
-    def get_datasets(
-        self,
-    ):
+    def get_datasets(self):
         """Get datasets"""
         allowed_attrs = ['uri', 'last_dataset_update']
 
         limit = request.args.get("limit")
         offset = int(request.args.get("offset", 0))
-        order_by = request.args.get("order_by", "id")
+        order_by = request.args.get("order_by", "uri")
         lstriped_orderby = order_by.lstrip('-')
         if allowed_attrs and lstriped_orderby not in allowed_attrs:
-            raise BAD_REQUEST(
-                detail=f"Ordering with '{lstriped_orderby}' is disallowed or "
-                f"the attribute does not exist on the model"
-            )
+            return {
+                "detail": f"Ordering with '{lstriped_orderby}' is disallowed or the attribute does not exist on the model"
+            }, 400
 
         if lstriped_orderby == "uri":
             if order_by[0] == "-":
