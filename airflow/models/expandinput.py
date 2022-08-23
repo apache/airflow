@@ -74,10 +74,6 @@ class DictOfListsExpandInput(NamedTuple):
 
     value: dict[str, OperatorExpandArgument]
 
-    def get_unresolved_kwargs(self) -> dict[str, Any]:
-        """Get the kwargs dict that can be inferred without resolving."""
-        return self.value
-
     def iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
         """Generate kwargs with values available on parse-time."""
         from airflow.models.xcom_arg import XComArg
@@ -171,14 +167,6 @@ class ListOfDictsExpandInput(NamedTuple):
     """
 
     value: XComArg
-
-    def get_unresolved_kwargs(self) -> dict[str, Any]:
-        """Get the kwargs dict that can be inferred without resolving.
-
-        Since the list-of-dicts case relies entirely on run-time XCom, there's
-        no kwargs structure available, so this just returns an empty dict.
-        """
-        return {}
 
     def iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
         return ()
