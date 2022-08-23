@@ -32,17 +32,26 @@ interface Props {
   limit?: number;
   offset?: number;
   order?: string;
+  uri?: string;
 }
 
-export default function useDatasets({ limit, offset, order }: Props) {
+export default function useDatasets({
+  limit, offset, order, uri,
+}: Props) {
   const query = useQuery(
-    ['datasets', limit, offset, order],
+    ['datasets', limit, offset, order, uri],
     () => {
       const datasetsUrl = getMetaValue('datasets_api') || '/api/v1/datasets';
       const orderParam = order ? { order_by: order } : {};
-      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
-        params: { offset, limit, ...orderParam },
-      });
+      const uriParam = uri ? { uri_pattern: uri } : {};
+      return axios.get<AxiosResponse, DatasetsData>(
+        datasetsUrl,
+        {
+          params: {
+            offset, limit, ...orderParam, ...uriParam,
+          },
+        },
+      );
     },
     {
       keepPreviousData: true,

@@ -23,12 +23,13 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import createCache from '@emotion/cache';
 import { useSearchParams } from 'react-router-dom';
-import { Center } from '@chakra-ui/react';
+import { Flex, Box } from '@chakra-ui/react';
 
 import App from 'src/App';
 
 import DatasetsList from './List';
 import DatasetDetails from './Details';
+import Graph from './Graph';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -39,7 +40,7 @@ const cache = createCache({
 });
 const mainElement = document.getElementById('react-container');
 
-const DATASET_URI = 'dataset_uri';
+const DATASET_URI = 'uri';
 
 const Datasets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,14 +51,21 @@ const Datasets = () => {
   };
 
   const onSelect = (datasetUri: string) => {
-    searchParams.set(DATASET_URI, datasetUri);
+    searchParams.set(DATASET_URI, encodeURIComponent(datasetUri));
     setSearchParams(searchParams);
   };
 
   const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || '');
-  return (datasetUri
-    ? <DatasetDetails datasetUri={datasetUri} onBack={onBack} />
-    : <DatasetsList onSelect={onSelect} />
+
+  return (
+    <Flex alignItems="flex-start" justifyContent="space-between">
+      <Box width="600px" height="calc(100vh - 125px)" overflowY="scroll">
+        {datasetUri
+          ? <DatasetDetails datasetUri={datasetUri} onBack={onBack} />
+          : <DatasetsList onSelect={onSelect} />}
+      </Box>
+      <Graph selectedUri={datasetUri} onSelect={onSelect} />
+    </Flex>
   );
 };
 
@@ -66,9 +74,7 @@ if (mainElement) {
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <Center>
-        <Datasets />
-      </Center>
+      <Datasets />
     </App>,
   );
 }

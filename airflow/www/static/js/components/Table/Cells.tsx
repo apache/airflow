@@ -41,7 +41,7 @@ export const DatasetLink = ({ cell: { value } }: CellProps) => {
   return (
     <Link
       color="blue.600"
-      href={`${datasetsUrl}?dataset_uri=${encodeURIComponent(value)}`}
+      href={`${datasetsUrl}?uri=${encodeURIComponent(value)}`}
     >
       {value}
     </Link>

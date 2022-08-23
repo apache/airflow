@@ -266,6 +266,13 @@ def _safe_parse_datetime(v):
         abort(400, f"Invalid datetime: {v!r}")
 
 
+def node_dict(node_id, label, node_class):
+    return {
+        "id": node_id,
+        "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
+    }
+
+
 def dag_to_grid(dag, dag_runs, session):
     """
     Create a nested dict representation of the DAG's TaskGroup and its children
@@ -998,15 +1005,11 @@ class Airflow(AirflowBaseView):
         )
 
     @expose('/datasets')
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-        ]
-    )
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
         return self.render_template(
-            'airflow/datasets.html',
+            "airflow/datasets.html",
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -3674,6 +3677,43 @@ class Airflow(AirflowBaseView):
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
+    @expose('/object/dataset_dependencies')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+        ]
+    )
+    def dataset_dependencies(self):
+        """Returns dataset dependencies graph."""
+        nodes_dict: Dict[str, Any] = {}
+        edge_tuples: Set[Dict[str, str]] = set()
+
+        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+            dag_node_id = f"dag:{dag}"
+            if dag_node_id not in nodes_dict:
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
+
+            for dep in dependencies:
+                if dep.node_id not in nodes_dict and (
+                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
+                ):
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
+                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+
+        nodes = list(nodes_dict.values())
+        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+
+        data = {
+            'nodes': nodes,
+            'edges': edges,
+        }
+
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
     @expose('/robots.txt')
     @action_logging
     def robots(self):
@@ -5404,25 +5444,16 @@ class DagDependenciesView(AirflowBaseView):
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = self._node_dict(dag_node_id, dag, "dag")
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
 
             for dep in dependencies:
                 if dep.node_id not in nodes_dict:
-                    nodes_dict[dep.node_id] = self._node_dict(
-                        dep.node_id, dep.dependency_id, dep.dependency_type
-                    )
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
                 edge_tuples.add((f"dag:{dep.source}", dep.node_id))
                 edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         self.nodes = list(nodes_dict.values())
         self.edges = [{"u": u, "v": v} for u, v in edge_tuples]
-
-    @staticmethod
-    def _node_dict(node_id, label, node_class):
-        return {
-            "id": node_id,
-            "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
-        }
 
 
 class ActionModelView(PermissionModelView):
