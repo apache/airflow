@@ -1329,7 +1329,8 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
 
 
-def test_mapped_task_upstream_failed(dag_maker, session):
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.ALL_SUCCESS])
+def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     from airflow.operators.python import PythonOperator
 
     with dag_maker(session=session) as dag:
@@ -1341,7 +1342,11 @@ def test_mapped_task_upstream_failed(dag_maker, session):
         def consumer(*args):
             print(repr(args))
 
-        PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_list())
+        PythonOperator.partial(
+            task_id="consumer",
+            trigger_rule=trigger_rule,
+            python_callable=consumer,
+        ).expand(op_args=make_list())
 
     dr = dag_maker.create_dagrun()
     _, make_list_ti = sorted(dr.task_instances, key=lambda ti: ti.task_id)

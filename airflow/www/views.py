@@ -266,6 +266,13 @@ def _safe_parse_datetime(v):
         abort(400, f"Invalid datetime: {v!r}")
 
 
+def node_dict(node_id, label, node_class):
+    return {
+        "id": node_id,
+        "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
+    }
+
+
 def dag_to_grid(dag, dag_runs, session):
     """
     Create a nested dict representation of the DAG's TaskGroup and its children
@@ -363,7 +370,7 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
-                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 'operator': item.operator_name,
             }
 
@@ -998,15 +1005,11 @@ class Airflow(AirflowBaseView):
         )
 
     @expose('/datasets')
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-        ]
-    )
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
         return self.render_template(
-            'airflow/datasets.html',
+            "airflow/datasets.html",
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -3624,12 +3627,15 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            dag_runs = query.order_by(DagRun.execution_date.desc()).limit(num_runs).all()
+            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
+            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
             dag_runs.reverse()
+
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
+                'ordering': dag.timetable.run_ordering,
             }
         # avoid spaces to reduce payload size
         return (
@@ -3666,6 +3672,43 @@ class Airflow(AirflowBaseView):
                 .order_by(DatasetModel.id)
                 .all()
             ]
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
+    @expose('/object/dataset_dependencies')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+        ]
+    )
+    def dataset_dependencies(self):
+        """Returns dataset dependencies graph."""
+        nodes_dict: Dict[str, Any] = {}
+        edge_tuples: Set[Dict[str, str]] = set()
+
+        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+            dag_node_id = f"dag:{dag}"
+            if dag_node_id not in nodes_dict:
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
+
+            for dep in dependencies:
+                if dep.node_id not in nodes_dict and (
+                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
+                ):
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
+                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+
+        nodes = list(nodes_dict.values())
+        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+
+        data = {
+            'nodes': nodes,
+            'edges': edges,
+        }
+
         return (
             htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},
@@ -3718,7 +3761,24 @@ class Airflow(AirflowBaseView):
             excluded_events = {event.strip() for event in excluded_events_raw.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
 
-        dag_audit_logs = query.all()
+        current_page = request.args.get('page', default=0, type=int)
+        arg_sorting_key = request.args.get('sorting_key', 'dttm')
+        arg_sorting_direction = request.args.get('sorting_direction', default='asc')
+
+        logs_per_page = PAGE_SIZE
+        audit_logs_count = query.count()
+        num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
+
+        start = current_page * logs_per_page
+        end = start + logs_per_page
+
+        sort_column = Log.__table__.c.get(arg_sorting_key)
+        if sort_column is not None:
+            if arg_sorting_direction == 'desc':
+                sort_column = sort_column.desc()
+            query = query.order_by(sort_column)
+
+        dag_audit_logs = query.offset(start).limit(logs_per_page).all()
         return self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
@@ -3726,7 +3786,16 @@ class Airflow(AirflowBaseView):
             root=request.args.get('root'),
             dag_id=dag_id,
             dag_logs=dag_audit_logs,
+            num_log_from=min(start + 1, audit_logs_count),
+            num_log_to=min(end, audit_logs_count),
+            audit_logs_count=audit_logs_count,
             page_size=PAGE_SIZE,
+            paging=wwwutils.generate_pages(
+                current_page,
+                num_of_pages,
+            ),
+            sorting_key=arg_sorting_key,
+            sorting_direction=arg_sorting_direction,
         )
 
 
@@ -5375,25 +5444,16 @@ class DagDependenciesView(AirflowBaseView):
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = self._node_dict(dag_node_id, dag, "dag")
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
 
             for dep in dependencies:
                 if dep.node_id not in nodes_dict:
-                    nodes_dict[dep.node_id] = self._node_dict(
-                        dep.node_id, dep.dependency_id, dep.dependency_type
-                    )
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
                 edge_tuples.add((f"dag:{dep.source}", dep.node_id))
                 edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         self.nodes = list(nodes_dict.values())
         self.edges = [{"u": u, "v": v} for u, v in edge_tuples]
-
-    @staticmethod
-    def _node_dict(node_id, label, node_class):
-        return {
-            "id": node_id,
-            "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
-        }
 
 
 class ActionModelView(PermissionModelView):

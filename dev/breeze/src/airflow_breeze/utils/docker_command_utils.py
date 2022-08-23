@@ -17,11 +17,10 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
-import subprocess
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
+from subprocess import CalledProcessError, CompletedProcess
 from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
@@ -207,8 +206,7 @@ def check_docker_is_running(verbose: bool):
         verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
-        stdout=DEVNULL,
-        stderr=STDOUT,
+        capture_output=True,
         check=False,
     )
     if response.returncode != 0:
@@ -519,8 +517,7 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
-            stdout=output.file if output else None,
-            stderr=subprocess.STDOUT,
+            output=output,
             check=False,
             text=True,
         )
@@ -570,7 +567,6 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', "apache/airflow")
     set_value_to_default_if_not_set(env, 'COMMIT_SHA', commit_sha())
     set_value_to_default_if_not_set(env, 'DB_RESET', "false")
-    set_value_to_default_if_not_set(env, 'DEBIAN_VERSION', "bullseye")
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
@@ -593,6 +589,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'SKIP_ENVIRONMENT_INITIALIZATION', "false")
     set_value_to_default_if_not_set(env, 'SKIP_SSH_SETUP', "false")
     set_value_to_default_if_not_set(env, 'TEST_TYPE', "")
+    set_value_to_default_if_not_set(env, 'TEST_TIMEOUT', "60")
     set_value_to_default_if_not_set(env, 'UPGRADE_TO_NEWER_DEPENDENCIES', "false")
     set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
     set_value_to_default_if_not_set(env, 'VERBOSE', "false")

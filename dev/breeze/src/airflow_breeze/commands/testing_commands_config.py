@@ -27,6 +27,7 @@ TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--integration",
                 "--test-type",
+                "--test-timeout",
                 "--db-reset",
                 "--backend",
                 "--python",

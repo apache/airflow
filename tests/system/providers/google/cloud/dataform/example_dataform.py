@@ -48,7 +48,6 @@ WORKSPACE_ID = "testing"
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example', 'dataform'],

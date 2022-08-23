@@ -38,17 +38,18 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
-def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
+def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
     dataset = (
         session.query(DatasetModel)
+        .filter(DatasetModel.uri == uri)
         .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
-        .get(id)
+        .one_or_none()
     )
     if not dataset:
         raise NotFound(
             "Dataset not found",
-            detail=f"The Dataset with id: `{id}` was not found",
+            detail=f"The Dataset with uri: `{uri}` was not found",
         )
     return dataset_schema.dump(dataset)
 

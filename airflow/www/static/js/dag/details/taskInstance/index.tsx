@@ -32,9 +32,7 @@ import {
 
 import { useGridData, useTaskInstance } from 'src/api';
 import { getMetaValue, getTask } from 'src/utils';
-import type {
-  Task, DagRun, TaskInstance as TaskInstanceType,
-} from 'src/types';
+import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 
 import type { SelectionProps } from 'src/dag/useSelection';
 import ExtraLinks from './ExtraLinks';
@@ -50,7 +48,7 @@ const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
 const dagId = getMetaValue('dag_id')!;
 
 interface Props {
-  taskId: Task['id'];
+  taskId: string;
   runId: DagRun['runId'];
   mapIndex: TaskInstanceType['mapIndex'];
   onSelect: (selectionProps: SelectionProps) => void;
