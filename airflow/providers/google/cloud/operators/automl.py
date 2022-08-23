@@ -125,21 +125,22 @@ class AutoMLTrainModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        AutoMLModelTrainLink.persist(
-            context=context, task_instance=self, project_id=self.project_id or hook.project_id
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelTrainLink.persist(context=context, task_instance=self, project_id=project_id)
         result = Model.to_dict(operation.result())
         model_id = hook.extract_object_id(result)
         self.log.info("Model created: %s", model_id)
 
         self.xcom_push(context, key="model_id", value=model_id)
-        AutoMLModelLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=self.model['dataset_id'] or '-',
-            model_id=model_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        if project_id:
+            AutoMLModelLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.model['dataset_id'] or '-',
+                model_id=model_id,
+                project_id=project_id,
+            )
         return result
 
 
@@ -224,12 +225,14 @@ class AutoMLPredictOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        AutoMLModelPredictLink.persist(
-            context=context,
-            task_instance=self,
-            model_id=self.model_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelPredictLink.persist(
+                context=context,
+                task_instance=self,
+                model_id=self.model_id,
+                project_id=project_id,
+            )
         return PredictResponse.to_dict(result)
 
 
@@ -331,12 +334,14 @@ class AutoMLBatchPredictOperator(BaseOperator):
         )
         result = BatchPredictResult.to_dict(operation.result())
         self.log.info("Batch prediction ready.")
-        AutoMLModelPredictLink.persist(
-            context=context,
-            task_instance=self,
-            model_id=self.model_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelPredictLink.persist(
+                context=context,
+                task_instance=self,
+                model_id=self.model_id,
+                project_id=project_id,
+            )
         return result
 
 
@@ -421,12 +426,14 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self.log.info("Creating completed. Dataset id: %s", dataset_id)
 
         self.xcom_push(context, key="dataset_id", value=dataset_id)
-        AutoMLDatasetLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=dataset_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=dataset_id,
+                project_id=project_id,
+            )
         return result
 
 
@@ -513,12 +520,14 @@ class AutoMLImportDataOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Import completed")
-        AutoMLDatasetLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=self.dataset_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.dataset_id,
+                project_id=project_id,
+            )
 
 
 class AutoMLTablesListColumnSpecsOperator(BaseOperator):
@@ -620,12 +629,14 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         )
         result = [ColumnSpec.to_dict(spec) for spec in page_iterator]
         self.log.info("Columns specs obtained.")
-        AutoMLDatasetLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=self.dataset_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.dataset_id,
+                project_id=project_id,
+            )
         return result
 
 
@@ -705,12 +716,14 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Dataset updated.")
-        AutoMLDatasetLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=hook.extract_object_id(self.dataset),
-            project_id=hook.project_id,
-        )
+        project_id = hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=hook.extract_object_id(self.dataset),
+                project_id=project_id,
+            )
         return Dataset.to_dict(result)
 
 
@@ -789,13 +802,15 @@ class AutoMLGetModelOperator(BaseOperator):
             metadata=self.metadata,
         )
         model = Model.to_dict(result)
-        AutoMLModelLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=model['dataset_id'],
-            model_id=self.model_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=model['dataset_id'],
+                model_id=self.model_id,
+                project_id=project_id,
+            )
         return model
 
 
@@ -1054,12 +1069,14 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         result = [TableSpec.to_dict(spec) for spec in page_iterator]
         self.log.info(result)
         self.log.info("Table specs obtained.")
-        AutoMLDatasetLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=self.dataset_id,
-            project_id=self.project_id or hook.project_id,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.dataset_id,
+                project_id=project_id,
+            )
         return result
 
 
@@ -1139,9 +1156,9 @@ class AutoMLListDatasetOperator(BaseOperator):
             key="dataset_id_list",
             value=[hook.extract_object_id(d) for d in result],
         )
-        AutoMLDatasetListLink.persist(
-            context=context, task_instance=self, project_id=self.project_id or hook.project_id
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetListLink.persist(context=context, task_instance=self, project_id=project_id)
         return result
 
 
