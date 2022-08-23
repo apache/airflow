@@ -64,8 +64,9 @@ from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ExpandInput,
     ListOfDictsExpandInput,
-    Mappable,
     NotFullyPopulated,
+    OperatorExpandArgument,
+    OperatorExpandKwargsArgument,
     get_mappable_types,
 )
 from airflow.models.pool import Pool
@@ -87,7 +88,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
@@ -184,7 +184,7 @@ class OperatorPartial:
                 task_id = f"at {hex(id(self))}"
             warnings.warn(f"Task {task_id} was never mapped!")
 
-    def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+    def expand(self, **mapped_kwargs: OperatorExpandArgument) -> "MappedOperator":
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
@@ -193,7 +193,7 @@ class OperatorPartial:
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> "MappedOperator":
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> "MappedOperator":
         from airflow.models.xcom_arg import XComArg
 
         if not isinstance(kwargs, XComArg):

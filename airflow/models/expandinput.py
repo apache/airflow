@@ -22,7 +22,7 @@ import collections
 import collections.abc
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
 
 from airflow.compat.functools import cache
 from airflow.utils.context import Context
@@ -34,9 +34,13 @@ if TYPE_CHECKING:
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
-# BaseOperator.expand() can be called on an XComArg, sequence, or dict (not any
-# mapping since we need the value to be ordered).
-Mappable = Union["XComArg", Sequence, dict]
+# Each keyword argument to expand() can be an XComArg, sequence, or dict (not
+# any mapping since we need the value to be ordered).
+OperatorExpandArgument = Union["XComArg", Sequence, Dict[str, Any]]
+
+# The single argument of expand_kwargs() can be an XComArg, or a list with each
+# element being either an XComArg or a dict.
+OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
 
 
 # For isinstance() check.
@@ -68,7 +72,7 @@ class DictOfListsExpandInput(NamedTuple):
     This is created from ``expand(**kwargs)``.
     """
 
-    value: dict[str, Mappable]
+    value: dict[str, OperatorExpandArgument]
 
     def get_unresolved_kwargs(self) -> dict[str, Any]:
         """Get the kwargs dict that can be inferred without resolving."""
