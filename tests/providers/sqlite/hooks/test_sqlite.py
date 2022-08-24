@@ -114,7 +114,7 @@ class TestSqliteHook(unittest.TestCase):
         rows = ('James', '1')
         target_fields = ['first_name', 'last_name']
         sql = self.db_hook._generate_insert_sql(
-            table='Customer', values=rows, target_fields=target_fields, replace=False
+            table='Customer', values=rows, target_fields=target_fields, replace=False, placeholder="?"
         )
 
         assert sql == expected_sql
@@ -124,7 +124,7 @@ class TestSqliteHook(unittest.TestCase):
         rows = ('James', '1')
         target_fields = ['first_name', 'last_name']
         sql = self.db_hook._generate_insert_sql(
-            table='Customer', values=rows, target_fields=target_fields, replace=True
+            table='Customer', values=rows, target_fields=target_fields, replace=True, placeholder="?"
         )
 
         assert sql == expected_sql
