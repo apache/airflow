@@ -78,7 +78,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
 
 from airflow import settings
-from airflow.compat.functools import cache
+from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
@@ -585,8 +585,12 @@ class TaskInstance(Base, LoggingMixin):
         # can be changed when calling 'run'
         self.test_mode = False
 
-        self.dataset_event_manager = conf.getimport(
-            'core', 'dataset_event_manager_class', fallback='airflow.datasets.manager.DatasetEventManager'
+    @cached_property
+    def dataset_event_manager(self):
+        return conf.getimport(
+            section='core',
+            key='dataset_event_manager_class',
+            fallback='airflow.datasets.manager.DatasetEventManager',
         )()
 
     @staticmethod

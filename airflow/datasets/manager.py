@@ -31,6 +31,9 @@ class DatasetEventManager(LoggingMixin):
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
     def register_dataset_change(
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
