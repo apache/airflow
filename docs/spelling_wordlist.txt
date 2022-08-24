@@ -956,6 +956,7 @@ infile
 influxdb
 infoType
 infoTypes
+ing
 ingestions
 ini
 init

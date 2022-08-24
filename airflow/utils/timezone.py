@@ -206,26 +206,26 @@ def parse(string: str, timezone=None) -> DateTime:
 
 
 @overload
-def coerce_datetime(v: None) -> None:
+def coerce_datetime(v: None, tz: Optional[dt.tzinfo] = None) -> None:
     ...
 
 
 @overload
-def coerce_datetime(v: DateTime) -> DateTime:
+def coerce_datetime(v: DateTime, tz: Optional[dt.tzinfo] = None) -> DateTime:
     ...
 
 
 @overload
-def coerce_datetime(v: dt.datetime) -> DateTime:
+def coerce_datetime(v: dt.datetime, tz: Optional[dt.tzinfo] = None) -> DateTime:
     ...
 
 
-def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
-    """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
+def coerce_datetime(v: Optional[dt.datetime], tz: Optional[dt.tzinfo] = None) -> Optional[DateTime]:
+    """Convert whatever is passed in to a timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
     if isinstance(v, DateTime):
-        return v if v.tzinfo else make_aware(v)
+        return v if v.tzinfo else make_aware(v, tz)
     # Only dt.datetime is left here
     return pendulum.instance(v if v.tzinfo else make_aware(v))
 
