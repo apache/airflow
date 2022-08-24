@@ -841,7 +841,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.2.0
         env:
           # The extras below are all extras that should be installed with Airflow 2.2.0
-          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas.apache.beam,apache.cassandra,apache.drill,\
+          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas,apache.beam,apache.cassandra,apache.drill,\
             apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
             apache.spark,apache.sqoop,apache.webhdfs,asana,async,\
             celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,\
