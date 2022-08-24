@@ -21,25 +21,25 @@ from airflow.datasets import Dataset
 from airflow.operators.empty import EmptyOperator
 
 
-class TestDatasetSchema:
-    def test_uri_without_schema(self, dag_maker):
+class TestDataset:
+    def test_uri_without_scheme(self, dag_maker):
         dataset = Dataset(uri="example_dataset")
-        with dag_maker(dag_id="test_dataset_upstream_schema"):
+        with dag_maker(dag_id="example_dataset"):
             EmptyOperator(task_id="task1", outlets=[dataset])
 
-    def test_uri_with_schema(self, dag_maker, session):
+    def test_uri_with_scheme(self, dag_maker, session):
         dataset = Dataset(uri="s3://example_dataset")
-        with dag_maker(dag_id="test_dataset_upstream_schema"):
+        with dag_maker(dag_id="example_dataset"):
             EmptyOperator(task_id="task1", outlets=[dataset])
 
-    def test_uri_with_airflow_schema_restricted(self, dag_maker, session):
+    def test_uri_with_airflow_scheme_restricted(self, dag_maker, session):
         dataset = Dataset(uri="airflow://example_dataset")
         with pytest.raises(ValueError, match='Scheme `airflow` is reserved'):
-            with dag_maker(dag_id="test_dataset_upstream_schema"):
+            with dag_maker(dag_id="example_dataset"):
                 EmptyOperator(task_id="task1", outlets=[dataset])
 
     def test_uri_with_invalid_characters(self, dag_maker, session):
         dataset = Dataset(uri="èxample_datašet")
         with pytest.raises(ValueError, match='URI must be ascii'):
-            with dag_maker(dag_id="test_dataset_upstream_schema"):
+            with dag_maker(dag_id="example_dataset"):
                 EmptyOperator(task_id="task1", outlets=[dataset])
