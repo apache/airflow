@@ -402,7 +402,7 @@ The static code checks can be launched using the Breeze environment.
 You run the static code checks via ``breeze static-check`` or commands.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
-option. Note that the ``all`` static check runs all configured static checks.
+option.
 
 Run the ``mypy`` check for the currently staged changes:
 
@@ -432,19 +432,19 @@ Run all checks for the currently staged files:
 
 .. code-block:: bash
 
-     breeze static-checks --type all
+     breeze static-checks
 
 Run all checks for all files:
 
 .. code-block:: bash
 
-    breeze static-checks --type all --all-files
+    breeze static-checks --all-files
 
 Run all checks for last commit :
 
 .. code-block:: bash
 
-     breeze static-checks --type all --last-commit
+     breeze static-checks --last-commit
 
 Debugging pre-commit check scripts requiring image
 --------------------------------------------------
