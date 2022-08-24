@@ -464,8 +464,8 @@ def dag_test(args, session=None):
             # Always run the DAG at least once even if no logical runs are
             # available. This does not make a lot of sense, but Airflow has
             # been doing this prior to 2.2 so we keep compatibility.
-            conf=run_conf,
             run_at_least_once=True,
+            conf=run_conf,
         )
     except BackfillUnfinished as e:
         print(str(e))
