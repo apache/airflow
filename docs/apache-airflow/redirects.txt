@@ -40,7 +40,9 @@ metrics.rst logging-monitoring/metrics.rst
 howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst
 
 # Quick start
-start.rst start/index.rst
+start/docker.rst howto/docker-compose/index.rst
+start/local.rst start.rst
+start/index.rst start.rst
 
 # References
 cli-ref.rst cli-and-env-variables-ref.rst

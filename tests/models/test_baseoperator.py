@@ -26,7 +26,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
@@ -143,7 +143,7 @@ class TestBaseOperator:
         """
         msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
         with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
-            with pytest.warns(PendingDeprecationWarning, match=msg):
+            with pytest.warns(RemovedInAirflow3Warning, match=msg):
                 BaseOperator(
                     task_id='test_illegal_args',
                     illegal_argument_1234='hello?',

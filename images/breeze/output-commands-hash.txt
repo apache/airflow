@@ -32,7 +32,7 @@ setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:d11da4c17a23179830079b646160149c
 shell:1cefbacc29c6aff3c5fb2d1be2cd1950
 start-airflow:3e793b11dc2158c54bfc189bfe20d6f2
-static-checks:a86b25f9281c47abf362a221b316c7a2
+static-checks:5563b797f9a95e55e9f6f06e125f12eb
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:docker-compose-tests:8ae3b6211fd31db81a750d1c6b96ec3d
 testing:helm-tests:fa8fb6376ead71125103972b73de6b93

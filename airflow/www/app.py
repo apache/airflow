@@ -29,7 +29,7 @@ from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
@@ -96,7 +96,7 @@ def create_app(config=None, testing=False):
         warnings.warn(
             "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
             "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
         )
         cookie_samesite_config = "Lax"
     flask_app.config['SESSION_COOKIE_SAMESITE'] = cookie_samesite_config

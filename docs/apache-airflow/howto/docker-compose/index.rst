@@ -20,68 +20,39 @@
 Running Airflow in Docker
 #########################
 
-This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </executor/celery>` in Docker.  For running airflow in production, we recommend running on kubernetes with the official helm chart.
+This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </executor/celery>` in Docker.
 
-Customizing the quick-start Docker Compose
-==========================================
+.. caution::
+    This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
 
-DO NOT attempt to customize images and the Docker Compose if you do not know exactly what you are doing,
-do not know Docker Compose, or are not prepared to debug and resolve problems on your own. If you do not
-know Docker Compose and expect Airflow to **just work** beyond following precisely the quick-start,
-then please use other ways of running Airflow - for example :doc:`/start/local` for testing and trying
-and :doc:`Official Airflow Community Helm Chart<helm-chart:index>` for production purposes.
-
-Even if many users think of Docker Compose as "ready to use", it is really a developer tool, that requires
-the user to know very well how docker images, containers, docker compose networking, volumes, naming, image
-building works. It is extremely easy to make mistakes that lead to difficult to diagnose problems and if
-you are not ready to spend your own time on learning and diagnosing and resolving those problems on your own
-do not follow this path. You have been warned.
-
-If you customize, or modify images, the compose file and see problem do not expect you will get a lot of
-help with solving those problems in the Airflow support channels. Most of the problems you will experience
-are Docker Compose related problems and if you need help in solving them, there are dedicated channels in
-`Docker Compose <https://github.com/docker/compose>`_ that you can use.
-
-Production readiness
-====================
-
-.. warning::
-    DO NOT expect the Docker Compose below will be enough to run production-ready Docker Compose Airflow installation using it.
-    This is truly ``quick-start`` docker-compose for you to get Airflow up and running locally and get your hands dirty with
-    Airflow. Configuring a Docker-Compose installation that is ready for production requires an intrinsic knowledge of
-    Docker Compose, a lot of customization and possibly even writing the Docker Compose file that will suit your needs
-    from the scratch. It's probably OK if you want to run Docker Compose-based deployment, but short of becoming a
-    Docker Compose expert, it's highly unlikely you will get robust deployment with it.
-
-    If you want to get an easy to configure Docker-based deployment that Airflow Community develops, supports and
-    can provide support with deployment, you should consider using Kubernetes and deploying Airflow using
-    :doc:`Official Airflow Community Helm Chart<helm-chart:index>`.
+    For that reason, we recommend using Kubernetes with the :doc:`Official Airflow Community Helm Chart<helm-chart:index>` when you are ready to run Airflow in production.
 
 Before you begin
 ================
 
-Follow these steps to install the necessary tools.
+This procedure assumes familiarity with Docker and Docker Compose. If you haven't worked with these tools before, you should take a moment to run through the `Docker Quick Start <https://docs.docker.com/get-started/>`__ (especially the section on `Docker Compose <https://docs.docker.com/get-started/08_using_compose/>`__) so you are familiar with how they work.
 
-1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
+Follow these steps to install the necessary tools, if you have not already done so.
 
-Older versions of ``docker-compose`` do not support all the features required by ``docker-compose.yaml`` file, so double check that your version meets the minimum version requirements.
+1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on your OS, you may need to configure Docker to use at least 4.00 GB of memory for the Airflow containers to run properly. Please refer to the Resources section in the `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ documentation for more information.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 or newer on your workstation.
 
-.. warning::
-    Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
-    If enough memory is not allocated, it might lead to airflow webserver continuously restarting.
-    You should at least allocate 4GB memory for the Docker Engine (ideally 8GB). You can check
-    and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
+Older versions of ``docker-compose`` do not support all the features required by the Airflow ``docker-compose.yaml`` file, so double check that your version meets the minimum version requirements.
 
-    You can also check if you have enough memory by running this command:
+.. tip::
+    The default amount of memory available for Docker on macOS is often not enough to get Airflow up and running.
+    If enough memory is not allocated, it might lead to the webserver continuously restarting.
+    You should allocate at least 4GB memory for the Docker Engine (ideally 8GB).
+
+    You can check if you have enough memory by running this command:
 
     .. code-block:: bash
 
         docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
 
 
-``docker-compose.yaml``
-=======================
+Fetching ``docker-compose.yaml``
+================================
 
 To deploy Airflow on Docker Compose, you should fetch `docker-compose.yaml <../docker-compose.yaml>`__.
 
@@ -101,12 +72,9 @@ This file contains several service definitions:
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
-Optionally you can enable flower by adding ``--profile flower`` option e.g. ``docker-compose --profile flower up`` or by explicitly targeted on the command line e.g. ``docker-compose up flower``.
+Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``docker-compose --profile flower up``, or by explicitly specifying it on the command line e.g. ``docker-compose up flower``.
 
-- ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment.
-   It is available at ``http://localhost:5555``.
-
-In general, if you want to use airflow locally, your DAGs may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please, see documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
+- ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 
 All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :doc:`/concepts/overview`.
 
@@ -119,32 +87,20 @@ Some directories in the container are mounted, which means that their contents a
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
 If you need to install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
 
-Using custom images
-===================
-
-When you want to run Airflow locally, you might want to use an extended image, containing some additional dependencies - for
-example you might add new python packages, or upgrade airflow providers to a later version. This can be done very easily
-by specifying ``build: .`` in your ``docker-compose.yaml`` and placing a custom Dockerfile alongside your
-``docker-compose.yaml``. Then you can use ``docker-compose build`` command
-to build your image (you need to do it only once). You can also add the ``--build`` flag to your ``docker-compose`` commands
-to rebuild the images on-the-fly when you run other ``docker-compose`` commands.
-
-Examples of how you can extend the image with custom providers, python packages,
-apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
 .. _initializing_docker_compose_environment:
 
 Initializing Environment
 ========================
 
-Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary
+Before starting Airflow for the first time, you need to prepare your environment, i.e. create the necessary
 files, directories and initialize the database.
 
 Setting the right Airflow user
 ------------------------------
 
 On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
-Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` user.
+Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` user ownership.
 You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
@@ -154,9 +110,9 @@ You have to make sure to configure them for the docker-compose:
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
 
-For other operating systems, you will get warning that ``AIRFLOW_UID`` is not set, but you can
-ignore it. You can also manually create the ``.env`` file in the same folder your
-``docker-compose.yaml`` is placed with this content to get rid of the warning:
+For other operating systems, you may get a warning that ``AIRFLOW_UID`` is not set, but you can
+safely ignore it. You can also manually create an ``.env`` file in the same folder as
+``docker-compose.yaml`` with this content to get rid of the warning:
 
 .. code-block:: text
 
@@ -165,13 +121,13 @@ ignore it. You can also manually create the ``.env`` file in the same folder you
 Initialize the database
 -----------------------
 
-On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
+On **all operating systems**, you need to run database migrations and create the first user account. To do this, run.
 
 .. code-block:: bash
 
     docker-compose up airflow-init
 
-After initialization is complete, you should see a message like below.
+After initialization is complete, you should see a message like this:
 
 .. parsed-literal::
 
@@ -185,18 +141,17 @@ The account created has the login ``airflow`` and the password ``airflow``.
 Cleaning-up the environment
 ===========================
 
-The docker-compose we prepare is a "Quick-start" one. It is not intended to be used in production
+The docker-compose environment we have prepared is a "quick-start" one. It was not designed to be used in production
 and it has a number of caveats - one of them being that the best way to recover from any problem is to clean it
-up and restart from the scratch.
+up and restart from scratch.
 
-The best way to do it is to:
+The best way to do this is to:
 
 * Run ``docker-compose down --volumes --remove-orphans`` command in the directory you downloaded the
   ``docker-compose.yaml`` file
-* remove the whole directory where you downloaded the ``docker-compose.yaml`` file
+* Remove the entire directory where you downloaded the ``docker-compose.yaml`` file
   ``rm -rf '<DIRECTORY>'``
-* re-download the ``docker-compose.yaml`` file
-* re-start following the instructions from the very beginning in this guide
+* Run through this guide from the very beginning, starting by re-downloading the ``docker-compose.yaml`` file
 
 Running Airflow
 ===============
@@ -207,7 +162,7 @@ Now you can start all services:
 
     docker-compose up
 
-In the second terminal you can check the condition of the containers and make sure that no containers are in unhealthy condition:
+In a second terminal you can check the condition of the containers and make sure that no containers are in an unhealthy condition:
 
 .. code-block:: text
     :substitutions:
@@ -223,7 +178,7 @@ In the second terminal you can check the condition of the containers and make su
 Accessing the environment
 =========================
 
-After starting Airflow, you can interact with it in 3 ways;
+After starting Airflow, you can interact with it in 3 ways:
 
 * by running :doc:`CLI commands </usage-cli>`.
 * via a browser using :doc:`the web interface </ui>`.
@@ -267,7 +222,7 @@ python container.
 Accessing the web interface
 ---------------------------
 
-Once the cluster has started up, you can log in to the web interface and try to run some tasks.
+Once the cluster has started up, you can log in to the web interface and begin experimenting with DAGs.
 
 The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
@@ -275,8 +230,7 @@ The default account has the login ``airflow`` and the password ``airflow``.
 Sending requests to the REST API
 --------------------------------
 
-`Basic username password authentication <https://tools.ietf.org/html/rfc7617
-https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
+`Basic username password authentication <https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the REST API, which means you can use common tools to send requests to the API.
 
 The webserver is available at: ``http://localhost:8080``.
@@ -299,6 +253,24 @@ To stop and delete containers, delete volumes with database data and download im
 .. code-block:: bash
 
     docker-compose down --volumes --rmi all
+
+Using custom images
+===================
+
+When you want to run Airflow locally, you might want to use an extended image, containing some additional dependencies - for
+example you might add new python packages, or upgrade airflow providers to a later version. This can be done very easily
+by specifying ``build: .`` in your ``docker-compose.yaml`` and placing a custom Dockerfile alongside your
+``docker-compose.yaml``. Then you can use ``docker-compose build`` command
+to build your image (you need to do it only once). You can also add the ``--build`` flag to your ``docker-compose`` commands
+to rebuild the images on-the-fly when you run other ``docker-compose`` commands.
+
+Examples of how you can extend the image with custom providers, python packages,
+apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
+
+Networking
+==========
+
+In general, if you want to use Airflow locally, your DAGs may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
 
 FAQ: Frequently asked questions
 ===============================

@@ -34,7 +34,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, SerializationError
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -903,7 +903,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 warnings.warn(
                     "Use of a custom dependency detector is deprecated. "
                     "Support will be removed in a future release.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                 )
                 dep = custom_dependency_detector_cls().detect_task_dependencies(op)
                 if type(dep) is DagDependency:

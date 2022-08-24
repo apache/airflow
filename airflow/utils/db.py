@@ -94,6 +94,7 @@ REVISION_HEADS_MAP = {
     "2.3.1": "1de7bc13c950",
     "2.3.2": "3c94c427fdf6",
     "2.3.3": "f5fcbda3e651",
+    "2.3.4": "f5fcbda3e651",
 }
 
 
