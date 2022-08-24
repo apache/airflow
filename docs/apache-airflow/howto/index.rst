@@ -20,7 +20,7 @@
 How-to Guides
 =============
 
-Setting up the sandbox in the :doc:`/start/index` section was easy;
+Setting up the sandbox in the :doc:`/start` section was easy;
 building a production-grade environment requires a bit more work!
 
 These how-to guides will step you through common tasks in using and
@@ -47,3 +47,4 @@ configuring an Airflow environment.
     define_extra_link
     email-config
     dynamic-dag-generation
+    docker-compose/index

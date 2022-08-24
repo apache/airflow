@@ -79,6 +79,6 @@ If no `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` variable is set then SQLite database
 For example commands that start Airflow see: [Executing commands](https://airflow.apache.org/docs/docker-stack/entrypoint.html#entrypoint-commands).
 
 Airflow requires many components to function as it is a distributed application. You may therefore also be interested
-in launching Airflow in the Docker Compose environment, see: [Quick Start](https://airflow.apache.org/docs/apache-airflow/stable/start/index.html).
+in launching Airflow in the Docker Compose environment, see: [Running Airflow in Docker](https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose.html).
 
 You can use this image in [Helm Chart](https://airflow.apache.org/docs/helm-chart/stable/index.html) as well.

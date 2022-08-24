@@ -128,7 +128,7 @@ so coding will always be required.
     Overview <self>
     project
     license
-    start/index
+    start
     installation/index
     upgrading-from-1-10/index
     tutorial
