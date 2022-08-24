@@ -21,7 +21,7 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
-from airflow.models.dataset import DagDatasetConsumer, DatasetEvent, DatasetModel, DatasetTaskRef
+from airflow.models.dataset import DatasetConsumerDag, DatasetEvent, DatasetModel, DatasetTaskRef
 
 
 class DatasetTaskRefSchema(SQLAlchemySchema):
@@ -38,13 +38,13 @@ class DatasetTaskRefSchema(SQLAlchemySchema):
     updated_at = auto_field()
 
 
-class DagDatasetConsumerSchema(SQLAlchemySchema):
-    """DagDatasetConsumer DB schema"""
+class DatasetConsumerDagSchema(SQLAlchemySchema):
+    """DatasetConsumerDag DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DagDatasetConsumer
+        model = DatasetConsumerDag
 
     dag_id = auto_field()
     created_at = auto_field()
@@ -65,7 +65,7 @@ class DatasetSchema(SQLAlchemySchema):
     created_at = auto_field()
     updated_at = auto_field()
     producing_tasks = fields.List(fields.Nested(DatasetTaskRefSchema))
-    consuming_dags = fields.List(fields.Nested(DagDatasetConsumerSchema))
+    consuming_dags = fields.List(fields.Nested(DatasetConsumerDagSchema))
 
 
 class DatasetCollection(NamedTuple):

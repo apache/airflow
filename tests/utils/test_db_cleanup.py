@@ -264,7 +264,7 @@ class TestDBCleanup:
             'dag_warning',  # self-maintaining
             'connection',  # leave alone
             'slot_pool',  # leave alone
-            'dag_dataset_consumer',  # leave alone for now
+            'dataset_consumer_dag',  # leave alone for now
             'dataset_task_ref',  # leave alone for now
             'dataset_dag_run_queue',  # self-managed
             'dataset_event_dag_run',  # foreign keys

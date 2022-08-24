@@ -1477,7 +1477,7 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      consuming_dags?: components["schemas"]["DagDatasetConsumer"][];
+      consuming_dags?: components["schemas"]["DatasetConsumerDag"][];
       producing_tasks?: components["schemas"]["DatasetTaskRef"][];
     };
     /**
@@ -1500,7 +1500,7 @@ export interface components {
      *
      * *New in version 2.4.0*
      */
-    DagDatasetConsumer: {
+    DatasetConsumerDag: {
       /** @description The DAG ID that depends on the dataset. */
       dag_id?: string | null;
       /** @description The dataset reference creation time */
@@ -4113,7 +4113,7 @@ export type Resource = CamelCasedPropertiesDeep<components['schemas']['Resource'
 export type ActionResource = CamelCasedPropertiesDeep<components['schemas']['ActionResource']>;
 export type Dataset = CamelCasedPropertiesDeep<components['schemas']['Dataset']>;
 export type DatasetTaskRef = CamelCasedPropertiesDeep<components['schemas']['DatasetTaskRef']>;
-export type DagDatasetConsumer = CamelCasedPropertiesDeep<components['schemas']['DagDatasetConsumer']>;
+export type DatasetConsumerDag = CamelCasedPropertiesDeep<components['schemas']['DatasetConsumerDag']>;
 export type DatasetCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = CamelCasedPropertiesDeep<components['schemas']['DatasetEvent']>;
 export type DatasetEventCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetEventCollection']>;

@@ -121,7 +121,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import DagDatasetConsumer, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DatasetConsumerDag, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3659,16 +3659,16 @@ class Airflow(AirflowBaseView):
                     DatasetModel.uri,
                     DatasetDagRunQueue.created_at,
                 )
-                .join(DagDatasetConsumer, DatasetModel.id == DagDatasetConsumer.dataset_id)
+                .join(DatasetConsumerDag, DatasetModel.id == DatasetConsumerDag.dataset_id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
-                        DatasetDagRunQueue.dataset_id == DagDatasetConsumer.dataset_id,
-                        DatasetDagRunQueue.target_dag_id == DagDatasetConsumer.dag_id,
+                        DatasetDagRunQueue.dataset_id == DatasetConsumerDag.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DatasetConsumerDag.dag_id,
                     ),
                     isouter=True,
                 )
-                .filter(DagDatasetConsumer.dag_id == dag_id)
+                .filter(DatasetConsumerDag.dag_id == dag_id)
                 .order_by(DatasetModel.id)
                 .all()
             ]

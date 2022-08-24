@@ -3522,7 +3522,7 @@ components:
         consuming_dags:
             type: array
             items:
-              $ref: '#/components/schemas/DagDatasetConsumer'
+              $ref: '#/components/schemas/DatasetConsumerDag'
         producing_tasks:
             type: array
             items:
@@ -3553,7 +3553,7 @@ components:
           description: The dataset update time
           nullable: false
 
-    DagDatasetConsumer:
+    DatasetConsumerDag:
       description: |
         A datasets reference to a downstream DAG.
 
