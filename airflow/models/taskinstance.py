@@ -78,9 +78,10 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
 
 from airflow import settings
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
+from airflow.datasets.manager import dataset_event_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -584,14 +585,6 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = False
         # can be changed when calling 'run'
         self.test_mode = False
-
-    @cached_property
-    def dataset_event_manager(self):
-        return conf.getimport(
-            section='core',
-            key='dataset_event_manager_class',
-            fallback='airflow.datasets.manager.DatasetEventManager',
-        )()
 
     @staticmethod
     def insert_mapping(run_id: str, task: "Operator", map_index: int) -> dict:
@@ -1542,7 +1535,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                self.dataset_event_manager.register_dataset_change(
+                dataset_event_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
                     session=session,
