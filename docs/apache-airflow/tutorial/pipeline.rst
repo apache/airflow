@@ -303,10 +303,10 @@ Putting all of the pieces together, we have our completed DAG.
 
 Save this code to a python file in the ``/dags`` folder (e.g. ``dags/etl.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``Etl`` DAG will be included in the list of available DAGs on the web UI.
 
-.. image:: /img/new_tutorial-1.png
+.. image:: ../img/new_tutorial-1.png
 
 You can trigger the ``Etl`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
 
-.. image:: /img/new_tutorial-3.png
+.. image:: ../img/new_tutorial-3.png
 
 In the ``Etl`` DAG's **Tree** view, we see all that all tasks ran successfully in all executed runs. Success!

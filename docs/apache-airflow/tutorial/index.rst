@@ -18,7 +18,7 @@
 Tutorials
 =========
 
-Once you have Airflow up and running with the :doc:`/start/index`, these tutorials are a great way to get a sense for how Airflow works.
+Once you have Airflow up and running with the :doc:`/start`, these tutorials are a great way to get a sense for how Airflow works.
 
 .. toctree::
     :maxdepth: 1
