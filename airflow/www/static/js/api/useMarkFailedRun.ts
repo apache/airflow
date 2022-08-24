@@ -26,16 +26,16 @@ import useErrorToast from '../utils/useErrorToast';
 const csrfToken = getMetaValue('csrf_token');
 const markFailedUrl = getMetaValue('dagrun_failed_url');
 
-export default function useMarkFailedRun(dagId, runId) {
+export default function useMarkFailedRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
     ['dagRunFailed', dagId, runId],
-    ({ confirmed = false }) => {
+    ({ confirmed = false }: { confirmed: boolean }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
-        confirmed,
+        confirmed: confirmed.toString(),
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();
@@ -51,7 +51,7 @@ export default function useMarkFailedRun(dagId, runId) {
         queryClient.invalidateQueries('gridData');
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }
