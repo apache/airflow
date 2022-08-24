@@ -36,7 +36,7 @@ Python 3.9 support was added from Airflow 2.1.2.
 
 Airflow 2.3.0 dropped support for Python 3.6. It's tested with Python 3.7, 3.8, 3.9 and 3.10.
 
-If you have a specific task that still requires Python 2 then you can use the ``@task.virtualenv`` decorator, ``@task.docker`` decorator or the ``KubernetesPodOperator`` for this.
+If you have a specific task that still requires Python 2 then you can use the ``@task.virtualenv``, ``@task.docker`` or ``@task.kubernetes`` decorators for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
 `handy blog <https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/>`_
@@ -943,6 +943,7 @@ Classic Operator              TaskFlow Decorator
 ``PythonVirtualenvOperator``  ``@task.virtualenv``
 ``BranchPythonOperator``      ``@task.branch``
 ``DockerOperator``            ``@task.docker``
+``KubernetesPodOperator``     ``@task.kubernetes``
 ============================= ============================================
 
 
