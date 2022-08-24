@@ -348,7 +348,7 @@ class DbApiHook(BaseForDbApiHook):
         return self.get_conn().cursor()
 
     @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+    def _generate_insert_sql(table, values, target_fields, replace, placeholder="%s", **kwargs):
         """
         Static helper method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
@@ -357,11 +357,12 @@ class DbApiHook(BaseForDbApiHook):
         :param values: The row to insert into the table
         :param target_fields: The names of the columns to fill in the table
         :param replace: Whether to replace instead of insert
+        :param placeholder: Value used as the placeholder for the SQL parameters
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
         placeholders = [
-            "%s",
+            placeholder,
         ] * len(values)
 
         if target_fields:

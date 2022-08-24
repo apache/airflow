@@ -160,6 +160,22 @@ class TestDbApiHook(unittest.TestCase):
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
+    def test_insert_rows_placeholder(self):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, placeholder="?")
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        assert commit_count == self.conn.commit.call_count
+
+        sql = f"INSERT INTO {table}  VALUES (?)"
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
     def test_get_uri_schema_not_none(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
