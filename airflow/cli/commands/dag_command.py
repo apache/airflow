@@ -453,6 +453,9 @@ def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=False)
+    run_conf = None
+    if args.conf:
+        run_conf = json.loads(args.conf)
     try:
         dag.run(
             executor=DebugExecutor(),
@@ -461,6 +464,7 @@ def dag_test(args, session=None):
             # Always run the DAG at least once even if no logical runs are
             # available. This does not make a lot of sense, but Airflow has
             # been doing this prior to 2.2 so we keep compatibility.
+            conf=run_conf,
             run_at_least_once=True,
         )
     except BackfillUnfinished as e:

@@ -1174,6 +1174,7 @@ DAGS_COMMANDS = (
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
+            ARG_CONF,
         ),
     ),
     ActionCommand(
