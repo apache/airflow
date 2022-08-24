@@ -86,6 +86,7 @@ Cron
 Ctrl
 DAGs
 DBs
+DOS'ing
 Daemonize
 DagCallbackRequest
 DagFileProcessorManager
@@ -678,6 +679,7 @@ customizable
 customizations
 cx
 daemonize
+daemonized
 dagbag
 dagbags
 dagmodel
@@ -1585,6 +1587,7 @@ webservice
 werkzeug
 whitespace
 whl
+wildcarded
 winrm
 workgroup
 workgroups

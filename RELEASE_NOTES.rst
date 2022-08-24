@@ -22,6 +22,104 @@
 .. towncrier release notes start
 
 
+Airflow 2.3.4 (2022-08-23)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Added new config ``[logging]log_formatter_class`` to fix timezone display for logs on UI (#24811)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If you are using a custom Formatter subclass in your ``[logging]logging_config_class``, please inherit from ``airflow.utils.log.timezone_aware.TimezoneAware`` instead of ``logging.Formatter``.
+For example, in your ``custom_config.py``:
+
+.. code-block:: python
+
+    from airflow.utils.log.timezone_aware import TimezoneAware
+
+    # before
+    class YourCustomFormatter(logging.Formatter):
+        ...
+
+
+    # after
+    class YourCustomFormatter(TimezoneAware):
+        ...
+
+
+    AIRFLOW_FORMATTER = LOGGING_CONFIG["formatters"]["airflow"]
+    AIRFLOW_FORMATTER["class"] = "somewhere.your.custom_config.YourCustomFormatter"
+    # or use TimezoneAware class directly. If you don't have custom Formatter.
+    AIRFLOW_FORMATTER["class"] = "airflow.utils.log.timezone_aware.TimezoneAware"
+
+Bug Fixes
+^^^^^^^^^
+
+- Disable ``attrs`` state management on ``MappedOperator`` (#24772)
+- Serialize ``pod_override`` to JSON before pickling ``executor_config`` (#24356)
+- Fix ``pid`` check (#24636)
+- Rotate session id during login (#25771)
+- Fix mapped sensor with reschedule mode (#25594)
+- Cache the custom secrets backend so the same instance gets re-used (#25556)
+- Add right padding (#25554)
+- Fix reducing mapped length of a mapped task at runtime after a clear (#25531)
+- Fix ``airflow db reset`` when dangling tables exist (#25441)
+- Change ``disable_verify_ssl`` behaviour (#25023)
+- Set default task group in dag.add_task method (#25000)
+- Removed interfering force of index. (#25404)
+- Remove useless logging line (#25347)
+- Adding mysql index hint to use index on ``task_instance.state`` in critical section query (#25673)
+- Configurable umask to all daemonized processes. (#25664)
+- Fix the errors raised when None is passed to template filters (#25593)
+- Allow wildcarded CORS origins (#25553)
+- Fix "This Session's transaction has been rolled back" (#25532)
+- Fix Serialization error in ``TaskCallbackRequest`` (#25471)
+- fix - resolve bash by absolute path (#25331)
+- Add ``__repr__`` to ParamsDict class (#25305)
+- Only load distribution of a name once (#25296)
+- convert ``TimeSensorAsync`` ``target_time`` to utc on call time (#25221)
+- call ``updateNodeLabels`` after ``expandGroup`` (#25217)
+- Stop SLA callbacks gazumping other callbacks and DOS'ing the ``DagProcessorManager`` queue (#25147)
+- Fix ``invalidateQueries`` call (#25097)
+- ``airflow/www/package.json``: Add name, version fields. (#25065)
+- No grid auto-refresh for backfill dag runs (#25042)
+- Fix tag link on dag detail page (#24918)
+- Fix zombie task handling with multiple schedulers (#24906)
+- Bind log server on worker to ``IPv6`` address (#24755) (#24846)
+- Add ``%z`` for ``%(asctime)s`` to fix timezone for logs on UI (#24811)
+- ``TriggerDagRunOperator.operator_extra_links`` is attr (#24676)
+- Send DAG timeout callbacks to processor outside of ``prohibit_commit`` (#24366)
+- Don't rely on current ORM structure for db clean command (#23574)
+- Clear next method when clearing TIs (#23929)
+- Two typing fixes (#25690)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Update set-up-database.rst (#24983)
+- Fix syntax in mysql setup documentation (#24893 (#24939)
+- Note how DAG policy works with default_args (#24804)
+- Update PythonVirtualenvOperator Howto (#24782)
+- Doc: Add hyperlinks to Github PRs for Release Notes (#24532)
+
+Misc/Internal
+^^^^^^^^^^^^^
+
+- Remove depreciation warning when use default remote tasks logging handlers (#25764)
+- clearer method name in scheduler_job.py (#23702)
+- Bump cattrs version (#25689)
+- Include missing mention of ``external_executor_id`` in ``sql_engine_collation_for_ids`` docs (#25197)
+- Refactor ``DR.task_instance_scheduling_decisions`` (#24774)
+- Sort operator extra links (#24992)
+- Extends ``resolve_xcom_backend`` function level documentation (#24965)
+- Upgrade FAB to 4.1.3 (#24884)
+- Limit Flask to <2.3 in the wake of 2.2 breaking our tests (#25511)
+- Limit astroid version to < 2.12 (#24982)
+- Move javascript compilation to host (#25169)
+- Bump typing-extensions and mypy for ParamSpec (#25088)
+
+
 Airflow 2.3.3 (2022-07-09)
 --------------------------
 

@@ -26,7 +26,7 @@ pushd "${TEMP_DOCKER_DIR}"
 cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
-export AIRFLOW_VERSION=2.3.3
+export AIRFLOW_VERSION=2.3.4
 export DOCKER_BUILDKIT=1
 
 docker build . \

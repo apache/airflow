@@ -1,1 +1,0 @@
-Command ``airflow db clean`` now archives data before purging.

@@ -1,1 +1,0 @@
-Log server on worker binds IPv6 interface.
