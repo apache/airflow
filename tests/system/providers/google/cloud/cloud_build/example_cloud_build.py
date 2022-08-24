@@ -167,7 +167,7 @@ with models.DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'example_cloud_build.yaml').read_text()),
+        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'resources' / 'example_cloud_build.yaml').read_text()),
         params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
