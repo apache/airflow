@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.0
+.....
+
+Latest change: 2022-07-05
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`cc6a44bdc3 <https://github.com/apache/airflow/commit/cc6a44bdc396a305fd53c7236427c578e9d4d0b7>`_  2022-07-05   ``'DockerOperator' fix cli.logs giving character array instead of string (#24726)``
+`237d2225d6 <https://github.com/apache/airflow/commit/237d2225d6b92a5012a025ece93cd062382470ed>`_  2022-07-02   ``Force-remove container after DockerOperator execution (#23160)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`40f08900f2 <https://github.com/apache/airflow/commit/40f08900f2d1fb0d316b40dde583535a076f616b>`_  2022-06-28   ``Clean up task decorator type hints and docstrings (#24667)``
+=================================================================================================  ===========  ===================================================================================
+
 3.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `06856337a5 <https://github.com/apache/airflow/commit/06856337a51139d66b1a39544e276e477c6b5ea1>`_  2022-06-06   ``docker new system test (#23167)``

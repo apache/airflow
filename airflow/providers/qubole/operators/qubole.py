@@ -31,7 +31,6 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -43,7 +42,7 @@ class QDSLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator: "AbstractOperator",
+        operator: BaseOperator,
         dttm: Optional[datetime] = None,
         *,
         ti_key: Optional["TaskInstanceKey"] = None,
@@ -176,8 +175,8 @@ class QuboleOperator(BaseOperator):
         jupytercmd:
             :path: Path including name of the Jupyter notebook to be run with extension.
             :arguments: Valid JSON to be sent to the notebook. Specify the parameters in notebooks and pass
-                the parameter value using the JSON format. key is the parameter’s name and value is
-                the parameter’s value. Supported types in parameters are string, integer, float and boolean.
+                the parameter value using the JSON format. key is the parameter's name and value is
+                the parameter's value. Supported types in parameters are string, integer, float and boolean.
 
     .. note:
 

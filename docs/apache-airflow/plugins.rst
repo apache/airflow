@@ -302,9 +302,7 @@ will automatically load the registered plugins from the entrypoint list.
     setup(
         name="my-package",
         # ...
-        entry_points={
-            "airflow.plugins": ["my_plugin = my_package.my_plugin:MyAirflowPlugin"]
-        },
+        entry_points={"airflow.plugins": ["my_plugin = my_package.my_plugin:MyAirflowPlugin"]},
     )
 
 Automatic reloading webserver

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL operators."""
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
 
-CLOUD_SQL_CREATE_VALIDATION = [
+CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
     dict(name="name", allow_empty=False),
     dict(
         name="settings",
@@ -1054,9 +1054,9 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[List[str], str],
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[Union[Dict, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         gcp_conn_id: str = 'google_cloud_default',
         gcp_cloudsql_conn_id: str = 'google_cloud_sql_default',
         **kwargs,

@@ -46,6 +46,20 @@ class WorkerTest(unittest.TestCase):
 
         assert kind == jmespath.search("kind", docs[0])
 
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {"workers": {}}
+        if revision_history_limit:
+            values['workers']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -97,6 +111,48 @@ class WorkerTest(unittest.TestCase):
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
+
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.initContainers[0].env", docs[0]
+        )
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_workers_host_aliases(self):
         docs = render_chart(
@@ -286,7 +342,7 @@ class WorkerTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
@@ -425,7 +481,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_log_groomer_default_command_and_args(self):
@@ -472,7 +528,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     @parameterized.expand(
@@ -554,3 +610,70 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
+
+
+class WorkerKedaAutoScalerTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+
+class WorkerNetworkPolicyTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-networkpolicy.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+
+class WorkerServiceTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-service.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+
+class WorkerServiceAccountTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-service.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

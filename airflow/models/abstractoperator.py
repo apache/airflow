@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
 import inspect
 from typing import (
@@ -27,10 +26,12 @@ from typing import (
     Dict,
     FrozenSet,
     Iterable,
+    Iterator,
     List,
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     Union,
 )
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
 
@@ -105,6 +107,9 @@ class AbstractOperator(LoggingMixin, DAGNode):
     owner: str
     task_id: str
 
+    outlets: list
+    inlets: list
+
     HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
         (
             'log',
@@ -129,6 +134,10 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     @property
     def task_type(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def operator_name(self) -> str:
         raise NotImplementedError()
 
     @property
@@ -205,15 +214,18 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if not dag:
             return set()
 
-        if not found_descendants:
+        if found_descendants is None:
             found_descendants = set()
-        relative_ids = self.get_direct_relative_ids(upstream)
 
-        for relative_id in relative_ids:
-            if relative_id not in found_descendants:
-                found_descendants.add(relative_id)
-                relative_task = dag.task_dict[relative_id]
-                relative_task.get_flat_relative_ids(upstream, found_descendants)
+        task_ids_to_trace = self.get_direct_relative_ids(upstream)
+        while task_ids_to_trace:
+            task_ids_to_trace_next: Set[str] = set()
+            for task_id in task_ids_to_trace:
+                if task_id in found_descendants:
+                    continue
+                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
+                found_descendants.add(task_id)
+            task_ids_to_trace = task_ids_to_trace_next
 
         return found_descendants
 
@@ -223,6 +235,70 @@ class AbstractOperator(LoggingMixin, DAGNode):
         if not dag:
             return set()
         return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
+
+    def _iter_all_mapped_downstreams(self) -> Iterator["MappedOperator"]:
+        """Return mapped nodes that are direct dependencies of the current task.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+
+        Note that this does not guarantee the returned tasks actually use the
+        current task for task mapping, but only checks those task are mapped
+        operators, and are downstreams of the current task.
+
+        To get a list of tasks that uses the current task for task mapping, use
+        :meth:`iter_mapped_dependants` instead.
+        """
+        from airflow.models.mappedoperator import MappedOperator
+        from airflow.utils.task_group import TaskGroup
+
+        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
+            """Recursively walk children in a task group.
+
+            This yields all direct children (including both tasks and task
+            groups), and all children of any task groups.
+            """
+            for key, child in group.children.items():
+                yield key, child
+                if isinstance(child, TaskGroup):
+                    yield from _walk_group(child)
+
+        dag = self.get_dag()
+        if not dag:
+            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
+        for key, child in _walk_group(dag.task_group):
+            if key == self.node_id:
+                continue
+            if not isinstance(child, MappedOperator):
+                continue
+            if self.node_id in child.upstream_task_ids:
+                yield child
+
+    def iter_mapped_dependants(self) -> Iterator["MappedOperator"]:
+        """Return mapped nodes that depend on the current task the expansion.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        return (
+            downstream
+            for downstream in self._iter_all_mapped_downstreams()
+            if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
+        )
+
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, "Session"]]) -> "BaseOperator":
+        """Get the "normal" operator from current abstract operator.
+
+        MappedOperator uses this to unmap itself based on the map index. A non-
+        mapped operator (i.e. BaseOperator subclass) simply returns itself.
+
+        :meta private:
+        """
+        raise NotImplementedError()
 
     @property
     def priority_weight_total(self) -> int:
@@ -300,14 +376,13 @@ class AbstractOperator(LoggingMixin, DAGNode):
             link = self.global_operator_extra_link_dict.get(link_name)
             if not link:
                 return None
-        # Check for old function signature
+
         parameters = inspect.signature(link.get_link).parameters
-        args = [name for name, p in parameters.items() if p.kind != p.VAR_KEYWORD]
-        if "ti_key" in args:
-            return link.get_link(self, ti_key=ti.key)
-        else:
-            return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
-        return None
+        old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
+
+        if old_signature:
+            return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
+        return link.get_link(self.unmap(None), ti_key=ti.key)
 
     def render_template_fields(
         self,
@@ -346,13 +421,23 @@ class AbstractOperator(LoggingMixin, DAGNode):
                 )
             if not value:
                 continue
-            rendered_content = self.render_template(
-                value,
-                context,
-                jinja_env,
-                seen_oids,
-            )
-            setattr(parent, attr_name, rendered_content)
+            try:
+                rendered_content = self.render_template(
+                    value,
+                    context,
+                    jinja_env,
+                    seen_oids,
+                )
+            except Exception:
+                self.log.exception(
+                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                    self.task_id,
+                    attr_name,
+                    value,
+                )
+                raise
+            else:
+                setattr(parent, attr_name, rendered_content)
 
     def render_template(
         self,

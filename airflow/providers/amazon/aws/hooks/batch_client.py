@@ -24,7 +24,6 @@ A client for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-import warnings
 from random import uniform
 from time import sleep
 from typing import Dict, List, Optional, Union
@@ -191,6 +190,12 @@ class BatchClientHook(AwsBaseHook):
         'STARTING',
         RUNNING_STATE,
     )
+
+    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ('VALID', 'DELETED')
+    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+
+    JOB_QUEUE_TERMINAL_STATUS = ('VALID', 'DELETED')
+    JOB_QUEUE_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
 
     def __init__(
         self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
@@ -545,35 +550,3 @@ class BatchClientHook(AwsBaseHook):
         delay = 1 + pow(tries * 0.6, 2)
         delay = min(max_interval, delay)
         return uniform(delay / 3, delay)
-
-
-class AwsBatchProtocol(BatchProtocol, Protocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class AwsBatchClientHook(BatchClientHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchClientHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchClientHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -15,11 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Optional, Sequence
 
 from pendulum import DateTime
 
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from airflow.utils.types import DagRunType
 
 
 class DataInterval(NamedTuple):
@@ -100,6 +103,7 @@ class DagRunInfo(NamedTuple):
         return self.data_interval.start
 
 
+@runtime_checkable
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
@@ -114,7 +118,7 @@ class Timetable(Protocol):
     """Whether this timetable runs periodically.
 
     This defaults to and should generally be *True*, but some special setups
-    like ``schedule_interval=None`` and ``"@once"`` set it to *False*.
+    like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
     can_run: bool = True
@@ -122,6 +126,12 @@ class Timetable(Protocol):
 
     This defaults to and should generally be *True*, but ``NullTimetable`` sets
     this to *False*.
+    """
+
+    run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
+    """How runs triggered from this timetable should be ordered in UI.
+
+    This should be a list of field names on the DAG run object.
     """
 
     @classmethod
@@ -193,3 +203,13 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         raise NotImplementedError()
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: "DagRunType",
+        logical_date: DateTime,
+        data_interval: Optional[DataInterval],
+        **extra,
+    ) -> str:
+        return run_type.generate_run_id(logical_date)

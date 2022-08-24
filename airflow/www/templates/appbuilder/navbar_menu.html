@@ -23,6 +23,7 @@
 
 {% if current_user.is_authenticated %}
   <li class="dropdown"><a href="{{ url_for('Airflow.index') }}">DAGs</a></li>
+  <li class="dropdown"><a href="{{ url_for('Airflow.datasets') }}">Datasets</a></li>
 {% endif %}
 
 {% for item1 in menu.get_list() %}

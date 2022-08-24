@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/airbyte/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/airbyte/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-airbyte/3.0.0/airflow/providers/airbyte/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-airbyte/3.0.0/tests/system/providers/airbyte>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-airbyte/>
     Installing from sources <installing-providers-from-sources>
 
@@ -58,7 +64,7 @@ Package apache-airflow-providers-airbyte
 `Airbyte <https://airbyte.io/>`__
 
 
-Release: 3.0.0
+Release: 3.1.0
 
 Provider package
 ----------------
@@ -108,7 +114,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-airbyte 3.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-airbyte 3.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-airbyte 3.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-airbyte 3.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.1.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/airbyte/CHANGELOG.rst

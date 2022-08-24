@@ -28,7 +28,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.providers_manager import ProvidersManager
@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 def parse_netloc_to_hostname(*args, **kwargs):
     """This method is deprecated."""
-    warnings.warn("This method is deprecated.", DeprecationWarning)
+    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
@@ -90,7 +90,7 @@ class Connection(Base, LoggingMixin):
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
-    description = Column(Text(5000))
+    description = Column(Text().with_variant(Text(5000), 'mysql').with_variant(String(5000), 'sqlite'))
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))
@@ -155,14 +155,14 @@ class Connection(Base, LoggingMixin):
                     "Encountered JSON value in `extra` which does not parse as a dictionary in "
                     f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
                     "representation of a Python dict.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                     stacklevel=3,
                 )
         except json.JSONDecodeError:
             warnings.warn(
                 f"Encountered non-JSON in `extra` field for connection {conn_id!r}. Support for "
                 "non-JSON `extra` will be removed in Airflow 3.0",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         return None
@@ -175,7 +175,8 @@ class Connection(Base, LoggingMixin):
     def parse_from_uri(self, **uri):
         """This method is deprecated. Please use uri parameter in constructor."""
         warnings.warn(
-            "This method is deprecated. Please use uri parameter in constructor.", DeprecationWarning
+            "This method is deprecated. Please use uri parameter in constructor.",
+            RemovedInAirflow3Warning,
         )
         self._parse_from_uri(**uri)
 
@@ -231,10 +232,10 @@ class Connection(Base, LoggingMixin):
             host_block += quote(self.host, safe='')
 
         if self.port:
-            if host_block > '':
-                host_block += f':{self.port}'
-            else:
+            if host_block == '' and authority_block == '':
                 host_block += f'@:{self.port}'
+            else:
+                host_block += f':{self.port}'
 
         if self.schema:
             host_block += f"/{quote(self.schema, safe='')}"
@@ -247,9 +248,9 @@ class Connection(Base, LoggingMixin):
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += '?' + query
+                uri += ('?' if self.schema else '/?') + query
             else:
-                uri += '?' + urlencode({self.EXTRA_KEY: self.extra})
+                uri += ('?' if self.schema else '/?') + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
 
@@ -349,7 +350,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
             "use the default representation (__repr__).",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (
@@ -366,7 +367,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
             "use the default representation (__repr__).",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return (

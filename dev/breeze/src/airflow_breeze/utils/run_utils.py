@@ -17,6 +17,7 @@
 """Useful tools for running commands."""
 import contextlib
 import os
+import re
 import shlex
 import stat
 import subprocess
@@ -24,15 +25,18 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from re import match
-from typing import Dict, Generator, List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Union
+
+from rich.markup import escape
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
+
+OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
@@ -46,7 +50,7 @@ def run_command(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
-    enabled_output_group: bool = False,
+    output: Optional[Output] = None,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -69,59 +73,90 @@ def run_command(
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
-    :param enabled_output_group: if set to true, in CI the logs will be placed in separate, foldable group.
+    :param output: redirects stderr/stdout to Output if set to Output class.
     :param kwargs: kwargs passed to POpen
     """
+
+    def exclude_command(_index: int, _arg: str) -> bool:
+        if _index == 0:
+            # First argument is always passed
+            return False
+        if _arg.startswith('-'):
+            return True
+        if len(_arg) == 0:
+            return True
+        if _arg.startswith("/"):
+            # Skip any absolute paths
+            return True
+        if _arg == "never":
+            return True
+        if OPTION_MATCHER.match(_arg):
+            return True
+        return False
+
+    def shorten_command(_index: int, _argument: str) -> str:
+        if _argument.startswith("/"):
+            _argument = _argument.split("/")[-1]
+        return shlex.quote(_argument)
+
     if not title:
-        # Heuristics to get a short but explanatory title showing what the command does
+        shortened_command = [
+            shorten_command(index, argument)
+            for index, argument in enumerate(cmd)
+            if not exclude_command(index, argument)
+        ]
+        # Heuristics to get a (possibly) short but explanatory title showing what the command does
         # If title is not provided explicitly
-        title = ' '.join(
-            shlex.quote(c)
-            for c in cmd
-            if not c.startswith('-')  # exclude options
-            and len(c) > 0
-            and (c[0] != "/" or c.endswith(".sh"))  # exclude volumes
-            and not c == "never"  # exclude --pull never
-            and not match(r"^[A-Z_]*=.*$", c)
-        )
+        title = "<" + ' '.join(shortened_command[:5]) + ">"  # max 4 args
     workdir: str = str(cwd) if cwd else os.getcwd()
-    if verbose or dry_run:
-        command_to_print = ' '.join(shlex.quote(c) for c in cmd)
-        env_to_print = get_environments_to_print(env)
-        with ci_group(title=f"Running {title}"):
-            get_console().print(f"\n[info]Working directory {workdir} [/]\n")
-            # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
-            get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
+    cmd_env = os.environ.copy()
+    cmd_env.setdefault("HOME", str(Path.home()))
+    if env:
+        cmd_env.update(env)
+    if output:
+        if 'capture_output' not in kwargs or not kwargs['capture_output']:
+            kwargs['stdout'] = output.file
+            kwargs['stderr'] = subprocess.STDOUT
+    command_to_print = ' '.join(shlex.quote(c) for c in cmd)
+    env_to_print = get_environments_to_print(env)
+    if not verbose and not dry_run:
+        return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+    with ci_group(title=f"Running command: {title}", message_type=None):
+        get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
+        if input:
+            get_console(output=output).print("[info]Input:")
+            get_console(output=output).print(input)
+            get_console(output=output).print()
+        # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
+        get_console(output=output).print(
+            f"\n[info]{env_to_print}{escape(command_to_print)}[/]\n", soft_wrap=True
+        )
         if dry_run:
             return subprocess.CompletedProcess(cmd, returncode=0)
-    try:
-        cmd_env = os.environ.copy()
-        cmd_env.setdefault("HOME", str(Path.home()))
-        if env:
-            cmd_env.update(env)
-        with ci_group(title=f"Output of {title}", enabled=enabled_output_group):
+        try:
             return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
-    except subprocess.CalledProcessError as ex:
-        if not no_output_dump_on_exception:
+        except subprocess.CalledProcessError as ex:
+            if no_output_dump_on_exception:
+                if check:
+                    raise
+                return ex
             if ex.stdout:
-                get_console().print(
+                get_console(output=output).print(
                     "[info]========================= OUTPUT start ============================[/]"
                 )
-                get_console().print(ex.stdout)
-                get_console().print(
+                get_console(output=output).print(ex.stdout)
+                get_console(output=output).print(
                     "[info]========================= OUTPUT end ==============================[/]"
                 )
             if ex.stderr:
-                get_console().print(
+                get_console(output=output).print(
                     "[error]========================= STDERR start ============================[/]"
                 )
-                get_console().print(ex.stderr)
-                get_console().print(
+                get_console(output=output).print(ex.stderr)
+                get_console(output=output).print(
                     "[error]========================= STDERR end ==============================[/]"
                 )
-        if check:
-            raise
-        return ex
+            return ex
 
 
 def get_environments_to_print(env: Optional[Mapping[str, str]]):
@@ -183,7 +218,7 @@ def assert_pre_commit_installed(verbose: bool):
     else:
         get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
         get_console().print(command_result.stderr)
-        get_console().print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\nMake sure to run:\n      breeze setup self-upgrade\n\n")
         sys.exit(1)
 
 
@@ -211,18 +246,13 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
     get_console().print(
-        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
+        f"\n[info]Please run at the earliest "
+        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 
 @contextlib.contextmanager
-def working_directory(source_path: Path) -> Generator[None, None, None]:
-    """
-    # Equivalent of pushd and popd in bash script.
-    # https://stackoverflow.com/a/42441759/3101838
-    :param source_path:
-    :return:
-    """
+def working_directory(source_path: Path):
     prev_cwd = Path.cwd()
     os.chdir(source_path)
     try:
@@ -270,7 +300,7 @@ def fix_group_permissions(verbose: bool):
 
 
 def is_repo_rebased(repo: str, branch: str):
-    """Returns True if the local branch contains latest remote SHA (i.e. if it is rebased)"""
+    """Returns True if the local branch contains the latest remote SHA (i.e. if it is rebased)"""
     # We import it locally so that click autocomplete works
     import requests
 
@@ -279,8 +309,8 @@ def is_repo_rebased(repo: str, branch: str):
     latest_sha = requests.get(gh_url, headers=headers_dict).text.strip()
     rebased = False
     command_result = run_command(['git', 'log', '--format=format:%H'], capture_output=True, text=True)
-    output = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
-    if latest_sha in output:
+    commit_list = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
+    if latest_sha in commit_list:
         rebased = True
     return rebased
 
@@ -331,7 +361,12 @@ def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction:
         )
         sys.exit(0)
     cmd_result = run_command(
-        ["docker", "inspect", image], stdout=subprocess.DEVNULL, check=False, verbose=verbose, dry_run=dry_run
+        ["docker", "inspect", image],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+        check=False,
+        verbose=verbose,
+        dry_run=dry_run,
     )
     if cmd_result.returncode != 0:
         print(f'[red]The image {image} is not available.[/]\n')
@@ -347,6 +382,41 @@ def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
         image=airflow_image,
         verbose=verbose,
         dry_run=dry_run,
-        instruction=f"breeze build-image --python {python_version}",
+        instruction=f"breeze ci-image build --python {python_version}",
     )
     return airflow_image
+
+
+def run_compile_www_assets(
+    dev: bool,
+    verbose: bool,
+    dry_run: bool,
+):
+    if dev:
+        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[info]If you want to see output of the compilation command,\n"
+            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
+            "[info]However, it requires you to have local yarn installation.\n"
+        )
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        'run',
+        "--hook-stage",
+        "manual",
+        'compile-www-assets-dev' if dev else 'compile-www-assets',
+        '--all-files',
+    ]
+    env = os.environ.copy()
+    compile_www_assets_result = run_command(
+        command_to_execute,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        no_output_dump_on_exception=True,
+        text=True,
+        env=env,
+    )
+    return compile_www_assets_result

@@ -42,6 +42,7 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowTimetableInvalid,
     ParamValidationError,
+    RemovedInAirflow3Warning,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -80,8 +81,6 @@ class DagBag(LoggingMixin):
     :param dag_folder: the folder to scan to find DAGs
     :param include_examples: whether to include the examples that ship
         with airflow or not
-    :param include_smart_sensor: whether to include the smart sensor native
-        DAGs that create the smart sensor operators for whole cluster
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
     :param load_op_links: Should the extra operator link be loaded via plugins when
@@ -93,7 +92,6 @@ class DagBag(LoggingMixin):
         self,
         dag_folder: Union[str, "pathlib.Path", None] = None,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-        include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
@@ -108,7 +106,7 @@ class DagBag(LoggingMixin):
             warnings.warn(
                 "The store_serialized_dags parameter has been deprecated. "
                 "You should pass the read_dags_from_db parameter.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             read_dags_from_db = store_serialized_dags
@@ -131,7 +129,6 @@ class DagBag(LoggingMixin):
         self.collect_dags(
             dag_folder=dag_folder,
             include_examples=include_examples,
-            include_smart_sensor=include_smart_sensor,
             safe_mode=safe_mode,
         )
         # Should the extra operator link be loaded via plugins?
@@ -147,7 +144,7 @@ class DagBag(LoggingMixin):
         """Whether or not to read dags from DB"""
         warnings.warn(
             "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.read_dags_from_db
@@ -486,7 +483,6 @@ class DagBag(LoggingMixin):
         dag_folder: Union[str, "pathlib.Path", None] = None,
         only_if_updated: bool = True,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-        include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
     ):
         """
@@ -516,7 +512,6 @@ class DagBag(LoggingMixin):
             dag_folder,
             safe_mode=safe_mode,
             include_examples=include_examples,
-            include_smart_sensor=include_smart_sensor,
         ):
             try:
                 file_parse_start_dttm = timezone.utcnow()

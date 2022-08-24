@@ -451,9 +451,9 @@ With kwargs:
        ti = kwargs["ti"]
        next_ds = kwargs["next_ds"]
 
-Also sometimes you might want to access the context somewhere deep the stack - and you do not want to pass
-the context variables from the task callable. You can do it via ``get_current_context``
-method of the Python operator.
+Also, sometimes you might want to access the context somewhere deep in the stack, but you do not want to pass
+the context variables from the task callable. You can still access execution context via the ``get_current_context``
+method.
 
 .. code-block:: python
 

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
-    Copy data from SQL to Google Cloud Storage in JSON or CSV format.
+    Copy data from SQL to Google Cloud Storage in JSON, CSV, or Parquet format.
 
     :param sql: The SQL to execute.
     :param bucket: The bucket to upload to.
@@ -50,7 +50,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         filename param docs above). This param allows developers to specify the
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
-    :param export_format: Desired format of files to be exported.
+    :param export_format: Desired format of files to be exported. (json, csv or parquet)
     :param field_delimiter: The delimiter to be used for CSV files.
     :param null_marker: The null marker to be used for CSV files.
     :param gzip: Option to compress file for upload (does not apply to schemas).
@@ -198,6 +198,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
+        import os
+
         org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         schema = [column for column in org_schema if column not in self.exclude_columns]
 
@@ -250,7 +252,12 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tmp_file_handle.write(b'\n')
 
             # Stop if the file exceeds the file size limit.
-            if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
+            fppos = tmp_file_handle.tell()
+            tmp_file_handle.seek(0, os.SEEK_END)
+            file_size = tmp_file_handle.tell()
+            tmp_file_handle.seek(fppos, os.SEEK_SET)
+
+            if file_size >= self.approx_max_file_size_bytes:
                 file_no += 1
 
                 if self.export_format == 'parquet':

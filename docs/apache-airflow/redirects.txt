@@ -50,7 +50,6 @@ macros-ref.rst templates-ref.rst
 
 # Concepts
 concepts.rst concepts/index.rst
-smart-sensor.rst concepts/smart-sensors.rst
 scheduler.rst concepts/scheduler.rst
 
 # Installation

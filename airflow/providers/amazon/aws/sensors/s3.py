@@ -19,20 +19,13 @@
 import fnmatch
 import os
 import re
-import sys
-import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -140,40 +133,6 @@ class S3KeySensor(BaseSensorOperator):
 
         self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook
-
-
-class S3KeySizeSensor(S3KeySensor):
-    """
-    This class is deprecated.
-    Please use :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
-    """
-
-    def __init__(
-        self,
-        *,
-        check_fn: Optional[Callable[..., bool]] = None,
-        **kwargs,
-    ):
-        warnings.warn(
-            """
-            S3KeySizeSensor is deprecated.
-            Please use `airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
-            """,
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        super().__init__(
-            check_fn=check_fn if check_fn is not None else S3KeySizeSensor.default_check_fn, **kwargs
-        )
-
-    @staticmethod
-    def default_check_fn(data: List) -> bool:
-        """Default function for checking that S3 Objects have size more than 0
-
-        :param data: List of the objects in S3 bucket.
-        """
-        return all(f.get('Size', 0) > 0 for f in data)
 
 
 @poke_mode_only
@@ -316,33 +275,3 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def poke(self, context: 'Context'):
         return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))
-
-
-class S3PrefixSensor(S3KeySensor):
-    """
-    This class is deprecated.
-    Please use :class:`~airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
-    """
-
-    template_fields: Sequence[str] = ('prefix', 'bucket_name')
-
-    def __init__(
-        self,
-        *,
-        prefix: Union[str, List[str]],
-        delimiter: str = '/',
-        **kwargs,
-    ):
-        warnings.warn(
-            """
-            S3PrefixSensor is deprecated.
-            Please use `airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
-            """,
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        prefixes = [prefix] if isinstance(prefix, str) else prefix
-        keys = [pref if pref.endswith(delimiter) else pref + delimiter for pref in prefixes]
-
-        super().__init__(bucket_key=keys, **kwargs)

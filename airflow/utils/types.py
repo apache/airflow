@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from airflow.typing_compat import TypedDict
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ArgNotSet:
@@ -45,9 +48,13 @@ class DagRunType(str, enum.Enum):
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
+    DATASET_TRIGGERED = "dataset_triggered"
 
     def __str__(self) -> str:
         return self.value
+
+    def generate_run_id(self, logical_date: "datetime") -> str:
+        return f"{self}__{logical_date.isoformat()}"
 
     @staticmethod
     def from_run_id(run_id: str) -> "DagRunType":

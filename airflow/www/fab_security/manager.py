@@ -25,6 +25,7 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
+from uuid import uuid4
 
 from flask import current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
@@ -70,6 +71,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow.configuration import conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.www.views import ResourceModelView
 
@@ -291,7 +293,7 @@ class BaseSecurityManager:
         """
         jwt_manager = JWTManager()
         jwt_manager.init_app(app)
-        jwt_manager.user_loader_callback_loader(self.load_user_jwt)
+        jwt_manager.user_lookup_loader(self.load_user_jwt)
         return jwt_manager
 
     def create_builtin_roles(self):
@@ -654,6 +656,18 @@ class BaseSecurityManager:
                 "email": data.get("email", ""),
                 "role_keys": data.get("groups", []),
             }
+        # for Keycloak
+        if provider in ["keycloak", "keycloak_before_17"]:
+            me = self.appbuilder.sm.oauth_remotes[provider].get("openid-connect/userinfo")
+            me.raise_for_status()
+            data = me.json()
+            log.debug("User info from Keycloak: %s", data)
+            return {
+                "username": data.get("preferred_username", ""),
+                "first_name": data.get("given_name", ""),
+                "last_name": data.get("family_name", ""),
+                "email": data.get("email", ""),
+            }
         else:
             return {}
 
@@ -842,6 +856,14 @@ class BaseSecurityManager:
             user.fail_login_count += 1
         self.update_user(user)
 
+    def _rotate_session_id(self):
+        """
+        Upon successful authentication when using the database session backend,
+        we need to rotate the session id
+        """
+        if conf.get('webserver', 'SESSION_BACKEND') == 'database':
+            session.sid = str(uuid4())
+
     def auth_user_db(self, username, password):
         """
         Method for authenticating user, auth db style
@@ -866,6 +888,7 @@ class BaseSecurityManager:
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
             return None
         elif check_password_hash(user.password, password):
+            self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
         else:
@@ -1028,12 +1051,6 @@ class BaseSecurityManager:
 
         try:
             # LDAP certificate settings
-            if self.auth_ldap_allow_self_signed:
-                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
-                ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
-            elif self.auth_ldap_tls_demand:
-                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
-                ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
             if self.auth_ldap_tls_cacertdir:
                 ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, self.auth_ldap_tls_cacertdir)
             if self.auth_ldap_tls_cacertfile:
@@ -1042,6 +1059,12 @@ class BaseSecurityManager:
                 ldap.set_option(ldap.OPT_X_TLS_CERTFILE, self.auth_ldap_tls_certfile)
             if self.auth_ldap_tls_keyfile:
                 ldap.set_option(ldap.OPT_X_TLS_KEYFILE, self.auth_ldap_tls_keyfile)
+            if self.auth_ldap_allow_self_signed:
+                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
+                ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+            elif self.auth_ldap_tls_demand:
+                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+                ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
 
             # Initialise LDAP connection
             con = ldap.initialize(self.auth_ldap_server)
@@ -1162,6 +1185,7 @@ class BaseSecurityManager:
 
             # LOGIN SUCCESS (only if user is now registered)
             if user:
+                self._rotate_session_id()
                 self.update_user_auth_stat(user)
                 return user
             else:
@@ -1189,6 +1213,7 @@ class BaseSecurityManager:
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(email))
             return None
         else:
+            self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
 
@@ -1218,6 +1243,7 @@ class BaseSecurityManager:
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
             return None
 
+        self._rotate_session_id()
         self.update_user_auth_stat(user)
         return user
 
@@ -1303,6 +1329,7 @@ class BaseSecurityManager:
 
         # LOGIN SUCCESS (only if user is now registered)
         if user:
+            self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
         else:
@@ -1355,7 +1382,10 @@ class BaseSecurityManager:
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(
-                current_user_jwt, "menu_access", resource_names=menu_names
+                # the current_user_jwt is a lazy proxy, so we need to ignore type checking
+                current_user_jwt,  # type: ignore[arg-type]
+                "menu_access",
+                resource_names=menu_names,
             )
         else:
             return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
@@ -1661,9 +1691,9 @@ class BaseSecurityManager:
         """Load user by ID"""
         return self.get_user_by_id(int(user_id))
 
-    def load_user_jwt(self, user_id):
-        """Load user JWT"""
-        user = self.load_user(user_id)
+    def load_user_jwt(self, _jwt_header, jwt_data):
+        identity = jwt_data["sub"]
+        user = self.load_user(identity)
         # Set flask g.user to JWT user, we can't do it on before request
         g.user = user
         return user

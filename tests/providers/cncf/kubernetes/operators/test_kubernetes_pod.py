@@ -100,6 +100,8 @@ class TestKubernetesPodOperator:
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
+        if not isinstance(self.hook_mock.return_value.is_in_cluster, bool):
+            self.hook_mock.return_value.is_in_cluster = True
         operator.execute(context=context)
         return self.await_start_mock.call_args[1]['pod']
 
@@ -170,7 +172,9 @@ class TestKubernetesPodOperator:
         pod = self.run_pod(k)
         assert pod.spec.containers[0].env_from == env_from
 
-    def test_labels(self):
+    @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
+    def test_labels(self, in_cluster):
+        self.hook_mock.return_value.is_in_cluster = in_cluster
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -178,7 +182,7 @@ class TestKubernetesPodOperator:
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            in_cluster=False,
+            in_cluster=in_cluster,
             do_xcom_push=False,
         )
         pod = self.run_pod(k)
@@ -190,6 +194,7 @@ class TestKubernetesPodOperator:
             "try_number": "1",
             "airflow_version": mock.ANY,
             "run_id": "test",
+            "airflow_kpo_in_cluster": str(in_cluster),
         }
 
     def test_labels_mapped(self):
@@ -209,6 +214,7 @@ class TestKubernetesPodOperator:
             "airflow_version": mock.ANY,
             "run_id": "test",
             "map_index": "10",
+            "airflow_kpo_in_cluster": "True",
         }
 
     def test_find_pod_labels(self):
@@ -266,7 +272,8 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
-    def test_pod_delete_even_on_launcher_error(self, delete_pod_mock):
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.find_pod")
+    def test_pod_delete_even_on_launcher_error(self, find_pod_mock, delete_pod_mock):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -285,6 +292,30 @@ class TestKubernetesPodOperator:
             context = create_context(k)
             k.execute(context=context)
         assert delete_pod_mock.called
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.find_pod")
+    def test_pod_not_deleting_non_existing_pod(self, find_pod_mock, delete_pod_mock):
+
+        find_pod_mock.return_value = None
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context="default",
+            is_delete_operator_pod=True,
+        )
+        self.create_mock.side_effect = AirflowException("fake failure")
+        with pytest.raises(AirflowException):
+            context = create_context(k)
+            k.execute(context=context)
+        delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize('randomize', [True, False])
     def test_provided_pod_name(self, randomize):
@@ -366,6 +397,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": "True",
             "run_id": "test",
         }
 
@@ -404,6 +436,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": "True",
             "run_id": "test",
         }
 
@@ -474,6 +507,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": "True",
             "run_id": "test",
         }
         assert pod.metadata.namespace == "mynamespace"
@@ -543,6 +577,7 @@ class TestKubernetesPodOperator:
             "task_id": "task",
             "try_number": "1",
             "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": "True",
             "run_id": "test",
         }
 
@@ -759,9 +794,13 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize('do_xcom_push', [True, False])
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
-    def test_push_xcom_pod_info(self, mock_extract_xcom, do_xcom_push):
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    def test_push_xcom_pod_info(
+        self, mock_await_xcom_sidecar_container_start, mock_extract_xcom, do_xcom_push
+    ):
         """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
         mock_extract_xcom.return_value = '{}'
+        mock_await_xcom_sidecar_container_start.return_value = None
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -790,7 +829,6 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
         self.run_pod(k)
-        k.client.list_namespaced_pod.assert_called_once()
         _, kwargs = k.client.list_namespaced_pod.call_args
         assert 'already_checked!=True' in kwargs['label_selector']
 
@@ -811,6 +849,28 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
+
+    @pytest.mark.parametrize('do_xcom_push', [True, False])
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    def test_wait_for_xcom_sidecar_iff_push_xcom(self, mock_await, mock_extract_xcom, do_xcom_push):
+        """Assert we wait for xcom sidecar container if and only if we push xcom."""
+        mock_extract_xcom.return_value = '{}'
+        mock_await.return_value = None
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=do_xcom_push,
+        )
+        self.run_pod(k)
+        if do_xcom_push:
+            mock_await.assert_called_once()
+        else:
+            mock_await.assert_not_called()
 
     @pytest.mark.parametrize('should_fail', [True, False])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
@@ -853,13 +913,11 @@ class TestKubernetesPodOperator:
         # the hook attr should be None
         op = KubernetesPodOperator(task_id='abc', name='hi')
         self.hook_patch.stop()
-        hook = op.get_hook()
-        assert getattr(hook, attr) is None
+        assert getattr(op.hook, attr) is None
         # now check behavior with a non-default value
         with conf_vars({('kubernetes', key): value}):
             op = KubernetesPodOperator(task_id='abc', name='hi')
-            hook = op.get_hook()
-            assert getattr(hook, attr) == patched_value
+            assert getattr(op.hook, attr) == patched_value
 
 
 def test__suppress():

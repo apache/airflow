@@ -17,7 +17,7 @@
 
 import json
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import yandexcloud
 
@@ -107,7 +107,7 @@ class YandexCloudBaseHook(BaseHook):
         # Connection id is deprecated. Use yandex_conn_id instead
         connection_id: Optional[str] = None,
         yandex_conn_id: Optional[str] = None,
-        default_folder_id: Union[dict, bool, None] = None,
+        default_folder_id: Optional[str] = None,
         default_public_ssh_key: Optional[str] = None,
     ) -> None:
         super().__init__()

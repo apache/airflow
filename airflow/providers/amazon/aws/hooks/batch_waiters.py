@@ -28,7 +28,6 @@ AWS Batch service waiters
 
 import json
 import sys
-import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -71,16 +70,12 @@ class BatchWaitersHook(BatchClientHook):
         # and the details of the config on that waiter can be further modified without any
         # accidental impact on the generation of new waiters from the defined waiter_model, e.g.
         waiters.get_waiter("JobExists").config.delay  # -> 5
-        waiter = waiters.get_waiter(
-            "JobExists"
-        )  # -> botocore.waiter.Batch.Waiter.JobExists object
+        waiter = waiters.get_waiter("JobExists")  # -> botocore.waiter.Batch.Waiter.JobExists object
         waiter.config.delay = 10
         waiters.get_waiter("JobExists").config.delay  # -> 5 as defined by waiter_model
 
         # To use a specific waiter, update the config and call the `wait()` method for jobId, e.g.
-        waiter = waiters.get_waiter(
-            "JobExists"
-        )  # -> botocore.waiter.Batch.Waiter.JobExists object
+        waiter = waiters.get_waiter("JobExists")  # -> botocore.waiter.Batch.Waiter.JobExists object
         waiter.config.delay = random.uniform(1, 10)  # seconds
         waiter.config.max_attempts = 10
         waiter.wait(jobs=[jobId])
@@ -231,19 +226,3 @@ class BatchWaitersHook(BatchClientHook):
 
         except (botocore.exceptions.ClientError, botocore.exceptions.WaiterError) as err:
             raise AirflowException(err)
-
-
-class AwsBatchWaitersHook(BatchWaitersHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchWaitersHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchWaitersHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -31,6 +31,7 @@ import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
+import requests
 import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
@@ -225,7 +226,7 @@ class GoogleBaseHook(BaseHook):
         self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
         self._cached_project_id: Optional[str] = None
 
-    def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
+    def get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """Returns the Credentials object for Google API and the associated project_id"""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
@@ -263,14 +264,19 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
-    def _get_credentials(self) -> google.auth.credentials.Credentials:
+    def get_credentials(self) -> google.auth.credentials.Credentials:
         """Returns the Credentials object for Google API"""
-        credentials, _ = self._get_credentials_and_project_id()
+        credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials"""
-        return self._get_credentials().token
+        credentials = self.get_credentials()
+        auth_req = google.auth.transport.requests.Request()
+        # credentials.token is None
+        # Need to refresh credentials to populate the token
+        credentials.refresh(auth_req)
+        return credentials.token
 
     @functools.lru_cache(maxsize=None)
     def _get_credentials_email(self) -> str:
@@ -280,7 +286,7 @@ class GoogleBaseHook(BaseHook):
         If a service account is used, it returns the service account.
         If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
         """
-        credentials = self._get_credentials()
+        credentials = self.get_credentials()
 
         if isinstance(credentials, compute_engine.Credentials):
             try:
@@ -305,7 +311,7 @@ class GoogleBaseHook(BaseHook):
         Returns an authorized HTTP object to be used to build a Google cloud
         service hook connection.
         """
-        credentials = self._get_credentials()
+        credentials = self.get_credentials()
         http = build_http()
         http = set_user_agent(http, "airflow/" + version.version)
         authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
@@ -332,7 +338,7 @@ class GoogleBaseHook(BaseHook):
         :return: id of the project
         :rtype: str
         """
-        _, project_id = self._get_credentials_and_project_id()
+        _, project_id = self.get_credentials_and_project_id()
         return project_id
 
     @property
@@ -580,3 +586,19 @@ class GoogleBaseHook(BaseHook):
         while done is False:
             _, done = downloader.next_chunk()
         file_handle.flush()
+
+    def test_connection(self):
+        """Test the Google cloud connectivity from UI"""
+        status, message = False, ''
+        try:
+            token = self._get_access_token()
+            url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"
+            response = requests.post(url)
+            if response.status_code == 200:
+                status = True
+                message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

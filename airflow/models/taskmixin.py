@@ -17,18 +17,17 @@
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Set, Tuple, Union
 
 import pendulum
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
     from logging import Logger
 
     from airflow.models.dag import DAG
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
 
@@ -97,7 +96,7 @@ class TaskMixin(DependencyMixin):
     def __init_subclass__(cls) -> None:
         warnings.warn(
             f"TaskMixin has been renamed to DependencyMixin, please update {cls.__name__}",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return super().__init_subclass__()
@@ -195,10 +194,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             )
 
         if not self.has_dag():
-            # If this task does not yet have a dag, add it to the same dag as the other task and
-            # put it in the dag's root TaskGroup.
+            # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
-            self.dag.task_group.add(self)
 
         def add_only_new(obj, item_set: Set[str], item: str) -> None:
             """Adds only new items to item set"""
@@ -210,9 +207,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         for task in task_list:
             if dag and not task.has_dag():
                 # If the other task does not yet have a dag, add it to the same dag as this task and
-                # put it in the dag's root TaskGroup.
                 dag.add_task(task)
-                dag.task_group.add(task)
             if upstream:
                 add_only_new(task, task.downstream_task_ids, self.node_id)
                 add_only_new(self, self.upstream_task_ids, task.node_id)
@@ -237,7 +232,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional["EdgeModifier"] = None,
     ) -> None:
-        """Set a node (or nodes) to be directly downstream from the current node."""
+        """Set a node (or nodes) to be directly upstream from the current node."""
         self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
@@ -277,57 +272,3 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """This is used by SerializedTaskGroup to serialize a task group's content."""
         raise NotImplementedError()
-
-    def _iter_all_mapped_downstreams(self) -> Iterator["MappedOperator"]:
-        """Return mapped nodes that are direct dependencies of the current task.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-
-        Note that this does not guarantee the returned tasks actually use the
-        current task for task mapping, but only checks those task are mapped
-        operators, and are downstreams of the current task.
-
-        To get a list of tasks that uses the current task for task mapping, use
-        :meth:`iter_mapped_dependants` instead.
-        """
-        from airflow.models.mappedoperator import MappedOperator
-        from airflow.utils.task_group import TaskGroup
-
-        def _walk_group(group: TaskGroup) -> Iterable[Tuple[str, DAGNode]]:
-            """Recursively walk children in a task group.
-
-            This yields all direct children (including both tasks and task
-            groups), and all children of any task groups.
-            """
-            for key, child in group.children.items():
-                yield key, child
-                if isinstance(child, TaskGroup):
-                    yield from _walk_group(child)
-
-        tg = self.task_group
-        if not tg:
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
-        for key, child in _walk_group(tg):
-            if key == self.node_id:
-                continue
-            if not isinstance(child, MappedOperator):
-                continue
-            if self.node_id in child.upstream_task_ids:
-                yield child
-
-    def iter_mapped_dependants(self) -> Iterator["MappedOperator"]:
-        """Return mapped nodes that depend on the current task the expansion.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-        """
-        return (
-            downstream
-            for downstream in self._iter_all_mapped_downstreams()
-            if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
-        )

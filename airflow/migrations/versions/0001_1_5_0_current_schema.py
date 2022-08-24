@@ -214,7 +214,7 @@ def upgrade():
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('key', StringID(length=512), nullable=True),
             sa.Column('value', sa.PickleType(), nullable=True),
-            sa.Column('timestamp', sa.DateTime(), default=func.now(), nullable=False),
+            sa.Column('timestamp', sa.DateTime(), default=func.now, nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('task_id', StringID(), nullable=False),
             sa.Column('dag_id', StringID(), nullable=False),

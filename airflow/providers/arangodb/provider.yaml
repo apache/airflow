@@ -21,8 +21,9 @@ name: ArangoDB
 description: |
     `ArangoDB <https://www.arangodb.com/>`__
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - python-arango>=7.3.2
 
 versions:
   - 2.0.0

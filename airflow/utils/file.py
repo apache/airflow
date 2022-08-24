@@ -28,6 +28,7 @@ from pathspec.patterns import GitWildMatchPattern
 from typing_extensions import Protocol
 
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     import pathlib
@@ -125,7 +126,7 @@ def TemporaryDirectory(*args, **kwargs):
 
     warnings.warn(
         "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
 
@@ -144,7 +145,7 @@ def mkdirs(path, mode):
 
     warnings.warn(
         f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
@@ -279,7 +280,6 @@ def list_py_file_paths(
     directory: Union[str, "pathlib.Path"],
     safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
     include_examples: Optional[bool] = None,
-    include_smart_sensor: Optional[bool] = conf.getboolean('smart_sensor', 'use_smart_sensor'),
 ):
     """
     Traverse a directory and look for Python files.
@@ -290,7 +290,6 @@ def list_py_file_paths(
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
     :param include_examples: include example DAGs
-    :param include_smart_sensor: include smart sensor native control DAGs
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
@@ -307,12 +306,7 @@ def list_py_file_paths(
         from airflow import example_dags
 
         example_dag_folder = example_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False, False))
-    if include_smart_sensor:
-        from airflow import smart_sensor_dags
-
-        smart_sensor_dag_folder = smart_sensor_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(smart_sensor_dag_folder, safe_mode, False, False))
+        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, include_examples=False))
     return file_paths
 
 

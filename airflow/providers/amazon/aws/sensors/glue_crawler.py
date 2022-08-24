@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
@@ -38,6 +37,8 @@ class GlueCrawlerSensor(BaseSensorOperator):
     :param crawler_name: The AWS Glue crawler unique name
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
+
+    template_fields: Sequence[str] = ('crawler_name',)
 
     def __init__(self, *, crawler_name: str, aws_conn_id: str = 'aws_default', **kwargs) -> None:
         super().__init__(**kwargs)
@@ -69,19 +70,3 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
         self.hook = GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
-
-
-class AwsGlueCrawlerSensor(GlueCrawlerSensor):
-    """
-    This sensor is deprecated. Please use
-    :class:`airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This sensor is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

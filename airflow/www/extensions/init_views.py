@@ -24,6 +24,7 @@ from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
@@ -159,11 +160,13 @@ def set_cors_headers_on_response(response):
     allow_headers = conf.get('api', 'access_control_allow_headers')
     allow_methods = conf.get('api', 'access_control_allow_methods')
     allow_origins = conf.get('api', 'access_control_allow_origins')
-    if allow_headers is not None:
+    if allow_headers:
         response.headers['Access-Control-Allow-Headers'] = allow_headers
-    if allow_methods is not None:
+    if allow_methods:
         response.headers['Access-Control-Allow-Methods'] = allow_methods
-    if allow_origins is not None:
+    if allow_origins == '*':
+        response.headers['Access-Control-Allow-Origin'] = '*'
+    elif allow_origins:
         allowed_origins = allow_origins.split(' ')
         origin = request.environ.get('HTTP_ORIGIN', allowed_origins[0])
         if origin in allowed_origins:
@@ -212,7 +215,7 @@ def init_api_experimental(app):
         "The experimental REST API is deprecated. Please migrate to the stable REST API. "
         "Please note that the experimental API do not have access control. "
         "The authenticated user has full access.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
     )
     app.register_blueprint(endpoints.api_experimental, url_prefix='/api/experimental')
     app.extensions['csrf'].exempt(endpoints.api_experimental)

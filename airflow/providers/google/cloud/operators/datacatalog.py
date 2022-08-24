@@ -20,11 +20,12 @@ from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.datacatalog_v1beta1 import DataCatalogClient, SearchCatalogResult
-from google.cloud.datacatalog_v1beta1.types import (
+from google.cloud.datacatalog import (
+    DataCatalogClient,
     Entry,
     EntryGroup,
     SearchCatalogRequest,
+    SearchCatalogResult,
     Tag,
     TagTemplate,
     TagTemplateField,
@@ -33,6 +34,11 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
+from airflow.providers.google.cloud.links.datacatalog import (
+    DataCatalogEntryGroupLink,
+    DataCatalogEntryLink,
+    DataCatalogTagTemplateLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -87,6 +93,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -143,7 +150,15 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
             )
         _, _, entry_id = result.name.rpartition("/")
         self.log.info("Current entry_id ID: %s", entry_id)
-        context["task_instance"].xcom_push(key="entry_id", value=entry_id)
+        self.xcom_push(context, key="entry_id", value=entry_id)
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=self.entry_id,
+            entry_group_id=self.entry_group,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
+        )
         return Entry.to_dict(result)
 
 
@@ -195,6 +210,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryGroupLink(),)
 
     def __init__(
         self,
@@ -248,7 +264,14 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
 
         _, _, entry_group_id = result.name.rpartition("/")
         self.log.info("Current entry group ID: %s", entry_group_id)
-        context["task_instance"].xcom_push(key="entry_group_id", value=entry_group_id)
+        self.xcom_push(context, key="entry_group_id", value=entry_group_id)
+        DataCatalogEntryGroupLink.persist(
+            context=context,
+            task_instance=self,
+            entry_group_id=self.entry_group_id,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
+        )
         return EntryGroup.to_dict(result)
 
 
@@ -301,6 +324,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -375,7 +399,15 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
 
         _, _, tag_id = tag.name.rpartition("/")
         self.log.info("Current Tag ID: %s", tag_id)
-        context["task_instance"].xcom_push(key="tag_id", value=tag_id)
+        self.xcom_push(context, key="tag_id", value=tag_id)
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=self.entry,
+            entry_group_id=self.entry_group,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
+        )
         return Tag.to_dict(tag)
 
 
@@ -425,6 +457,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogTagTemplateLink(),)
 
     def __init__(
         self,
@@ -477,7 +510,14 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
             )
         _, _, tag_template = result.name.rpartition("/")
         self.log.info("Current Tag ID: %s", tag_template)
-        context["task_instance"].xcom_push(key="tag_template_id", value=tag_template)
+        self.xcom_push(context, key="tag_template_id", value=tag_template)
+        DataCatalogTagTemplateLink.persist(
+            context=context,
+            task_instance=self,
+            tag_template_id=self.tag_template_id,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
+        )
         return TagTemplate.to_dict(result)
 
 
@@ -532,6 +572,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogTagTemplateLink(),)
 
     def __init__(
         self,
@@ -588,7 +629,14 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
             result = tag_template.fields[self.tag_template_field_id]
 
         self.log.info("Current Tag ID: %s", self.tag_template_field_id)
-        context["task_instance"].xcom_push(key="tag_template_field_id", value=self.tag_template_field_id)
+        self.xcom_push(context, key="tag_template_field_id", value=self.tag_template_field_id)
+        DataCatalogTagTemplateLink.persist(
+            context=context,
+            task_instance=self,
+            tag_template_id=self.tag_template,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
+        )
         return TagTemplateField.to_dict(result)
 
 
@@ -1067,6 +1115,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -1105,6 +1154,14 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=self.entry,
+            entry_group_id=self.entry_group,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return Entry.to_dict(result)
 
@@ -1153,6 +1210,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryGroupLink(),)
 
     def __init__(
         self,
@@ -1191,6 +1249,13 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        DataCatalogEntryGroupLink.persist(
+            context=context,
+            task_instance=self,
+            entry_group_id=self.entry_group,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return EntryGroup.to_dict(result)
 
@@ -1234,6 +1299,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogTagTemplateLink(),)
 
     def __init__(
         self,
@@ -1269,6 +1335,13 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        DataCatalogTagTemplateLink.persist(
+            context=context,
+            task_instance=self,
+            tag_template_id=self.tag_template,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return TagTemplate.to_dict(result)
 
@@ -1319,6 +1392,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -1360,6 +1434,14 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=self.entry,
+            entry_group_id=self.entry_group,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
         return [Tag.to_dict(item) for item in result]
 
@@ -1406,6 +1488,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -1440,6 +1523,16 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+
+        project_id, location_id, entry_group_id, entry_id = result.name.split('/')[1::2]
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=entry_id,
+            entry_group_id=entry_group_id,
+            location_id=location_id,
+            project_id=project_id,
         )
         return Entry.to_dict(result)
 
@@ -1489,6 +1582,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogTagTemplateLink(),)
 
     def __init__(
         self,
@@ -1530,6 +1624,13 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        DataCatalogTagTemplateLink.persist(
+            context=context,
+            task_instance=self,
+            tag_template_id=self.tag_template,
+            location_id=self.location,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -1695,6 +1796,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -1729,7 +1831,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        hook.update_entry(
+        result = hook.update_entry(
             entry=self.entry,
             update_mask=self.update_mask,
             location=self.location,
@@ -1739,6 +1841,16 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+
+        location_id, entry_group_id, entry_id = result.name.split("/")[3::2]
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=self.entry_id or entry_id,
+            entry_group_id=self.entry_group or entry_group_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -1795,6 +1907,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogEntryLink(),)
 
     def __init__(
         self,
@@ -1831,7 +1944,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        hook.update_tag(
+        result = hook.update_tag(
             tag=self.tag,
             update_mask=self.update_mask,
             location=self.location,
@@ -1842,6 +1955,16 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+
+        location_id, entry_group_id, entry_id = result.name.split("/")[3:8:2]
+        DataCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+            entry_id=self.entry or entry_id,
+            entry_group_id=self.entry_group or entry_group_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -1900,6 +2023,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogTagTemplateLink(),)
 
     def __init__(
         self,
@@ -1932,7 +2056,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        hook.update_tag_template(
+        result = hook.update_tag_template(
             tag_template=self.tag_template,
             update_mask=self.update_mask,
             location=self.location,
@@ -1941,6 +2065,15 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+
+        location_id, tag_template_id = result.name.split("/")[3::2]
+        DataCatalogTagTemplateLink.persist(
+            context=context,
+            task_instance=self,
+            tag_template_id=self.tag_template_id or tag_template_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -2005,6 +2138,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (DataCatalogTagTemplateLink(),)
 
     def __init__(
         self,
@@ -2041,7 +2175,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        hook.update_tag_template_field(
+        result = hook.update_tag_template_field(
             tag_template_field=self.tag_template_field,
             update_mask=self.update_mask,
             tag_template_field_name=self.tag_template_field_name,
@@ -2052,4 +2186,13 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+
+        location_id, tag_template_id = result.name.split("/")[3:6:2]
+        DataCatalogTagTemplateLink.persist(
+            context=context,
+            task_instance=self,
+            tag_template_id=self.tag_template or tag_template_id,
+            location_id=self.location or location_id,
+            project_id=self.project_id or hook.project_id,
         )

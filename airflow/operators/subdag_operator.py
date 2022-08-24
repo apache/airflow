@@ -19,8 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.subdag`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.subdag`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

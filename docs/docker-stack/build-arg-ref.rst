@@ -40,12 +40,16 @@ Those are the most common arguments that you use when you want to build a custom
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which       |
 |                                          |                                          | airflow is installed.                       |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and       |
+| ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow's HOME (that's where logs and       |
 |                                          |                                          | SQLite databases are stored).               |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.2.2``                               |  PIP version used.                          |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
+|                                          |                                          | installation commands (except when          |
+|                                          |                                          | reinstalling ``pip`` itself)                |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -126,7 +130,7 @@ for examples of using those arguments.
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_COMMAND``                      | (see Dockerfile)                         | Dev apt command executed before dev deps |
+| ``DEV_APT_COMMAND``                      |                                          | Dev apt command executed before dev deps |
 |                                          |                                          | are installed in the Build image.        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
@@ -134,8 +138,8 @@ for examples of using those arguments.
 |                                          |                                          | in the Build image. Should start with    |
 |                                          |                                          | ``&&``.                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEV_APT_DEPS``                         | (see Dockerfile)                         | Dev APT dependencies installed           |
-|                                          |                                          | in the Build image.                      |
+| ``DEV_APT_DEPS``                         | Empty - install default dependencies     | Dev APT dependencies installed           |
+|                                          | (see ``install_os_dependencies.sh``)     | in the Build image.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
 |                                          |                                          | installed in the Build image.            |
@@ -143,16 +147,16 @@ for examples of using those arguments.
 | ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
 |                                          |                                          | when installing dev deps.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_COMMAND``                  | (see Dockerfile)                         | Runtime apt command executed before deps |
-|                                          |                                          | are installed in the Main image.         |
+| ``RUNTIME_APT_COMMAND``                  |                                          | Runtime apt command executed before deps |
+|                                          |                                          | are installed in the ``main`` stage.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
 |                                          |                                          | before runtime dep are installed         |
-|                                          |                                          | in the Main image. Should start with     |
+|                                          |                                          | in the ``main`` stage. Should start with |
 |                                          |                                          | ``&&``.                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``RUNTIME_APT_DEPS``                     | (see Dockerfile)                         | Runtime APT dependencies installed       |
-|                                          |                                          | in the Main image.                       |
+| ``RUNTIME_APT_DEPS``                     | Empty - install default dependencies     | Runtime APT dependencies installed       |
+|                                          | (see ``install_os_dependencies.sh``)     | in the Main image.                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
 |                                          |                                          | installed in the Main image.             |
@@ -208,16 +212,6 @@ You can see some examples of those in:
 |                                    |                                          | "/opt/airflow" when you install Airflow  |
 |                                    |                                          | from local sources.                      |
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_FROM``       | ``Dockerfile``                           | Sources of Airflow WWW files used for    |
-|                                    |                                          | asset compilation. Set it to             |
-|                                    |                                          | "./airflow/www" when                     |
-|                                    |                                          | you install Airflow from local sources   |
-+------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_WWW_TO``         | ``/Dockerfile``                          | Target for Airflow files used for        |
-|                                    |                                          | asset compilation. Set it to             |
-|                                    |                                          | "/opt/airflow/airflow/www" when          |
-|                                    |                                          | you install Airflow from local sources.  |
-+------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_VERSION_SPECIFICATION``  |                                          | Optional - might be used for using limit |
 |                                    |                                          | for Airflow version installation - for   |
 |                                    |                                          | example ``<2.0.2`` for automated builds. |
@@ -251,11 +245,6 @@ You can see some examples of those in:
 |                                    |                                          | from locally built/downloaded            |
 |                                    |                                          | .whl and .tar.gz files placed in the     |
 |                                    |                                          | ``docker-context-files``.                |
-+------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_IS_IN_CONTEXT``          | ``false``                                | If set to true, it means that Airflow    |
-|                                    |                                          | and providers are available in context   |
-|                                    |                                          | and the image will not attempt to        |
-|                                    |                                          | install Airflow from PyPI or sources.    |
 +------------------------------------+------------------------------------------+------------------------------------------+
 
 Pre-caching PIP dependencies

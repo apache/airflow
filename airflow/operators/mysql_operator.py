@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.mysql.operators.mysql import MySqlOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.operators.mysql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

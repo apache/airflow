@@ -17,16 +17,18 @@
 # under the License.
 """This module contains SFTP operator."""
 import os
+import warnings
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 class SFTPOperation:
-    """Operation that can be used with SFTP/"""
+    """Operation that can be used with SFTP"""
 
     PUT = 'put'
     GET = 'get'
@@ -35,17 +37,19 @@ class SFTPOperation:
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
-    This operator uses ssh_hook to open sftp transport channel that serve as basis
+    This operator uses sftp_hook to open sftp transport channel that serve as basis
     for file transfer.
 
-    :param ssh_hook: predefined ssh_hook to use for remote execution.
-        Either `ssh_hook` or `ssh_conn_id` needs to be provided.
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if `ssh_hook`
-        is provided.
+        or `sftp_hook` is provided.
+    :param sftp_hook: predefined SFTPHook to use
+        Either `sftp_hook` or `ssh_conn_id` needs to be provided.
+    :param ssh_hook: Deprecated - predefined SSHHook to use for remote execution
+        Use `sftp_hook` instead.
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
-        defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
+        defined in `sftp_hook`/`ssh_hook` or predefined in the connection of `ssh_conn_id`.
     :param local_filepath: local file path to get or put. (templated)
     :param remote_filepath: remote file path to get or put. (templated)
     :param operation: specify operation 'get' or 'put', defaults to put
@@ -75,18 +79,20 @@ class SFTPOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ssh_hook=None,
-        ssh_conn_id=None,
-        remote_host=None,
-        local_filepath=None,
-        remote_filepath=None,
-        operation=SFTPOperation.PUT,
-        confirm=True,
-        create_intermediate_dirs=False,
+        ssh_hook: Optional[SSHHook] = None,
+        sftp_hook: Optional[SFTPHook] = None,
+        ssh_conn_id: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        local_filepath: str,
+        remote_filepath: str,
+        operation: str = SFTPOperation.PUT,
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.ssh_hook = ssh_hook
+        self.sftp_hook = sftp_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.local_filepath = local_filepath
@@ -94,79 +100,72 @@ class SFTPOperator(BaseOperator):
         self.operation = operation
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
+
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
             )
 
-    def execute(self, context: Any) -> str:
+        # TODO: remove support for ssh_hook in next major provider version in hook and operator
+        if self.ssh_hook is not None and self.sftp_hook is not None:
+            raise AirflowException(
+                'Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them.'
+            )
+
+        if self.ssh_hook is not None:
+            if not isinstance(self.ssh_hook, SSHHook):
+                self.log.info('ssh_hook is invalid. Trying ssh_conn_id to create SFTPHook.')
+                self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
+            if self.sftp_hook is None:
+                warnings.warn(
+                    'Parameter `ssh_hook` is deprecated'
+                    'Please use `sftp_hook` instead.'
+                    'The old parameter `ssh_hook` will be removed in a future version.',
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)
+
+    def execute(self, context: Any) -> Optional[str]:
         file_msg = None
         try:
             if self.ssh_conn_id:
-                if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
-                    self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
+                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
+                    self.log.info("ssh_conn_id is ignored when sftp_hook/ssh_hook is provided.")
                 else:
                     self.log.info(
-                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
+                        'sftp_hook/ssh_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.'
                     )
-                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+                    self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
 
-            if not self.ssh_hook:
-                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
+            if not self.sftp_hook:
+                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
-                    "in ssh_hook or predefined in connection of ssh_conn_id."
+                    "in sftp_hook or predefined in connection of ssh_conn_id."
                 )
-                self.ssh_hook.remote_host = self.remote_host
+                self.sftp_hook.remote_host = self.remote_host
 
-            with self.ssh_hook.get_conn() as ssh_client:
-                sftp_client = ssh_client.open_sftp()
-                if self.operation.lower() == SFTPOperation.GET:
-                    local_folder = os.path.dirname(self.local_filepath)
-                    if self.create_intermediate_dirs:
-                        Path(local_folder).mkdir(parents=True, exist_ok=True)
-                    file_msg = f"from {self.remote_filepath} to {self.local_filepath}"
-                    self.log.info("Starting to transfer %s", file_msg)
-                    sftp_client.get(self.remote_filepath, self.local_filepath)
-                else:
-                    remote_folder = os.path.dirname(self.remote_filepath)
-                    if self.create_intermediate_dirs:
-                        _make_intermediate_dirs(
-                            sftp_client=sftp_client,
-                            remote_directory=remote_folder,
-                        )
-                    file_msg = f"from {self.local_filepath} to {self.remote_filepath}"
-                    self.log.info("Starting to transfer file %s", file_msg)
-                    sftp_client.put(self.local_filepath, self.remote_filepath, confirm=self.confirm)
+            if self.operation.lower() == SFTPOperation.GET:
+                local_folder = os.path.dirname(self.local_filepath)
+                if self.create_intermediate_dirs:
+                    Path(local_folder).mkdir(parents=True, exist_ok=True)
+                file_msg = f"from {self.remote_filepath} to {self.local_filepath}"
+                self.log.info("Starting to transfer %s", file_msg)
+                self.sftp_hook.retrieve_file(self.remote_filepath, self.local_filepath)
+            else:
+                remote_folder = os.path.dirname(self.remote_filepath)
+                if self.create_intermediate_dirs:
+                    self.sftp_hook.create_directory(remote_folder)
+                file_msg = f"from {self.local_filepath} to {self.remote_filepath}"
+                self.log.info("Starting to transfer file %s", file_msg)
+                self.sftp_hook.store_file(self.remote_filepath, self.local_filepath, confirm=self.confirm)
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
         return self.local_filepath
-
-
-def _make_intermediate_dirs(sftp_client, remote_directory) -> None:
-    """
-    Create all the intermediate directories in a remote host
-
-    :param sftp_client: A Paramiko SFTP client.
-    :param remote_directory: Absolute Path of the directory containing the file
-    :return:
-    """
-    if remote_directory == '/':
-        sftp_client.chdir('/')
-        return
-    if remote_directory == '':
-        return
-    try:
-        sftp_client.chdir(remote_directory)
-    except OSError:
-        dirname, basename = os.path.split(remote_directory.rstrip('/'))
-        _make_intermediate_dirs(sftp_client, dirname)
-        sftp_client.mkdir(basename)
-        sftp_client.chdir(basename)
-        return

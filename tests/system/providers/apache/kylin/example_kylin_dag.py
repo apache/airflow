@@ -32,7 +32,7 @@ DAG_ID = "example_kylin_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     default_args={'project': 'learn_kylin', 'cube': 'kylin_sales_cube'},

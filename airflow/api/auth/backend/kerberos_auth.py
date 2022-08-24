@@ -43,7 +43,6 @@
 import logging
 import os
 from functools import wraps
-from socket import getfqdn
 from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
 import kerberos
@@ -51,6 +50,7 @@ from flask import Response, _request_ctx_stack as stack, g, make_response, reque
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
+from airflow.utils.net import getfqdn
 
 log = logging.getLogger(__name__)
 

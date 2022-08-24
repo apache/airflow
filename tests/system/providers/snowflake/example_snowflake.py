@@ -103,6 +103,7 @@ with DAG(
         schema=SNOWFLAKE_SCHEMA,
         stage=SNOWFLAKE_STAGE,
         file_format="(type = 'CSV',field_delimiter = ';')",
+        pattern=".*[.]csv",
     )
 
     # [END howto_operator_s3_to_snowflake]

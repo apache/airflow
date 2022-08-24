@@ -23,7 +23,7 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
-    from airflow.hooks.dbapi import DbApiHook
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 
@@ -57,9 +57,9 @@ class MsSqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, Iterable[str]],
         mssql_conn_id: str = 'mssql_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = False,
         database: Optional[str] = None,
         **kwargs,

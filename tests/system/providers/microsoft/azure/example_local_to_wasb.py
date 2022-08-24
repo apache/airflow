@@ -31,7 +31,7 @@ DAG_ID = "example_local_to_wasb"
 
 with DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     default_args={"container_name": "mycontainer", "blob_name": "myblob"},

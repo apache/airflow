@@ -21,7 +21,7 @@ Customizing DAG Scheduling with Timetables
 
 For our example, let's say a company wants to run a job after each weekday to
 process data collected during the work day. The first intuitive answer to this
-would be ``schedule_interval="0 0 * * 1-5"`` (midnight on Monday to Friday), but
+would be ``schedule="0 0 * * 1-5"`` (midnight on Monday to Friday), but
 this means data collected on Friday will *not* be processed right after Friday
 ends, but on the next Monday, and that run's interval would be from midnight
 Friday to midnight *Monday*. What we want is:
@@ -295,14 +295,14 @@ For our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
 
 .. code-block:: python
 
-    description = "Schedule: after each workday, at {_schedule_at}"
+    description = "Schedule: after each workday"
 
 You can also wrap this inside ``__init__``, if you want to derive description.
 
 .. code-block:: python
 
     def __init__(self) -> None:
-        self.description = "Schedule: after each workday, at {self._schedule_at}"
+        self.description = "Schedule: after each workday, at f{self._schedule_at}"
 
 
 This is specially useful when you want to provide comprehensive description which is different from ``summary`` property.
@@ -323,3 +323,31 @@ The *i* icon  would show,  ``Schedule: after each workday, at 08:00:00``.
 .. seealso::
     Module :mod:`airflow.timetables.interval`
         check ``CronDataIntervalTimetable`` description implementation which provides comprehensive cron description in UI.
+
+Changing generated ``run_id``
+-----------------------------
+
+.. versionadded:: 2.4
+
+Since Airflow 2.4, Timetables are also responsible for generating the ``run_id`` for DagRuns.
+
+For example to have the Run ID show a "human friendly" date of when the run started (that is, the end of the data interval, rather then the start which is the date currently used) you could add a method like this to a custom timetable:
+
+.. code-block:: python
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: DagRunType,
+        logical_date: DateTime,
+        data_interval: DataInterval | None,
+        **extra,
+    ) -> str:
+        if run_type == DagRunType.SCHEDULED and data_interval:
+            return data_interval.end.format("YYYY-MM-DD dddd")
+        return super().generate_run_id(
+            run_type=run_type, logical_date=logical_date, data_interval=data_interval, **extra
+        )
+
+
+Remember that the RunID is limited to 250 characters, and must be unique within a DAG.

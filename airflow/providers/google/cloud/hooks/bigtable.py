@@ -55,7 +55,7 @@ class BigtableHook(GoogleBaseHook):
         if not self._client:
             self._client = Client(
                 project=project_id,
-                credentials=self._get_credentials(),
+                credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
                 admin=True,
             )

@@ -351,6 +351,11 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
+ARG_TREAT_DAG_AS_REGEX = Arg(
+    ("--treat-dag-as-regex",),
+    help=("if set, dag_id will be treated as regex instead of an exact string"),
+    action="store_true",
+)
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
@@ -434,6 +439,11 @@ ARG_DB_DRY_RUN = Arg(
     help="Perform a dry run",
     action="store_true",
 )
+ARG_DB_SKIP_ARCHIVE = Arg(
+    ("--skip-archive",),
+    help="Don't preserve purged records in an archive table.",
+    action="store_true",
+)
 
 
 # pool
@@ -464,7 +474,8 @@ ARG_VAR_VALUE = Arg(("value",), metavar='VALUE', help="Variable value")
 ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
-ARG_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
 ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
 
@@ -661,18 +672,17 @@ ARG_CELERY_HOSTNAME = Arg(
 ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
-    default=conf.get('celery', 'worker_umask'),
 )
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
-    help="Don’t synchronize with other workers at start-up",
+    help="Don't synchronize with other workers at start-up",
     action="store_true",
 )
 ARG_WITHOUT_GOSSIP = Arg(
     ("--without-gossip",),
     default=False,
-    help="Don’t subscribe to other workers events",
+    help="Don't subscribe to other workers events",
     action="store_true",
 )
 
@@ -1130,6 +1140,7 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
+            ARG_TREAT_DAG_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1343,13 +1354,13 @@ VARIABLES_COMMANDS = (
         name='get',
         help='Get variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, ARG_VERBOSE),
+        args=(ARG_VAR, ARG_DESERIALIZE_JSON, ARG_DEFAULT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
         help='Set variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_JSON),
+        args=(ARG_VAR, ARG_VAR_VALUE, ARG_SERIALIZE_JSON),
     ),
     ActionCommand(
         name='delete',
@@ -1452,6 +1463,7 @@ DB_COMMANDS = (
             ARG_DB_CLEANUP_TIMESTAMP,
             ARG_VERBOSE,
             ARG_YES,
+            ARG_DB_SKIP_ARCHIVE,
         ),
     ),
 )

@@ -17,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+Appflow
 ArangoDB
 Arg
 Args
@@ -25,6 +26,7 @@ Async
 AsyncResult
 Atlassian
 Auth
+Authlib
 AutoMlClient
 Autoscale
 Avro
@@ -97,6 +99,7 @@ DataTransferServiceClient
 Databricks
 Datadog
 Dataflow
+Dataform
 Dataframe
 Datalake
 Datanodes
@@ -110,6 +113,7 @@ Datasync
 DateFrame
 Datetimepicker
 Datetimes
+Debounce
 Decrypt
 Decrypts
 DeidentifyContentResponse
@@ -346,6 +350,8 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+RunSubmitTaskSettings
+SFTPClient
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -380,6 +386,7 @@ StatefulSets
 StatsD
 StorageClass
 StoredInfoType
+StrictUndefined
 Stringified
 Subclasses
 Subdirectory
@@ -394,6 +401,7 @@ TCP
 TLS
 TTY
 TZ
+Tabular
 TaskDecorator
 TaskFlow
 TaskGroup
@@ -589,6 +597,7 @@ cfg
 cgi
 cgroups
 cgroupspy
+chakra
 changelog
 charset
 checklicence
@@ -721,6 +730,7 @@ delim
 dep
 deploymentUrl
 deps
+deregister
 desc
 deserialization
 deserialize
@@ -856,9 +866,12 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
+getboolean
 getfqdn
 getframe
+getint
 getsource
 gevent
 gid
@@ -964,6 +977,7 @@ isfile
 ish
 isn
 iterable
+iterables
 iteratively
 iterm
 itertools
@@ -998,6 +1012,7 @@ keytab
 killMode
 kinit
 kms
+knn
 knownHosts
 krb
 kube
@@ -1013,6 +1028,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz
@@ -1038,6 +1054,7 @@ lshift
 lxml
 macOS
 macosx
+mailto
 makedirs
 makedsn
 mapred
@@ -1130,6 +1147,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm
@@ -1148,6 +1166,7 @@ param
 parametable
 parameterType
 parameterValue
+parameterization
 parameterizing
 paramiko
 params
@@ -1250,6 +1269,7 @@ readme
 readthedocs
 realtime
 rebase
+recurse
 recurses
 redbubble
 redis
@@ -1303,6 +1323,7 @@ sanitization
 sas
 sasl
 savedModel
+scala
 scalability
 scalable
 scaler
@@ -1312,6 +1333,7 @@ schedulable
 schedulername
 schemas
 sdk
+searchpath
 secretRef
 secretRefs
 securable
@@ -1322,6 +1344,7 @@ seealso
 seedlist
 segmentGranularity
 sendgrid
+serde
 serialise
 serializable
 serverless
@@ -1500,8 +1523,11 @@ unicode
 unittest
 unittests
 unix
+unmanaged
+unmap
 unmappable
 unmapped
+unmapping
 unpause
 unpaused
 unpausing
@@ -1533,6 +1559,7 @@ util
 utilise
 utils
 uuid
+vCPU
 validator
 vals
 ve

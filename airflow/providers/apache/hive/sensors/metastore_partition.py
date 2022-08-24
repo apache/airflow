@@ -17,7 +17,7 @@
 # under the License.
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.sensors.sql import SqlSensor
+from airflow.providers.common.sql.sensors.sql import SqlSensor
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -42,7 +42,6 @@ class MetastorePartitionSensor(SqlSensor):
 
     template_fields: Sequence[str] = ('partition_name', 'table', 'schema')
     ui_color = '#8da7be'
-    poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
 
     def __init__(
         self,

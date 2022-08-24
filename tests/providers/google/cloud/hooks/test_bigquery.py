@@ -19,6 +19,7 @@
 
 import re
 import unittest
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -33,9 +34,10 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryHook,
     _api_resource_configs_duplication_check,
     _cleanse_time_partitioning,
-    _split_tablename,
+    _format_schema_for_description,
     _validate_src_fmt_configs,
     _validate_value,
+    split_tablename,
 )
 
 PROJECT_ID = "bq-project"
@@ -57,7 +59,7 @@ TABLE_REFERENCE = TableReference.from_api_repr(TABLE_REFERENCE_REPR)
 class _BigQueryBaseTestClass:
     def setup_method(self) -> None:
         class MockedBigQueryHook(BigQueryHook):
-            def _get_credentials_and_project_id(self):
+            def get_credentials_and_project_id(self):
                 return CREDENTIALS, PROJECT_ID
 
         self.hook = MockedBigQueryHook()
@@ -473,14 +475,12 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             start_index=5,
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
-    def test_run_table_delete(self, mock_client, mock_table):
-        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
-        self.hook.run_table_delete(source_project_dataset_table, ignore_if_missing=False)
-        mock_table.from_string.assert_called_once_with(source_project_dataset_table)
+    def test_run_table_delete(self, mock_client):
+        source_dataset_table = f"{DATASET_ID}.{TABLE_ID}"
+        self.hook.run_table_delete(source_dataset_table, ignore_if_missing=False)
         mock_client.return_value.delete_table.assert_called_once_with(
-            table=mock_table.from_string.return_value, not_found_ok=False
+            table=source_dataset_table, not_found_ok=False
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
@@ -918,11 +918,36 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith('bigquery://')
 
+    @mock.patch('airflow.providers.google.cloud.hooks.bigquery.hashlib.md5')
+    @pytest.mark.parametrize(
+        "test_dag_id, expected_job_id",
+        [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],
+        ids=["test-dag-id-1.1"],
+    )
+    def test_job_id_validity(self, mock_md5, test_dag_id, expected_job_id):
+        hash_ = "hash"
+        mock_md5.return_value.hexdigest.return_value = hash_
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        job_id = self.hook.generate_job_id(
+            job_id=None,
+            dag_id=test_dag_id,
+            task_id="test_job_id",
+            logical_date=datetime(2020, 1, 23),
+            configuration=configuration,
+        )
+        assert job_id == expected_job_id
+
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
         with pytest.raises(Exception, match="INTERNAL: No default project is specified"):
-            _split_tablename("dataset.table", None)
+            split_tablename("dataset.table", None)
 
     @parameterized.expand(
         [
@@ -935,7 +960,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
     )
     def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
         default_project_id = "project"
-        project, dataset, table = _split_tablename(table_input, default_project_id)
+        project, dataset, table = split_tablename(table_input, default_project_id)
         assert project_expected == project
         assert dataset_expected == dataset
         assert table_expected == table
@@ -969,7 +994,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
     def test_invalid_syntax(self, table_input, var_name, exception_message):
         default_project_id = "project"
         with pytest.raises(Exception, match=exception_message.format(table_input)):
-            _split_tablename(table_input, default_project_id, var_name)
+            split_tablename(table_input, default_project_id, var_name)
 
 
 class TestTableOperations(_BigQueryBaseTestClass):
@@ -1215,11 +1240,33 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
             ]
         )
 
+    def test_format_schema_for_description(self):
+        test_query_result = {
+            "schema": {
+                "fields": [
+                    {"name": "field_1", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+        }
+        description = _format_schema_for_description(test_query_result["schema"])
+        assert description == [('field_1', 'STRING', None, None, None, None, True)]
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_description(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    def test_description(self, mock_insert, mock_get_service):
+        mock_get_query_results = mock_get_service.return_value.jobs.return_value.getQueryResults
+        mock_execute = mock_get_query_results.return_value.execute
+        mock_execute.return_value = {
+            "schema": {
+                "fields": [
+                    {"name": "ts", "type": "TIMESTAMP", "mode": "NULLABLE"},
+                ]
+            },
+        }
+
         bq_cursor = self.hook.get_cursor()
-        with pytest.raises(NotImplementedError):
-            bq_cursor.description
+        bq_cursor.execute("SELECT CURRENT_TIMESTAMP() as ts")
+        assert bq_cursor.description == [("ts", "TIMESTAMP", None, None, None, None, True)]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_close(self, mock_get_service):
@@ -1672,7 +1719,7 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
         assert kwargs["configuration"]['query']['useLegacySql'] is True
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

@@ -32,8 +32,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - cassandra-driver>=3.13.0
 
 integrations:
   - integration-name: Apache Cassandra
@@ -53,9 +54,6 @@ hooks:
   - integration-name: Apache Cassandra
     python-modules:
       - airflow.providers.apache.cassandra.hooks.cassandra
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook
 
 connection-types:
   - hook-class-name: airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook

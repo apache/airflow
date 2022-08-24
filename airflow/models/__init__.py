@@ -21,10 +21,12 @@ from typing import Union
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, DagTag
+from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning
+from airflow.models.dataset import DatasetModel
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ImportError
 from airflow.models.log import Log
@@ -33,7 +35,6 @@ from airflow.models.operator import Operator
 from airflow.models.param import Param
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
-from airflow.models.sensorinstance import SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
@@ -52,10 +53,13 @@ __all__ = [
     "BaseOperatorLink",
     "Connection",
     "DagBag",
+    "DagWarning",
     "DagModel",
     "DagPickle",
     "DagRun",
     "DagTag",
+    "DagOwnerAttributes",
+    "DatasetModel",
     "DbCallbackRequest",
     "ImportError",
     "Log",
@@ -64,7 +68,6 @@ __all__ = [
     "Param",
     "Pool",
     "RenderedTaskInstanceFields",
-    "SensorInstance",
     "SkipMixin",
     "SlaMiss",
     "TaskFail",

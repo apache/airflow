@@ -24,6 +24,20 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Remove Tableau from Salesforce provider (#23747)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove "bad characters" from our codebase (#24841)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

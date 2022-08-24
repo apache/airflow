@@ -50,7 +50,8 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True
         )
 
-        operator.execute(None)
+        context = mock.MagicMock()
+        operator.execute(context=context)
         mock_hook.return_value.create_topic.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -69,7 +70,8 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=False
         )
 
-        operator.execute(None)
+        context = mock.MagicMock()
+        operator.execute(context=context)
         mock_hook.return_value.create_topic.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -106,7 +108,8 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
-        response = operator.execute(None)
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -140,7 +143,8 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
-        response = operator.execute(None)
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -169,7 +173,8 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
-        response = operator.execute(None)
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,

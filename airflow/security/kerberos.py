@@ -34,13 +34,13 @@
 """Kerberos security provider"""
 import logging
 import shlex
-import socket
 import subprocess
 import sys
 import time
 from typing import List, Optional
 
 from airflow.configuration import conf
+from airflow.utils.net import get_hostname
 
 NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 
@@ -60,7 +60,7 @@ def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = Tr
     renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
     cmd_principal = principal or conf.get_mandatory_value('kerberos', 'principal').replace(
-        "_HOST", socket.getfqdn()
+        "_HOST", get_hostname()
     )
 
     if conf.getboolean('kerberos', 'forwardable'):
@@ -143,7 +143,7 @@ def perform_krb181_workaround(principal: str):
     ret = subprocess.call(cmdv, close_fds=True)
 
     if ret != 0:
-        principal = f"{principal or conf.get('kerberos', 'principal')}/{socket.getfqdn()}"
+        principal = f"{principal or conf.get('kerberos', 'principal')}/{get_hostname()}"
         ccache = conf.get('kerberos', 'ccache')
         log.error(
             "Couldn't renew kerberos ticket in order to work around Kerberos 1.8.1 issue. Please check that "

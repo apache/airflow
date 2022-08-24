@@ -56,7 +56,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -692,11 +692,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_date: Optional[pendulum.DateTime] = None
     end_date: Optional[pendulum.DateTime] = None
 
-    # How operator-mapping arguments should be validated. If True, a default validation implementation that
-    # calls the operator's constructor is used. If False, the operator should implement its own validation
-    # logic (default implementation is 'pass' i.e. no validation whatsoever).
-    mapped_arguments_validated_by_init: ClassVar[bool] = False
-
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
@@ -756,6 +751,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
 
+        kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
@@ -766,7 +762,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). '
                 'Support for passing such arguments will be dropped in future. '
                 f'Invalid arguments were:\n**kwargs: {kwargs}',
-                category=PendingDeprecationWarning,
+                category=RemovedInAirflow3Warning,
                 stacklevel=3,
             )
         validate_key(task_id)
@@ -818,7 +814,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if trigger_rule == "dummy":
             warnings.warn(
                 "dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             trigger_rule = TriggerRule.ALWAYS
@@ -827,7 +823,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             warnings.warn(
                 "none_failed_or_skipped Trigger Rule is deprecated. "
                 "Please use `none_failed_min_one_success`.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
@@ -873,7 +869,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             max_active_tis_per_dag = task_concurrency
@@ -898,11 +894,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.inlets: List = []
         self.outlets: List = []
 
-        self._inlets: List = []
-        self._outlets: List = []
-
         if inlets:
-            self._inlets = (
+            self.inlets = (
                 inlets
                 if isinstance(inlets, list)
                 else [
@@ -911,7 +904,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
         if outlets:
-            self._outlets = (
+            self.outlets = (
                 outlets
                 if isinstance(outlets, list)
                 else [
@@ -958,7 +951,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
-            if not self._outlets and not self.supports_lineage:
+            if not self.outlets and not self.supports_lineage:
                 raise ValueError("No outlets defined for this operator")
             other.add_inlets([self.task_id])
             self.set_downstream(other)
@@ -1014,19 +1007,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def add_inlets(self, inlets: Iterable[Any]):
         """Sets inlets to this operator"""
-        self._inlets.extend(inlets)
+        self.inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
         """Defines the outlets of this operator"""
-        self._outlets.extend(outlets)
+        self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """:return: list of inlets defined for this operator"""
-        return self._inlets
+        """:meta private:"""
+        return self.inlets
 
     def get_outlet_defs(self):
-        """:return: list of outlets defined for this operator"""
-        return self._outlets
+        """:meta private:"""
+        return self.outlets
 
     def get_dag(self) -> "Optional[DAG]":
         return self._dag
@@ -1153,11 +1146,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
 
     def __deepcopy__(self, memo):
-        """
-        Hack sorting double chained task lists by task_id to avoid hitting
-        max_depth on deepcopy operations.
-        """
+        # Hack sorting double chained task lists by task_id to avoid hitting
+        # max_depth on deepcopy operations.
         sys.setrecursionlimit(5000)  # TODO fix this in a better way
+
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -1165,10 +1157,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
         for k, v in self.__dict__.items():
+            if k == "_BaseOperator__instantiated":
+                # Don't set this until the _end_, as it changes behaviour of __setattr__
+                continue
             if k not in shallow_copy:
                 setattr(result, k, copy.deepcopy(v, memo))
             else:
                 setattr(result, k, copy.copy(v))
+        result.__instantiated = self.__instantiated
         return result
 
     def __getstate__(self):
@@ -1351,6 +1347,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self.__class__.__name__
 
     @property
+    def operator_name(self) -> str:
+        """@property: use a more friendly display name for the operator, if set"""
+        try:
+            return self.custom_operator_name  # type: ignore
+        except AttributeError:
+            return self.task_type
+
+    @property
     def roots(self) -> List["BaseOperator"]:
         """Required by DAGNode."""
         return [self]
@@ -1439,8 +1443,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             cls.__serialized_fields = frozenset(
                 vars(BaseOperator(task_id='test')).keys()
                 - {
-                    'inlets',
-                    'outlets',
                     'upstream_task_ids',
                     'default_args',
                     'dag',
@@ -1454,6 +1456,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     'start_date',
                     'end_date',
                     '_task_type',
+                    '_operator_name',
                     'subdag',
                     'ui_color',
                     'ui_fgcolor',
@@ -1470,10 +1473,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
-
-    def is_smart_sensor_compatible(self):
-        """Return if this operator can use smart service. Default False."""
-        return False
 
     is_mapped: ClassVar[bool] = False
 
@@ -1502,13 +1501,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    @classmethod
-    def validate_mapped_arguments(cls, **kwargs: Any) -> None:
-        """Validate arguments when this operator is being mapped."""
-        if cls.mapped_arguments_validated_by_init:
-            cls(**kwargs, _airflow_from_mapped=True)
-
-    def unmap(self) -> "BaseOperator":
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
         return self
 
@@ -1762,21 +1755,16 @@ class BaseOperatorLink(metaclass=ABCMeta):
     @property
     @abstractmethod
     def name(self) -> str:
-        """
-        Name of the link. This will be the button name on the task UI.
-
-        :return: link name
-        """
+        """Name of the link. This will be the button name on the task UI."""
 
     @abstractmethod
-    def get_link(self, operator: AbstractOperator, *, ti_key: "TaskInstanceKey") -> str:
-        """
-        Link to external system.
+    def get_link(self, operator: BaseOperator, *, ti_key: "TaskInstanceKey") -> str:
+        """Link to external system.
 
         Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
         supported at runtime but is deprecated.
 
-        :param operator: airflow operator
-        :param ti_key: TaskInstance ID to return link for
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """

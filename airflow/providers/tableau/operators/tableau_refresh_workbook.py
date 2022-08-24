@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 warnings.warn(
-    """This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.""",
+    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     DeprecationWarning,
     stacklevel=2,
 )

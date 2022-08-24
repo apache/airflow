@@ -16,16 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vision Hook."""
-import sys
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
-from airflow.providers.google.common.consts import CLIENT_INFO
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -40,7 +32,9 @@ from google.cloud.vision_v1.types import (
 )
 from google.protobuf.json_format import MessageToDict
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 ERR_DIFF_NAMES = """The {label} name provided in the object ({explicit_name}) is different
@@ -149,7 +143,7 @@ class CloudVisionHook(GoogleBaseHook):
         :rtype: google.cloud.vision_v1.ProductSearchClient
         """
         if not self._client:
-            self._client = ProductSearchClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = ProductSearchClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @cached_property
@@ -160,7 +154,7 @@ class CloudVisionHook(GoogleBaseHook):
         :return: Google Image Annotator client object.
         :rtype: google.cloud.vision_v1.ImageAnnotatorClient
         """
-        return ImageAnnotatorClient(credentials=self._get_credentials())
+        return ImageAnnotatorClient(credentials=self.get_credentials())
 
     @staticmethod
     def _check_for_error(response: Dict) -> None:

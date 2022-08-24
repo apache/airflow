@@ -28,14 +28,95 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2022-08-10
+
+=================================================================================================  ===========  ==========================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================================================================
+`358593c6b6 <https://github.com/apache/airflow/commit/358593c6b65620807103ae16946825e0bfad974f>`_  2022-08-10   ``Enable multiple query execution in RedshiftDataOperator (#25619)``
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
+`8a1b7d43e0 <https://github.com/apache/airflow/commit/8a1b7d43e05e38576a728f2c49e75a63093f9103>`_  2022-08-10   ``Refactor monolithic ECS Operator into Operators, Sensors, and a Hook (#25413)``
+`85137f3763 <https://github.com/apache/airflow/commit/85137f376373876267675f606cffdb788caa4818>`_  2022-08-09   ``Remove deprecated modules from Amazon provider package (#25609)``
+`a0212a3593 <https://github.com/apache/airflow/commit/a0212a35930f44d88e12f19e83ec5c9caa0af82a>`_  2022-08-08   ``refactor: Deprecate parameter 'host' as an extra attribute for the connection. Depreciation is happening in favor of 'endpoint_url' in extra. (#25494)``
+`ae7bf47410 <https://github.com/apache/airflow/commit/ae7bf474109410fa838ab2728ae6d581cdd41808>`_  2022-08-07   ``Avoid requirement that AWS Secret Manager JSON values be urlencoded. (#25432)``
+`65ac62867e <https://github.com/apache/airflow/commit/65ac62867e2a09a406ca443a6ac44f9b667fbc55>`_  2022-08-07   ``Get boto3.session.Session by appropriate method (#25569)``
+`33fbe75dd5 <https://github.com/apache/airflow/commit/33fbe75dd5100539c697d705552b088e568d52e4>`_  2022-08-06   ``System test for EMR Serverless  (#25559)``
+`029e3ae96f <https://github.com/apache/airflow/commit/029e3ae96f50074e9b524f0b820573741432f44a>`_  2022-08-05   ``Remove deprecated modules (#25543)``
+`d4f560b98e <https://github.com/apache/airflow/commit/d4f560b98e3b397dc710c97bbe4743abe941d8ad>`_  2022-08-05   ``Fix S3Hook transfer config arguments validation (#25544)``
+`8df84e99b7 <https://github.com/apache/airflow/commit/8df84e99b7319740990124736d0fc545165e7114>`_  2022-08-05   ``Add EMR Serverless Operators and Hooks (#25324)``
+`4193558e80 <https://github.com/apache/airflow/commit/4193558e808af0d0eac0636b4bb6f88606ca54c6>`_  2022-08-05   ``Resolve Amazon Hook's 'region_name' and 'config' in wrapper (#25336)``
+`171aaf017a <https://github.com/apache/airflow/commit/171aaf017aee068d8e1b76121c8c75310c854d9e>`_  2022-08-04   ``Hide unused fields for Amazon Web Services connection (#25416)``
+`cd14f3f65a <https://github.com/apache/airflow/commit/cd14f3f65ad5011058ab53f2119198d6c082e82c>`_  2022-08-03   ``Convert Local to S3 example DAG to System Test (AIP-47) (#25345)``
+`007b1920dd <https://github.com/apache/airflow/commit/007b1920ddcee1d78f871d039a6ed8f4d0d4089d>`_  2022-08-02   ``Enable Auto-incrementing Transform job name in SageMakerTransformOperator (#25263)``
+`c6d3b48d5d <https://github.com/apache/airflow/commit/c6d3b48d5dbc04d3f8a72ceade8b76084f96c5e3>`_  2022-07-28   ``Convert ECS Fargate Sample DAG to System Test (#25316)``
+`432977be0c <https://github.com/apache/airflow/commit/432977be0cd1e95f623fa5edda2a227798fa2939>`_  2022-07-26   ``Resolve and validate AWS Connection parameters in wrapper (#25256)``
+`ceb1658565 <https://github.com/apache/airflow/commit/ceb16585659034771afd97b580928c547d46adfe>`_  2022-07-22   ``Fix BatchOperator links on wait_for_completion = True (#25228)``
+`df00436569 <https://github.com/apache/airflow/commit/df00436569bb6fb79ce8c0b7ca71dddf02b854ef>`_  2022-07-22   ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+`d66e427c4d <https://github.com/apache/airflow/commit/d66e427c4d21bc479caa629299a786ca83747994>`_  2022-07-22   ``Sagemaker System Tests - Part 3 of 3 - example_sagemaker_endpoint.py (AIP-47) (#25134)``
+`f6bda38e20 <https://github.com/apache/airflow/commit/f6bda38e20c721df12e0cc88a27119fe320f2a42>`_  2022-07-21   ``Convert RDS Export Sample DAG to System Test (AIP-47) (#25205)``
+`47b72056c4 <https://github.com/apache/airflow/commit/47b72056c46931aef09d63d6d80fbdd3d9128b09>`_  2022-07-21   ``SQSPublishOperator should allow sending messages to a FIFO Queue (#25171)``
+`6d41067cf7 <https://github.com/apache/airflow/commit/6d41067cf7b0fcab20c00c94b6a96cb1babae1bc>`_  2022-07-19   ``Standardize AwsLambda (#25100)``
+`c6d9bccdb6 <https://github.com/apache/airflow/commit/c6d9bccdb6c5af644c5570f0524f2207832383b6>`_  2022-07-19   ``AIP-47 - Migrate redshift DAGs to new design #22438 (#24239)``
+`5a77c46bf0 <https://github.com/apache/airflow/commit/5a77c46bf0ee9d154467147d5d7e976361b8ee27>`_  2022-07-19   ``Glue Job Driver logging (#25142)``
+`c48c185627 <https://github.com/apache/airflow/commit/c48c18562713e8682a490c8f3ab51891fa8974ec>`_  2022-07-18   ``Convert Glue Sample DAG to System Test (#25136)``
+`693fe60de4 <https://github.com/apache/airflow/commit/693fe60de4f30646fca8e9473b14effa8eae6c87>`_  2022-07-18   ``Makes changes to SqlToS3Operator method _fix_int_dtypes (#25083)``
+`b7f51b9156 <https://github.com/apache/airflow/commit/b7f51b9156b780ebf4ca57b9f10b820043f61651>`_  2022-07-18   ``Convert the batch sample dag to system tests (AIP-47) (#24448)``
+`e32e9c5880 <https://github.com/apache/airflow/commit/e32e9c58802fe9363cc87ea283a59218df7cec3a>`_  2022-07-18   ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+`77f51dcf72 <https://github.com/apache/airflow/commit/77f51dcf72eca01721379c3fe59d20ba701d7db7>`_  2022-07-16   ``Migrate datasync sample dag to system tests (AIP-47) (#24354)``
+`d872edacfe <https://github.com/apache/airflow/commit/d872edacfe3cec65a9179eff52bf219c12361fef>`_  2022-07-16   ``Sagemaker System Tests - Part 2 of 3 - example_sagemaker.py (#25079)``
+`f611b1feff <https://github.com/apache/airflow/commit/f611b1feffc3188cdc47fad55785fbd5ccbf8fdb>`_  2022-07-15   ``Migrate lambda sample dag to system test (AIP-47) (#24355)``
+`543161a1af <https://github.com/apache/airflow/commit/543161a1afe84400dbc3c0409bbf4ff8110919f8>`_  2022-07-15   ``SageMaker system tests - Part 1 of 3 - Prep Work (AIP-47) (#25078)``
+=================================================================================================  ===========  ==========================================================================================================================================================
+
+4.1.0
+.....
+
+Latest change: 2022-07-13
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`109acc75c4 <https://github.com/apache/airflow/commit/109acc75c4b94a1155b0469146ca5b5b5d6040f1>`_  2022-07-08   ``Convert RDS Event and Snapshot Sample DAGs to System Tests (#24932)``
+`60c2a3bf82 <https://github.com/apache/airflow/commit/60c2a3bf82b4fe923b8006f6694f74823af87537>`_  2022-07-08   ``Refactor and fix AWS secret manager invalid exception (#24898)``
+`c1526a2888 <https://github.com/apache/airflow/commit/c1526a28889d73d2fe33752904524bd133067a75>`_  2022-07-07   ``Convert Step Functions Example DAG to System Test (AIP-47) (#24643)``
+`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
+`c61f86dde5 <https://github.com/apache/airflow/commit/c61f86dde522e2c9c997b2f22a6169deb40af0e0>`_  2022-07-05   ``Update AWS Connection docs and deprecate some extras (#24670)``
+`210549c658 <https://github.com/apache/airflow/commit/210549c658c96ad0129609f50a46e40eebfdaa23>`_  2022-07-04   ``Add test_connection method to AWS hook (#24662)``
+`e2fd41f7b1 <https://github.com/apache/airflow/commit/e2fd41f7b14adef2c3a88dde14d088b5ef93b460>`_  2022-07-04   ``Remove 'xcom_push' flag from providers (#24823)``
+`46ac083f7e <https://github.com/apache/airflow/commit/46ac083f7e92cf8af046c8b5741e7c26ebffc05e>`_  2022-07-01   ``Align Black and blacken-docs configs (#24785)``
+`49925be664 <https://github.com/apache/airflow/commit/49925be66483ce942bcd4827df9dbd41c3ef41cf>`_  2022-07-01   ``Restore Optional value of script_location (#24754)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`45b11d4ed1 <https://github.com/apache/airflow/commit/45b11d4ed1412c00ebf32a03ab5ea3a06274f208>`_  2022-06-29   ``Use our yaml util in all providers (#24720)``
+`bf727525e1 <https://github.com/apache/airflow/commit/bf727525e1fd777e51cc8bc17285f6093277fdef>`_  2022-06-28   ``Add AWS operators to create and delete RDS Database (#24099)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`9b4a053bc6 <https://github.com/apache/airflow/commit/9b4a053bc6496e5e35caabb3f68ef64c1381e48b>`_  2022-06-28   ``Add batch option to 'SqsSensor' (#24554)``
+`9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+`e477f4ba6c <https://github.com/apache/airflow/commit/e477f4ba6cd15fabbfe5210c99947bcb70ddac4f>`_  2022-06-21   ``Amazon appflow (#24057)``
+`7293e31f1c <https://github.com/apache/airflow/commit/7293e31f1cf33f015867ac89ee00910fc9ae1972>`_  2022-06-20   ``Make extra_args in S3Hook immutable between calls (#24527)``
+`f48112ccff <https://github.com/apache/airflow/commit/f48112ccff0b634210304c3d8a4847ad6e9eee40>`_  2022-06-20   ``Convert SQS Sample DAG to System Test (#24513)``
+`796e0a0b52 <https://github.com/apache/airflow/commit/796e0a0b525def2f24d41fc0b5f4dfbe40b29e9e>`_  2022-06-19   ``fix: RedshiftDataHook and RdsHook not use cached connection (#24387)``
+`cfbcd31b69 <https://github.com/apache/airflow/commit/cfbcd31b69bb3d3b3b2c950d0c530593769462d4>`_  2022-06-14   ``Convert Cloudformation Sample DAG to System Test (#24447)``
+`7d8a17b210 <https://github.com/apache/airflow/commit/7d8a17b2107a962e1ffcdb22fc13e1d23a98fdb7>`_  2022-06-14   ``Add AWS Batch & AWS CloudWatch Extra Links (#24406)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
+`a1e417c4fe <https://github.com/apache/airflow/commit/a1e417c4fe44979e5965442ce3ba6564494fcf63>`_  2022-06-12   ``Convert SNS Sample DAG to System Test (#24384)``
+`19dd9f5873 <https://github.com/apache/airflow/commit/19dd9f5873098decb41040b0c252a6072a67a356>`_  2022-06-12   ``Refactoring EmrClusterLink and add for other AWS EMR Operators (#24294)``
+`7fed7f31c3 <https://github.com/apache/airflow/commit/7fed7f31c3a895c0df08228541f955efb16fbf79>`_  2022-06-11   ``Fix S3KeySensor. See #24321 (#24378)``
+`99d9833631 <https://github.com/apache/airflow/commit/99d98336312d188a078721579a3f71060bdde542>`_  2022-06-10   ``Fix: 'emr_conn_id' should be optional in 'EmrCreateJobFlowOperator' (#24306)``
+=================================================================================================  ===========  ================================================================================
+
 4.0.0
 .....
 
-Latest change: 2022-06-08
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  ===========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `dc9c083a4b <https://github.com/apache/airflow/commit/dc9c083a4b696ec5ed4e7059de2fb98222e1ab62>`_  2022-06-08   ``fix: patches #24215. Won't raise KeyError when 'create_job_kwargs' contains the 'Command' key. (#24308)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import logging
 import uuid
 from datetime import date, datetime, timedelta
@@ -25,7 +26,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
@@ -142,7 +143,7 @@ class TestBaseOperator:
         """
         msg = r'Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)'
         with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
-            with pytest.warns(PendingDeprecationWarning, match=msg):
+            with pytest.warns(RemovedInAirflow3Warning, match=msg):
                 BaseOperator(
                     task_id='test_illegal_args',
                     illegal_argument_1234='hello?',
@@ -765,3 +766,91 @@ def test_task_level_retry_delay(dag_maker):
         task1 = BaseOperator(task_id='test_no_explicit_retry_delay', retry_delay=timedelta(seconds=200))
 
         assert task1.retry_delay == timedelta(seconds=200)
+
+
+def test_deepcopy():
+    # Test bug when copying an operator attached to a DAG
+    with DAG("dag0", start_date=DEFAULT_DATE) as dag:
+
+        @dag.task
+        def task0():
+            pass
+
+        MockOperator(task_id="task1", arg1=task0())
+    copy.deepcopy(dag)
+
+
+@pytest.mark.parametrize(
+    ("task", "context", "expected_exception", "expected_rendering", "expected_log", "not_expected_log"),
+    [
+        # Simple success case.
+        (
+            MockOperator(task_id="op1", arg1="{{ foo }}"),
+            dict(foo="footemplated"),
+            None,
+            dict(arg1="footemplated"),
+            None,
+            "Exception rendering Jinja template",
+        ),
+        # Jinja syntax error.
+        (
+            MockOperator(task_id="op1", arg1="{{ foo"),
+            dict(),
+            jinja2.TemplateSyntaxError,
+            None,
+            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo'",
+            None,
+        ),
+        # Type error
+        (
+            MockOperator(task_id="op1", arg1="{{ foo + 1 }}"),
+            dict(foo="footemplated"),
+            TypeError,
+            None,
+            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo + 1 }}'",
+            None,
+        ),
+    ],
+)
+def test_render_template_fields_logging(
+    caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
+):
+    """Verify if operator attributes are correctly templated."""
+    # Trigger templating and verify results
+    def _do_render():
+        task.render_template_fields(context=context)
+
+    logger = logging.getLogger("airflow.task")
+    monkeypatch.setattr(logger, "propagate", True)
+    if expected_exception:
+        with pytest.raises(expected_exception):
+            _do_render()
+    else:
+        _do_render()
+        for k, v in expected_rendering.items():
+            assert getattr(task, k) == v
+    if expected_log:
+        assert expected_log in caplog.text
+    if not_expected_log:
+        assert not_expected_log not in caplog.text
+
+
+def test_find_mapped_dependants_in_another_group(dag_maker):
+    from airflow.utils.task_group import TaskGroup
+
+    @task_decorator
+    def gen(x):
+        return list(range(x))
+
+    @task_decorator
+    def add(x, y):
+        return x + y
+
+    with dag_maker():
+        with TaskGroup(group_id="g1"):
+            gen_result = gen(3)
+        with TaskGroup(group_id="g2"):
+            add_result = add.partial(y=1).expand(x=gen_result)
+
+    dependants = list(gen_result.operator.iter_mapped_dependants())
+    assert dependants == [add_result.operator]

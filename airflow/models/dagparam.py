@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.param import DagParam  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.models.param`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

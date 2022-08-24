@@ -118,7 +118,7 @@ To mitigate these issues, make sure you have a :doc:`health check </logging-moni
 Production Container Images
 ===========================
 
-We provide :doc:`a Docker Image (OCI) for Apache Airflow <docker-stack:index>` for use in a containerized environment. Consider using it to guarantee that software will always run the same no matter where it’s deployed.
+We provide :doc:`a Docker Image (OCI) for Apache Airflow <docker-stack:index>` for use in a containerized environment. Consider using it to guarantee that software will always run the same no matter where it's deployed.
 
 Helm Chart for Kubernetes
 =========================

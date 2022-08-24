@@ -33,7 +33,7 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - pypsrp>=0.8.0
 
 integrations:

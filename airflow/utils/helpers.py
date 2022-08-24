@@ -34,11 +34,14 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    cast,
 )
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import jinja2
@@ -232,7 +235,7 @@ def chain(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
@@ -242,7 +245,7 @@ def cross_downstream(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)
@@ -291,14 +294,14 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     return "".join(nodes)
 
 
-def render_template_to_string(template: "jinja2.Template", context: MutableMapping[str, Any]) -> str:
+def render_template_to_string(template: "jinja2.Template", context: Context) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, context, native=False)
+    return render_template(template, cast(MutableMapping[str, Any], context), native=False)
 
 
-def render_template_as_native(template: "jinja2.Template", context: MutableMapping[str, Any]) -> Any:
+def render_template_as_native(template: "jinja2.Template", context: Context) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, context, native=True)
+    return render_template(template, cast(MutableMapping[str, Any], context), native=True)
 
 
 def exactly_one(*args) -> bool:
@@ -312,6 +315,24 @@ def exactly_one(*args) -> bool:
             "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
         )
     return sum(map(bool, args)) == 1
+
+
+def at_most_one(*args) -> bool:
+    """
+    Returns True if at most one of *args is "truthy", and False otherwise.
+
+    NOTSET is treated the same as None.
+
+    If user supplies an iterable, we raise ValueError and force them to unpack.
+    """
+
+    def is_set(val):
+        if val is NOTSET:
+            return False
+        else:
+            return bool(val)
+
+    return sum(map(is_set, args)) in (0, 1)
 
 
 def prune_dict(val: Any, mode='strict'):

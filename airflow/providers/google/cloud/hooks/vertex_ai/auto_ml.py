@@ -44,6 +44,7 @@ This module contains a Google Cloud Vertex AI hook.
     optimizationObjective
 """
 
+import warnings
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.client_options import ClientOptions
@@ -102,7 +103,7 @@ class AutoMLHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return PipelineServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def get_job_service_client(
@@ -116,7 +117,7 @@ class AutoMLHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def get_auto_ml_tabular_training_job(
@@ -145,7 +146,7 @@ class AutoMLHook(GoogleBaseHook):
             optimization_objective_precision_value=optimization_objective_precision_value,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -171,7 +172,7 @@ class AutoMLHook(GoogleBaseHook):
             column_transformations=column_transformations,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -199,7 +200,7 @@ class AutoMLHook(GoogleBaseHook):
             base_model=base_model,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -225,7 +226,7 @@ class AutoMLHook(GoogleBaseHook):
             sentiment_max=sentiment_max,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -249,7 +250,7 @@ class AutoMLHook(GoogleBaseHook):
             model_type=model_type,
             project=project,
             location=location,
-            credentials=self._get_credentials(),
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -444,6 +445,13 @@ class AutoMLHook(GoogleBaseHook):
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
         """
+        if column_transformations:
+            warnings.warn(
+                "Consider using column_specs as column_transformations will be deprecated eventually.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self._job = self.get_auto_ml_tabular_training_job(
             project=project_id,
             location=region,
@@ -658,6 +666,13 @@ class AutoMLHook(GoogleBaseHook):
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
         """
+        if column_transformations:
+            warnings.warn(
+                "Consider using column_specs as column_transformations will be deprecated eventually.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self._job = self.get_auto_ml_forecasting_training_job(
             project=project_id,
             location=region,

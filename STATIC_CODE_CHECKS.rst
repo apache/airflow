@@ -136,11 +136,9 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-1-compatibility                        | Check that providers are 2.1 compatible.                         |         |
+| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-providers-have-extras                    | Checks providers available when declared by extras in setup.py   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -157,7 +155,11 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                      | Check changelogs for duplicate entries                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -176,6 +178,8 @@ require Breeze Docker image to be build locally.
 | check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-integrations-are-consistent                      | Check if integration list is consistent in various places        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-merge-conflict                                   | Check that merge conflicts are not being committed               |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -215,6 +219,10 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                              | Run codespell to check for common misspellings in files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| compile-www-assets                                     | Compile www assets                                               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| compile-www-assets-dev                                 | Compile www assets in dev mode                                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | create-missing-init-py-files-tests                     | Create missing init.py files in tests                            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | debug-statements                                       | Detect accidentally committed debug statements                   |         |
@@ -228,8 +236,6 @@ require Breeze Docker image to be build locally.
 | fix-encoding-pragma                                    | Remove encoding header from python files                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                  | Run flynt string format converter for Python                     |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| forbid-tabs                                            | Fail if tabs are used in the project                             |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | identity                                               | Print input to the static check hooks for troubleshooting        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -254,8 +260,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                        | Lint Helm Chart                                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-javascript                                        | * ESLint against airflow/ui                                      | *       |
-|                                                        | * ESLint against current UI JavaScript files                     |         |
+| lint-javascript                                        | ESLint against airflow/ui                                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |
 |                                                        | * Lint NodePort Service with JSON Schema                         |         |
@@ -279,6 +284,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | pyupgrade                                              | Upgrade Python code automatically                                |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| replace-bad-characters                                 | Replace bad characters                                           |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | rst-backticks                                          | Check if RST files use double backticks for code                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | run-flake8                                             | Run flake8                                                       | *       |
@@ -294,7 +301,9 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-file                                     | Update output of breeze commands in BREEZE.rst                   |         |
+| ts-compile-and-lint-javascript                         | TS types generation and ESLint against current UI files          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

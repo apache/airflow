@@ -33,6 +33,7 @@ from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -340,7 +341,7 @@ def prepare_engine_args(disable_connection_pool=False):
         # When those additional connections are returned to the pool, they are disconnected and discarded.
         # It follows then that the total number of simultaneous connections
         # the pool will allow is pool_size + max_overflow,
-        # and the total number of “sleeping” connections the pool will allow is pool_size.
+        # and the total number of "sleeping" connections the pool will allow is pool_size.
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
@@ -353,7 +354,7 @@ def prepare_engine_args(disable_connection_pool=False):
         pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
-        # Typically, this is a simple statement like “SELECT 1”, but may also make use
+        # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
@@ -496,7 +497,7 @@ def get_session_lifetime_config():
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
             'session lifetime in minutes. The `force_log_out_after` option has been removed '
             'from `[webserver]` section. Please update your configuration.',
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
         )
         if session_lifetime_days:
             session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
@@ -640,3 +641,5 @@ DASHBOARD_UIALERTS: List["UIAlert"] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
+
+DAEMON_UMASK: str = conf.get('core', 'daemon_umask', fallback='0o077')

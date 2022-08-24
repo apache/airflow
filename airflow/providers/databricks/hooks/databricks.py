@@ -52,6 +52,8 @@ WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
 
 RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
+SPARK_VERSIONS_ENDPOINT = ('GET', 'api/2.0/clusters/spark-versions')
+
 
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
@@ -124,8 +126,9 @@ class DatabricksHook(BaseDatabricksHook):
         retry_limit: int = 3,
         retry_delay: float = 1.0,
         retry_args: Optional[Dict[Any, Any]] = None,
+        caller: str = "DatabricksHook",
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args)
+        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
     def run_now(self, json: dict) -> int:
         """
@@ -257,6 +260,28 @@ class DatabricksHook(BaseDatabricksHook):
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         state = response['state']
         return RunState(**state)
+
+    def get_run(self, run_id: int) -> Dict[str, Any]:
+        """
+        Retrieve run information.
+
+        :param run_id: id of the run
+        :return: state of the run
+        """
+        json = {'run_id': run_id}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        return response
+
+    async def a_get_run(self, run_id: int) -> Dict[str, Any]:
+        """
+        Async version of `get_run`.
+
+        :param run_id: id of the run
+        :return: state of the run
+        """
+        json = {'run_id': run_id}
+        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
+        return response
 
     def get_run_state_str(self, run_id: int) -> str:
         """
@@ -408,3 +433,16 @@ class DatabricksHook(BaseDatabricksHook):
                 raise e
 
         return None
+
+    def test_connection(self):
+        """Test the Databricks connectivity from UI"""
+        hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
+        try:
+            hook._do_api_call(endpoint_info=SPARK_VERSIONS_ENDPOINT).get('versions')
+            status = True
+            message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

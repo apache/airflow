@@ -17,7 +17,7 @@
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence, TypeVar
+from typing import Callable, Optional, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonVirtualenvOperator
@@ -44,6 +44,8 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
+    custom_operator_name: str = '@task.virtualenv'
+
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {
             "python_callable": python_callable,
@@ -63,9 +65,6 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
         res = dedent(raw_source)
         res = remove_task_decorator(res, "@task.virtualenv")
         return res
-
-
-T = TypeVar("T", bound=Callable)
 
 
 def virtualenv_task(

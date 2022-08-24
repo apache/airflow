@@ -34,7 +34,7 @@ DAG_ID = "example_adf_run_pipeline"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 8, 13),
-    schedule_interval="@daily",
+    schedule="@daily",
     catchup=False,
     default_args={
         "retries": 1,

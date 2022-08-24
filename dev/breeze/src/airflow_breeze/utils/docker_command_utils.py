@@ -20,8 +20,8 @@ import re
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
-from typing import Dict, List, Union
+from subprocess import CalledProcessError, CompletedProcess
+from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
     MOUNT_ALL,
+    MOUNT_REMOVE,
     MOUNT_SELECTED,
     MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
@@ -51,7 +52,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEBSERVER_HOST_PORT,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -59,7 +60,14 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 
-NECESSARY_HOST_VOLUMES = [
+# Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
+# entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
+# in your sources (or they were added automatically by setup.py etc.) to be mounted to container.
+# This is important to get a "clean" environment for different python versions and to avoid
+# unnecessary slow-downs when you are mounting files on MacOS (which has very slow filesystem)
+# Any time you add a top-level folder in airflow that should also be added to container you should
+# add it here.
+VOLUMES_FOR_SELECTED_MOUNTS = [
     (".bash_aliases", "/root/.bash_aliases"),
     (".bash_history", "/root/.bash_history"),
     (".coveragerc", "/opt/airflow/.coveragerc"),
@@ -77,6 +85,7 @@ NECESSARY_HOST_VOLUMES = [
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
+    ("generated", "/opt/airflow/generated"),
     ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
@@ -104,7 +113,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     if mount_sources == MOUNT_ALL:
         extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
     elif mount_sources == MOUNT_SELECTED:
-        for (src, dst) in NECESSARY_HOST_VOLUMES:
+        for (src, dst) in VOLUMES_FOR_SELECTED_MOUNTS:
             if (AIRFLOW_SOURCES_ROOT / src).exists():
                 extra_docker_flags.extend(
                     ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
@@ -112,7 +121,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
         extra_docker_flags.extend(
             ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
         )
-    else:  # none
+    elif mount_sources == MOUNT_REMOVE:
         extra_docker_flags.extend(
             ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
         )
@@ -197,8 +206,7 @@ def check_docker_is_running(verbose: bool):
         verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
-        stdout=DEVNULL,
-        stderr=STDOUT,
+        capture_output=True,
         check=False,
     )
     if response.returncode != 0:
@@ -262,13 +270,24 @@ def check_docker_compose_version(verbose: bool):
     """
     version_pattern = re.compile(r'(\d+)\.(\d+)\.(\d+)')
     docker_compose_version_command = ["docker-compose", "--version"]
-    docker_compose_version_result = run_command(
-        docker_compose_version_command,
-        verbose=verbose,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        docker_compose_version_result = run_command(
+            docker_compose_version_command,
+            verbose=verbose,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        docker_compose_version_command = ["docker", "compose", "version"]
+        docker_compose_version_result = run_command(
+            docker_compose_version_command,
+            verbose=verbose,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+        )
+
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -296,6 +315,41 @@ Make sure docker-compose you install is first on the PATH variable of yours.
 [warning]If Breeze fails upgrade to latest available docker-compose version.[/]
 """
         )
+
+
+def check_docker_context(verbose: bool):
+    """
+    Checks whether Docker is using the expected context
+    :param verbose: print commands when running
+    """
+    expected_docker_context = "default"
+    response = run_command(
+        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
+        verbose=verbose,
+        no_output_dump_on_exception=False,
+        text=True,
+        capture_output=True,
+    )
+    if response.returncode != 0:
+        get_console().print(
+            '[warning]Could not check for Docker context.[/]\n'
+            '[warning]Please make sure that Docker is using the right context by running "docker info" and '
+            'checking the active Context.[/]'
+        )
+        return
+
+    used_docker_context = response.stdout.strip().replace('"', '')
+
+    if used_docker_context == expected_docker_context:
+        get_console().print(f'[success]Good Docker context used: {used_docker_context}.[/]')
+    else:
+        get_console().print(
+            f'[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n'
+            f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
+            f'[warning]You can try switching contexts by running: "docker context use '
+            f'{expected_docker_context}"[/]'
+        )
+        sys.exit(1)
 
 
 def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
@@ -351,7 +405,7 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
+    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=tty"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -387,9 +441,9 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
                 "buildx",
                 "build",
                 "--builder",
-                "default",
+                image_params.builder,
                 "--progress=tty",
-                "--push" if image_params.push_image else "--load",
+                "--push" if image_params.push else "--load",
             ]
         )
     else:
@@ -447,18 +501,11 @@ def prepare_docker_build_from_input(
 
 
 def build_cache(
-    image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
+    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
 ) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
     )
-    cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-    buildx_command_result = run_command(
-        cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
-    )
-    if buildx_command_result and buildx_command_result.returncode != 0:
-        next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-        run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -470,13 +517,22 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
+            output=output,
             check=False,
             text=True,
-            enabled_output_group=not parallel,
         )
         if build_command_result.returncode != 0:
             break
     return build_command_result
+
+
+def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbose: bool):
+    if params.builder != 'default':
+        cmd = ['docker', 'buildx', 'inspect', params.builder]
+        buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
+        if buildx_command_result and buildx_command_result.returncode != 0:
+            next_cmd = ['docker', 'buildx', 'create', '--name', params.builder]
+            run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
 def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
@@ -502,6 +558,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
     set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
+    set_value_to_default_if_not_set(env, 'BREEZE_INIT_COMMAND', "")
     set_value_to_default_if_not_set(env, 'CI', "false")
     set_value_to_default_if_not_set(env, 'CI_BUILD_ID', "0")
     set_value_to_default_if_not_set(env, 'CI_EVENT_TYPE', "pull_request")
@@ -510,7 +567,6 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', "apache/airflow")
     set_value_to_default_if_not_set(env, 'COMMIT_SHA', commit_sha())
     set_value_to_default_if_not_set(env, 'DB_RESET', "false")
-    set_value_to_default_if_not_set(env, 'DEBIAN_VERSION', "bullseye")
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
@@ -533,6 +589,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'SKIP_ENVIRONMENT_INITIALIZATION', "false")
     set_value_to_default_if_not_set(env, 'SKIP_SSH_SETUP', "false")
     set_value_to_default_if_not_set(env, 'TEST_TYPE', "")
+    set_value_to_default_if_not_set(env, 'TEST_TIMEOUT', "60")
     set_value_to_default_if_not_set(env, 'UPGRADE_TO_NEWER_DEPENDENCIES', "false")
     set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
     set_value_to_default_if_not_set(env, 'VERBOSE', "false")
@@ -571,6 +628,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "POSTGRES_VERSION": "postgres_version",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
+    "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
@@ -620,3 +678,44 @@ def perform_environment_checks(verbose: bool):
     check_docker_is_running(verbose=verbose)
     check_docker_version(verbose=verbose)
     check_docker_compose_version(verbose=verbose)
+    check_docker_context(verbose=verbose)
+
+
+def get_docker_syntax_version() -> str:
+    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+
+    return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
+
+
+def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_run: bool):
+    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+
+    if image_params.builder == "default":
+        return
+    docker_syntax = get_docker_syntax_version()
+    get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
+    warm_up_image_param = deepcopy(image_params)
+    warm_up_image_param.image_tag = "warmup"
+    warm_up_image_param.push = False
+    build_command = prepare_base_build_command(image_params=warm_up_image_param, verbose=verbose)
+    warm_up_command = []
+    warm_up_command.extend(["docker"])
+    warm_up_command.extend(build_command)
+    warm_up_command.extend(["--platform", image_params.platform, "-"])
+    warm_up_command_result = run_command(
+        warm_up_command,
+        input=f"""{docker_syntax}
+FROM scratch
+LABEL description="test warmup image"
+""",
+        verbose=verbose,
+        dry_run=dry_run,
+        cwd=AIRFLOW_SOURCES_ROOT,
+        text=True,
+        check=False,
+    )
+    if warm_up_command_result.returncode != 0:
+        get_console().print(
+            f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
+            f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
+        )

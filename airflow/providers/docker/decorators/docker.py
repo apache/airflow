@@ -21,7 +21,7 @@ import os
 import pickle
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, TypeVar
+from typing import TYPE_CHECKING, Callable, Optional, Sequence
 
 import dill
 
@@ -61,6 +61,8 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     """
+
+    custom_operator_name = "@task.docker"
 
     template_fields: Sequence[str] = ('op_args', 'op_kwargs')
 
@@ -127,9 +129,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         res = dedent(raw_source)
         res = remove_task_decorator(res, "@task.docker")
         return res
-
-
-T = TypeVar("T", bound=Callable)
 
 
 def docker_task(

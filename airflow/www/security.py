@@ -24,7 +24,7 @@ from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -72,6 +72,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
@@ -219,7 +220,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         warnings.warn(
             "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         self.bulk_sync_roles([{'role': role_name, 'perms': perms}])
@@ -273,29 +274,29 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Gets the DAGs readable by authenticated user."""
         warnings.warn(
             "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
 
     def get_editable_dags(self, user):
         """Gets the DAGs editable by authenticated user."""
         warnings.warn(
             "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
 
     @provide_session
     def get_accessible_dags(self, user_actions, user, session=None):
         warnings.warn(
             "`get_accessible_dags` has been deprecated. Please use `get_accessible_dag_ids` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
@@ -381,7 +382,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         warnings.warn(
             "`prefixed_dag_id` has been deprecated. "
             "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         root_dag_id = self._get_root_dag_id(dag_id)

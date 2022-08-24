@@ -39,7 +39,7 @@ with models.DAG(
     "example_beam_native_go_dataflow_async",
     default_args=DEFAULT_ARGS,
     start_date=START_DATE,
-    schedule_interval="@once",
+    schedule="@once",
     catchup=False,
     tags=['example'],
 ) as dag:

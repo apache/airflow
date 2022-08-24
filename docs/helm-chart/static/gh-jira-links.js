@@ -18,7 +18,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-  var el = document.getElementById('changelog');
+  var el = document.getElementById('release-notes');
   if (el !== null ) {
     // [AIRFLOW-...]
     el.innerHTML = el.innerHTML.replace(

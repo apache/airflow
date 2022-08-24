@@ -34,8 +34,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - apache-beam>=2.39.0
 
 integrations:
   - integration-name: Apache Beam
@@ -55,4 +56,6 @@ hooks:
       - airflow.providers.apache.beam.hooks.beam
 
 additional-extras:
-  google: apache-beam[gcp]
+  - name: google
+    dependencies:
+      - apache-beam[gcp]

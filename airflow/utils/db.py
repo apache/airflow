@@ -59,7 +59,7 @@ from airflow.models import (  # noqa: F401
 )
 
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
@@ -93,6 +93,7 @@ REVISION_HEADS_MAP = {
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
     "2.3.2": "3c94c427fdf6",
+    "2.3.3": "f5fcbda3e651",
 }
 
 
@@ -608,6 +609,14 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="tabular_default",
+            conn_type="tabular",
+            host="https://api.tabulardata.io/ws/v1",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="trino_default",
             conn_type="trino",
             host="localhost",
@@ -652,19 +661,45 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
 
 
-@provide_session
-def initdb(session: Session = NEW_SESSION):
-    """Initialize Airflow database."""
-    upgradedb(session=session)
+def _create_db_from_orm(session):
+    from alembic import command
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
 
-    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
-        create_default_connections(session=session)
+    from airflow.models import Base
+    from airflow.www.fab_security.sqla.models import Model
+    from airflow.www.session import AirflowDatabaseSessionInterface
+
+    def _create_flask_session_tbl():
+        flask_app = Flask(__name__)
+        flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+        db = SQLAlchemy(flask_app)
+        AirflowDatabaseSessionInterface(app=flask_app, db=db, table='session', key_prefix='')
+        db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-
-        from flask_appbuilder.models.sqla import Base
-
         Base.metadata.create_all(settings.engine)
+        Model.metadata.create_all(settings.engine)
+        _create_flask_session_tbl()
+        # stamp the migration head
+        config = _get_alembic_config()
+        command.stamp(config, "head")
+
+
+@provide_session
+def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
+    """Initialize Airflow database."""
+    db_exists = _get_current_revision(session)
+    if db_exists:
+        upgradedb(session=session)
+    else:
+        _create_db_from_orm(session=session)
+    # Load default connections
+    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS') and load_connections:
+        create_default_connections(session=session)
+    # Add default pool & sync log_template
+    add_default_pool_if_not_exists()
+    synchronize_log_template()
 
 
 def _get_alembic_config():
@@ -789,6 +824,14 @@ def check_and_run_migrations():
 
 
 @provide_session
+def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+    session.query(SerializedDagModel).delete(synchronize_session=False)
+    dagbag = DagBag()
+    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag.sync_to_db(session=session)
+
+
+@provide_session
 def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """Synchronize log template configs with table.
 
@@ -807,6 +850,21 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
+
+    # First check if we have an empty table. If so, and the default values exist,
+    # we will seed the table with the values from pre 2.3.0, so old logs will
+    # still be retrievable.
+    if not session.query(LogTemplate.id).first():
+        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        if is_default_log_id and is_default_filename:
+            session.add(
+                LogTemplate(
+                    filename="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+                    elasticsearch_id="{dag_id}-{task_id}-{execution_date}-{try_number}",
+                )
+            )
+            session.flush()
 
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
@@ -864,7 +922,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: List[Union[Base, str]], session):
+def reflect_tables(tables: Optional[List[Union[Base, str]]], session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
@@ -875,12 +933,15 @@ def reflect_tables(tables: List[Union[Base, str]], session):
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
 
-    for tbl in tables:
-        try:
-            table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-            metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
-        except exc.InvalidRequestError:
-            continue
+    if tables is None:
+        metadata.reflect(resolve_fks=False)
+    else:
+        for tbl in tables:
+            try:
+                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
+                metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
+            except exc.InvalidRequestError:
+                continue
     return metadata
 
 
@@ -1452,11 +1513,17 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
+    if not to_revision and not _get_current_revision(session=session):
+        # Don't load default connections
+        # New DB; initialize and exit
+        initdb(session=session, load_connections=False)
+        return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         command.upgrade(config, revision=to_revision or 'heads')
-    add_default_pool_if_not_exists()
-    synchronize_log_template()
+    reserialize_dags(session=session)
+    add_default_pool_if_not_exists(session=session)
+    synchronize_log_template(session=session)
 
 
 @provide_session
@@ -1573,7 +1640,8 @@ def drop_airflow_moved_tables(session):
     tables = set(inspect(session.get_bind()).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
     for tbl in to_delete:
-        tbl.drop(settings.engine, checkfirst=True)
+        tbl.drop(settings.engine, checkfirst=False)
+        Base.metadata.remove(tbl)
 
 
 def drop_flask_models(connection):
@@ -1646,6 +1714,64 @@ def create_global_lock(
         elif dialect.name == 'mssql':
             # TODO: make locking work for MSSQL
             pass
+
+
+def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
+    """
+    Compare types between ORM and DB .
+
+    return False if the metadata_type is the same as the inspected_type
+    or None to allow the default implementation to compare these
+    types. a return value of True means the two types do not
+    match and should result in a type change operation.
+    """
+    if context.dialect.name == 'mysql':
+        from sqlalchemy import String
+        from sqlalchemy.dialects import mysql
+
+        if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
+            # This is a hack to get around MySQL VARCHAR collation
+            # not being possible to change from utf8_bin to utf8mb3_bin.
+            # We only make sure lengths are the same
+            if inspected_type.length != metadata_type.length:
+                return True
+            return False
+    return None
+
+
+def compare_server_default(
+    context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default
+):
+    """
+    Compare server defaults between ORM and DB .
+
+    return True if the defaults are different, False if not, or None to allow the default implementation
+    to compare these defaults
+
+    Comparing server_default is not accurate in MSSQL because the
+    inspected_default above != metadata_default, while in Postgres/MySQL they are equal.
+    This is an issue with alembic
+    In SQLite: task_instance.map_index & task_reschedule.map_index
+    are not comparing accurately. Sometimes they are equal, sometimes they are not.
+    Alembic warned that this feature has varied accuracy depending on backends.
+    See: (https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.
+        environment.EnvironmentContext.configure.params.compare_server_default)
+    """
+    dialect_name = context.connection.dialect.name
+    if dialect_name in ['mssql', 'sqlite']:
+        return False
+    if (
+        dialect_name == 'mysql'
+        and metadata_column.name == 'pool_slots'
+        and metadata_column.table.name == 'task_instance'
+    ):
+        # We removed server_default value in ORM to avoid expensive migration
+        # (it was removed in postgres DB in migration head 7b2661a43ba3 ).
+        # As a side note, server default value here was only actually needed for the migration
+        # where we added the column in the first place -- now that it exists and all
+        # existing rows are populated with a value this server default is never used.
+        return False
+    return None
 
 
 def get_sqla_model_classes():

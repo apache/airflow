@@ -21,8 +21,9 @@ name: Sendgrid
 description: |
     `Sendgrid <https://sendgrid.com/>`__
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - sendgrid>=6.0.0
 
 versions:
   - 3.0.0

@@ -23,6 +23,121 @@
 Changelog
 ---------
 
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add description method in BigQueryCursor class (#25366)``
+* ``Add project_id as a templated variable in two BQ operators (#24768)``
+* ``Remove deprecated modules in Amazon provider (#25543)``
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+* ``Dataform operators (#25587)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GCSListObjectsOperator docstring (#25614)``
+* ``Fix BigQueryInsertJobOperator cancel_on_kill (#25342)``
+* ``Fix BaseSQLToGCSOperator approx_max_file_size_bytes (#25469)``
+* ``Fix PostgresToGCSOperat bool dtype (#25475)``
+* ``Fix Vertex AI Custom Job training issue (#25367)``
+* ``Fix Flask Login user setting for Flask 2.2 and Flask-Login 0.6.2 (#25318)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Google example trino_to_gcs to new design AIP-47 (#25420)``
+   * ``Migrate Google example automl_nl_text_extraction to new design AIP-47 (#25418)``
+   * ``Memorystore assets & system tests migration (AIP-47) (#25361)``
+   * ``Translate system tests migration (AIP-47) (#25340)``
+   * ``Migrate Google example life_sciences to new design AIP-47 (#25264)``
+   * ``Migrate Google example natural_language to new design AIP-47 (#25262)``
+   * ``Delete redundant system test bigquery_to_bigquery (#25261)``
+   * ``Migrate Google example bigquery_to_mssql to new design AIP-47 (#25174)``
+   * ``Migrate Google example compute_igm to new design AIP-47 (#25132)``
+   * ``Migrate Google example automl_vision to new design AIP-47 (#25152)``
+   * ``Migrate Google example gcs_to_sftp to new design AIP-47 (#25107)``
+   * ``Migrate Google campaign manager example to new design AIP-47 (#25069)``
+   * ``Migrate Google analytics example to new design AIP-47 (#25006)``
+
+8.2.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+* ``PubSub assets & system tests migration (AIP-47) (#24867)``
+* ``Add handling state of existing Dataproc batch (#24924)``
+* ``Add links for Google Kubernetes Engine operators (#24786)``
+* ``Add test_connection method to 'GoogleBaseHook' (#24682)``
+* ``Add gcp_conn_id argument to GoogleDriveToLocalOperator (#24622)``
+* ``Add DeprecationWarning for column_transformations parameter in AutoML (#24467)``
+* ``Modify BigQueryCreateExternalTableOperator to use updated hook function (#24363)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Datacatalog assets & system tests migration (AIP-47) (#24600)``
+* ``Upgrade FAB to 4.1.1 (#24399)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``GCSDeleteObjectsOperator empty prefix bug fix (#24353)``
+* ``perf(BigQuery): pass table_id as str type (#23141)``
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Google sheets example to new design AIP-47 (#24975)``
+   * ``Migrate Google ads example to new design AIP-47 (#24941)``
+   * ``Migrate Google example gcs_to_gdrive to new design AIP-47 (#24949)``
+   * ``Migrate Google firestore example to new design AIP-47 (#24830)``
+   * ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+   * ``Migrate Google example sql_to_sheets to new design AIP-47 (#24814)``
+   * ``Remove "bad characters" from our codebase (#24841)``
+   * ``Migrate Google example DAG mssql_to_gcs to new design AIP-47 (#24541)``
+   * ``Align Black and blacken-docs configs (#24785)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Use our yaml util in all providers (#24720)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Migrate Google example DAG s3_to_gcs to new design AIP-47 (#24641)``
+   * ``Migrate Google example DAG bigquery_transfer to new design AIP-47 (#24543)``
+   * ``Migrate Google example DAG oracle_to_gcs to new design AIP-47 (#24542)``
+   * ``Migrate Google example DAG mysql_to_gcs to new design AIP-47 (#24540)``
+   * ``Migrate Google search_ads DAG to new design AIP-47 (#24298)``
+   * ``Migrate Google gcs_to_sheets DAG to new design AIP-47 (#24501)``
+
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update Oracle library to latest version (#24311)``
+* ``Expose SQL to GCS Metadata (#24382)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix typo in google provider additional extras (#24431)``
+* ``Use insert_job in the BigQueryToGCPOpertor and adjust links (#24416)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix links to sources for examples (#24386)``
+   * ``Deprecate remaining occurrences of 'bigquery_conn_id' in favor of 'gcp_conn_id' (#24376)``
+   * ``Migrate Google calendar example DAG to new design AIP-47 (#24333)``
+   * ``Migrate Google azure_fileshare example DAG to new design AIP-47 (#24349)``
+   * ``Remove bigquery example already migrated to AIP-47 (#24379)``
+   * ``Migrate Google sheets example DAG to new design AIP-47 (#24351)``
+
 8.0.0
 .....
 
@@ -873,8 +988,7 @@ now the snake_case convention is used.
     set_acl_permission = GCSBucketCreateAclEntryOperator(
         task_id="gcs-set-acl-permission",
         bucket=BUCKET_NAME,
-        entity="user-{{ task_instance.xcom_pull('get-instance')['persistenceIamIdentity']"
-        ".split(':', 2)[1] }}",
+        entity="user-{{ task_instance.xcom_pull('get-instance')['persistenceIamIdentity'].split(':', 2)[1] }}",
         role="OWNER",
     )
 
