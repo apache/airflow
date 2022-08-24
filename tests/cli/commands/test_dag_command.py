@@ -609,6 +609,7 @@ class TestCliDags(unittest.TestCase):
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
                     run_at_least_once=True,
+                    conf=None,
                 ),
             ]
         )
@@ -638,6 +639,7 @@ class TestCliDags(unittest.TestCase):
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
                     run_at_least_once=True,
+                    conf=None,
                 ),
             ]
         )
