@@ -568,15 +568,15 @@ class MappedOperator(AbstractOperator):
     def unmap(self, resolve: Union[None, Mapping[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping.
 
-        If ``operator_class`` is not a class (i.e. this DAG has been
-        deserialized), this returns a SerializedBaseOperator that aims to
-        "look like" the actual unmapping result.
+        The *resolve* argument is only used if ``operator_class`` is a real
+        class, i.e. if this operator is not serialized. If ``operator_class`` is
+        not a class (i.e. this DAG has been deserialized), this returns a
+        SerializedBaseOperator that "looks like" the actual unmapping result.
 
-        :param resolve: Only used if ``operator_class`` is a real class. If this
-            is a two-tuple (context, session), the information is used to
-            resolve the mapped arguments into init arguments. If this is a
-            mapping, no resolving happens, the mapping directly provides those
-            init arguments resolved from mapped kwargs.
+        If *resolve* is a two-tuple (context, session), the information is used
+        to resolve the mapped arguments into init arguments. If it is a mapping,
+        no resolving happens, the mapping directly provides those init arguments
+        resolved from mapped kwargs.
 
         :meta private:
         """
