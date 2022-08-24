@@ -29,11 +29,15 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_presto_to_gcs"
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
-GCS_BUCKET = os.environ.get("GCP_PRESTO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
-DATASET_NAME = os.environ.get("GCP_PRESTO_TO_GCS_DATASET_NAME", "test_presto_to_gcs_dataset")
+GCS_BUCKET = f"bucket_{DAG_ID}_{ENV_ID}"
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 
 SOURCE_MULTIPLE_TYPES = "memory.default.test_multiple_types"
 SOURCE_CUSTOMER_TABLE = "tpch.sf1.customer"
@@ -47,16 +51,26 @@ def safe_name(s: str) -> str:
 
 
 with models.DAG(
-    dag_id="example_presto_to_gcs",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "presto"],
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
+        task_id="delete_dataset",
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=GCS_BUCKET, project_id=GCP_PROJECT_ID
+    )
+
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=GCS_BUCKET, trigger_rule=TriggerRule.ALL_DONE
     )
 
     # [START howto_operator_presto_to_gcs_basic]
@@ -178,15 +192,31 @@ with models.DAG(
     )
     # [END howto_operator_presto_to_gcs_csv]
 
-    create_dataset >> presto_to_gcs_basic
-    create_dataset >> presto_to_gcs_multiple_types
-    create_dataset >> presto_to_gcs_many_chunks
-    create_dataset >> presto_to_gcs_csv
+    (
+        # TEST SETUP
+        create_dataset
+        >> create_bucket
+        # TEST BODY
+        >> presto_to_gcs_basic
+        >> presto_to_gcs_multiple_types
+        >> create_external_table_multiple_types
+        >> read_data_from_gcs_multiple_types
+        >> presto_to_gcs_many_chunks
+        >> create_external_table_many_chunks
+        >> read_data_from_gcs_many_chunks
+        >> presto_to_gcs_csv
+        # TEST TEARDOWN
+        >> delete_dataset
+        >> delete_bucket
+    )
 
-    presto_to_gcs_multiple_types >> create_external_table_multiple_types >> read_data_from_gcs_multiple_types
-    presto_to_gcs_many_chunks >> create_external_table_many_chunks >> read_data_from_gcs_many_chunks
+    from tests.system.utils.watcher import watcher
 
-    presto_to_gcs_basic >> delete_dataset
-    presto_to_gcs_csv >> delete_dataset
-    read_data_from_gcs_multiple_types >> delete_dataset
-    read_data_from_gcs_many_chunks >> delete_dataset
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
