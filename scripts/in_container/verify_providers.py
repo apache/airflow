@@ -252,6 +252,9 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
         `airflow.providers.snowflake.transfers.copy_into_snowflake.CopyFromExternalStageToSnowflakeOperator`.
         """
     ),
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.hooks.jira`.",
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.operators.jira`.",
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.sensors.jira`.",
 }
 
 
