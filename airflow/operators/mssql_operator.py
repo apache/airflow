@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.mssql.operators.mssql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

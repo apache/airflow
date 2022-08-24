@@ -17,11 +17,12 @@
 """This module is deprecated. Please use :mod:`airflow.providers.common.sql.operators.sql`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.common.sql.operators.sql import BranchSQLOperator
 
 warnings.warn(
     "This module is deprecated. Please use :mod:`airflow.providers.common.sql.operators.sql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -36,7 +37,7 @@ class BranchSqlOperator(BranchSQLOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.BranchSQLOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         super().__init__(**kwargs)

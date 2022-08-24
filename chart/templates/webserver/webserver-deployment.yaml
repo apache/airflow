@@ -73,8 +73,8 @@ spec:
         tier: airflow
         component: webserver
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.webserver.labels) }}
+{{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}

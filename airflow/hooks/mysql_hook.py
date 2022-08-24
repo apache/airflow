@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.mysql.hooks.mysql import MySqlHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.hooks.mysql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

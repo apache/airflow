@@ -23,6 +23,7 @@ from typing import Any, Counter, Dict, List, Optional, Sequence, Set, Tuple, Uni
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -344,7 +345,7 @@ class BaseExecutor(LoggingMixin):
             """
             The `validate_command` method is deprecated. Please use ``validate_airflow_tasks_run_command``
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         BaseExecutor.validate_airflow_tasks_run_command(command)
