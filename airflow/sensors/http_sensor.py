@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.http.sensors.http import HttpSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.http.sensors.http`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.samba.hooks.samba import SambaHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.samba.hooks.samba`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
