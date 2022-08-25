@@ -1069,16 +1069,15 @@ class DagRun(Base, LoggingMixin):
             or task.run_time_mapped_ti_count(self.run_id, session=session)
             or 0
         )
-        existing_tis = (
-            session.query(TaskInstance)
+        query = (
+            session.query(TaskInstance.map_index)
             .filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.run_id == self.run_id,
             )
-            .all()
         )
-        existing_indexes = [i.map_index for i in existing_tis]
+        existing_indexes = {i for (i,) in query}
         missing_tis = set(range(total_length)).difference(set(existing_indexes))
         removed_tis = set(existing_indexes).difference(range(total_length))
         created_tis = []
