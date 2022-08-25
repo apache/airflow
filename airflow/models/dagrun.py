@@ -1069,37 +1069,34 @@ class DagRun(Base, LoggingMixin):
             or task.run_time_mapped_ti_count(self.run_id, session=session)
             or 0
         )
-        query = (
-            session.query(TaskInstance.map_index)
-            .filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == task.task_id,
-                TaskInstance.run_id == self.run_id,
-            )
+        query = session.query(TaskInstance.map_index).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == task.task_id,
+            TaskInstance.run_id == self.run_id,
         )
         existing_indexes = {i for (i,) in query}
-        missing_tis = set(range(total_length)).difference(set(existing_indexes))
-        removed_tis = set(existing_indexes).difference(range(total_length))
-        created_tis = []
+        missing_indexes = set(range(total_length)).difference(set(existing_indexes))
+        removed_indexes = set(existing_indexes).difference(range(total_length))
+        created_indexes = []
 
-        if missing_tis:
-            for index in missing_tis:
+        if missing_indexes:
+            for index in missing_indexes:
                 ti = TaskInstance(task, run_id=self.run_id, map_index=index, state=None)
                 self.log.debug("Expanding TIs upserted %s", ti)
                 task_instance_mutation_hook(ti)
                 ti = session.merge(ti)
                 ti.refresh_from_task(task)
                 session.flush()
-                created_tis.append(ti)
-        elif removed_tis:
+                created_indexes.append(ti)
+        elif removed_indexes:
             session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.run_id == self.run_id,
-                TaskInstance.map_index.in_(removed_tis),
+                TaskInstance.map_index.in_(removed_indexes),
             ).update({TaskInstance.state: TaskInstanceState.REMOVED})
             session.flush()
-        return created_tis
+        return created_indexes
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> Optional['DagRun']:
