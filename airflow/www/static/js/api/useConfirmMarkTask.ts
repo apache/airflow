@@ -23,7 +23,7 @@ import type { TaskState } from 'src/types';
 import { getMetaValue } from '../utils';
 import useErrorToast from '../utils/useErrorToast';
 
-const confirmUrl = getMetaValue('confirm_url') || '';
+const confirmUrl = getMetaValue('confirm_url');
 
 export default function useConfirmMarkTask({
   dagId, runId, taskId, state,

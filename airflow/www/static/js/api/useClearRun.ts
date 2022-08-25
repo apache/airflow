@@ -23,8 +23,8 @@ import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const csrfToken = getMetaValue('csrf_token') || '';
-const clearRunUrl = getMetaValue('dagrun_clear_url') || '';
+const csrfToken = getMetaValue('csrf_token');
+const clearRunUrl = getMetaValue('dagrun_clear_url');
 
 export default function useClearRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();

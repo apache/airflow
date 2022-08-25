@@ -23,8 +23,8 @@ import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const csrfToken = getMetaValue('csrf_token') || '';
-const clearUrl = getMetaValue('clear_url') || '';
+const csrfToken = getMetaValue('csrf_token');
+const clearUrl = getMetaValue('clear_url');
 
 export default function useClearTask({
   dagId, runId, taskId, executionDate,

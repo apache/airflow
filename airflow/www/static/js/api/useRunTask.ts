@@ -24,34 +24,51 @@ import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const queuedUrl = getMetaValue('dagrun_queued_url');
+const runUrl = getMetaValue('run_url');
 
-export default function useQueueRun(dagId, runId) {
+export default function useRunTask(dagId: string, runId: string, taskId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunQueue', dagId, runId],
-    ({ confirmed = false }) => {
-      const params = new URLSearchParams({
-        csrf_token: csrfToken,
-        confirmed,
-        dag_id: dagId,
-        dag_run_id: runId,
-      }).toString();
+    ['runTask', dagId, runId, taskId],
+    async ({
+      ignoreAllDeps,
+      ignoreTaskState,
+      ignoreTaskDeps,
+      mapIndexes,
+    }:{
+      ignoreAllDeps: boolean,
+      ignoreTaskState: boolean,
+      ignoreTaskDeps: boolean,
+      mapIndexes: number[],
+    }) => Promise.all(
+      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
+        const params = new URLSearchParams({
+          csrf_token: csrfToken,
+          dag_id: dagId,
+          dag_run_id: runId,
+          task_id: taskId,
+          ignore_all_deps: ignoreAllDeps.toString(),
+          ignore_task_deps: ignoreTaskDeps.toString(),
+          ignore_ti_state: ignoreTaskState.toString(),
+          map_index: mi.toString(),
+        }).toString();
 
-      return axios.post(queuedUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    },
+        return axios.post(runUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+      }),
+    ),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

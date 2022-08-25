@@ -24,46 +24,33 @@ import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const runUrl = getMetaValue('run_url');
+const queuedUrl = getMetaValue('dagrun_queued_url');
 
-export default function useRunTask(dagId, runId, taskId) {
+export default function useQueueRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['runTask', dagId, runId, taskId],
-    async ({
-      ignoreAllDeps,
-      ignoreTaskState,
-      ignoreTaskDeps,
-      mapIndexes,
-    }) => Promise.all(
-      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
-        const params = new URLSearchParams({
-          csrf_token: csrfToken,
-          dag_id: dagId,
-          dag_run_id: runId,
-          task_id: taskId,
-          ignore_all_deps: ignoreAllDeps,
-          ignore_task_deps: ignoreTaskDeps,
-          ignore_ti_state: ignoreTaskState,
-          map_index: mi,
-        }).toString();
-
-        return axios.post(runUrl, params, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        });
-      }),
-    ),
+    ['dagRunQueue', dagId, runId],
+    ({ confirmed = false }: { confirmed: boolean }) => {
+      const params = new URLSearchParams({
+        csrf_token: csrfToken,
+        confirmed: confirmed.toString(),
+        dag_id: dagId,
+        dag_run_id: runId,
+      }).toString();
+      return axios.post(queuedUrl, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+    },
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }
