@@ -42,7 +42,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -2584,7 +2583,7 @@ class DAG(LoggingMixin):
             .filter(DagModel.dag_id.in_(dag_ids))
         )
         orm_dags: List[DagModel] = with_row_locks(query, of=DagModel, session=session).all()
-
+        existing_dag_dict = {x.dag_id: x for x in orm_dags}
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dag_ids)
 
@@ -2684,29 +2683,34 @@ class DAG(LoggingMixin):
             TaskOutletDatasetReference,
         )
 
-        class OutletRef(NamedTuple):
-            dag_id: str
-            task_id: str
-            uri: str
-
-        class InletRef(NamedTuple):
-            dag_id: str
-            uri: str
-
-        dag_references = set()
-        outlet_references = set()
+        dag_references = collections.defaultdict(set)
+        outlet_references = collections.defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_datasets: Dict[Dataset, None] = {}
         input_datasets: Dict[Dataset, None] = {}
         for dag in dags:
+            curr_orm_dag = existing_dag_dict.get(dag.dag_id)
+            if not dag.dataset_triggers:
+                if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
+                    curr_orm_dag.schedule_dataset_references = []
             for dataset in dag.dataset_triggers:
-                dag_references.add(InletRef(dag.dag_id, dataset.uri))
+                dag_references[dag.dag_id].add(dataset.uri)
                 input_datasets[DatasetModel.from_public(dataset)] = None
+            curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
-                for obj in task.outlets or []:
-                    if isinstance(obj, Dataset):
-                        outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
-                        outlet_datasets[DatasetModel.from_public(obj)] = None
+                dataset_outlets = [x for x in task.outlets if isinstance(x, Dataset)]
+                if not dataset_outlets:
+                    if curr_outlet_references:
+                        this_task_outlet_refs = [
+                            x
+                            for x in curr_outlet_references
+                            if x.dag_id == dag.dag_id and x.task_id == task.task_id
+                        ]
+                        for ref in this_task_outlet_refs:
+                            curr_outlet_references.remove(ref)
+                for d in dataset_outlets:
+                    outlet_references[(task.dag_id, task.task_id)].add(d.uri)
+                    outlet_datasets[DatasetModel.from_public(d)] = None
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 
@@ -2724,24 +2728,37 @@ class DAG(LoggingMixin):
 
         del all_datasets
 
-        # store dag-schedule-on-dataset references
-        for dag_ref in dag_references:
-            session.merge(
-                DagScheduleDatasetReference(
-                    dataset_id=stored_datasets[dag_ref.uri].id,
-                    dag_id=dag_ref.dag_id,
-                )
+        # reconcile dag-schedule-on-dataset references
+        for dag_id, uri_list in dag_references.items():
+            dag_refs_needed = {
+                DagScheduleDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id)
+                for uri in uri_list
+            }
+            dag_refs_stored = set(
+                session.query(DagScheduleDatasetReference)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id)
+                .all()
             )
+            dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
+            session.bulk_save_objects(dag_refs_to_add)
+            for obj in dag_refs_stored - dag_refs_needed:
+                session.delete(obj)
 
-        # store task-outlet-dataset references
-        for outlet_ref in outlet_references:
-            session.merge(
-                TaskOutletDatasetReference(
-                    dataset_id=stored_datasets[outlet_ref.uri].id,
-                    dag_id=outlet_ref.dag_id,
-                    task_id=outlet_ref.task_id,
-                )
+        # reconcile task-outlet-dataset references
+        for (dag_id, task_id), uri_list in outlet_references.items():
+            task_refs_needed = {
+                TaskOutletDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id, task_id=task_id)
+                for uri in uri_list
+            }
+            task_refs_stored = set(
+                session.query(TaskOutletDatasetReference)
+                .filter(TaskOutletDatasetReference.dag_id == dag_id, TaskOutletDatasetReference.task_id == task_id)
+                .all()
             )
+            task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}
+            session.bulk_save_objects(task_refs_to_add)
+            for obj in task_refs_stored - task_refs_needed:
+                session.delete(obj)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
@@ -3040,7 +3057,10 @@ class DagModel(Base):
     parent_dag = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-
+    schedule_dataset_references = relationship(
+        "DagScheduleDatasetReference", cascade='all, delete, delete-orphan'
+    )
+    task_outlet_dataset_references = relationship("TaskOutletDatasetReference", cascade='all, delete, delete-orphan')
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
     def __init__(self, concurrency=None, **kwargs):
