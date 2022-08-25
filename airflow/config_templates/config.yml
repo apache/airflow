@@ -386,6 +386,18 @@
       type: string
       default: "0o077"
       example: ~
+    - name: dataset_event_manager_class
+      description: Class to use as dataset event manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: 'airflow.datasets.manager.DatasetEventManager'
+    - name: dataset_event_manager_kwargs
+      description: Kwargs to supply to dataset event manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: '{"some_param": "some_value"}'
 
 - name: database
   description: ~
