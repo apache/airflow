@@ -1075,9 +1075,9 @@ class DagRun(Base, LoggingMixin):
             TaskInstance.run_id == self.run_id,
         )
         existing_indexes = {i for (i,) in query}
-        missing_indexes = set(range(total_length)).difference(set(existing_indexes))
-        removed_indexes = set(existing_indexes).difference(range(total_length))
-        created_indexes = []
+        missing_indexes = set(range(total_length)).difference(existing_indexes)
+        removed_indexes = existing_indexes.difference(range(total_length))
+        created_tis = []
 
         if missing_indexes:
             for index in missing_indexes:
@@ -1087,7 +1087,7 @@ class DagRun(Base, LoggingMixin):
                 ti = session.merge(ti)
                 ti.refresh_from_task(task)
                 session.flush()
-                created_indexes.append(ti)
+                created_tis.append(ti)
         elif removed_indexes:
             session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.dag_id,
@@ -1096,7 +1096,7 @@ class DagRun(Base, LoggingMixin):
                 TaskInstance.map_index.in_(removed_indexes),
             ).update({TaskInstance.state: TaskInstanceState.REMOVED})
             session.flush()
-        return created_indexes
+        return created_tis
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> Optional['DagRun']:
