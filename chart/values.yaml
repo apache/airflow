@@ -35,7 +35,7 @@ revisionHistoryLimit: ~
 uid: 50000
 gid: 0
 
-# Default security context for airflow
+# Default pod security context for airflow
 securityContext: {}
 #  runAsUser: 50000
 #  fsGroup: 0
@@ -460,11 +460,15 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
-  # When not set, the values defined in the global securityContext will be used
+  # When not set, the values defined in the global pod securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -520,6 +524,10 @@ workers:
     fixPermissions: false
     # Annotations to add to worker volumes
     annotations: {}
+    containerSecurityContext:
+      runAsUser: 0
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -531,6 +539,9 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   resources: {}
   #  limits:
@@ -603,9 +614,15 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   waitForMigrations:
     env: []
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   env: []
 
@@ -642,6 +659,10 @@ scheduler:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -721,12 +742,17 @@ scheduler:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
-
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
   env: []
 
 # Airflow create user job settings
@@ -768,6 +794,10 @@ createUserJob:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -828,6 +858,10 @@ migrateDatabaseJob:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -917,6 +951,10 @@ webserver:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
@@ -1015,6 +1053,9 @@ webserver:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   env: []
 
@@ -1062,6 +1103,10 @@ triggerer:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   resources: {}
   #  limits:
@@ -1113,6 +1158,9 @@ triggerer:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
   env: []
 
@@ -1160,6 +1208,10 @@ dagProcessor:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   resources: {}
   #  limits:
@@ -1254,6 +1306,10 @@ flower:
   #  fsGroup: 0
   #  runAsGroup: 0
 
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1333,6 +1389,10 @@ statsd:
   #  runAsUser: 65534
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -1468,6 +1528,10 @@ pgbouncer:
 
   uid: 65534
 
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
+
   metricsExporterSidecar:
     resources: {}
     #  limits:
@@ -1477,6 +1541,9 @@ pgbouncer:
     #   cpu: 100m
     #   memory: 128Mi
     sslmode: "disable"
+    containerSecurityContext: {}
+    #  allowPrivilegeEscalation: false
+    #  capabilities: {}
 
 # Configuration for the redis provisioned by the chart
 redis:
@@ -1536,6 +1603,10 @@ redis:
   securityContext: {}
   #  runAsUser: 999
   #  runAsGroup: 0
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
   podAnnotations: {}
 # Auth secret for a private registry
@@ -1629,6 +1700,10 @@ cleanup:
   #  runAsUser: 50000
   #  runAsGroup: 0
   env: []
+
+  containerSecurityContext: {}
+  #  allowPrivilegeEscalation: false
+  #  capabilities: {}
 
 # Configuration for postgresql subchart
 # Not recommended for production

@@ -134,8 +134,7 @@ spec:
             - -R
             - "{{ include "airflowSecurityContextIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
-          securityContext:
-            runAsUser: 0
+          securityContext: {{ toYaml .Values.workers.persistence.containerSecurityContext | nindent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -145,6 +144,7 @@ spec:
 {{ toYaml .Values.workers.resources | indent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.workers.waitForMigrations.containerSecurityContext | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
@@ -170,6 +170,7 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.workers.containerSecurityContext | nindent 12 }}
           {{- if .Values.workers.command }}
           command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
           {{- end }}
@@ -231,6 +232,7 @@ spec:
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.workers.logGroomerSidecar.containerSecurityContext | nindent 12 }}
           {{- if .Values.workers.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.workers.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}
@@ -252,6 +254,7 @@ spec:
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.workers.kerberosSidecar.containerSecurityContext | nindent 12 }}
           args: ["kerberos"]
           resources:
 {{ toYaml .Values.workers.kerberosSidecar.resources | indent 12 }}

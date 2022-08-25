@@ -311,6 +311,7 @@ In the Airflow Helm chart, the ``securityContext`` can be configured in several 
   * :ref:`uid <parameters:Airflow>` (configures the global uid or RunAsUser)
   * :ref:`gid <parameters:Airflow>` (configures the global gid or fsGroup)
   * :ref:`securityContext <parameters:Kubernetes>` (same as ``uid`` but allows for setting all `Pod securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core>`_)
+  * :ref:`containerSecurityContext <parameters:Kubernetes>` (security context on the container level `Container securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#securitycontext-v1-core>`_)
 
 The same way one can configure the global :ref:`securityContext <parameters:Kubernetes>`, it is also possible to configure different values for specific workloads by setting their local ``securityContext`` as follows:
 
@@ -420,6 +421,37 @@ This will generate the following worker deployment:
           fsGroup: 0
         initContainers:
           - name: wait-for-airflow-migrations
+        ...
+        containers:
+          - name: worker
+        ...
+
+We can use ``containerSecurityContext`` to configure an individual container's security context:
+
+.. code-block:: yaml
+
+  workers:
+    waitForMigrations:
+      env: []
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        initContainers:
+          - name: wait-for-airflow-migrations
+            securityContext:
+              allowPrivilegeEscalation: false
         ...
         containers:
           - name: worker

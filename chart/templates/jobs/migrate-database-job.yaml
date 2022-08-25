@@ -86,6 +86,7 @@ spec:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.migrateDatabaseJob.containerSecurityContext | nindent 12 }}
           {{- if .Values.migrateDatabaseJob.command }}
           command: {{ tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
           {{- end }}

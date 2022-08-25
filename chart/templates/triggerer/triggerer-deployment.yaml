@@ -115,6 +115,7 @@ spec:
             {{- toYaml .Values.triggerer.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.triggerer.waitForMigrations.containerSecurityContext | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
@@ -141,6 +142,7 @@ spec:
         - name: triggerer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.triggerer.containerSecurityContext | nindent 12 }}
           {{- if .Values.triggerer.command }}
           command: {{ tpl (toYaml .Values.triggerer.command) . | nindent 12 }}
           {{- end }}

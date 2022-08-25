@@ -87,6 +87,7 @@ spec:
         - name: flower
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
+          securityContext: {{ toYaml .Values.flower.containerSecurityContext | nindent 12 }}
           {{- if .Values.flower.command }}
           command: {{ tpl (toYaml .Values.flower.command) . | nindent 12 }}
           {{- end }}

@@ -87,6 +87,7 @@ spec:
         - name: pgbouncer
           image: {{ template "pgbouncer_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncer.pullPolicy }}
+          securityContext: {{ toYaml .Values.pgbouncer.containerSecurityContext | nindent 12 }}
           {{- if .Values.pgbouncer.command }}
           command: {{ tpl (toYaml .Values.pgbouncer.command) . | nindent 12 }}
           {{- end }}
@@ -144,6 +145,7 @@ spec:
 {{ toYaml .Values.pgbouncer.metricsExporterSidecar.resources | indent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncerExporter.pullPolicy }}
+          securityContext: {{ toYaml .Values.pgbouncer.metricsExporterSidecar.containerSecurityContext | nindent 12 }}
           env:
             - name: DATABASE_URL
               valueFrom:

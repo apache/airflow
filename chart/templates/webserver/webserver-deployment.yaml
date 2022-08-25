@@ -127,6 +127,7 @@ spec:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.webserver.waitForMigrations.containerSecurityContext | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
@@ -153,6 +154,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.webserver.containerSecurityContext | nindent 12 }}
           {{- if .Values.webserver.command }}
           command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
           {{- end }}

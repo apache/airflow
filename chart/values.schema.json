@@ -1343,6 +1343,21 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -1373,6 +1388,21 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -1566,6 +1596,21 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -1579,6 +1624,20 @@
                             "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the worker pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },
@@ -1607,6 +1666,21 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -1956,6 +2030,21 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -1969,6 +2058,20 @@
                             "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the scheduler pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },
@@ -2002,6 +2105,21 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -2289,6 +2407,20 @@
                         }
                     ]
                 },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the triggerer pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
+                        }
+                    ]
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -2319,6 +2451,21 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -2598,6 +2745,20 @@
                         }
                     ]
                 },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the dag processor pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
+                        }
+                    ]
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -2628,6 +2789,21 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -2817,6 +2993,20 @@
                             "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the create user job pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },
@@ -3030,6 +3220,20 @@
                             "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the migrate database job pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },
@@ -3275,6 +3479,20 @@
                             "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the webserver job pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },
@@ -3555,6 +3773,21 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerSecurityContext": {
+                            "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -3917,6 +4150,20 @@
                         }
                     ]
                 },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the flower pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
+                        }
+                    ]
+                },
                 "env": {
                     "description": "Add additional env vars to flower.",
                     "type": "array",
@@ -4091,6 +4338,20 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the StatsD pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
+                        }
+                    ]
                 }
             }
         },
@@ -4218,6 +4479,20 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the StatsD pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
+                        }
+                    ]
                 },
                 "service": {
                     "description": "PgBouncer Service configuration.",
@@ -4453,6 +4728,20 @@
                                 "verify-full"
                             ],
                             "default": "disable"
+                        },
+                        "containerSecurityContext": {
+                            "description": "Security context for containers in the StatsD pod. If not set, the values from `containerSecurityContext` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": ["ALL"]
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -4615,6 +4904,20 @@
                             "runAsUser": 999,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the cleanup job pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },
@@ -4966,6 +5269,20 @@
                             "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerSecurityContext": {
+                    "description": "Security context for containers in the cleanup job pod. If not set, the values from `containerSecurityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": ["ALL"]
+                            }
                         }
                     ]
                 },

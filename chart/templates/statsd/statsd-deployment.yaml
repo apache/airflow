@@ -84,6 +84,7 @@ spec:
         - name: statsd
           image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
+          securityContext: {{ toYaml .Values.statsd.containerSecurityContext | nindent 12 }}
           args:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           resources:

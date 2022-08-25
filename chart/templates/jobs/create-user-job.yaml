@@ -86,6 +86,7 @@ spec:
         - name: create-user
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ toYaml .Values.createUserJob.containerSecurityContext | nindent 12 }}
           {{- if .Values.createUserJob.command }}
           command: {{ tpl (toYaml .Values.createUserJob.command) . | nindent 12 }}
           {{- end }}
