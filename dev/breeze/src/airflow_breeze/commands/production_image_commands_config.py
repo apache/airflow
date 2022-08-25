@@ -43,6 +43,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]
                 "--run-in-parallel",
                 "--parallelism",
                 "--python-versions",
+                "--include-success-outputs",
             ],
         },
         {

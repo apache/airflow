@@ -19,8 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.time_delta import TimeDeltaSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.time_delta`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.time_delta`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

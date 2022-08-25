@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.sensors.named_hive_partition`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

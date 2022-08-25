@@ -1,0 +1,3 @@
+Default Airflow image is updated to ``2.3.4``
+
+The default Airflow image that is used with the Chart is now ``2.3.4``, previously it was ``2.3.2``.
