@@ -110,7 +110,7 @@ class DbApiHook(BaseForDbApiHook):
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
     # Override with the db-specific value used for placeholders
-    placeholder = "%s"  # type: str
+    placeholder: str = "%s"
 
     def __init__(self, *args, schema: Optional[str] = None, log_sql: bool = True, **kwargs):
         super().__init__()
