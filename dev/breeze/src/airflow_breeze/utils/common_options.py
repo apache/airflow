@@ -468,3 +468,9 @@ option_include_success_outputs = click.option(
     is_flag=True,
     envvar='INCLUDE_SUCCESS_OUTPUTS',
 )
+option_skip_cleanup = click.option(
+    '--skip-cleanup',
+    help="Skip cleanup of temporary files created during parallel run",
+    is_flag=True,
+    envvar='SKIP_CLEANUP',
+)

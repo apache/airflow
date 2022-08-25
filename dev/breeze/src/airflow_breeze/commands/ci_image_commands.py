@@ -60,6 +60,7 @@ from airflow_breeze.utils.common_options import (
     option_python_image,
     option_python_versions,
     option_run_in_parallel,
+    option_skip_cleanup,
     option_tag_as_latest,
     option_upgrade_to_newer_dependencies,
     option_verbose,
@@ -119,6 +120,7 @@ def run_build_in_parallel(
     python_version_list: List[str],
     include_success_outputs: bool,
     parallelism: int,
+    skip_cleanup: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -145,6 +147,7 @@ def run_build_in_parallel(
         success="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
     )
 
 
@@ -161,6 +164,7 @@ def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
 @option_python
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
 @option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
@@ -192,6 +196,7 @@ def build(
     dry_run: bool,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
     include_success_outputs,
     python_versions: str,
     answer: str,
@@ -228,6 +233,7 @@ def build(
             python_version_list=python_version_list,
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
             dry_run=dry_run,
             verbose=verbose,
         )
@@ -244,6 +250,7 @@ def build(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
 @option_include_success_outputs
 @option_python_versions
 @option_github_token
@@ -262,6 +269,7 @@ def pull(
     python_versions: str,
     github_token: str,
     parallelism: int,
+    skip_cleanup: bool,
     include_success_outputs: bool,
     image_tag: str,
     wait_for_image: bool,
@@ -292,6 +300,7 @@ def pull(
         run_pull_in_parallel(
             dry_run=dry_run,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
             image_params_list=ci_image_params_list,
             python_version_list=python_version_list,

@@ -80,6 +80,7 @@ RELEASE_MANAGEMENT_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]]
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
+                "--skip-cleanup",
                 "--python-versions",
             ],
         },

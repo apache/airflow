@@ -45,6 +45,7 @@ from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 def run_pull_in_parallel(
     dry_run: bool,
     parallelism: int,
+    skip_cleanup: bool,
     image_params_list: Union[List[BuildCiParams], List[BuildProdParams]],
     python_version_list: List[str],
     verbose: bool,
@@ -92,6 +93,7 @@ def run_pull_in_parallel(
         success="All images pulled",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
     )
 
 

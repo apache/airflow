@@ -19,6 +19,7 @@ import os
 import platform
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -71,6 +72,15 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
     if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
         run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
         run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
+        for file in Path(tempfile.gettempdir()).iterdir():
+            if file.name.startswith("parallel"):
+                run_command(
+                    ["sudo", "rm", "-rvf", os.fspath(file)],
+                    verbose=verbose,
+                    dry_run=dry_run,
+                    check=False,
+                    title=f"rm -rvf {file}",
+                )
         run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
         run_command(
             ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run

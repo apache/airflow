@@ -36,7 +36,7 @@ def create_pool(parallelism: int) -> Pool:
 
 
 def get_temp_file_name() -> str:
-    file = NamedTemporaryFile(mode="w+t", delete=False)
+    file = NamedTemporaryFile(mode="w+t", delete=False, prefix="parallel")
     name = file.name
     file.close()
     return name
@@ -268,6 +268,7 @@ def check_async_run_results(
     outputs: List[Output],
     include_success_outputs: bool,
     poll_time: float = 0.2,
+    skip_cleanup: bool = False,
 ):
     """
     Check if all async results were success. Exits with error if not.
@@ -276,6 +277,7 @@ def check_async_run_results(
     :param success: Success string printed when everything is OK
     :param include_success_outputs: include outputs of successful parallel runs
     :param poll_time: what's the poll time between checks
+    :param skip_cleanup: whether to skip cleanup of temporary files.
     """
     from airflow_breeze.utils.ci_group import ci_group
 
@@ -311,11 +313,19 @@ def check_async_run_results(
                 os.write(1, Path(outputs[i].file_name).read_bytes())
         else:
             get_console().print(f"[success]{outputs[i].title}")
-    if errors:
-        get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
-        sys.exit(1)
-    else:
-        get_console().print(f"\n[success]{success}[/]\n")
+    try:
+        if errors:
+            get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
+            sys.exit(1)
+        else:
+            get_console().print(f"\n[success]{success}[/]\n")
+    finally:
+        if not skip_cleanup:
+            for output in outputs:
+                try:
+                    os.unlink(output.file_name)
+                except FileNotFoundError:
+                    pass
 
 
 @contextmanager
