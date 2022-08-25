@@ -1705,7 +1705,7 @@ class TestTaskInstance:
         run_id = str(uuid4())
         dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
-        task = dag1.get_task('upstream_task_1')
+        task = dag1.get_task('producing_task_1')
         task.bash_command = 'echo 1'  # make it go faster
         ti = TaskInstance(task, run_id=run_id)
         session.merge(ti)
@@ -1716,11 +1716,11 @@ class TestTaskInstance:
 
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
-            DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
+            DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'producing_task_1'
         ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
-            ('example_dataset_dag3_req_dag1',),
-            ('example_dataset_dag4_req_dag1_dag2',),
-            ('example_dataset_dag5_req_dag1_D',),
+            ('dataset_consumes_1',),
+            ('dataset_consumes_1_and_2',),
+            ('dataset_consumes_1_never_scheduled',),
         ]
 
         # check that one event record created for dataset1 and this TI

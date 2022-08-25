@@ -337,6 +337,7 @@
       "pandas-gbq",
       "pandas>=0.17.1",
       "proto-plus>=1.19.6",
+      "protobuf<=3.20.0",
       "sqlalchemy-bigquery>=1.2.1"
     ],
     "cross-providers-deps": [
@@ -555,7 +556,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.1.0",
       "apache-airflow>=2.2.0",
-      "psycopg2-binary>=2.7.4"
+      "psycopg2>=2.8.0"
     ],
     "cross-providers-deps": [
       "amazon",

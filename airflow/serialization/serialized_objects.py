@@ -34,7 +34,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, SerializationError
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -593,20 +593,17 @@ class DependencyDetector:
         return deps
 
     @staticmethod
-    def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
+    def detect_dag_dependencies(dag: Optional[DAG]) -> Iterable["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.dataset_triggers:
-            return [
-                DagDependency(
-                    source="dataset",
-                    target=dag.dag_id,
-                    dependency_type="dataset",
-                    dependency_id=x.uri,
-                )
-                for x in dag.dataset_triggers
-            ]
-        else:
-            return []
+        if not dag:
+            return
+        for x in dag.dataset_triggers:
+            yield DagDependency(
+                source="dataset",
+                target=dag.dag_id,
+                dependency_type="dataset",
+                dependency_id=x.uri,
+            )
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -906,7 +903,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 warnings.warn(
                     "Use of a custom dependency detector is deprecated. "
                     "Support will be removed in a future release.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                 )
                 dep = custom_dependency_detector_cls().detect_task_dependencies(op)
                 if type(dep) is DagDependency:
@@ -1092,7 +1089,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for task in dag.task_dict.values()
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             }
-            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 

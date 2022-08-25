@@ -19,6 +19,7 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLIntervalCheckOperator,
@@ -27,7 +28,7 @@ from airflow.providers.common.sql.operators.sql import (
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.common.sql.operators.sql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -42,7 +43,7 @@ class PrestoCheckOperator(SQLCheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -60,7 +61,7 @@ class PrestoIntervalCheckOperator(SQLIntervalCheckOperator):
             This class is deprecated.l
             Please use `airflow.providers.common.sql.operators.sql.SQLIntervalCheckOperator`.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -78,7 +79,7 @@ class PrestoValueCheckOperator(SQLValueCheckOperator):
             This class is deprecated.l
             Please use `airflow.providers.common.sql.operators.sql.SQLValueCheckOperator`.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         super().__init__(**kwargs)

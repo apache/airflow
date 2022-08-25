@@ -326,7 +326,6 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
-        self._validate_argument_count()
         if self.task_group:
             self.task_group.add(self)
         if self.dag:
@@ -365,20 +364,6 @@ class MappedOperator(AbstractOperator):
                 f"not a {type(operator_deps).__name__}"
             )
         return operator_deps | {MappedTaskIsExpanded()}
-
-    def _validate_argument_count(self) -> None:
-        """Validate mapping arguments by unmapping with mocked values.
-
-        This ensures the user passed enough arguments in the DAG definition for
-        the operator to work in the task runner. This does not guarantee the
-        arguments are *valid* (that depends on the actual mapping values), but
-        makes sure there are *enough* of them.
-        """
-        if not isinstance(self.operator_class, type):
-            return  # No need to validate deserialized operator.
-        kwargs = self._expand_mapped_kwargs(None)
-        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
-        self.operator_class.validate_mapped_arguments(**kwargs)
 
     @property
     def task_type(self) -> str:

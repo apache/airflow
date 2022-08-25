@@ -22,11 +22,12 @@ Please use :mod:`airflow.providers.mysql.transfers.presto_to_mysql`.
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.transfers.presto_to_mysql`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -43,7 +44,7 @@ class PrestoToMySqlTransfer(PrestoToMySqlOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         super().__init__(**kwargs)

@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.http.operators.http import SimpleHttpOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.http.operators.http`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

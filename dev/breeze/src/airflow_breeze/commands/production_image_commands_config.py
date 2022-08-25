@@ -32,7 +32,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]
                 "--python",
                 "--install-airflow-version",
                 "--upgrade-to-newer-dependencies",
-                "--debian-version",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
@@ -44,6 +43,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]
                 "--run-in-parallel",
                 "--parallelism",
                 "--python-versions",
+                "--include-success-outputs",
             ],
         },
         {
