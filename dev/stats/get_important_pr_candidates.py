@@ -227,9 +227,9 @@ class PrStat:
         for comment in self.pull_request.get_review_comments():
             if comment.body is not None:
                 length += len(comment.body)
-        for convo_comment in self.pull_request.get_issue_comments():
-            if convo_comment.body is not None:
-                length += len(convo_comment.body)
+        for conv_comment in self.pull_request.get_issue_comments():
+            if conv_comment.body is not None:
+                length += len(conv_comment.body)
         length += self.len_issue_comments
         return length
 
@@ -343,7 +343,9 @@ def main(
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding='bytes')
+        issue_num = 0
         for pr_stat in selected_prs:
+            issue_num += 1
             console.print(
                 f"[green]Loading PR: #{pr_stat.pull_request.number} `{pr_stat.pull_request.title}`.[/]"
                 f" Score: {pr_stat.score}."
@@ -360,7 +362,6 @@ def main(
         pulls = repo.get_pulls(state="closed", sort="created", direction='desc')
         issue_num = 0
         for pr in pulls:
-            issue_num += 1
             if not pr.merged:
                 continue
 
@@ -375,6 +376,7 @@ def main(
                 console.print("[bright_blue]Completed selecting candidates")
                 break
 
+            issue_num += 1
             pr_stat = PrStat(pull_request=pr, g=g)  # type: ignore
             console.print(
                 f"[green]Selecting PR: #{pr.number} `{pr.title}` as candidate.[/]"
@@ -390,7 +392,7 @@ def main(
                 console.print(f'[red]Reached {MAX_PR_CANDIDATES}. Stopping')
                 break
 
-    console.print(f"Top {top_number} PRs:")
+    console.print(f"Top {top_number} out of {issue_num} PRs:")
     for pr_stat in sorted(selected_prs, key=lambda s: -s.score)[:top_number]:
         console.print(f" * {pr_stat}")
 
