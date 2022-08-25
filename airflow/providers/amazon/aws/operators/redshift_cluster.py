@@ -17,6 +17,7 @@
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 
@@ -240,6 +241,71 @@ class RedshiftCreateClusterOperator(BaseOperator):
         )
         self.log.info("Created Redshift cluster %s", self.cluster_identifier)
         self.log.info(cluster)
+
+
+class RedshiftCreateClusterSnapshotOperator(BaseOperator):
+    """
+    Creates a manual snapshot of the specified cluster. The cluster must be in the available state
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftCreateClusterSnapshotOperator`
+
+    :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
+    :param cluster_identifier: The cluster identifier for which you want a snapshot
+    :param retention_period: The number of days that a manual snapshot is retained.
+        If the value is -1, the manual snapshot is retained indefinitely.
+    :param wait_for_completion: Whether wait for the cluster snapshot to be in ``available`` state
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check state
+    :param max_attempt: The maximum number of attempts to be made to check the state
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        The default connection id is ``aws_default``
+    """
+
+    def __init__(
+        self,
+        *,
+        snapshot_identifier: str,
+        cluster_identifier: str,
+        retention_period: int = -1,
+        wait_for_completion: bool = False,
+        poll_interval: int = 15,
+        max_attempt: int = 20,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.snapshot_identifier = snapshot_identifier
+        self.cluster_identifier = cluster_identifier
+        self.retention_period = retention_period
+        self.wait_for_completion = wait_for_completion
+        self.poll_interval = poll_interval
+        self.max_attempt = max_attempt
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
+
+    def execute(self, context: "Context") -> Any:
+        cluster_state = self.redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
+        if cluster_state != "available":
+            raise AirflowException(
+                "Redshift cluster must be in available state. "
+                f"Redshift cluster current state is {cluster_state}"
+            )
+
+        self.redshift_hook.create_cluster_snapshot(
+            cluster_identifier=self.cluster_identifier,
+            snapshot_identifier=self.snapshot_identifier,
+            retention_period=self.retention_period,
+        )
+
+        if self.wait_for_completion:
+            self.redshift_hook.get_conn().get_waiter("snapshot_available").wait(
+                ClusterIdentifier=self.cluster_identifier,
+                SnapshotIdentifier=self.snapshot_identifier,
+                WaiterConfig={
+                    "Delay": self.poll_interval,
+                    "MaxAttempts": self.max_attempt,
+                },
+            )
 
 
 class RedshiftResumeClusterOperator(BaseOperator):
