@@ -23,24 +23,45 @@ import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const markSuccessUrl = getMetaValue('dagrun_success_url');
 const csrfToken = getMetaValue('csrf_token');
+const successUrl = getMetaValue('success_url');
 
-export default function useMarkSuccessRun(dagId, runId) {
+export default function useMarkSuccessTask({
+  dagId, runId, taskId,
+}: {
+  dagId: string, runId: string, taskId: string,
+}) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunSuccess', dagId, runId],
-    ({ confirmed = false }) => {
+    ['markSuccess', dagId, runId, taskId],
+    ({
+      past, future, upstream, downstream, mapIndexes = [],
+    }: {
+      past: boolean,
+      future: boolean,
+      upstream: boolean,
+      downstream: boolean,
+      mapIndexes: number[]
+    }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
-        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-      }).toString();
+        task_id: taskId,
+        confirmed: 'true',
+        past: past.toString(),
+        future: future.toString(),
+        upstream: upstream.toString(),
+        downstream: downstream.toString(),
+      });
 
-      return axios.post(markSuccessUrl, params, {
+      mapIndexes.forEach((mi: number) => {
+        params.append('map_index', mi.toString());
+      });
+
+      return axios.post(successUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -49,9 +70,10 @@ export default function useMarkSuccessRun(dagId, runId) {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

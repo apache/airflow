@@ -28,6 +28,8 @@ const csrfToken = getMetaValue('csrf_token');
 
 export default function useMarkFailedTask({
   dagId, runId, taskId,
+}: {
+  dagId: string, runId: string, taskId: string,
 }) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
@@ -36,21 +38,27 @@ export default function useMarkFailedTask({
     ['markFailed', dagId, runId, taskId],
     ({
       past, future, upstream, downstream, mapIndexes = [],
+    }: {
+      past: boolean,
+      future: boolean,
+      upstream: boolean,
+      downstream: boolean,
+      mapIndexes: number[]
     }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        confirmed: true,
-        past,
-        future,
-        upstream,
-        downstream,
+        confirmed: 'true',
+        past: past.toString(),
+        future: future.toString(),
+        upstream: upstream.toString(),
+        downstream: downstream.toString(),
       });
 
-      mapIndexes.forEach((mi) => {
-        params.append('map_index', mi);
+      mapIndexes.forEach((mi: number) => {
+        params.append('map_index', mi.toString());
       });
 
       return axios.post(failedUrl, params.toString(), {
@@ -65,7 +73,7 @@ export default function useMarkFailedTask({
         queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }
