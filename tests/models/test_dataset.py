@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
+
 import pytest
 
 from airflow.datasets import Dataset
+from airflow.models.dataset import DatasetModel
 from airflow.operators.empty import EmptyOperator
 
 
@@ -32,14 +35,34 @@ class TestDataset:
         with dag_maker(dag_id="example_dataset"):
             EmptyOperator(task_id="task1", outlets=[dataset])
 
-    def test_uri_with_airflow_scheme_restricted(self, dag_maker, session):
-        dataset = Dataset(uri="airflow://example_dataset")
-        with pytest.raises(ValueError, match='Scheme `airflow` is reserved'):
-            with dag_maker(dag_id="example_dataset"):
-                EmptyOperator(task_id="task1", outlets=[dataset])
-
     def test_uri_with_invalid_characters(self, dag_maker, session):
         dataset = Dataset(uri="èxample_datašet")
         with pytest.raises(ValueError, match='URI must be ascii'):
             with dag_maker(dag_id="example_dataset"):
                 EmptyOperator(task_id="task1", outlets=[dataset])
+
+
+class TestDatasetModel:
+    @pytest.mark.parametrize(
+        "conn_uri, dataset_uri, expected_canonical_uri",
+        [
+            ("postgres://somehost/", "airflow://testconn/", "postgres://somehost/"),
+            ("postgres://somehost:111/base", "airflow://testconn", "postgres://somehost:111/base"),
+            ("postgres://somehost:111/base", "airflow+foo://testconn", "foo://somehost:111/base"),
+            (
+                "postgres://somehost:111/base",
+                "airflow://testconn/extra",
+                "postgres://somehost:111/base/extra",
+            ),
+            ("postgres://somehost:111", "airflow://testconn/?foo=bar", "postgres://somehost:111/?foo=bar"),
+            (
+                "postgres://somehost?biz=baz",
+                "airflow://testconn/?foo=bar",
+                "postgres://somehost/?biz=baz&foo=bar",
+            ),
+        ],
+    )
+    def test_canonical_uri(self, conn_uri, dataset_uri, expected_canonical_uri):
+        with mock.patch.dict('os.environ', AIRFLOW_CONN_TESTCONN=conn_uri):
+            dataset = DatasetModel(uri=dataset_uri)
+            assert dataset.canonical_uri == expected_canonical_uri

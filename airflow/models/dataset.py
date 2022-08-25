@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
@@ -35,6 +35,7 @@ from sqlalchemy.orm import relationship
 
 from airflow.datasets import Dataset
 from airflow.models.base import ID_LEN, Base, StringID
+from airflow.models.connection import Connection
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -83,9 +84,6 @@ class DatasetModel(Base):
             uri.encode('ascii')
         except UnicodeEncodeError:
             raise ValueError('URI must be ascii')
-        parsed = urlparse(uri)
-        if parsed.scheme and parsed.scheme.lower() == 'airflow':
-            raise ValueError("Scheme `airflow` is reserved.")
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
@@ -99,6 +97,55 @@ class DatasetModel(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+
+    @property
+    def canonical_uri(self):
+        """
+        Resolve the canonical uri for a dataset.
+
+        If the uri doesn't have an `airflow` scheme, return it as-is.
+
+        If it does have an `airflow` scheme, it takes the connection id from
+        the netloc. It then will combine the connection uri and dataset uri to
+        form the canonical uri. It does this by:
+
+        * Using the scheme from the connection, unless an override is provided
+          in the dataset scheme (e.g. airflow+override://)
+        * Combine the path, connection first followed by the dataset path
+        * Merge the query args
+
+        # airflow://conn_id/...
+        # airflow+override://conn_id/...
+        # airflow://conn_id/some_extra_path?query
+        """
+        parsed = urlparse(self.uri)
+
+        if not parsed.scheme.startswith("airflow"):
+            return self.uri
+
+        conn_id = parsed.hostname
+        conn = urlparse(Connection.get_connection_from_secrets(conn_id).get_uri())
+
+        # Take the scheme from the connection, unless it is overridden in the dataset
+        scheme = conn.scheme
+        split_scheme = parsed.scheme.split("+")
+        if len(split_scheme) == 2:
+            scheme = split_scheme[1]
+
+        # Combine the paths (connection followed by dataset)
+        path = conn.path
+        if parsed.path:
+            path = f"{path}{parsed.path}"
+        if path == "//":
+            path = "/"
+
+        # Merge the query args
+        query = parse_qs(conn.query)
+        if parsed.query:
+            query.update(parse_qs(parsed.query))
+
+        merged_conn = (scheme, conn.netloc, path, "", urlencode(query, doseq=True), conn.fragment)
+        return urlunparse(merged_conn)
 
 
 class DatasetDagRef(Base):
