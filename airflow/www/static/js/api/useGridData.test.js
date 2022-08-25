@@ -60,6 +60,24 @@ describe('Test areActiveRuns()', () => {
     expect(result).toBe(false);
   });
 
+  [
+    { runType: 'manual', state: 'queued', result: true },
+    { runType: 'manual', state: 'running', result: true },
+    { runType: 'scheduled', state: 'queued', result: true },
+    { runType: 'scheduled', state: 'running', result: true },
+    { runType: 'backfill', state: 'queued', result: false },
+    { runType: 'backfill', state: 'running', result: false },
+  ].forEach((conf) => {
+    test(`Returns ${conf.result} when filtering runs with runtype ["${conf.runType}"] and state ["${conf.state}"]`, () => {
+      const runConf = { ...conf };
+      delete runConf.result;
+      const runs = [runConf];
+
+      const result = areActiveRuns(runs);
+      expect(result).toBe(conf.result);
+    });
+  });
+
   test('Returns false when there are no runs', () => {
     const result = areActiveRuns();
     expect(result).toBe(false);
