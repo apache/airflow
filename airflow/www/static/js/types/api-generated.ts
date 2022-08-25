@@ -1536,6 +1536,7 @@ export interface components {
       source_run_id?: string | null;
       /** @description The task map index that updated the dataset. */
       source_map_index?: number | null;
+      created_dagruns?: components["schemas"]["DAGRun"][];
       /** @description The dataset event creation time */
       timestamp?: string;
     };

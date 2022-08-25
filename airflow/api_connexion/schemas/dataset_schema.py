@@ -27,6 +27,7 @@ from airflow.models.dataset import (
     DatasetModel,
     TaskOutletDatasetReference,
 )
+from airflow.api_connexion.schemas.dag_run_schema import DAGRunSchema
 
 
 class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
@@ -107,6 +108,7 @@ class DatasetEventSchema(SQLAlchemySchema):
     source_dag_id = auto_field()
     source_run_id = auto_field()
     source_map_index = auto_field()
+    created_dagruns = fields.List(fields.Nested(DAGRunSchema))
     timestamp = auto_field()
 
 
