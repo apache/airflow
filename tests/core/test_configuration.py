@@ -1378,3 +1378,45 @@ secret_key = airflow
         assert 'fake_key' == test_conf.get('test', 'secret_key')
         mock_hvac.Client.assert_called_once()
         _custom_secrets_backend.cache_clear()
+
+    @mock.patch('airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend')
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend",
+            (
+                "secrets",
+                "backend_kwargs",
+            ): '{"connections_prefix": "airflow-connections", '
+            '"gcp_keyfile_dict": {"keyfilearg1": "keyfileval1", "keyfilearg2": "keyfileval2"}}',
+        }
+    )
+    def test_config_from_secret_backend_allows_dict_arguments(self, mock_backend):
+        """Get Config Value from a Secret Backend with dict arguments"""
+        _custom_secrets_backend.cache_clear()
+
+        test_config = '''[test]
+sql_alchemy_conn_secret = sql_alchemy_conn
+'''
+        test_config_default = '''[test]
+sql_alchemy_conn = airflow
+'''
+
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        mock_backend.return_value.get_config.return_value = 'google_conf'
+
+        assert 'google_conf' == test_conf.get('test', 'sql_alchemy_conn')
+
+        mock_backend.assert_called_with(
+            connections_prefix='airflow-connections',
+            gcp_keyfile_dict={'keyfilearg1': 'keyfileval1', 'keyfilearg2': 'keyfileval2'},
+        )
+
+        _custom_secrets_backend.cache_clear()
