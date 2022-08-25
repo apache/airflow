@@ -20,8 +20,8 @@ import re
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
-from typing import Dict, List, Union
+from subprocess import CalledProcessError, CompletedProcess
+from typing import Dict, List, Optional, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -52,7 +52,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEBSERVER_HOST_PORT,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -206,8 +206,7 @@ def check_docker_is_running(verbose: bool):
         verbose=verbose,
         no_output_dump_on_exception=True,
         text=False,
-        stdout=DEVNULL,
-        stderr=STDOUT,
+        capture_output=True,
         check=False,
     )
     if response.returncode != 0:
@@ -502,7 +501,7 @@ def prepare_docker_build_from_input(
 
 
 def build_cache(
-    image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
+    image_params: CommonBuildParams, output: Optional[Output], dry_run: bool, verbose: bool
 ) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
@@ -518,24 +517,22 @@ def build_cache(
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
+            output=output,
             check=False,
             text=True,
-            enabled_output_group=not parallel,
         )
         if build_command_result.returncode != 0:
             break
     return build_command_result
 
 
-def make_sure_builder_configured(parallel: bool, params: CommonBuildParams, dry_run: bool, verbose: bool):
+def make_sure_builder_configured(params: CommonBuildParams, dry_run: bool, verbose: bool):
     if params.builder != 'default':
         cmd = ['docker', 'buildx', 'inspect', params.builder]
-        buildx_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
-        )
+        buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
             next_cmd = ['docker', 'buildx', 'create', '--name', params.builder]
-            run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
+            run_command(next_cmd, verbose=verbose, text=True, check=False)
 
 
 def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
@@ -570,7 +567,6 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', "apache/airflow")
     set_value_to_default_if_not_set(env, 'COMMIT_SHA', commit_sha())
     set_value_to_default_if_not_set(env, 'DB_RESET', "false")
-    set_value_to_default_if_not_set(env, 'DEBIAN_VERSION', "bullseye")
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
@@ -593,6 +589,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'SKIP_ENVIRONMENT_INITIALIZATION', "false")
     set_value_to_default_if_not_set(env, 'SKIP_SSH_SETUP', "false")
     set_value_to_default_if_not_set(env, 'TEST_TYPE', "")
+    set_value_to_default_if_not_set(env, 'TEST_TIMEOUT', "60")
     set_value_to_default_if_not_set(env, 'UPGRADE_TO_NEWER_DEPENDENCIES', "false")
     set_value_to_default_if_not_set(env, 'USE_PACKAGES_FROM_DIST', "false")
     set_value_to_default_if_not_set(env, 'VERBOSE', "false")
@@ -716,7 +713,6 @@ LABEL description="test warmup image"
         cwd=AIRFLOW_SOURCES_ROOT,
         text=True,
         check=False,
-        enabled_output_group=True,
     )
     if warm_up_command_result.returncode != 0:
         get_console().print(

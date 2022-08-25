@@ -66,7 +66,13 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagInconsistent, AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowDagInconsistent,
+    AirflowException,
+    DuplicateTaskIdFound,
+    RemovedInAirflow3Warning,
+    TaskNotFound,
+)
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.dagbag import DagBag
@@ -95,8 +101,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
+    from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
-    from airflow.models.dataset import Dataset
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -115,7 +121,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, List["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -234,19 +240,20 @@ class DAG(LoggingMixin):
     Note that if you plan to use time zones all the dates provided should be pendulum
     dates. See :ref:`timezone_aware_dags`.
 
+    .. versionadded:: 2.4
+        The *schedule* argument to specify either time-based scheduling logic
+        (timetable), or dataset-driven triggers.
+
+    .. deprecated:: 2.4
+        The arguments *schedule_interval* and *timetable*. Their functionalities
+        are merged into the new *schedule* argument.
+
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: Defines the rules according to which DAG runs are scheduled. Can
         accept cron string, timedelta object, Timetable, or list of Dataset objects.
         See also :doc:`/howto/timetable`.
-    :param schedule_interval: Defines how often that DAG runs, this
-        timedelta object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-        Note: deprecated in Airflow 2.4; use `schedule` instead.
-    :param timetable: Specify which timetable to use (in which case schedule_interval
-        must not be set). See :doc:`/howto/timetable` for more information
-        Note: deprecated in Airflow 2.4; use `schedule` instead.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
@@ -384,7 +391,6 @@ class DAG(LoggingMixin):
         tags: Optional[List[str]] = None,
         owner_links: Optional[Dict[str, str]] = None,
     ):
-        from airflow.models.dataset import Dataset
         from airflow.utils.task_group import TaskGroup
 
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
@@ -409,7 +415,7 @@ class DAG(LoggingMixin):
         if full_filepath:
             warnings.warn(
                 "Passing full_filepath to DAG() is deprecated and has no effect",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -420,7 +426,7 @@ class DAG(LoggingMixin):
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             max_active_tasks = concurrency
@@ -473,37 +479,31 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "Param `schedule_interval` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if timetable is not None:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
                 "Please use `schedule` instead. ",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
+
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: Optional[List[Dataset]] = None
+        self.dataset_triggers: Collection[Dataset] = []
 
-        if schedule is not NOTSET:
-            if isinstance(schedule, List):
-                # if List, only support List[Dataset]
-                if any(isinstance(x, Dataset) for x in schedule):
-                    if not all(isinstance(x, Dataset) for x in schedule):
-                        raise ValueError(
-                            "If scheduling DAG with List[Dataset], all elements must be Dataset."
-                        )
-                    self.dataset_triggers = list(schedule)
-                else:
-                    raise ValueError(
-                        "Use of List object with `schedule` param is only supported for List[Dataset]."
-                    )
-            elif isinstance(schedule, Timetable):
-                timetable = schedule
-            else:  # assumed to be ScheduleIntervalArg
-                schedule_interval = schedule
+        if isinstance(schedule, Collection) and not isinstance(schedule, str):
+            from airflow.datasets import Dataset
+
+            if not all(isinstance(x, Dataset) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be datasets")
+            self.dataset_triggers = list(schedule)
+        elif isinstance(schedule, Timetable):
+            timetable = schedule
+        else:
+            schedule_interval = schedule
 
         if self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
@@ -531,7 +531,7 @@ class DAG(LoggingMixin):
         elif default_view == 'tree':
             warnings.warn(
                 "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             self._default_view = 'grid'
@@ -703,7 +703,7 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
                 "Please use 'can_read' and 'can_edit', respectively.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=3,
             )
 
@@ -717,14 +717,14 @@ class DAG(LoggingMixin):
     ) -> List[datetime]:
         message = "`DAG.date_range()` is deprecated."
         if num is not None:
-            warnings.warn(message, category=DeprecationWarning, stacklevel=2)
+            warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 return utils_date_range(
                     start_date=start_date, num=num, delta=self.normalized_schedule_interval
                 )
         message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
-        warnings.warn(message, category=DeprecationWarning, stacklevel=2)
+        warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
         if end_date is None:
             coerced_end_date = timezone.utcnow()
         else:
@@ -735,7 +735,7 @@ class DAG(LoggingMixin):
     def is_fixed_time_schedule(self):
         warnings.warn(
             "`DAG.is_fixed_time_schedule()` is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         try:
@@ -752,7 +752,7 @@ class DAG(LoggingMixin):
         """
         warnings.warn(
             "`DAG.following_schedule()` is deprecated. Use `DAG.next_dagrun_info(restricted=False)` instead.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         data_interval = self.infer_automated_data_interval(timezone.coerce_datetime(dttm))
@@ -766,7 +766,7 @@ class DAG(LoggingMixin):
 
         warnings.warn(
             "`DAG.previous_schedule()` is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if not isinstance(self.timetable, _DataIntervalTimetable):
@@ -873,7 +873,7 @@ class DAG(LoggingMixin):
         if isinstance(last_automated_dagrun, datetime):
             warnings.warn(
                 "Passing a datetime to DAG.next_dagrun_info is deprecated. Use a DataInterval instead.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             data_interval = self.infer_automated_data_interval(
@@ -902,7 +902,7 @@ class DAG(LoggingMixin):
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         warnings.warn(
             "`DAG.next_dagrun_after_date()` is deprecated. Please use `DAG.next_dagrun_info()` instead.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if date_last_automated_dagrun is None:
@@ -1025,7 +1025,7 @@ class DAG(LoggingMixin):
         """
         warnings.warn(
             "`DAG.get_run_dates()` is deprecated. Please use `DAG.iter_dagrun_infos_between()` instead.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         earliest = timezone.coerce_datetime(start_date)
@@ -1038,16 +1038,16 @@ class DAG(LoggingMixin):
     def normalize_schedule(self, dttm):
         warnings.warn(
             "`DAG.normalize_schedule()` is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             following = self.following_schedule(dttm)
         if not following:  # in case of @once
             return dttm
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
             previous_of_following = self.previous_schedule(following)
         if previous_of_following != dttm:
             return following
@@ -1085,7 +1085,7 @@ class DAG(LoggingMixin):
         """:meta private:"""
         warnings.warn(
             "DAG.full_filepath is deprecated in favour of fileloc",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.fileloc
@@ -1094,7 +1094,7 @@ class DAG(LoggingMixin):
     def full_filepath(self, value) -> None:
         warnings.warn(
             "DAG.full_filepath is deprecated in favour of fileloc",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         self.fileloc = value
@@ -1104,7 +1104,7 @@ class DAG(LoggingMixin):
         # TODO: Remove in Airflow 3.0
         warnings.warn(
             "The 'DAG.concurrency' attribute is deprecated. Please use 'DAG.max_active_tasks'.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self._max_active_tasks
@@ -1175,7 +1175,9 @@ class DAG(LoggingMixin):
     def filepath(self) -> str:
         """:meta private:"""
         warnings.warn(
-            "filepath is deprecated, use relative_fileloc instead", DeprecationWarning, stacklevel=2
+            "filepath is deprecated, use relative_fileloc instead",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         return str(self.relative_fileloc)
 
@@ -1226,7 +1228,7 @@ class DAG(LoggingMixin):
         """This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_concurrency_reached()
@@ -1246,7 +1248,7 @@ class DAG(LoggingMixin):
         """This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_is_paused()
@@ -1255,7 +1257,7 @@ class DAG(LoggingMixin):
     def normalized_schedule_interval(self) -> ScheduleInterval:
         warnings.warn(
             "DAG.normalized_schedule_interval() is deprecated.",
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
@@ -1390,7 +1392,7 @@ class DAG(LoggingMixin):
         """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_latest_execution_date()
@@ -1904,7 +1906,7 @@ class DAG(LoggingMixin):
     ) -> None:
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         dag_ids = dag_ids or [self.dag_id]
@@ -1959,7 +1961,7 @@ class DAG(LoggingMixin):
         if get_tis:
             warnings.warn(
                 "Passing `get_tis` to dag.clear() is deprecated. Use `dry_run` parameter instead.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             dry_run = True
@@ -1967,13 +1969,13 @@ class DAG(LoggingMixin):
         if recursion_depth:
             warnings.warn(
                 "Passing `recursion_depth` to dag.clear() is deprecated.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if max_recursion_depth:
             warnings.warn(
                 "Passing `max_recursion_depth` to dag.clear() is deprecated.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
@@ -2107,7 +2109,7 @@ class DAG(LoggingMixin):
         """This method is deprecated in favor of partial_subset"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use partial_subset",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.partial_subset(*args, **kwargs)
@@ -2219,6 +2221,13 @@ class DAG(LoggingMixin):
 
     def has_task(self, task_id: str):
         return task_id in self.task_dict
+
+    def has_task_group(self, task_group_id: str) -> bool:
+        return task_group_id in self.task_group_dict
+
+    @cached_property
+    def task_group_dict(self):
+        return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
     def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
         if task_id in self.task_dict:
@@ -2452,15 +2461,33 @@ class DAG(LoggingMixin):
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
         """
+        logical_date = timezone.coerce_datetime(execution_date)
+
+        if data_interval and not isinstance(data_interval, DataInterval):
+            data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
+
+        if data_interval is None and logical_date is not None:
+            warnings.warn(
+                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
+                RemovedInAirflow3Warning,
+                stacklevel=3,
+            )
+            if run_type == DagRunType.MANUAL:
+                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            else:
+                data_interval = self.infer_automated_data_interval(logical_date)
+
         if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
                 raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
             if not run_type:
                 run_type = DagRunType.from_run_id(run_id)
-        elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
+        elif run_type and logical_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
                 raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
-            run_id = DagRun.generate_run_id(run_type, execution_date)
+            run_id = self.timetable.generate_run_id(
+                run_type=run_type, logical_date=logical_date, data_interval=data_interval
+            )
         else:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
@@ -2470,21 +2497,9 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "Using forward slash ('/') in a DAG run ID is deprecated. Note that this character "
                 "also makes the run impossible to retrieve via Airflow's REST API.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=3,
             )
-
-        logical_date = timezone.coerce_datetime(execution_date)
-        if data_interval is None and logical_date is not None:
-            warnings.warn(
-                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            if run_type == DagRunType.MANUAL:
-                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
-            else:
-                data_interval = self.infer_automated_data_interval(logical_date)
 
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
@@ -2521,7 +2536,7 @@ class DAG(LoggingMixin):
         """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return cls.bulk_write_to_db(dags, session)
@@ -2643,7 +2658,8 @@ class DAG(LoggingMixin):
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
-        from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
+        from airflow.datasets import Dataset
+        from airflow.models.dataset import DatasetDagRef, DatasetModel, DatasetTaskRef
 
         class OutletRef(NamedTuple):
             dag_id: str
@@ -2656,23 +2672,25 @@ class DAG(LoggingMixin):
 
         dag_references = set()
         outlet_references = set()
-        outlet_datasets = set()
-        input_datasets = set()
+        # We can't use a set here as we want to preserve order
+        outlet_datasets: Dict[Dataset, None] = {}
+        input_datasets: Dict[Dataset, None] = {}
         for dag in dags:
-            for dataset in dag.dataset_triggers or []:
+            for dataset in dag.dataset_triggers:
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
-                input_datasets.add(dataset)
+                input_datasets[DatasetModel.from_public(dataset)] = None
             for task in dag.tasks:
-                for obj in getattr(task, '_outlets', []):  # type: Dataset
+                for obj in task.outlets or []:
                     if isinstance(obj, Dataset):
                         outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
-                        outlet_datasets.add(obj)
-        all_datasets = outlet_datasets.union(input_datasets)
+                        outlet_datasets[DatasetModel.from_public(obj)] = None
+        all_datasets = outlet_datasets
+        all_datasets.update(input_datasets)
 
         # store datasets
         stored_datasets = {}
         for dataset in all_datasets:
-            stored_dataset = session.query(Dataset).filter(Dataset.uri == dataset.uri).first()
+            stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
             if stored_dataset:
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
@@ -3005,7 +3023,7 @@ class DagModel(Base):
             if concurrency:
                 warnings.warn(
                     "The 'DagModel.concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                     stacklevel=2,
                 )
                 self.max_active_tasks = concurrency
@@ -3153,14 +3171,31 @@ class DagModel(Base):
                 continue
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session):
+    def dags_needing_dagruns(cls, session: Session) -> Tuple[Query, Dict[str, Tuple[datetime, datetime]]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
-        This will return a resultset of rows  that is row-level-locked with a "SELECT ... FOR UPDATE" query,
+        This will return a resultset of rows that is row-level-locked with a "SELECT ... FOR UPDATE" query,
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
+
+        # these dag ids are triggered by datasets, and they are ready to go.
+        dataset_triggered_dag_info_list = {
+            x.dag_id: (x.first_event_time, x.last_event_time)
+            for x in session.query(
+                DatasetDagRef.dag_id,
+                func.max(DDRQ.created_at).label('last_event_time'),
+                func.max(DDRQ.created_at).label('first_event_time'),
+            )
+            .join(DatasetDagRef.queue_records, isouter=True)
+            .group_by(DatasetDagRef.dag_id)
+            .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
+            .all()
+        }
+        dataset_triggered_dag_ids = list(dataset_triggered_dag_info_list.keys())
+
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
@@ -3171,13 +3206,19 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
-                cls.next_dagrun_create_after <= func.now(),
+                or_(
+                    cls.next_dagrun_create_after <= func.now(),
+                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                ),
             )
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
 
-        return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
+        return (
+            with_row_locks(query, of=cls, session=session, **skip_locked(session=session)),
+            dataset_triggered_dag_info_list,
+        )
 
     def calculate_dagrun_date_fields(
         self,
@@ -3196,7 +3237,7 @@ class DagModel(Base):
             warnings.warn(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is deprecated. "
                 "Provide a data interval instead.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             most_recent_data_interval = dag.infer_automated_data_interval(most_recent_dag_run)

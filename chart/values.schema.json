@@ -77,13 +77,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.3.3",
+            "default": "2.3.4",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.3.3",
+            "default": "2.3.4",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -1506,6 +1506,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the worker objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for worker log groomer sidecar",
                     "type": "object",
@@ -1573,6 +1581,55 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            }
+                        }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to worker.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -1835,6 +1892,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the scheduler objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for the schedulers log groomer sidecar.",
                     "type": "object",
@@ -1916,7 +1981,49 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to scheduler.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -2161,6 +2268,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the triggerer objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "securityContext": {
                     "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
@@ -2183,7 +2298,49 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to triggerer.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -2450,7 +2607,49 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -2510,6 +2709,14 @@
                 },
                 "jobAnnotations": {
                     "description": "Annotations to add to the create user job job.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the create user job objects and pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2635,6 +2842,27 @@
                     "description": "Specify if you want to use the default Helm Hook annotations",
                     "type": "boolean",
                     "default": true
+                },
+                "env": {
+                    "description": "Add additional env vars to the create user job pod.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -3289,6 +3517,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the webserver objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -3298,7 +3534,49 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to webserver.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
                     }
                 }
             }
@@ -3618,6 +3896,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the flower objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "securityContext": {
                     "description": "Security context for the flower pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
@@ -3630,6 +3916,27 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to flower.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -4603,6 +4910,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "labels to add to cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "resources": {
                     "description": "Resources for or cleanup pods",
                     "type": "object",
@@ -4661,6 +4976,27 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to cleanup.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },

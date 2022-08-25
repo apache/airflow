@@ -34,7 +34,7 @@ class DataformHook(GoogleBaseHook):
         self,
     ) -> DataformClient:
         """Retrieves client library object that allow access to Cloud Dataform service."""
-        return DataformClient(credentials=self._get_credentials())
+        return DataformClient(credentials=self.get_credentials())
 
     @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_workflow_invocation(
@@ -77,7 +77,7 @@ class DataformHook(GoogleBaseHook):
                     repository_id=repository_id,
                     workflow_invocation_id=workflow_invocation_id,
                 )
-                state = workflow_invocation
+                state = workflow_invocation.state
             except Exception as err:
                 self.log.info(
                     "Retrying. Dataform API returned error when waiting for workflow invocation: %s", err

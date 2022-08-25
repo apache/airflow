@@ -45,7 +45,6 @@ IGNORED = {
     "HIDE_ATTRS_FROM_UI",
     # Only on BaseOperator.
     "_dag",
-    "mapped_arguments_validated_by_init",
     "output",
     "partial",
     "shallow_copy_attrs",

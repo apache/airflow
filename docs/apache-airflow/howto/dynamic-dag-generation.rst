@@ -141,10 +141,13 @@ Each of them can run separately with related configuration
 .. warning::
   Using this practice, pay attention to "late binding" behaviour in Python loops. See `that GitHub discussion <https://github.com/apache/airflow/discussions/21278#discussioncomment-2103559>`_ for more details
 
-|experimental|
 
 Optimizing DAG parsing delays during execution
 ----------------------------------------------
+
+.. versionadded:: 2.4
+
+|experimental|
 
 Sometimes when you generate a lot of Dynamic DAGs from a single DAG file, it might cause unnecessary delays
 when the DAG file is parsed during task execution. The impact is a delay before a task starts.
@@ -166,18 +169,18 @@ test it thoroughly.
 
 A nice example of performance improvements you can gain is shown in the
 `Airflow's Magic Loop <https://medium.com/apache-airflow/airflows-magic-loop-ec424b05b629>`_ blog post
-that describes how parsing during task execution was reduced from 120 seconds to 200 ms.
+that describes how parsing during task execution was reduced from 120 seconds to 200 ms. (The example was
+written before Airflow 2.4 so it uses undocumented behaviour of Airflow.)
 
-The example was written before Airflow 2.4 so it uses undocumented behaviour of Airflow. In Airflow 2.4
-instead you can use py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` method
+In Airflow 2.4 instead you can use :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` method
 to retrieve the current context in documented and predictable way.
 
 Upon iterating over the collection of things to generate DAGs for, you can use the context to determine
 whether you need to generate all DAG objects (when parsing in the DAG File processor), or to generate only
 a single DAG object (when executing the task).
 
-The py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` return the current parsing
-context. The context is of py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
+The :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` return the current parsing
+context. The context is of :py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
 in case only single dag/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
 In case "full" parsing is needed (for example in DAG File Processor), ``dag_id`` and ``task_id``
 of the context are set to ``None``.

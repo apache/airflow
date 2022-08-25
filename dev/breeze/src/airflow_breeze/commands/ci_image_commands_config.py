@@ -31,7 +31,6 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--python",
                 "--upgrade-to-newer-dependencies",
-                "--debian-version",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
@@ -43,7 +42,9 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
+                "--skip-cleanup",
                 "--python-versions",
+                "--include-success-outputs",
             ],
         },
         {
@@ -55,13 +56,8 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--airflow-constraints-reference",
                 "--python-image",
                 "--additional-python-deps",
-                "--runtime-apt-deps",
-                "--runtime-apt-command",
                 "--additional-extras",
                 "--additional-pip-install-flags",
-                "--additional-runtime-apt-deps",
-                "--additional-runtime-apt-env",
-                "--additional-runtime-apt-command",
                 "--additional-dev-apt-deps",
                 "--additional-dev-apt-env",
                 "--additional-dev-apt-command",
@@ -99,7 +95,9 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
+                "--skip-cleanup",
                 "--python-versions",
+                "--include-success-outputs",
             ],
         },
     ],

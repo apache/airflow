@@ -123,6 +123,21 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]
         )
 
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
+        )
+
     @parameterized.expand(
         [
             (None, None),
@@ -175,6 +190,23 @@ class CleanupPodsTest(unittest.TestCase):
             "project": "airflow",
         } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
+
     def test_cleanup_resources_are_configurable(self):
         resources = {
             "requests": {
@@ -199,3 +231,19 @@ class CleanupPodsTest(unittest.TestCase):
         assert resources == jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
         )
+
+
+class CleanupServiceAccountTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

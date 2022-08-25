@@ -31,24 +31,25 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.api_connexion.types import APIResponse
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
-def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
+def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
     dataset = (
-        session.query(Dataset)
-        .options(joinedload(Dataset.consuming_dags), joinedload(Dataset.producing_tasks))
-        .get(id)
+        session.query(DatasetModel)
+        .filter(DatasetModel.uri == uri)
+        .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
+        .one_or_none()
     )
     if not dataset:
         raise NotFound(
             "Dataset not found",
-            detail=f"The Dataset with id: `{id}` was not found",
+            detail=f"The Dataset with uri: `{uri}` was not found",
         )
     return dataset_schema.dump(dataset)
 
@@ -67,13 +68,13 @@ def get_datasets(
     """Get datasets"""
     allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
-    total_entries = session.query(func.count(Dataset.id)).scalar()
-    query = session.query(Dataset)
+    total_entries = session.query(func.count(DatasetModel.id)).scalar()
+    query = session.query(DatasetModel)
     if uri_pattern:
-        query = query.filter(Dataset.uri.ilike(f"%{uri_pattern}%"))
+        query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = (
-        query.options(subqueryload(Dataset.consuming_dags), subqueryload(Dataset.producing_tasks))
+        query.options(subqueryload(DatasetModel.consuming_dags), subqueryload(DatasetModel.producing_tasks))
         .offset(offset)
         .limit(limit)
         .all()

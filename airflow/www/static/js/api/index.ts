@@ -34,6 +34,7 @@ import useGridData from './useGridData';
 import useMappedInstances from './useMappedInstances';
 import useDatasets from './useDatasets';
 import useDataset from './useDataset';
+import useDatasetDependencies from './useDatasetDependencies';
 import useDatasetEvents from './useDatasetEvents';
 import useUpstreamDatasetEvents from './useUpstreamDatasetEvents';
 import useTaskInstance from './useTaskInstance';
@@ -49,6 +50,7 @@ export {
   useClearTask,
   useConfirmMarkTask,
   useDataset,
+  useDatasetDependencies,
   useDatasetEvents,
   useDatasets,
   useExtraLinks,

@@ -106,7 +106,7 @@ class CloudDLPHook(GoogleBaseHook):
         :rtype: google.cloud.dlp_v2.DlpServiceClient
         """
         if not self._client:
-            self._client = DlpServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
+            self._client = DlpServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

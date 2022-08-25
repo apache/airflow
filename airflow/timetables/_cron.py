@@ -116,7 +116,7 @@ class CronMixin:
         delta = naive - scheduled
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
-    def _align(self, current: DateTime) -> DateTime:
+    def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
 
         This is ``current + interval``, unless ``current`` falls right on the
@@ -125,4 +125,15 @@ class CronMixin:
         next_time = self._get_next(current)
         if self._get_prev(next_time) != current:
             return next_time
+        return current
+
+    def _align_to_prev(self, current: DateTime) -> DateTime:
+        """Get the prev scheduled time.
+
+        This is ``current - interval``, unless ``current`` falls right on the
+        interval boundary, when ``current`` is returned.
+        """
+        prev_time = self._get_prev(current)
+        if self._get_next(prev_time) != current:
+            return prev_time
         return current

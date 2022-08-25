@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.3.3"
+defaultAirflowTag: "2.3.4"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.3.3"
+airflowVersion: "2.3.4"
 
 # Images
 images:
@@ -586,6 +586,9 @@ workers:
 
   podAnnotations: {}
 
+  # Labels specific to workers objects and pods
+  labels: {}
+
   logGroomerSidecar:
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
@@ -600,6 +603,11 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+  waitForMigrations:
+    env: []
+
+  env: []
 
 # Airflow scheduler settings
 scheduler:
@@ -694,6 +702,9 @@ scheduler:
 
   podAnnotations: {}
 
+  # Labels specific to scheduler objects and pods
+  labels: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -714,6 +725,9 @@ scheduler:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow create user job settings
 createUserJob:
@@ -746,6 +760,9 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  # Labels specific to createUserJob objects and pods
+  labels: {}
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
@@ -777,6 +794,7 @@ createUserJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  env: []
 
   resources: {}
   #  limits:
@@ -990,9 +1008,15 @@ webserver:
 
   podAnnotations: {}
 
+  # Labels specific webserver app
+  labels: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow Triggerer Config
 triggerer:
@@ -1082,9 +1106,15 @@ triggerer:
 
   podAnnotations: {}
 
+  # Labels specific to triggerer objects and pods
+  labels: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow Dag Processor Config
 dagProcessor:
@@ -1177,6 +1207,9 @@ dagProcessor:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Flower settings
 flower:
@@ -1272,6 +1305,10 @@ flower:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  # Labels specific to flower objects and pods
+  labels: {}
+  env: []
 
 # StatsD settings
 statsd:
@@ -1567,6 +1604,9 @@ cleanup:
 
   podAnnotations: {}
 
+  # Labels specific to cleanup objects and pods
+  labels: {}
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -1590,6 +1630,7 @@ cleanup:
   securityContext: {}
   #  runAsUser: 50000
   #  runAsGroup: 0
+  env: []
 
 # Configuration for postgresql subchart
 # Not recommended for production

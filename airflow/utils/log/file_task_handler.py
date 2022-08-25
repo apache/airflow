@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from airflow.configuration import AirflowConfigException, conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.jwt_signer import JWTSigner
@@ -50,8 +51,11 @@ class FileTaskHandler(logging.Handler):
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
-                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
-                DeprecationWarning,
+                "Passing filename_template to a log handler is deprecated and has no effect",
+                RemovedInAirflow3Warning,
+                # We want to reference the stack that actually instantiates the
+                # handler, not the one that calls super()__init__.
+                stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
     def set_context(self, ti: "TaskInstance"):

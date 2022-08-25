@@ -397,13 +397,13 @@ Lets look at another example; we need to get some data from a file which is host
 
 Initial setup
 ''''''''''''''''''''
-We need to have Docker installed as we will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for this example.
+We need to have Docker installed as we will be using the `docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html>`_ for this example.
 The steps below should be sufficient, but see the quick-start documentation for full instructions.
 
 .. code-block:: bash
 
   # Download the docker-compose.yaml file
-  curl -Lf0 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
+  curl -LfO 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
 
   # Make expected directories and set an expected environment variable
   mkdir -p ./dags ./logs ./plugins

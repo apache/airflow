@@ -248,7 +248,6 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
             verbose=verbose,
             dry_run=dry_run,
             check=False,
-            enabled_output_group=True,
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)

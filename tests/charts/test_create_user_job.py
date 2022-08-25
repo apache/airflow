@@ -42,6 +42,18 @@ class CreateUserJobTest(unittest.TestCase):
         assert "fiz" in job_annotations
         assert "fuz" == job_annotations["fiz"]
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -170,6 +182,20 @@ class CreateUserJobTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
     @parameterized.expand(
         [
             ("1.10.14", "airflow create_user"),
@@ -268,3 +294,18 @@ class CreateUserJobTest(unittest.TestCase):
             "-p",
             "whereisjane?",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+
+class CreateUserJobServiceAccountTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/create-user-job-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

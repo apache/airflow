@@ -19,6 +19,7 @@ import os
 import platform
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -71,6 +72,15 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
     if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
         run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
         run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
+        for file in Path(tempfile.gettempdir()).iterdir():
+            if file.name.startswith("parallel"):
+                run_command(
+                    ["sudo", "rm", "-rvf", os.fspath(file)],
+                    verbose=verbose,
+                    dry_run=dry_run,
+                    check=False,
+                    title=f"rm -rvf {file}",
+                )
         run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
         run_command(
             ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
@@ -164,9 +174,7 @@ def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run
         shell_params.airflow_image_name_with_tag,
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
-    run_command(
-        cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False, enabled_output_group=True
-    )
+    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
     # Always succeed
     sys.exit(0)
 
