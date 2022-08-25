@@ -91,6 +91,7 @@ class TrinoHook(DbApiHook):
     conn_type = 'trino'
     hook_name = 'Trino'
     query_id = ''
+    placeholder = '?'
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
@@ -234,7 +235,7 @@ class TrinoHook(DbApiHook):
             )
             commit_every = 0
 
-        super().insert_rows(table, rows, target_fields, commit_every, replace, placeholder="?")
+        super().insert_rows(table, rows, target_fields, commit_every, replace)
 
     def test_connection(self):
         """Tests the connection from UI using Trino specific query"""

@@ -17,7 +17,6 @@
 # under the License.
 
 import sqlite3
-from typing import Iterable, Optional
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -29,6 +28,7 @@ class SqliteHook(DbApiHook):
     default_conn_name = 'sqlite_default'
     conn_type = 'sqlite'
     hook_name = 'Sqlite'
+    placeholder = '?'
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object"""
@@ -42,24 +42,3 @@ class SqliteHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         airflow_conn = self.get_connection(conn_id)
         return f"sqlite:///{airflow_conn.host}"
-
-    def insert_rows(
-        self,
-        table: str,
-        rows: Iterable[tuple],
-        target_fields: Optional[Iterable[str]] = None,
-        commit_every: int = 0,
-        replace: bool = False,
-        **kwargs,
-    ) -> None:
-        """
-        A generic way to insert a set of tuples into a table.
-
-        :param table: Name of the target table
-        :param rows: The rows to insert into the table
-        :param target_fields: The names of the columns to fill in the table
-        :param commit_every: The maximum number of rows to insert in one
-            transaction. Set to 0 to insert all rows in one transaction.
-        :param replace: Whether to replace instead of insert
-        """
-        super().insert_rows(table, rows, target_fields, commit_every, replace, placeholder="?")

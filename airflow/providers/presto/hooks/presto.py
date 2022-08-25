@@ -89,6 +89,7 @@ class PrestoHook(DbApiHook):
     default_conn_name = 'presto_default'
     conn_type = 'presto'
     hook_name = 'Presto'
+    placeholder = '?'
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
@@ -224,4 +225,4 @@ class PrestoHook(DbApiHook):
             )
             commit_every = 0
 
-        super().insert_rows(table, rows, target_fields, commit_every, placeholder="?")
+        super().insert_rows(table, rows, target_fields, commit_every)
