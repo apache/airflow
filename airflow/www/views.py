@@ -3562,7 +3562,7 @@ class Airflow(AirflowBaseView):
         """Get datasets"""
         allowed_attrs = ['uri', 'last_dataset_update']
 
-        limit = request.args.get("limit")
+        limit = int(request.args.get("limit", 25))
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
         lstriped_orderby = order_by.lstrip('-')
@@ -3582,8 +3582,53 @@ class Airflow(AirflowBaseView):
             else:
                 order_by = func.max(DatasetEvent.timestamp).asc()
 
+        if limit > 50:
+            limit = 50
+
         with create_session() as session:
             total_entries = session.query(func.count(DatasetModel.id)).scalar()
+
+            print(
+                session.query(
+                    DatasetModel.id,
+                    DatasetModel.uri,
+                    func.max(DatasetEvent.timestamp).label("last_dataset_update"),
+                    func.count(DatasetEvent.id).label("total_updates"),
+                    func.count(DatasetModel.producing_tasks).label("producing_task_count"),
+                    func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
+                )
+                .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+                .outerjoin(DatasetDagRef)
+                .outerjoin(DatasetTaskRef)
+                .group_by(DatasetModel.id, DatasetModel.uri)
+                .order_by(order_by)
+                .offset(offset)
+                .limit(limit)
+            )
+
+            print(session.query(DatasetModel.producing_tasks).all())
+
+            # datasets = [
+            #    dict(dataset)
+            #    for dataset in (
+            #        session.query(
+            #            DatasetModel.id,
+            #            DatasetModel.uri,
+            #            func.max(DatasetEvent.timestamp).label("last_dataset_update"),
+            #            func.count(DatasetEvent.id).label("total_updates"),
+            #            func.count(DatasetModel.producing_tasks).label("producing_task_count"),
+            #            func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
+            #        )
+            #        .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+            #        .outerjoin(DatasetDagRef)
+            #        .outerjoin(DatasetTaskRef)
+            #        .group_by(DatasetModel.id, DatasetModel.uri)
+            #        .order_by(order_by)
+            #        .offset(offset)
+            #        .limit(limit)
+            #        .all()
+            #    )
+            # ]
             datasets = [
                 dict(dataset)
                 for dataset in (
@@ -3592,13 +3637,14 @@ class Airflow(AirflowBaseView):
                         DatasetModel.uri,
                         func.max(DatasetEvent.timestamp).label("last_dataset_update"),
                         func.count(DatasetEvent.id).label("total_updates"),
-                        func.count(DatasetModel.producing_tasks).label("producing_task_count"),
+                        func.count(DatasetTaskRef.dataset_id).label("producing_task_count"),
                         func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
                     )
+                    # .outerjoin(DatasetModel.events)
                     .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
-                    .outerjoin(DatasetDagRef)
-                    .outerjoin(DatasetTaskRef)
-                    .group_by(DatasetModel.id)
+                    .outerjoin(DatasetModel.producing_tasks)
+                    .outerjoin(DatasetModel.consuming_dags)
+                    .group_by(DatasetModel.id, DatasetModel.uri)
                     .order_by(order_by)
                     .offset(offset)
                     .limit(limit)
