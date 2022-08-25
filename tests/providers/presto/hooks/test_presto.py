@@ -241,7 +241,7 @@ class TestPrestoHook(unittest.TestCase):
         target_fields = None
         commit_every = 10
         self.db_hook.insert_rows(table, rows, target_fields, commit_every)
-        mock_insert_rows.assert_called_once_with(table, rows, None, 10)
+        mock_insert_rows.assert_called_once_with(table, rows, None, 10, placeholder="?")
 
     def test_get_first_record(self):
         statement = 'SQL'

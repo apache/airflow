@@ -224,4 +224,4 @@ class PrestoHook(DbApiHook):
             )
             commit_every = 0
 
-        super().insert_rows(table, rows, target_fields, commit_every)
+        super().insert_rows(table, rows, target_fields, commit_every, placeholder="?")
