@@ -309,9 +309,9 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         'aws_conn_id',
         'google_impersonation_chain',
     )
+    # [END gcp_transfer_job_update_template_fields]
     operator_extra_links = (CloudStorageTransferJobLink(),)
 
-    # [END gcp_transfer_job_update_template_fields]
     def __init__(
         self,
         *,
@@ -355,6 +355,7 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
                 project_id=project_id,
                 job_name=self.job_name,
             )
+
         return hook.update_transfer_job(job_name=self.job_name, body=self.body)
 
 

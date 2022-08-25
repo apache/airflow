@@ -105,10 +105,13 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         if check:
             self.xcom_push(key="sensed_operations", value=operations, context=context)
 
-        CloudStorageTransferJobLink.persist(
-            context=context,
-            task_instance=self,
-            project_id=self.project_id or hook.project_id,
-            job_name=self.job_name,
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferJobLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.job_name,
+            )
+
         return check
