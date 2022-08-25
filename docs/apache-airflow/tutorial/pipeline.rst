@@ -26,7 +26,7 @@ Lets look at another example; we need to get some data from a file which is host
 Initial setup
 -------------
 
-We need to have Docker installed as we will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for this example.
+We need to have Docker installed as we will be using the :doc:`/howto/docker-compose/index` procedure for this example.
 The steps below should be sufficient, but see the quick-start documentation for full instructions.
 
 .. code-block:: bash
@@ -193,7 +193,7 @@ We've developed our tasks, now we need to wrap them in a DAG, which enables us t
 * only run once in the event that days are missed, and
 * timeout after 60 minutes
 
-And from the last line in the definition of the ``Etl`` DAG, we see:
+And from the last line in the definition of the ``ProcessEmployees`` DAG, we see:
 
 .. code-block:: python
 
@@ -223,7 +223,7 @@ Putting all of the pieces together, we have our completed DAG.
       catchup=False,
       dagrun_timeout=datetime.timedelta(minutes=60),
   )
-  def Etl():
+  def ProcessEmployees():
       create_employees_table = PostgresOperator(
           task_id="create_employees_table",
           postgres_conn_id="tutorial_pg_conn",
@@ -299,14 +299,27 @@ Putting all of the pieces together, we have our completed DAG.
       [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
 
 
-  dag = Etl()
+  dag = ProcessEmployees()
 
-Save this code to a python file in the ``/dags`` folder (e.g. ``dags/etl.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``Etl`` DAG will be included in the list of available DAGs on the web UI.
+Save this code to a python file in the ``/dags`` folder (e.g. ``dags/process-employees.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``ProcessEmployees`` DAG will be included in the list of available DAGs on the web UI.
 
 .. image:: ../img/new_tutorial-1.png
 
-You can trigger the ``Etl`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
+You can trigger the ``ProcessEmployees`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
 
 .. image:: ../img/new_tutorial-3.png
 
-In the ``Etl`` DAG's **Tree** view, we see all that all tasks ran successfully in all executed runs. Success!
+In the ``ProcessEmployees`` DAG's **Tree** view, we see all that all tasks ran successfully in all executed runs. Success!
+
+What's Next?
+-------------
+You now have a pipeline running inside Airflow using Docker Compose. Here are a few things you might want to do next:
+
+.. seealso::
+    - Take an in-depth tour of the UI - click all the things! see what they do!
+    - Keep reading the docs
+      - Review the :doc:`how-to guides</howto/index>`, which include a guide for writing your own operator
+      - Review the :ref:`Command Line Interface Reference<cli>`
+      - Review the :ref:`List of operators <pythonapi:operators>`
+      - Review the :ref:`Macros reference<macros>`
+    - Write your first pipeline

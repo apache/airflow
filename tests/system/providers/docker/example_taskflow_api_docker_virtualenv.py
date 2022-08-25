@@ -30,10 +30,10 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = 'docker_taskflow'
 
 
-def tutorial_taskflow_api_etl_docker_virtualenv():
+def tutorial_taskflow_api_docker_virtualenv():
     """
     ### TaskFlow API Tutorial Documentation
-    This is a simple ETL data pipeline example which demonstrates the use of
+    This is a simple data pipeline example which demonstrates the use of
     the TaskFlow API using three simple tasks for Extract, Transform, and Load.
     Documentation that goes along with the Airflow TaskFlow API tutorial is
     located
@@ -111,7 +111,7 @@ with models.DAG(
     # break the CI test, we added this try/except here.
     try:
         # [START dag_invocation]
-        tutorial_etl_dag = tutorial_taskflow_api_etl_docker_virtualenv()
+        tutorial_dag = tutorial_taskflow_api_docker_virtualenv()
         # [END dag_invocation]
     except AttributeError:
         pass

@@ -392,19 +392,13 @@ which are used to populate the run schedule with task instances from this dag.
 
 What's Next?
 -------------
-That's it, you have written, tested and backfilled your very first Airflow
-pipeline. Merging your code into a code repository that has a master scheduler
-running against it should get it to get triggered and run every day.
+That's it! You have written, tested and backfilled your very first Airflow
+pipeline. Merging your code into a repository that has a master scheduler
+running against it should result in being triggered and run every day.
 
-Here's a few things you might want to do next:
+Here are a few things you might want to do next:
 
 .. seealso::
-    - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
-    - Take an in-depth tour of the UI - click all the things!
-    - Keep reading the docs!
+    - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
+    - Skip to the the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
 
-      - Review the :doc:`how-to guides</howto/index>`, which include a guide to writing your own operator
-      - Review the :ref:`Command Line Interface Reference<cli>`
-      - Review the :ref:`List of operators <pythonapi:operators>`
-      - Review the :ref:`Macros reference<macros>`
-    - Write your first pipeline!
