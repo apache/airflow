@@ -21,7 +21,7 @@
 Building a Running Pipeline
 ===========================
 
-Lets look at another example; we need to get some data from a file which is hosted online and insert it into our local database. We also need to look at removing duplicate rows while inserting.
+Lets look at another example: we need to get some data from a file which is hosted online and insert it into our local database. We also need to look at removing duplicate rows while inserting.
 
 Initial setup
 -------------
@@ -193,7 +193,7 @@ We've developed our tasks, now we need to wrap them in a DAG, which enables us t
 * only run once in the event that days are missed, and
 * timeout after 60 minutes
 
-And from the last line in the definition of the ``ProcessEmployees`` DAG, we see:
+And from the last line in the definition of the ``process-employees`` DAG, we see:
 
 .. code-block:: python
 
@@ -218,7 +218,8 @@ Putting all of the pieces together, we have our completed DAG.
 
 
   @dag(
-      schedule="0 0 * * *",
+      dag_id="process-employees",
+      schedule_interval="0 0 * * *",
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       dagrun_timeout=datetime.timedelta(minutes=60),
@@ -301,15 +302,15 @@ Putting all of the pieces together, we have our completed DAG.
 
   dag = ProcessEmployees()
 
-Save this code to a python file in the ``/dags`` folder (e.g. ``dags/process-employees.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``ProcessEmployees`` DAG will be included in the list of available DAGs on the web UI.
+Save this code to a python file in the ``/dags`` folder (e.g. ``dags/process-employees.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``process-employees`` DAG will be included in the list of available DAGs on the web UI.
 
-.. image:: ../img/new_tutorial-1.png
+.. image:: ../img/tutorial-pipeline-1.png
 
-You can trigger the ``ProcessEmployees`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
+You can trigger the ``process-employees`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
 
-.. image:: ../img/new_tutorial-3.png
+.. image:: ../img/tutorial-pipeline-2.png
 
-In the ``ProcessEmployees`` DAG's **Tree** view, we see all that all tasks ran successfully in all executed runs. Success!
+In the ``process-employees`` DAG's **Grid** view, we see all that all tasks ran successfully in all executed runs. Success!
 
 What's Next?
 -------------
