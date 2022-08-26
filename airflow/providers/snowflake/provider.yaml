@@ -76,6 +76,15 @@ transfers:
     target-integration-name: Slack
     python-module: airflow.providers.snowflake.transfers.snowflake_to_slack
     how-to-guide: /docs/apache-airflow-providers-snowflake/operators/snowflake_to_slack.rst
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Snowflake
+    python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+  - source-integration-name: Google Cloud Storage (GCS)
+    target-integration-name: Snowflake
+    python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Snowflake
+    python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
 
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
