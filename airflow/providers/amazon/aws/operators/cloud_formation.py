@@ -39,7 +39,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
+    template_fields: Sequence[str] = ('stack_name', 'cloudformation_parameters')
     template_ext: Sequence[str] = ()
     ui_color = '#6b9659'
 

@@ -29,14 +29,12 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
-from tests.system.providers.amazon.aws.utils import set_env_id
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-ENV_ID = set_env_id()
+sys_test_context_task = SystemTestContextBuilder().build()
+
 DAG_ID = 'example_athena'
-
-S3_BUCKET = f'{ENV_ID}-athena-bucket'
-ATHENA_TABLE = f'{ENV_ID}_test_table'
-ATHENA_DATABASE = f'{ENV_ID}_default'
 
 SAMPLE_DATA = '''"Alice",20
     "Bob",25
@@ -44,31 +42,19 @@ SAMPLE_DATA = '''"Alice",20
     '''
 SAMPLE_FILENAME = 'airflow_sample.csv'
 
-QUERY_CREATE_DATABASE = f'CREATE DATABASE IF NOT EXISTS {ATHENA_DATABASE}'
-QUERY_CREATE_TABLE = f'''CREATE EXTERNAL TABLE IF NOT EXISTS {ATHENA_DATABASE}.{ATHENA_TABLE}
-    ( `name` string, `age` int )
-    ROW FORMAT SERDE "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
-    WITH SERDEPROPERTIES ( "serialization.format" = ",", "field.delim" = "," )
-    LOCATION "s3://{S3_BUCKET}//{ATHENA_TABLE}"
-    TBLPROPERTIES ("has_encrypted_data"="false")
-    '''
-QUERY_READ_TABLE = f'SELECT * from {ATHENA_DATABASE}.{ATHENA_TABLE}'
-QUERY_DROP_TABLE = f'DROP TABLE IF EXISTS {ATHENA_DATABASE}.{ATHENA_TABLE}'
-QUERY_DROP_DATABASE = f'DROP DATABASE IF EXISTS {ATHENA_DATABASE}'
-
 
 @task
-def await_bucket():
+def await_bucket(bucket_name):
     # Avoid a race condition after creating the S3 Bucket.
     client = boto3.client('s3')
     waiter = client.get_waiter('bucket_exists')
-    waiter.wait(Bucket=S3_BUCKET)
+    waiter.wait(Bucket=bucket_name)
 
 
 @task
-def read_results_from_s3(query_execution_id):
+def read_results_from_s3(bucket_name, query_execution_id):
     s3_hook = S3Hook()
-    file_obj = s3_hook.get_conn().get_object(Bucket=S3_BUCKET, Key=f'{query_execution_id}.csv')
+    file_obj = s3_hook.get_conn().get_object(Bucket=bucket_name, Key=f'{query_execution_id}.csv')
     file_content = file_obj['Body'].read().decode('utf-8')
     print(file_content)
 
@@ -80,36 +66,55 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
-    create_s3_bucket = S3CreateBucketOperator(task_id='create_s3_bucket', bucket_name=S3_BUCKET)
+    test_context = sys_test_context_task()
+    env_id = test_context['ENV_ID']
+
+    s3_bucket = f'{env_id}-athena-bucket'
+    athena_table = f'{env_id}_test_table'
+    athena_database = f'{env_id}_default'
+
+    query_create_database = f'CREATE DATABASE IF NOT EXISTS {athena_database}'
+    query_create_table = f'''CREATE EXTERNAL TABLE IF NOT EXISTS {athena_database}.{athena_table}
+        ( `name` string, `age` int )
+        ROW FORMAT SERDE "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+        WITH SERDEPROPERTIES ( "serialization.format" = ",", "field.delim" = "," )
+        LOCATION "s3://{s3_bucket}//{athena_table}"
+        TBLPROPERTIES ("has_encrypted_data"="false")
+        '''
+    query_read_table = f'SELECT * from {athena_database}.{athena_table}'
+    query_drop_table = f'DROP TABLE IF EXISTS {athena_database}.{athena_table}'
+    query_drop_database = f'DROP DATABASE IF EXISTS {athena_database}'
+
+    create_s3_bucket = S3CreateBucketOperator(task_id='create_s3_bucket', bucket_name=s3_bucket)
 
     upload_sample_data = S3CreateObjectOperator(
         task_id='upload_sample_data',
-        s3_bucket=S3_BUCKET,
-        s3_key=f'{ATHENA_TABLE}/{SAMPLE_FILENAME}',
+        s3_bucket=s3_bucket,
+        s3_key=f'{athena_table}/{SAMPLE_FILENAME}',
         data=SAMPLE_DATA,
         replace=True,
     )
 
     create_database = AthenaOperator(
         task_id='create_database',
-        query=QUERY_CREATE_DATABASE,
-        database=ATHENA_DATABASE,
-        output_location=f's3://{S3_BUCKET}/',
+        query=query_create_database,
+        database=athena_database,
+        output_location=f's3://{s3_bucket}/',
     )
 
     create_table = AthenaOperator(
         task_id='create_table',
-        query=QUERY_CREATE_TABLE,
-        database=ATHENA_DATABASE,
-        output_location=f's3://{S3_BUCKET}/',
+        query=query_create_table,
+        database=athena_database,
+        output_location=f's3://{s3_bucket}/',
     )
 
     # [START howto_operator_athena]
     read_table = AthenaOperator(
         task_id='read_table',
-        query=QUERY_READ_TABLE,
-        database=ATHENA_DATABASE,
-        output_location=f's3://{S3_BUCKET}/',
+        query=query_read_table,
+        database=athena_database,
+        output_location=f's3://{s3_bucket}/',
     )
     # [END howto_operator_athena]
 
@@ -122,38 +127,39 @@ with DAG(
 
     drop_table = AthenaOperator(
         task_id='drop_table',
-        query=QUERY_DROP_TABLE,
-        database=ATHENA_DATABASE,
-        output_location=f's3://{S3_BUCKET}/',
-        trigger_rule="all_done",
+        query=query_drop_table,
+        database=athena_database,
+        output_location=f's3://{s3_bucket}/',
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     drop_database = AthenaOperator(
         task_id='drop_database',
-        query=QUERY_DROP_DATABASE,
-        database=ATHENA_DATABASE,
-        output_location=f's3://{S3_BUCKET}/',
-        trigger_rule="all_done",
+        query=query_drop_database,
+        database=athena_database,
+        output_location=f's3://{s3_bucket}/',
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_s3_bucket = S3DeleteBucketOperator(
         task_id='delete_s3_bucket',
-        bucket_name=S3_BUCKET,
+        bucket_name=s3_bucket,
         force_delete=True,
-        trigger_rule="all_done",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
         # TEST SETUP
+        test_context,
         create_s3_bucket,
-        await_bucket(),
+        await_bucket(s3_bucket),
         upload_sample_data,
         create_database,
         # TEST BODY
         create_table,
         read_table,
         await_query,
-        read_results_from_s3(read_table.output),
+        read_results_from_s3(s3_bucket, read_table.output),
         # TEST TEARDOWN
         drop_table,
         drop_database,
