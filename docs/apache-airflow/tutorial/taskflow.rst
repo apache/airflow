@@ -471,10 +471,9 @@ Current context is accessible only during the task execution. The context is not
 What's Next?
 ------------
 
-You have seen how simple it is to write DAGs using the TaskFlow API paradigm within Airflow 2.0. Here are a few steps you might want to take next: 
+You have seen how simple it is to write DAGs using the TaskFlow API paradigm within Airflow 2.0. Here are a few steps you might want to take next:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/pipeline`
     - Read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
     - View the section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.
-
