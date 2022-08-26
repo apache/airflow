@@ -49,7 +49,7 @@ export default function useConfirmMarkTask({
         future,
         upstream,
         downstream,
-        state: state || 'null',
+        state,
       });
 
       mapIndexes.forEach((mi: number) => {

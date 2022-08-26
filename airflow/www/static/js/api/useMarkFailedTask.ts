@@ -51,7 +51,7 @@ export default function useMarkFailedTask({
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        confirmed: 'true',
+        confirmed: true,
         past,
         future,
         upstream,
