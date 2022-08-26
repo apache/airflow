@@ -65,7 +65,7 @@ function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
   return tooltipHTML;
 }
 
-export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
+export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   let tt = '';
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
@@ -124,6 +124,9 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   }
   // dagTZ has been defined in dag.html
   tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ || 'UTC');
+
+  tt += `Trigger Rule: ${task.trigger_rule}<br>`
+
   return tt;
 }
 
