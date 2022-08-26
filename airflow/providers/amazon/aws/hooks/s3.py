@@ -114,9 +114,6 @@ class S3Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    conn_type = 's3'
-    hook_name = 'Amazon S3'
-
     def __init__(
         self,
         aws_conn_id: str | None = AwsBaseHook.default_conn_name,
