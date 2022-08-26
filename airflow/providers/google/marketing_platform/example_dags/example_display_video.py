@@ -22,7 +22,8 @@ import os
 from datetime import datetime
 from typing import Dict, cast
 
-from airflow import XComArg, models
+from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (

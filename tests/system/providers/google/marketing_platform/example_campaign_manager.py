@@ -23,7 +23,8 @@ import time
 from datetime import datetime
 from typing import cast
 
-from airflow import XComArg, models
+from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,

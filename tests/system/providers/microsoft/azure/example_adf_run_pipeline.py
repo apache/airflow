@@ -18,8 +18,8 @@ import os
 from datetime import datetime, timedelta
 from typing import cast
 
-from airflow import XComArg
 from airflow.models import DAG
+from airflow.models.xcom_arg import XComArg
 
 try:
     from airflow.operators.empty import EmptyOperator

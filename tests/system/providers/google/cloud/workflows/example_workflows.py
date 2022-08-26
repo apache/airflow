@@ -21,7 +21,8 @@ from typing import cast
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import DAG, XComArg
+from airflow import DAG
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsCancelExecutionOperator,
     WorkflowsCreateExecutionOperator,

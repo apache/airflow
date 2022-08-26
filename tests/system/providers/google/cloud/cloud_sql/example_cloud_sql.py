@@ -31,7 +31,8 @@ import os
 from datetime import datetime
 from urllib.parse import urlsplit
 
-from airflow import XComArg, models
+from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,

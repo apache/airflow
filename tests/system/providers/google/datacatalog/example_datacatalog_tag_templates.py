@@ -21,7 +21,8 @@ from datetime import datetime
 
 from google.cloud.datacatalog import FieldType, TagTemplateField
 
-from airflow import XComArg, models
+from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogCreateTagTemplateFieldOperator,

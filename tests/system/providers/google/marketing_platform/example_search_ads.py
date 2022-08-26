@@ -22,7 +22,8 @@ import os
 from datetime import datetime
 from typing import cast
 
-from airflow import XComArg, models
+from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsDownloadReportOperator,
     GoogleSearchAdsInsertReportOperator,
