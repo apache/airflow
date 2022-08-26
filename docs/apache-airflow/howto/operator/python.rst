@@ -22,8 +22,11 @@
 PythonOperator
 ==============
 
-Use the :class:`~airflow.operators.python.PythonOperator` to execute
-Python callables.
+Use the ``@task`` decorator to execute Python callables.
+
+.. warning::
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    to execute Python callables.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -34,8 +37,8 @@ Python callables.
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-Use the ``op_args`` and ``op_kwargs`` arguments to pass additional arguments
-to the Python callable.
+Pass extra arguments to the ``@task`` decorated function as you would with
+a normal Python function.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -60,7 +63,12 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 PythonVirtualenvOperator
 ========================
 
-Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute Python callables inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
+Use the ``@task.virtualenv`` decorator to execute Python callables inside a new Python virtual environment.
+The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
+
+.. warning::
+    The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`
+    to execute Python callables inside new Python virtual environments.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -71,8 +79,8 @@ Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute P
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-You can use the ``op_args`` and ``op_kwargs`` arguments the same way you use it in the PythonOperator.
-Unfortunately we currently do not support to serialize ``var`` and ``ti`` / ``task_instance`` due to incompatibilities
+Pass extra arguments to the ``@task.virtualenv`` decorated function as you would with a normal Python function.
+Unfortunately, Airflow does not support serializing ``var``, ``ti`` and ``task_instance`` due to incompatibilities
 with the underlying library. For Airflow context variables make sure that you either have access to Airflow through
 setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``requirements`` argument.
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.

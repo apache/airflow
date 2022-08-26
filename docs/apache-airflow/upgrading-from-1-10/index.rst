@@ -36,7 +36,7 @@ Python 3.9 support was added from Airflow 2.1.2.
 
 Airflow 2.3.0 dropped support for Python 3.6. It's tested with Python 3.7, 3.8, 3.9 and 3.10.
 
-If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
+If you have a specific task that still requires Python 2 then you can use the ``@task.virtualenv``, ``@task.docker`` or ``@task.kubernetes`` decorators for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
 `handy blog <https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/>`_
@@ -476,9 +476,9 @@ In the new model a user can accomplish the same thing using the following code u
 
     from kubernetes.client import models as k8s
 
-    second_task = PythonOperator(
+
+    @task(
         task_id="four_task",
-        python_callable=test_volume_mount,
         executor_config={
             "pod_override": k8s.V1Pod(
                 spec=k8s.V1PodSpec(
@@ -503,6 +503,11 @@ In the new model a user can accomplish the same thing using the following code u
             )
         },
     )
+    def test_volume_mount():
+        pass
+
+
+    second_task = test_volume_mount()
 
 For Airflow 2.0, the traditional ``executor_config`` will continue operation with a deprecation warning,
 but will be removed in a future version.
@@ -922,6 +927,24 @@ Exception from DAG callbacks used to crash the Airflow Scheduler. As part
 of our efforts to make the Scheduler more performant and reliable, we have changed this behavior to log the exception
 instead. On top of that, a new dag.callback_exceptions counter metric has
 been added to help better monitor callback exceptions.
+
+
+Migrating to TaskFlow API
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 2.0 introduced the TaskFlow API to simplify the declaration of Python callable tasks.
+Users are encouraged to replace classic operators with their TaskFlow decorator alternatives.
+For details, see :doc:`/tutorial_taskflow_api`.
+
+============================= ============================================
+Classic Operator              TaskFlow Decorator
+============================= ============================================
+``PythonOperator``            ``@task`` (short for ``@task.python``)
+``PythonVirtualenvOperator``  ``@task.virtualenv``
+``BranchPythonOperator``      ``@task.branch``
+``DockerOperator``            ``@task.docker``
+``KubernetesPodOperator``     ``@task.kubernetes``
+============================= ============================================
 
 
 Airflow CLI changes in 2.0
