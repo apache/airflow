@@ -161,6 +161,19 @@ class TriggererTest(unittest.TestCase):
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -457,3 +470,19 @@ class TriggererTest(unittest.TestCase):
         assert "git-sync-init" not in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
+
+
+class TriggererServiceAccountTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

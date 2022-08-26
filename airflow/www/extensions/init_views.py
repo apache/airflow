@@ -24,6 +24,7 @@ from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
@@ -214,7 +215,7 @@ def init_api_experimental(app):
         "The experimental REST API is deprecated. Please migrate to the stable REST API. "
         "Please note that the experimental API do not have access control. "
         "The authenticated user has full access.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
     )
     app.register_blueprint(endpoints.api_experimental, url_prefix='/api/experimental')
     app.extensions['csrf'].exempt(endpoints.api_experimental)

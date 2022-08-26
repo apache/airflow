@@ -29,7 +29,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from MySQL to Google Cloud Storage in JSON or CSV format.
+    """Copy data from MySQL to Google Cloud Storage in JSON, CSV or Parquet format.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

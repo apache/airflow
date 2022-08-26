@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import shlex
-import subprocess
 import sys
 import time
 from copy import deepcopy
@@ -51,6 +50,7 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_python_versions,
     option_run_in_parallel,
+    option_skip_cleanup,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -66,7 +66,12 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.run_utils import RunCommandResult, run_command, run_compile_www_assets
+from airflow_breeze.utils.run_utils import (
+    RunCommandResult,
+    assert_pre_commit_installed,
+    run_command,
+    run_compile_www_assets,
+)
 
 option_debug_release_management = click.option(
     "--debug",
@@ -161,6 +166,7 @@ def prepare_airflow_packages(
     debug: bool,
 ):
     perform_environment_checks(verbose=verbose)
+    assert_pre_commit_installed(verbose=verbose)
     run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
@@ -290,8 +296,7 @@ def run_generate_constraints(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
-        stdout=output.file if output else None,
-        stderr=subprocess.STDOUT,
+        output=output,
     )
     return (
         generate_constraints_result.returncode,
@@ -302,7 +307,9 @@ def run_generate_constraints(
 def run_generate_constraints_in_parallel(
     shell_params_list: List[ShellParams],
     python_version_list: List[str],
+    include_success_outputs: bool,
     parallelism: int,
+    skip_cleanup: bool,
     dry_run: bool,
     verbose: bool,
 ):
@@ -326,7 +333,13 @@ def run_generate_constraints_in_parallel(
                 )
                 for index, shell_params in enumerate(shell_params_list)
             ]
-    check_async_run_results(results, outputs)
+    check_async_run_results(
+        results=results,
+        success="All constraints are generated.",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+    )
 
 
 @release_management.command(
@@ -339,6 +352,7 @@ def run_generate_constraints_in_parallel(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
 @option_python_versions
 @option_image_tag_for_running
 @option_answer
@@ -351,6 +365,7 @@ def generate_constraints(
     github_repository: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
     python_versions: str,
     image_tag: Optional[str],
     answer: Optional[str],
@@ -401,6 +416,8 @@ def generate_constraints(
         run_generate_constraints_in_parallel(
             shell_params_list=shell_params_list,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            include_success_outputs=True,
             dry_run=dry_run,
             verbose=verbose,
             python_version_list=python_version_list,

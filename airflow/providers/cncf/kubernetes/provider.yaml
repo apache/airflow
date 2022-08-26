@@ -91,3 +91,7 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
     connection-type: kubernetes
+
+task-decorators:
+  - class-name: airflow.providers.cncf.kubernetes.decorators.kubernetes.kubernetes_task
+    name: kubernetes

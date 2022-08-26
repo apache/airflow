@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hive.operators.hive import HiveOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

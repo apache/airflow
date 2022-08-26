@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.http.hooks.http import HttpHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.http.hooks.http`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

@@ -2728,3 +2728,20 @@ def test_get_dataset_triggered_next_run_info(dag_maker):
     info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
     assert "1 of 2 datasets updated" == info[dag2.dag_id]
     assert "1 of 3 datasets updated" == info[dag3.dag_id]
+
+
+def test_dag_uses_timetable_for_run_id(session):
+    class CustomRunIdTimetable(Timetable):
+        def generate_run_id(self, *, run_type, logical_date, data_interval, **extra) -> str:
+            return 'abc'
+
+    dag = DAG(dag_id='test', start_date=DEFAULT_DATE, schedule=CustomRunIdTimetable())
+
+    dag_run = dag.create_dagrun(
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.QUEUED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+    )
+
+    assert dag_run.run_id == 'abc'

@@ -34,7 +34,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, SerializationError
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -325,7 +325,13 @@ class BaseSerialization:
             if cls._is_excluded(value, key, object_to_serialize):
                 continue
 
-            if key in decorated_fields:
+            if key == '_operator_name':
+                # when operator_name matches task_type, we can remove
+                # it to reduce the JSON payload
+                task_type = getattr(object_to_serialize, '_task_type', None)
+                if value != task_type:
+                    serialized_object[key] = cls._serialize(value)
+            elif key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
             elif key == "timetable" and value is not None:
                 serialized_object[key] = _encode_timetable(value)
@@ -587,20 +593,17 @@ class DependencyDetector:
         return deps
 
     @staticmethod
-    def detect_dag_dependencies(dag: Optional[DAG]) -> List["DagDependency"]:
+    def detect_dag_dependencies(dag: Optional[DAG]) -> Iterable["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        if dag and dag.dataset_triggers:
-            return [
-                DagDependency(
-                    source="dataset",
-                    target=dag.dag_id,
-                    dependency_type="dataset",
-                    dependency_id=x.uri,
-                )
-                for x in dag.dataset_triggers
-            ]
-        else:
-            return []
+        if not dag:
+            return
+        for x in dag.dataset_triggers:
+            yield DagDependency(
+                source="dataset",
+                target=dag.dag_id,
+                dependency_type="dataset",
+                dependency_id=x.uri,
+            )
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -684,7 +687,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = getattr(op, "_task_type", type(op).__name__)
         serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
-        serialize_op['_operator_name'] = op.operator_name
+        if op.operator_name != serialize_op['_task_type']:
+            serialize_op['_operator_name'] = op.operator_name
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op['_is_empty'] = op.inherits_from_empty_operator
@@ -744,6 +748,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
+
+        if "_operator_name" not in encoded_op:
+            encoded_op["_operator_name"] = encoded_op["_task_type"]
 
         # We don't want to load Extra Operator links in Scheduler
         if cls._load_operator_extra_links:
@@ -845,6 +852,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if encoded_op.get("_is_mapped", False):
             # Most of these will be loaded later, these are just some stand-ins.
             op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
+            try:
+                operator_name = encoded_op["_operator_name"]
+            except KeyError:
+                operator_name = encoded_op["_task_type"]
             op = MappedOperator(
                 operator_class=op_data,
                 expand_input=EXPAND_INPUT_EMPTY,
@@ -861,7 +872,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 is_empty=False,
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["_task_type"],
-                operator_name=encoded_op["_operator_name"],
+                operator_name=operator_name,
                 dag=None,
                 task_group=None,
                 start_date=None,
@@ -892,7 +903,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 warnings.warn(
                     "Use of a custom dependency detector is deprecated. "
                     "Support will be removed in a future release.",
-                    DeprecationWarning,
+                    RemovedInAirflow3Warning,
                 )
                 dep = custom_dependency_detector_cls().detect_task_dependencies(op)
                 if type(dep) is DagDependency:
@@ -1078,7 +1089,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for task in dag.task_dict.values()
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             }
-            dag_deps.update(DependencyDetector().detect_dag_dependencies(dag))
+            dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
             serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 

@@ -18,10 +18,11 @@
 """This module is deprecated. Please use :mod:`airflow.providers.elasticsearch.log.es_task_handler`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.elasticsearch.log.es_task_handler`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

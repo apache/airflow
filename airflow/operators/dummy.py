@@ -19,11 +19,12 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.empty import EmptyOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.empty`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
@@ -38,7 +39,7 @@ class DummyOperator(EmptyOperator):
     def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated. Please use `airflow.operators.empty.EmptyOperator`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         self.inherits_from_empty_operator = self.inherits_from_dummy_operator

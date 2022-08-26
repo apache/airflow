@@ -41,6 +41,7 @@ from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
@@ -187,7 +188,7 @@ class BaseXCom(Base, LoggingMixin):
 
         if run_id is None:
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, DeprecationWarning, stacklevel=3)
+            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
             try:
                 dag_run_id, run_id = (
                     session.query(DagRun.id, DagRun.run_id)
@@ -350,10 +351,10 @@ class BaseXCom(Base, LoggingMixin):
             )
         elif execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
+            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 query = cls.get_many(
                     execution_date=execution_date,
                     key=key,
@@ -450,7 +451,7 @@ class BaseXCom(Base, LoggingMixin):
             )
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
+            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
         query = session.query(cls).join(cls.dag_run)
 
@@ -566,7 +567,7 @@ class BaseXCom(Base, LoggingMixin):
 
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, DeprecationWarning, stacklevel=3)
+            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
             run_id = (
                 session.query(DagRun.run_id)
                 .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
@@ -648,7 +649,7 @@ def _patch_outdated_serializer(clazz: Type[BaseXCom], params: Iterable[str]) -> 
             f"Method `serialize_value` in XCom backend {XCom.__name__} is using outdated signature and"
             f"must be updated to accept all params in `BaseXCom.set` except `session`. Support will be "
             f"removed in a future release.",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
         )
         return old_serializer(**kwargs)
 
