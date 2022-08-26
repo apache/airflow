@@ -18,7 +18,7 @@
 #
 import time
 from datetime import timedelta
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
@@ -344,7 +344,7 @@ class AzureBatchHook(BaseHook):
             else:
                 self.log.info("Task %s already exists", task.id)
 
-    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> None:
+    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> List[batch_models.CloudTask]:
         """
         Wait for tasks in a particular job to complete
 
@@ -357,7 +357,14 @@ class AzureBatchHook(BaseHook):
 
             incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
             if not incomplete_tasks:
-                return
+                # detect if any task in job has failed
+                fail_tasks = [
+                    task
+                    for task in tasks
+                    if task.executionInfo.result
+                    == batch_models.TaskExecutionInformation.TaskExecutionResult.failure
+                ]
+                return fail_tasks
             for task in incomplete_tasks:
                 self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
