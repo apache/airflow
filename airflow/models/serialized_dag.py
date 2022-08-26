@@ -25,10 +25,11 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
+from airflow.dag_processing.dag_directory.dag_directory import DagProcessorDirectory
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
@@ -72,6 +73,7 @@ class SerializedDagModel(Base):
     _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
+    dag_directory = Column(String(1000), nullable=True)
 
     __table_args__ = (Index('idx_fileloc_hash', fileloc_hash, unique=False),)
 
@@ -97,6 +99,7 @@ class SerializedDagModel(Base):
         self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
+        self.dag_directory = DagProcessorDirectory.get_dag_directory()
 
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
@@ -152,9 +155,15 @@ class SerializedDagModel(Base):
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
-        serialized_dag_hash_from_db = session.query(cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
+        serialized_dag_db = (
+            session.query(cls.dag_hash, cls.dag_directory).filter(cls.dag_id == dag.dag_id).first()
+        )
 
-        if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
+        if (
+            serialized_dag_db is not None
+            and serialized_dag_db.dag_hash == new_serialized_dag.dag_hash
+            and serialized_dag_db.dag_directory == new_serialized_dag.dag_directory
+        ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
@@ -236,7 +245,14 @@ class SerializedDagModel(Base):
 
         session.execute(
             cls.__table__.delete().where(
-                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
+                and_(
+                    cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                    cls.fileloc.notin_(alive_dag_filelocs),
+                    or_(
+                        cls.dag_directory is None,
+                        cls.dag_directory == DagProcessorDirectory.get_dag_directory(),
+                    ),
+                )
             )
         )
 

@@ -685,6 +685,7 @@ class SchedulerJob(BaseJob):
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
+                        dag_directory=ti.dag_model.dag_directory,
                     )
                     self.executor.send_callback(request)
                 else:
@@ -833,6 +834,12 @@ class SchedulerJob(BaseJob):
             self._find_zombies,
         )
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
+
+        if self._standalone_dag_processor:
+            timers.call_regular_interval(
+                conf.getfloat('scheduler', 'deactivate_stale_dags_interval', fallback=60.0),
+                self._cleanup_stale_dags,
+            )
 
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
@@ -1260,6 +1267,7 @@ class SchedulerJob(BaseJob):
                 dag_id=dag.dag_id,
                 run_id=dag_run.run_id,
                 is_failure_callback=True,
+                dag_directory=dag_model.dag_directory,
                 msg='timed_out',
             )
 
@@ -1322,7 +1330,12 @@ class SchedulerJob(BaseJob):
             self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
             return
 
-        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+        request = SlaCallbackRequest(
+            full_filepath=dag.fileloc,
+            dag_id=dag.dag_id,
+            dag_directory=dag_model.dag_directory,
+        )
         self.executor.send_callback(request)
 
     @provide_session
@@ -1485,11 +1498,11 @@ class SchedulerJob(BaseJob):
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
+                dag_directory=ti.dag_model.dag_directory,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )
-
-            self.log.error("Detected zombie job: %s", request.msg)
+            self.log.error("Detected zombie job: %s", request)
             self.executor.send_callback(request)
             Stats.incr('zombies_killed')
 
@@ -1509,3 +1522,28 @@ class SchedulerJob(BaseJob):
             zombie_message_details["External Executor Id"] = ti.external_executor_id
 
         return zombie_message_details
+
+    @provide_session
+    def _cleanup_stale_dags(self, session: Session) -> None:
+        """
+        Find all dags that were not updated by Dag Processor in last 10 minutes and mark them as inactive.
+
+        In case one of DagProcessors is stopped (in case there are multiple of them
+        for different dag folders), it's dags are never marked as inactive.
+        Also remove dags from SerializedDag table.
+        Executed on schedule only if [scheduler]standalone_dag_processor is True.
+        """
+        self.log.debug("Checking dags not parsed within last 10 minutes.")
+        limit_lpt = timezone.utcnow() - timedelta(seconds=600)
+        stale_dags = (
+            session.query(DagModel).filter(DagModel.is_active, DagModel.last_parsed_time < limit_lpt).all()
+        )
+        if not stale_dags:
+            self.log.debug("Not stale dags found.")
+            return
+
+        self.log.warning("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
+        for dag in stale_dags:
+            dag.is_active = False
+            session.merge(dag)
+            SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)

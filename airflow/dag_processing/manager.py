@@ -34,12 +34,14 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
+from airflow.dag_processing.dag_directory.dag_directory import DagProcessorDirectory
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DagModel, DagWarning, DbCallbackRequest, errors
 from airflow.models.serialized_dag import SerializedDagModel
@@ -379,7 +381,6 @@ class DagFileProcessorManager(LoggingMixin):
         super().__init__()
         self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
-        self._dag_directory = dag_directory
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
@@ -387,6 +388,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: Optional[int] = None
+        self._dag_directory = dag_directory
 
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
@@ -397,6 +399,10 @@ class DagFileProcessorManager(LoggingMixin):
         if self._async_mode and self._direct_scheduler_conn is not None:
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
+        self.standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        # Set Dag directory so it is available for dag_directory field in DagModel and
+        # SerializedDagModel.
+        DagProcessorDirectory.set_dag_directory(dag_directory)
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if (
             conf.get_mandatory_value('database', 'sql_alchemy_conn').startswith('sqlite')
@@ -500,7 +506,13 @@ class DagFileProcessorManager(LoggingMixin):
             to_deactivate = set()
             dags_parsed = (
                 session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time)
-                .filter(DagModel.is_active)
+                .filter(
+                    or_(
+                        DagModel.dag_directory == DagProcessorDirectory.get_dag_directory(),
+                        not self.standalone_dag_processor,
+                    ),
+                    DagModel.is_active,
+                )
                 .all()
             )
             for dag in dags_parsed:
@@ -540,7 +552,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
         max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+
         if self._async_mode:
             # If we're in async mode, we can start up straight away. If we're
             # in sync mode we need to be told to start a "loop"
@@ -591,7 +603,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
-            if standalone_dag_processor:
+            if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
@@ -663,6 +675,12 @@ class DagFileProcessorManager(LoggingMixin):
         with prohibit_commit(session) as guard:
             query = (
                 session.query(DbCallbackRequest)
+                .filter(
+                    or_(
+                        DbCallbackRequest.dag_directory == DagProcessorDirectory.get_dag_directory(),
+                        not self.standalone_dag_processor,
+                    )
+                )
                 .order_by(DbCallbackRequest.priority_weight.asc())
                 .limit(max_callbacks)
             )

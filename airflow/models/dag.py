@@ -66,6 +66,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
+from airflow.dag_processing.dag_directory.dag_directory import DagProcessorDirectory
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -2624,6 +2625,7 @@ class DAG(LoggingMixin):
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
+            orm_dag.dag_directory = DagProcessorDirectory.get_dag_directory()
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2977,6 +2979,8 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
+    # The base directory used by Dag Processor that parsed this dag.
+    dag_directory = Column(String(1000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Description of the dag
@@ -3040,6 +3044,8 @@ class DagModel(Base):
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
+
+        self.dag_directory = DagProcessorDirectory.get_dag_directory()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"

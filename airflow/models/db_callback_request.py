@@ -41,6 +41,7 @@ class DbCallbackRequest(Base):
     def __init__(self, priority_weight: int, callback: CallbackRequest):
         self.created_at = timezone.utcnow()
         self.priority_weight = priority_weight
+        self.dag_directory = callback.dag_directory
         self.callback_data = callback.to_json()
         self.callback_type = callback.__class__.__name__
 
