@@ -102,11 +102,12 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
 ]
 
 
-def get_extra_docker_flags(mount_sources: str) -> List[str]:
+def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False) -> List[str]:
     """
     Returns extra docker flags based on the type of mounting we want to do for sources.
 
     :param mount_sources: type of mounting we want to have
+    :param include_mypy_volume: include mypy_volume
     :return: extra flag as list of strings
     """
     extra_docker_flags = []
@@ -118,9 +119,10 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
                 extra_docker_flags.extend(
                     ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
                 )
-        extra_docker_flags.extend(
-            ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
-        )
+        if include_mypy_volume:
+            extra_docker_flags.extend(
+                ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
+            )
     elif mount_sources == MOUNT_REMOVE:
         extra_docker_flags.extend(
             ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
