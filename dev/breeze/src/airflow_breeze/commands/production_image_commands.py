@@ -64,6 +64,7 @@ from airflow_breeze.utils.common_options import (
     option_run_in_parallel,
     option_runtime_apt_command,
     option_runtime_apt_deps,
+    option_skip_cleanup,
     option_tag_as_latest,
     option_upgrade_to_newer_dependencies,
     option_verbose,
@@ -89,22 +90,12 @@ from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permissions, run_command
 
 
-def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
-    make_sure_builder_configured(params=prod_image_params, dry_run=dry_run, verbose=verbose)
-    if prod_image_params.cleanup_context:
-        clean_docker_context_files(verbose=verbose, dry_run=dry_run)
-    check_docker_context_files(prod_image_params.install_packages_from_context)
-    if prod_image_params.prepare_buildx_cache or prod_image_params.push:
-        login_to_github_docker_registry(
-            image_params=prod_image_params, output=None, dry_run=dry_run, verbose=verbose
-        )
-
-
 def run_build_in_parallel(
     image_params_list: List[BuildProdParams],
     python_version_list: List[str],
     parallelism: int,
     include_success_outputs: bool,
+    skip_cleanup: bool,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -131,7 +122,19 @@ def run_build_in_parallel(
         success="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
     )
+
+
+def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+    make_sure_builder_configured(params=prod_image_params, dry_run=dry_run, verbose=verbose)
+    if prod_image_params.cleanup_context:
+        clean_docker_context_files(verbose=verbose, dry_run=dry_run)
+    check_docker_context_files(prod_image_params.install_packages_from_context)
+    if prod_image_params.prepare_buildx_cache or prod_image_params.push:
+        login_to_github_docker_registry(
+            image_params=prod_image_params, output=None, dry_run=dry_run, verbose=verbose
+        )
 
 
 @click.group(
@@ -148,6 +151,7 @@ def prod_image():
 @option_python
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
 @option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
@@ -220,6 +224,7 @@ def build(
     dry_run: bool,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
     include_success_outputs: bool,
     python_versions: str,
     answer: Optional[str],
@@ -254,6 +259,7 @@ def build(
             image_params_list=params_list,
             python_version_list=python_version_list,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
             dry_run=dry_run,
             verbose=verbose,
@@ -271,6 +277,7 @@ def build(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
 @option_include_success_outputs
 @option_python_versions
 @option_github_token
@@ -286,6 +293,7 @@ def pull_prod_image(
     github_repository: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
     include_success_outputs,
     python_versions: str,
     github_token: str,
@@ -318,6 +326,7 @@ def pull_prod_image(
         run_pull_in_parallel(
             dry_run=dry_run,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
             image_params_list=prod_image_params_list,
             python_version_list=python_version_list,

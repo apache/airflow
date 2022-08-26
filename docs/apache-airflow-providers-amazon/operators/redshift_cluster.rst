@@ -74,6 +74,20 @@ To pause an 'available' Amazon Redshift cluster you can use
     :start-after: [START howto_operator_redshift_pause_cluster]
     :end-before: [END howto_operator_redshift_pause_cluster]
 
+.. _howto/operator:RedshiftCreateClusterSnapshotOperator:
+
+Create an Amazon Redshift cluster snapshot
+==========================================
+
+To create Amazon Redshift cluster snapshot you can use
+:class:`RedshiftCreateClusterSnapshotOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
+  :language: python
+  :dedent: 4
+  :start-after: [START howto_operator_redshift_create_cluster_snapshot]
+  :end-before: [END howto_operator_redshift_create_cluster_snapshot]
+
 .. _howto/operator:RedshiftDeleteClusterOperator:
 
 Delete an Amazon Redshift cluster

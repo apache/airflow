@@ -17,8 +17,12 @@
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
+    RedshiftCreateClusterSnapshotOperator,
     RedshiftDeleteClusterOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
@@ -96,6 +100,55 @@ class TestRedshiftCreateClusterOperator:
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
             **params,
+        )
+
+
+class TestRedshiftCreateClusterSnapshotOperator:
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_create_cluster_snapshot_is_called_when_cluster_is_available(
+        self, mock_get_conn, mock_cluster_status
+    ):
+        mock_cluster_status.return_value = "available"
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            retention_period=1,
+        )
+        create_snapshot.execute(None)
+        mock_get_conn.return_value.create_cluster_snapshot.assert_called_once_with(
+            ClusterIdentifier='test_cluster',
+            SnapshotIdentifier="test_snapshot",
+            ManualSnapshotRetentionPeriod=1,
+        )
+
+        mock_get_conn.return_value.get_waiter.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    def test_raise_exception_when_cluster_is_not_available(self, mock_cluster_status):
+        mock_cluster_status.return_value = "paused"
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot", cluster_identifier="test_cluster", snapshot_identifier="test_snapshot"
+        )
+        with pytest.raises(AirflowException):
+            create_snapshot.execute(None)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_create_cluster_snapshot_with_wait(self, mock_get_conn, mock_cluster_status):
+        mock_cluster_status.return_value = "available"
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            wait_for_completion=True,
+        )
+        create_snapshot.execute(None)
+        mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            SnapshotIdentifier="test_snapshot",
+            WaiterConfig={"Delay": 15, "MaxAttempts": 20},
         )
 
 
