@@ -19,6 +19,7 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
@@ -45,16 +46,16 @@ export default function useMarkSuccessTask({
       downstream: boolean,
       mapIndexes: number[]
     }) => {
-      const params = new URLSearchParams({
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
         confirmed: 'true',
-        past: past.toString(),
-        future: future.toString(),
-        upstream: upstream.toString(),
-        downstream: downstream.toString(),
+        past,
+        future,
+        upstream,
+        downstream,
       });
 
       mapIndexes.forEach((mi: number) => {

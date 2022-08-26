@@ -22,6 +22,7 @@ import { useQuery } from 'react-query';
 
 import { getMetaValue } from 'src/utils';
 import type { API } from 'src/types';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 
 export default function useDatasetEvents({
   datasetId, sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex, limit, offset, orderBy,
@@ -31,7 +32,7 @@ export default function useDatasetEvents({
     () => {
       const datasetsUrl = getMetaValue('dataset_events_api') || '/api/v1/datasets/events';
 
-      const params = new URLSearchParams();
+      const params = new URLSearchParamsWrapper();
 
       if (limit) params.set('limit', limit.toString());
       if (offset) params.set('offset', offset.toString());

@@ -20,6 +20,7 @@
 import axios, { AxiosResponse } from 'axios';
 import { useMutation } from 'react-query';
 import type { TaskState } from 'src/types';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import useErrorToast from '../utils/useErrorToast';
 
@@ -40,14 +41,14 @@ export default function useConfirmMarkTask({
       downstream: boolean,
       mapIndexes: number[],
     }) => {
-      const params = new URLSearchParams({
+      const params = new URLSearchParamsWrapper({
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        past: past.toString(),
-        future: future.toString(),
-        upstream: upstream.toString(),
-        downstream: downstream.toString(),
+        past,
+        future,
+        upstream,
+        downstream,
         state: state || 'null',
       });
 

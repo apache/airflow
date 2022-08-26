@@ -19,6 +19,7 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
@@ -33,9 +34,9 @@ export default function useMarkSuccessRun(dagId: string, runId: string) {
   return useMutation(
     ['dagRunSuccess', dagId, runId],
     ({ confirmed = false }: { confirmed: boolean }) => {
-      const params = new URLSearchParams({
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
-        confirmed: confirmed.toString(),
+        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();

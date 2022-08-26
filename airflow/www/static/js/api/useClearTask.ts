@@ -19,6 +19,7 @@
 
 import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
@@ -48,19 +49,19 @@ export default function useClearTask({
       failed: boolean,
       confirmed: boolean,
       mapIndexes: number[] }) => {
-      const params = new URLSearchParams({
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        confirmed: confirmed.toString(),
+        confirmed,
         execution_date: executionDate,
-        past: past.toString(),
-        future: future.toString(),
-        upstream: upstream.toString(),
-        downstream: downstream.toString(),
-        recursive: recursive.toString(),
-        only_failed: failed.toString(),
+        past,
+        future,
+        upstream,
+        downstream,
+        recursive,
+        only_failed: failed,
       });
 
       mapIndexes.forEach((mi: number) => {

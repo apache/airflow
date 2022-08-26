@@ -19,6 +19,7 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
@@ -44,15 +45,15 @@ export default function useRunTask(dagId: string, runId: string, taskId: string)
       mapIndexes: number[],
     }) => Promise.all(
       (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
-        const params = new URLSearchParams({
+        const params = new URLSearchParamsWrapper({
           csrf_token: csrfToken,
           dag_id: dagId,
           dag_run_id: runId,
           task_id: taskId,
-          ignore_all_deps: ignoreAllDeps.toString(),
-          ignore_task_deps: ignoreTaskDeps.toString(),
-          ignore_ti_state: ignoreTaskState.toString(),
-          map_index: mi.toString(),
+          ignore_all_deps: ignoreAllDeps,
+          ignore_task_deps: ignoreTaskDeps,
+          ignore_ti_state: ignoreTaskState,
+          map_index: mi,
         }).toString();
 
         return axios.post(runUrl, params, {
