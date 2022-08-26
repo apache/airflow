@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -44,6 +44,8 @@ class QuickSightSensor(BaseSensorOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     """
+
+    template_fields: Sequence[str] = ('data_set_id', 'ingestion_id', 'aws_conn_id')
 
     def __init__(
         self,
