@@ -159,7 +159,7 @@ class TestRedshiftDeleteClusterSnapshotOperator:
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_delete_cluster_snapshot_wait(self, mock_get_conn, mock_get_cluster_snapshot_status):
-        mock_get_cluster_snapshot_status.return_value = 'cluster_snapshot_not_found'
+        mock_get_cluster_snapshot_status.return_value = None
         delete_snapshot = RedshiftDeleteClusterSnapshotOperator(
             task_id="test_snapshot",
             cluster_identifier="test_cluster",
