@@ -18,6 +18,8 @@
 version: "3.7"
 services:
   airflow:
+    stdin_open: true  # docker run -i
+    tty: true  # docker run -t
     image: ghcr.io/apache/airflow/main/ci/python3.7
     env_file: devcontainer.env
     ports:
@@ -31,3 +33,6 @@ services:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      # Mount the cloned repo from codspaces docker host into the container,
+      # this will keep /workspaces/airflow and /opt/airflow in sync.
+      - /var/lib/docker/codespacemount/workspace/airflow:/opt/airflow
