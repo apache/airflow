@@ -25,7 +25,6 @@ from typing import (
     Collection,
     Dict,
     Generic,
-    Iterable,
     Iterator,
     Mapping,
     Optional,
@@ -75,8 +74,6 @@ from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
-
     from airflow.models.mappedoperator import Mappable
 
 
@@ -460,59 +457,25 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Tuple[Mapping[str, Any], Set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         assert self.expand_input is EXPAND_INPUT_EMPTY
-        return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
+        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
+        return {"op_kwargs": op_kwargs}, resolved_oids
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
-        if strict:
-            prevent_duplicates(
-                self.partial_kwargs["op_kwargs"],
-                mapped_kwargs["op_kwargs"],
-                fail_reason="mapping already partial",
-            )
+        partial_op_kwargs = self.partial_kwargs["op_kwargs"]
+        mapped_op_kwargs = mapped_kwargs["op_kwargs"]
 
-        static_kwargs = {k for k, _ in self.op_kwargs_expand_input.iter_parse_time_resolved_kwargs()}
-        self._combined_op_kwargs = {**self.partial_kwargs["op_kwargs"], **mapped_kwargs["op_kwargs"]}
-        self._already_resolved_op_kwargs = {k for k in mapped_kwargs["op_kwargs"] if k not in static_kwargs}
+        if strict:
+            prevent_duplicates(partial_op_kwargs, mapped_op_kwargs, fail_reason="mapping already partial")
 
         kwargs = {
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,
-            "op_kwargs": self._combined_op_kwargs,
+            "op_kwargs": {**partial_op_kwargs, **mapped_op_kwargs},
         }
         return super()._get_unmap_kwargs(kwargs, strict=False)
-
-    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Different from a regular MappedOperator, we still want to render
-        # some fields in op_kwargs (those that are NOT passed as XComArg from
-        # upstream). Already-rendered op_kwargs keys are detected in a different
-        # way (see render_template below and _get_unmap_kwargs above).
-        assert list(expanded) == ["op_kwargs"]
-        return self.template_fields
-
-    def render_template(
-        self,
-        value: Any,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
-    ) -> Any:
-        if value is not getattr(self, "_combined_op_kwargs", object()):
-            return super().render_template(value, context, jinja_env=jinja_env, seen_oids=seen_oids)
-
-        def _render_if_not_already_resolved(key: str, value: Any):
-            if key in self._already_resolved_op_kwargs:
-                return value
-            # The magic super() doesn't work here, so we use the explicit form.
-            # Not using super(..., self) to work around pyupgrade bug.
-            return super(DecoratedMappedOperator, DecoratedMappedOperator).render_template(
-                self, value, context=context, jinja_env=jinja_env, seen_oids=seen_oids
-            )
-
-        # Avoid rendering values that came out of resolved XComArgs.
-        return {k: _render_if_not_already_resolved(k, v) for k, v in value.items()}
 
 
 class Task(Generic[FParams, FReturn]):

@@ -17,7 +17,7 @@
 # under the License.
 import sys
 from collections import namedtuple
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
@@ -669,12 +669,12 @@ def test_partial_mapped_decorator() -> None:
     assert doubled.operator is not trippled.operator
 
 
-def test_mapped_decorator_unmap_merge_op_kwargs():
-    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
+    with dag_maker(session=session):
 
         @task_decorator
         def task1():
-            ...
+            return ["x"]
 
         @task_decorator
         def task2(arg1, arg2):
@@ -682,16 +682,27 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    unmapped = dag.get_task("task2").unmap(None)
+    run = dag_maker.create_dagrun()
+
+    # Run task1.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
+    dec.schedulable_tis[0].run(session=session)
+
+    # Expand task2.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
+    ti = dec.schedulable_tis[0]
+    unmapped = ti.task.unmap((ti.get_template_context(session), session))
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
-def test_mapped_decorator_converts_partial_kwargs():
-    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
+    with dag_maker(session=session):
 
         @task_decorator
         def task1(arg):
-            ...
+            return ["x" * arg]
 
         @task_decorator(retry_delay=30)
         def task2(arg1, arg2):
@@ -699,13 +710,22 @@ def test_mapped_decorator_converts_partial_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
-    mapped_task2 = dag.get_task("task2")
-    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
-    assert mapped_task2.unmap(None).retry_delay == timedelta(seconds=30)
+    run = dag_maker.create_dagrun()
 
-    mapped_task1 = dag.get_task("task1")
-    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
-    mapped_task1.unmap(None).retry_delay == timedelta(seconds=300)  # Operator default.
+    # Expand and run task1.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1", "task1"]
+    for ti in dec.schedulable_tis:
+        ti.run(session=session)
+        assert not ti.task.is_mapped
+        assert ti.task.retry_delay == timedelta(seconds=300)  # Operator default.
+
+    # Expand task2.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2", "task2"]
+    for ti in dec.schedulable_tis:
+        unmapped = ti.task.unmap((ti.get_template_context(session), session))
+        assert unmapped.retry_delay == timedelta(seconds=30)
 
 
 def test_mapped_render_template_fields(dag_maker, session):
