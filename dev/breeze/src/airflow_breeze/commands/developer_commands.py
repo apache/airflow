@@ -46,6 +46,7 @@ from airflow_breeze.utils.common_options import (
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
+    option_include_mypy_volume,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -68,7 +69,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, create_mypy_volume_if_needed
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     assert_pre_commit_installed,
@@ -108,6 +109,7 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, C
 @option_db_reset
 @option_image_tag_for_running
 @option_answer
+@option_include_mypy_volume
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
     verbose: bool,
@@ -128,6 +130,7 @@ def shell(
     airflow_constraints_reference: str,
     force_build: bool,
     db_reset: bool,
+    include_mypy_volume: bool,
     answer: Optional[str],
     image_tag: Optional[str],
     platform: Optional[str],
@@ -156,6 +159,7 @@ def shell(
         package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
+        include_mypy_volume=include_mypy_volume,
         extra_args=extra_args,
         answer=answer,
         image_tag=image_tag,
@@ -499,8 +503,9 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
-    enter_shell_params.include_mypy_volume = True
     rebuild_or_pull_ci_image_if_needed(command_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
+    if enter_shell_params.include_mypy_volume:
+        create_mypy_volume_if_needed()
     return run_shell(verbose, dry_run, enter_shell_params)
 
 
