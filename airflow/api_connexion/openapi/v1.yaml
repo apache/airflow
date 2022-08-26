@@ -1210,7 +1210,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':

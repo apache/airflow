@@ -3194,7 +3194,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstance"];
+          "application/json": components["schemas"]["TaskInstanceCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
