@@ -538,12 +538,21 @@ class DagRun(Base, LoggingMixin):
             none_deferred = all(t.state != State.DEFERRED for t in unfinished_tis)
 
             if unfinished_tis and none_depends_on_past and none_task_concurrency and none_deferred:
+                are_runnable_tasks = schedulable_tis or changed_tis
                 # small speed up
-                are_runnable_tasks = (
-                    schedulable_tis
-                    or self._are_premature_tis(unfinished_tis, finished_tis, session)
-                    or changed_tis
-                )
+                if not are_runnable_tasks:
+                    are_runnable_tasks, changed_by_upstream = self._are_premature_tis(
+                        unfinished_tis, finished_tis, session
+                    )
+                    if changed_by_upstream:
+                        # Something changed, we need to recalculate!
+                        unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+
+                        none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tis)
+                        none_task_concurrency = all(
+                            t.task.max_active_tis_per_dag is None for t in unfinished_tis
+                        )
+                        none_deferred = all(t.state != State.DEFERRED for t in unfinished_tis)
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
@@ -747,21 +756,19 @@ class DagRun(Base, LoggingMixin):
         unfinished_tis: List[TI],
         finished_tis: List[TI],
         session: Session,
-    ) -> bool:
+    ) -> Tuple[bool, bool]:
+        dep_context = DepContext(
+            flag_upstream_failed=True,
+            ignore_in_retry_period=True,
+            ignore_in_reschedule_period=True,
+            finished_tis=finished_tis,
+        )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
         # not ready yet so we set the flags to count them in
-        for ut in unfinished_tis:
-            if ut.are_dependencies_met(
-                dep_context=DepContext(
-                    flag_upstream_failed=True,
-                    ignore_in_retry_period=True,
-                    ignore_in_reschedule_period=True,
-                    finished_tis=finished_tis,
-                ),
-                session=session,
-            ):
-                return True
-        return False
+        return (
+            any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
+            dep_context.have_changed_ti_states,
+        )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: List[TI]) -> None:
         """
