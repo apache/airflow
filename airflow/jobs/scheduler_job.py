@@ -141,6 +141,7 @@ class SchedulerJob(BaseJob):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        self._stalled_dags_update_timeout = conf.getboolean("scheduler", "stalled_dags_update_timeout")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
@@ -1526,15 +1527,15 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _cleanup_stale_dags(self, session: Session) -> None:
         """
-        Find all dags that were not updated by Dag Processor in last 10 minutes and mark them as inactive.
+        Find all dags that were not updated by Dag Processor recently and mark them as inactive.
 
         In case one of DagProcessors is stopped (in case there are multiple of them
         for different dag folders), it's dags are never marked as inactive.
         Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """
-        self.log.debug("Checking dags not parsed within last 10 minutes.")
-        limit_lpt = timezone.utcnow() - timedelta(seconds=600)
+        self.log.debug("Checking dags not parsed within last %s seconds.", self._stalled_dags_update_timeout)
+        limit_lpt = timezone.utcnow() - timedelta(seconds=self._stalled_dags_update_timeout)
         stale_dags = (
             session.query(DagModel).filter(DagModel.is_active, DagModel.last_parsed_time < limit_lpt).all()
         )
