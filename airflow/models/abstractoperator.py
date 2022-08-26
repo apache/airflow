@@ -407,7 +407,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         template_fields: Iterable[str],
         context: Context,
         jinja_env: "jinja2.Environment",
-        seen_oids: Set,
+        seen_oids: Set[int],
         *,
         session: "Session" = NEW_SESSION,
     ) -> None:
@@ -444,7 +444,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
         content: Any,
         context: Context,
         jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
+        seen_oids: Optional[Set[int]] = None,
     ) -> Any:
         """Render a templated string.
 
@@ -463,6 +463,14 @@ class AbstractOperator(LoggingMixin, DAGNode):
         # "content" is a bad name, but we're stuck to it being public API.
         value = content
         del content
+
+        if seen_oids is not None:
+            oids = seen_oids
+        else:
+            oids = set()
+
+        if id(value) in oids:
+            return value
 
         if not jinja_env:
             jinja_env = self.get_template_env()
@@ -485,21 +493,17 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
-            return tuple(self.render_template(element, context, jinja_env) for element in value)
+            return tuple(self.render_template(element, context, jinja_env, oids) for element in value)
         elif isinstance(value, tuple):  # Special case for named tuples.
-            return value.__class__(*(self.render_template(el, context, jinja_env) for el in value))
+            return value.__class__(*(self.render_template(el, context, jinja_env, oids) for el in value))
         elif isinstance(value, list):
-            return [self.render_template(element, context, jinja_env) for element in value]
+            return [self.render_template(element, context, jinja_env, oids) for element in value]
         elif isinstance(value, dict):
-            return {key: self.render_template(value, context, jinja_env) for key, value in value.items()}
+            return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
         elif isinstance(value, set):
-            return {self.render_template(element, context, jinja_env) for element in value}
+            return {self.render_template(element, context, jinja_env, oids) for element in value}
 
         # More complex collections.
-        if seen_oids is None:
-            oids = set()
-        else:
-            oids = seen_oids
         self._render_nested_template_fields(value, context, jinja_env, oids)
         return value
 

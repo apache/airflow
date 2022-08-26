@@ -534,23 +534,13 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Mapping[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Tuple[Mapping[str, Any], Set[int]]:
         """Get the kwargs to create the unmapped operator.
 
-        If *resolve* is not *None*, it must be a two-tuple to provide context to
-        resolve XComArgs (a templating context, and a database session).
-
-        When resolving is not possible (e.g. to perform parse-time validation),
-        *resolve* can be set to *None*. This will cause the dict-of-lists
-        variant to simply return a dict of XComArgs corresponding to each kwargs
-        to pass to the unmapped operator. Since it is impossible to perform any
-        operation on the list-of-dicts variant before execution time, an empty
-        dict will be returned for this case.
+        This exists because taskflow operators expand against op_kwargs, not the
+        entire operator kwargs dict.
         """
-        expand_input = self._get_specified_expand_input()
-        if resolve is not None:
-            return expand_input.resolve(*resolve)
-        return expand_input.get_unresolved_kwargs()
+        return self._get_specified_expand_input().resolve(context, session)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         """Get init kwargs to unmap the underlying operator class.
@@ -578,23 +568,25 @@ class MappedOperator(AbstractOperator):
     def unmap(self, resolve: Union[None, Mapping[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping.
 
-        If ``operator_class`` is not a class (i.e. this DAG has been
-        deserialized), this returns a SerializedBaseOperator that aims to
-        "look like" the actual unmapping result.
+        The *resolve* argument is only used if ``operator_class`` is a real
+        class, i.e. if this operator is not serialized. If ``operator_class`` is
+        not a class (i.e. this DAG has been deserialized), this returns a
+        SerializedBaseOperator that "looks like" the actual unmapping result.
 
-        :param resolve: Only used if ``operator_class`` is a real class. If this
-            is a two-tuple (context, session), the information is used to
-            resolve the mapped arguments into init arguments. If this is a
-            mapping, no resolving happens, the mapping directly provides those
-            init arguments resolved from mapped kwargs.
+        If *resolve* is a two-tuple (context, session), the information is used
+        to resolve the mapped arguments into init arguments. If it is a mapping,
+        no resolving happens, the mapping directly provides those init arguments
+        resolved from mapped kwargs.
 
         :meta private:
         """
         if isinstance(self.operator_class, type):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
+            elif resolve is not None:
+                kwargs, _ = self._expand_mapped_kwargs(*resolve)
             else:
-                kwargs = self._expand_mapped_kwargs(resolve)
+                raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
@@ -756,13 +748,6 @@ class MappedOperator(AbstractOperator):
         except NotFullyPopulated:
             return None
 
-    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Mapped kwargs from XCom are already resolved during unmapping, so they
-        # must be removed from the list of templated fields to avoid being
-        # rendered again.
-        unexpanded_keys = {k for k, _ in self._get_specified_expand_input().iter_parse_time_resolved_kwargs()}
-        return set(self.template_fields).difference(k for k in expanded if k not in unexpanded_keys)
-
     def render_template_fields(
         self,
         context: Context,
@@ -778,14 +763,14 @@ class MappedOperator(AbstractOperator):
         # in the weeds here. We don't close this session for the same reason.
         session = settings.Session()
 
-        mapped_kwargs = self._expand_mapped_kwargs((context, session))
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
         self._do_render_template_fields(
             parent=unmapped_task,
-            template_fields=self._get_template_fields_to_render(mapped_kwargs),
+            template_fields=self.template_fields,
             context=context,
             jinja_env=jinja_env,
-            seen_oids=set(),
+            seen_oids=seen_oids,
             session=session,
         )
         return unmapped_task

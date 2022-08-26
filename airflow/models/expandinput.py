@@ -147,8 +147,11 @@ class DictOfListsExpandInput(NamedTuple):
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
 
-    def resolve(self, context: Context, session: Session) -> Mapping[str, Any]:
-        return {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
+    def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
+        data = {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
+        literal_keys = {k for k, _ in self.iter_parse_time_resolved_kwargs()}
+        resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
+        return data, resolved_oids
 
 
 def _describe_type(value: Any) -> str:
@@ -185,7 +188,7 @@ class ListOfDictsExpandInput(NamedTuple):
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
 
-    def resolve(self, context: Context, session: Session) -> Mapping[str, Any]:
+    def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
@@ -201,7 +204,7 @@ class ListOfDictsExpandInput(NamedTuple):
                     f"expand_kwargs() input dict keys must all be str, "
                     f"but {key!r} is of type {_describe_type(key)}"
                 )
-        return mapping
+        return mapping, {id(v) for v in mapping.values()}
 
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
