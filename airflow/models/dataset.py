@@ -132,6 +132,11 @@ class DatasetModel(Base):
         if len(split_scheme) == 2:
             scheme = split_scheme[1]
 
+        # Strip userinfo from the uri
+        netloc = conn.netloc
+        if "@" in netloc:
+            netloc = netloc.split("@")[1]
+
         # Combine the paths (connection followed by dataset)
         path = conn.path
         if parsed.path:
@@ -144,7 +149,7 @@ class DatasetModel(Base):
         if parsed.query:
             query.update(parse_qs(parsed.query))
 
-        merged_conn = (scheme, conn.netloc, path, "", urlencode(query, doseq=True), conn.fragment)
+        merged_conn = (scheme, netloc, path, "", urlencode(query, doseq=True), conn.fragment)
         return urlunparse(merged_conn)
 
 

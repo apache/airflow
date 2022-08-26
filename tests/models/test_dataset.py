@@ -60,6 +60,12 @@ class TestDatasetModel:
                 "airflow://testconn/?foo=bar",
                 "postgres://somehost/?biz=baz&foo=bar",
             ),
+            (
+                "postgres://somehost?foo=baz",
+                "airflow://testconn/?foo=bar",
+                "postgres://somehost/?foo=bar",
+            ),
+            ("postgres://user:pass@somehost", "airflow://testconn", "postgres://somehost"),
         ],
     )
     def test_canonical_uri(self, conn_uri, dataset_uri, expected_canonical_uri):
