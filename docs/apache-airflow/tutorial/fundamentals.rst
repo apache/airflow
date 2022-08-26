@@ -401,4 +401,3 @@ Here are a few things you might want to do next:
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
     - Skip to the the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
-
