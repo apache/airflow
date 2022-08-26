@@ -482,6 +482,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             project_id=None,
             location=TEST_LOCATION,
             environment={'maxWorkers': 2},
+            append_job_name=True,
         )
 
 

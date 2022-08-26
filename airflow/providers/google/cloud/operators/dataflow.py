@@ -499,6 +499,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
         successfully cancelled when task is being killed.
+    :param append_job_name: True if unique suffix has to be appended to job name.
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -612,6 +613,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         environment: Optional[Dict] = None,
         cancel_timeout: Optional[int] = 10 * 60,
         wait_until_finished: Optional[bool] = None,
+        append_job_name: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -631,6 +633,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.environment = environment
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
+        self.append_job_name = append_job_name
 
     def execute(self, context: 'Context') -> dict:
         self.hook = DataflowHook(
@@ -657,6 +660,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             project_id=self.project_id,
             location=self.location,
             environment=self.environment,
+            append_job_name=self.append_job_name,
         )
 
         return job
