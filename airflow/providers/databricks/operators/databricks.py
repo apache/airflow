@@ -193,28 +193,28 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` *OR* ``dbt_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparkjartask
     :param notebook_task: The notebook path and parameters for the notebook task.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` *OR* ``dbt_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobsnotebooktask
     :param spark_python_task: The python file path and parameters to run the python file with.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` *OR* ``dbt_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparkpythontask
     :param spark_submit_task: Parameters needed to run a spark-submit command.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` *OR* ``dbt_task`` should be specified.
         This field will be templated.
 
         .. seealso::
@@ -222,11 +222,18 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param pipeline_task: Parameters needed to execute a Delta Live Tables pipeline task.
         The provided dictionary must contain at least ``pipeline_id`` field!
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` *OR* ``dbt_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobspipelinetask
+    :param dbt_task: Parameters needed to execute a dbt task.
+        The provided dictionary must contain at least the ``commands`` field and the
+        ``git_source`` parameter also needs to be set.
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` *OR* ``dbt_task`` should be specified.
+        This field will be templated.
+
     :param new_cluster: Specs for a new cluster on which this task will be run.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified
         (except when ``pipeline_task`` is used).
@@ -295,6 +302,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
         spark_submit_task: Optional[Dict[str, List[str]]] = None,
         pipeline_task: Optional[Dict[str, str]] = None,
+        dbt_task: Optional[Dict[str, Union[str, List[str]]]] = None,
         new_cluster: Optional[Dict[str, object]] = None,
         existing_cluster_id: Optional[str] = None,
         libraries: Optional[List[Dict[str, str]]] = None,
@@ -333,6 +341,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['spark_submit_task'] = spark_submit_task
         if pipeline_task is not None:
             self.json['pipeline_task'] = pipeline_task
+        if dbt_task is not None:
+            self.json['dbt_task'] = dbt_task
         if new_cluster is not None:
             self.json['new_cluster'] = new_cluster
         if existing_cluster_id is not None:
@@ -351,6 +361,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['access_control_list'] = access_control_list
         if git_source is not None:
             self.json['git_source'] = git_source
+
+        if 'dbt_task' in self.json and 'git_source' not in self.json:
+            raise AirflowException('git_source is required for dbt_task')
 
         self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.

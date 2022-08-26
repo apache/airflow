@@ -64,6 +64,11 @@ RENDERED_TEMPLATED_JAR_PARAMS = [f'/test-{DATE}']
 TEMPLATED_JAR_PARAMS = ['/test-{{ ds }}']
 PYTHON_PARAMS = ["john doe", "35"]
 SPARK_SUBMIT_PARAMS = ["--class", "org.apache.spark.examples.SparkPi"]
+DBT_TASK = {
+    "commands": ["dbt deps", "dbt seed", "dbt run"],
+    "schema": "jaffle_shop",
+    "warehouse_id": "123456789abcdef0",
+}
 
 
 def mock_dict(d: dict):
@@ -128,6 +133,61 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
         assert expected == op.json
 
+    def test_init_with_dbt_task_named_parameters(self):
+        """
+        Test the initializer with the named parameters.
+        """
+        git_source = {
+            'git_url': 'https://github.com/dbt-labs/jaffle_shop',
+            'git_provider': 'github',
+            'git_branch': 'main',
+        }
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK, git_source=git_source
+        )
+        expected = utils.normalise_json_content(
+            {'new_cluster': NEW_CLUSTER, 'dbt_task': DBT_TASK, 'git_source': git_source, 'run_name': TASK_ID}
+        )
+
+        assert expected == op.json
+
+    def test_init_with_dbt_task_mixed_parameters(self):
+        """
+        Test the initializer with mixed parameters.
+        """
+        git_source = {
+            'git_url': 'https://github.com/dbt-labs/jaffle_shop',
+            'git_provider': 'github',
+            'git_branch': 'main',
+        }
+        json = {'git_source': git_source}
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK, json=json
+        )
+        expected = utils.normalise_json_content(
+            {'new_cluster': NEW_CLUSTER, 'dbt_task': DBT_TASK, 'git_source': git_source, 'run_name': TASK_ID}
+        )
+
+        assert expected == op.json
+
+    def test_init_with_dbt_task_without_git_source_raises_error(self):
+        """
+        Test the initializer without the necessary git_source for dbt_task raises error.
+        """
+        exception_message = "git_source is required for dbt_task"
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksSubmitRunOperator(task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK)
+
+    def test_init_with_dbt_task_json_without_git_source_raises_error(self):
+        """
+        Test the initializer without the necessary git_source for dbt_task raises error.
+        """
+        json = {'dbt_task': DBT_TASK, 'new_cluster': NEW_CLUSTER}
+
+        exception_message = "git_source is required for dbt_task"
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
+
     def test_init_with_json(self):
         """
         Test the initializer with json data.
@@ -158,7 +218,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
     def test_pipeline_task(self):
         """
-        Test the initializer with a specified run_name.
+        Test the initializer with a pipeline task.
         """
         pipeline_task = {"pipeline_id": "test-dlt"}
         json = {'new_cluster': NEW_CLUSTER, 'run_name': RUN_NAME, "pipeline_task": pipeline_task}

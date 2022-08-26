@@ -1,0 +1,1 @@
+``DatabricksSubmitRunOperator`` now supports ``dbt_task`` to run dbt projects on Databricks.
