@@ -339,6 +339,44 @@ class WorkerTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_livenessprobe_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        assert livenessprobe == {
+            "initialDelaySeconds": 111,
+            "timeoutSeconds": 222,
+            "failureThreshold": 333,
+            "periodSeconds": 444,
+            "exec": {
+                "command": ["sh", "-c", "echo", "wow such test"],
+            },
+        }
+
+    def test_disable_livenessprobe(self):
+        docs = render_chart(
+            values={
+                "workers": {"livenessProbe": {"enabled": False}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        assert livenessprobe is None
+
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
