@@ -65,7 +65,7 @@ class DatasetModel(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    consuming_dags = relationship("DatasetConsumerDag", back_populates="dataset")
+    consuming_dags = relationship("DagScheduleDatasetReference", back_populates="dataset")
     producing_tasks = relationship("DatasetTaskRef", back_populates="dataset")
 
     __tablename__ = "dataset"
@@ -101,7 +101,7 @@ class DatasetModel(Base):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
 
-class DatasetConsumerDag(Base):
+class DagScheduleDatasetReference(Base):
     """References from a DAG to a dataset of which it is a consumer."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
@@ -113,18 +113,18 @@ class DatasetConsumerDag(Base):
     queue_records = relationship(
         "DatasetDagRunQueue",
         primaryjoin="""and_(
-            DatasetConsumerDag.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
-            DatasetConsumerDag.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+            DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+            DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
         )""",
     )
 
-    __tablename__ = "dataset_consumer_dag"
+    __tablename__ = "dag_schedule_dataset_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, dag_id, name="datasetconsumerdag_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey", mssql_clustered=True),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='datasetconsumerdag_dataset_fkey',
+            name='dsdr_dataset_fkey',
             ondelete="CASCADE",
         ),
     )
