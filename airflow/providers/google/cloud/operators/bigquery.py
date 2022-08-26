@@ -428,7 +428,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> list:
         self.log.info(
-            'Fetching Data from %s.%s max results: %s', self.dataset_id, self.table_id, self.max_results
+            'Fetching Data from %s.%s.%s max results: %s', self.project_id, self.dataset_id, self.table_id, self.max_results
         )
 
         hook = BigQueryHook(
@@ -439,6 +439,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
         if not self.selected_fields:
             schema: Dict[str, list] = hook.get_schema(
+                project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
             )
