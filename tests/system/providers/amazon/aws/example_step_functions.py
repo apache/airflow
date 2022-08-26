@@ -80,7 +80,7 @@ with DAG(
 
     # [START howto_operator_step_function_start_execution]
     start_execution = StepFunctionStartExecutionOperator(
-        task_id='start_execution', state_machine_arn=state_machine_arn
+        task_id='start_execution', state_machine_arn=cast(str, state_machine_arn)
     )
     # [END howto_operator_step_function_start_execution]
 

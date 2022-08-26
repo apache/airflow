@@ -83,10 +83,7 @@ with DAG(
     job_flow_id = cast(str, job_flow_creator.output)
 
     # [START howto_sensor_emr_job_flow]
-    job_sensor = EmrJobFlowSensor(
-        task_id='check_job_flow',
-        job_flow_id=job_flow_id
-    )
+    job_sensor = EmrJobFlowSensor(task_id='check_job_flow', job_flow_id=job_flow_id)
     # [END howto_sensor_emr_job_flow]
 
     # [START howto_operator_emr_modify_cluster]

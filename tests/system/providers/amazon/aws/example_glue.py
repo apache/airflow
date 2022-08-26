@@ -162,7 +162,7 @@ with DAG(
         job_name=glue_job_name,
         script_location=f's3://{bucket_name}/etl_script.py',
         s3_bucket=bucket_name,
-        iam_role_name=role_name,
+        iam_role_name=cast(str, role_name),
         create_job_kwargs={'GlueVersion': '3.0', 'NumberOfWorkers': 2, 'WorkerType': 'G.1X'},
         # Waits by default, set False to test the Sensor below
         wait_for_completion=False,
@@ -199,7 +199,7 @@ with DAG(
         # TEST TEARDOWN
         glue_cleanup(glue_crawler_name, glue_job_name, glue_db_name),
         delete_bucket,
-        delete_logs(submit_glue_job.output, glue_crawler_name),
+        delete_logs(cast(str, submit_glue_job.output), glue_crawler_name),
     )
 
     from tests.system.utils.watcher import watcher
