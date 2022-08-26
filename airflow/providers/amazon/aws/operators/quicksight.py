@@ -88,7 +88,7 @@ class QuickSightCreateIngestionOperator(BaseOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s)", self.data_set_id)
+        self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s", self.data_set_id)
         return hook.create_ingestion(
             data_set_id=self.data_set_id,
             ingestion_id=self.ingestion_id,
