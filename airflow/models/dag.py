@@ -494,17 +494,16 @@ class DAG(LoggingMixin):
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
 
-        if schedule is not NOTSET:
-            if isinstance(schedule, Collection) and not isinstance(schedule, str):
-                from airflow.datasets import Dataset
+        if isinstance(schedule, Collection) and not isinstance(schedule, str):
+            from airflow.datasets import Dataset
 
-                if not all(isinstance(x, Dataset) for x in schedule):
-                    raise ValueError("All elements in 'schedule' should be datasets")
-                self.dataset_triggers = list(schedule)
-            elif isinstance(schedule, Timetable):
-                timetable = schedule
-            else:
-                schedule_interval = schedule
+            if not all(isinstance(x, Dataset) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be datasets")
+            self.dataset_triggers = list(schedule)
+        elif isinstance(schedule, Timetable):
+            timetable = schedule
+        elif schedule is not NOTSET:
+            schedule_interval = schedule
 
         if self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
