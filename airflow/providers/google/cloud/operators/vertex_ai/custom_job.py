@@ -410,11 +410,12 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
+    template_fields = (
         "region",
         "command",
+        "dataset_id",
         "impersonation_chain",
-    ]
+    )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
@@ -488,6 +489,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         else:
             result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -759,10 +761,11 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
+    template_fields = (
         "region",
+        "dataset_id",
         "impersonation_chain",
-    ]
+    )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
@@ -839,6 +842,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         else:
             result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -1110,12 +1114,13 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
+    template_fields = (
         "region",
         "script_path",
         "requirements",
+        "dataset_id",
         "impersonation_chain",
-    ]
+    )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
@@ -1192,6 +1197,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         else:
             result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -1228,7 +1234,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline", "custom_job", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
