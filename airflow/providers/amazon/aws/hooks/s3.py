@@ -244,7 +244,13 @@ class S3Hook(AwsBaseHook):
         :param region_name: The name of the aws region in which to create the bucket.
         """
         if not region_name:
-            region_name = self.get_conn().meta.region_name
+            if self.conn_region_name == "aws-global":
+                raise AirflowException(
+                    "Unable to create bucket if `region_name` not set "
+                    "and boto3 configured to use s3 regional endpoints."
+                )
+            region_name = self.conn_region_name
+
         if region_name == 'us-east-1':
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
