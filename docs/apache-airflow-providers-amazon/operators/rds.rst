@@ -176,7 +176,7 @@ Wait on an Amazon RDS instance status
 
 To wait for an Amazon RDS instance with specific statuses you can use
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsInstanceSensor`.
-By default, the sensor waits for the existence of a snapshot with status ``available``.
+By default, the sensor waits for the instance to reach the ``available`` state.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
     :language: python
