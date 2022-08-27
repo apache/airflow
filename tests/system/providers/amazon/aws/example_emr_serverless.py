@@ -40,6 +40,7 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 
 with DAG(
     dag_id=DAG_ID,
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
@@ -70,6 +71,7 @@ with DAG(
         release_label='emr-6.6.0',
         job_type="SPARK",
         config={'name': 'new_application'},
+        wait_for_completion=False,
     )
     # [END howto_operator_emr_serverless_create_application]
 
