@@ -539,7 +539,7 @@ class CeleryExecutor(BaseExecutor):
         self, key: TaskInstanceKey, timeout_type: Optional[_CeleryPendingTaskTimeoutType]
     ) -> None:
         """
-        We use the fact that dicts maintain insertion order, and the the timeout for a
+        We use the fact that dicts maintain insertion order, and the timeout for a
         task is always "now + delta" to maintain the property that oldest item = first to
         time out.
         """
