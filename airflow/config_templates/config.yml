@@ -386,18 +386,6 @@
       type: string
       default: "0o077"
       example: ~
-    - name: dataset_event_manager_class
-      description: Class to use as dataset event manager.
-      version_added: 2.4.0
-      type: string
-      default: ~
-      example: 'airflow.datasets.manager.DatasetEventManager'
-    - name: dataset_event_manager_kwargs
-      description: Kwargs to supply to dataset event manager.
-      version_added: 2.4.0
-      type: string
-      default: ~
-      example: '{"some_param": "some_value"}'
 
 - name: database
   description: ~
@@ -1477,6 +1465,20 @@
       type: boolean
       example: ~
       default: "True"
+    - name: email_on_dag_import_failure
+      description: |
+        Whether email alerts should be sent when a dag fails to import
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: dag_import_failure_email_to
+      description: |
+        List of emails to be alerted if a dag fails to import
+      version_added: ~
+      type: string
+      example: "airflow@example.com"
+      default: ~
     - name: subject_template
       description: |
         File that will be used as the template for Email subject (which will be rendered using Jinja2).

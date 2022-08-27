@@ -522,8 +522,7 @@ class DagFileProcessor(LoggingMixin):
                     session.merge(sla)
             session.commit()
 
-    @staticmethod
-    def update_import_errors(session: Session, dagbag: DagBag) -> None:
+    def update_import_errors(self, session: Session, dagbag: DagBag) -> None:
         """
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
@@ -531,6 +530,7 @@ class DagFileProcessor(LoggingMixin):
 
         :param session: session for ORM operations
         :param dagbag: DagBag containing DAGs with import errors
+        :param log: Logger for outputting any errors
         """
         files_without_error = dagbag.file_last_changed - dagbag.import_errors.keys()
 
@@ -552,6 +552,15 @@ class DagFileProcessor(LoggingMixin):
                     synchronize_session='fetch',
                 )
             else:
+                emails: Set[str] = set(conf.get(section='email', key='dag_import_failure_email_to').split())
+                if emails and conf.getboolean(section='email', key='email_on_dag_import_failure', fallback=True):
+                    try:
+                        email_content = f"""File {filename} has failed to import due to:\n
+                        <pre><code>{stacktrace}<code></pre>
+                        Airflow Webserver URL: {conf.get(section='webserver', key='base_url')}"""
+                        send_email(emails, f"[airflow] Import Error on {filename}", email_content)
+                    except Exception:
+                        self.log.exception(f"Could not send import failure email for {filename}")
                 session.add(
                     errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
                 )
