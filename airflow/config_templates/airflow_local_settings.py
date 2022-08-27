@@ -259,6 +259,17 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(STACKDRIVER_REMOTE_HANDLERS)
+    elif REMOTE_BASE_LOG_FOLDER.startswith('oss://'):
+        OSS_REMOTE_HANDLERS = {
+            'task': {
+                'class': 'airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler',
+                'formatter': 'airflow',
+                'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+                'oss_log_folder': REMOTE_BASE_LOG_FOLDER,
+                'filename_template': FILENAME_TEMPLATE,
+            },
+        }
+        DEFAULT_LOGGING_CONFIG['handlers'].update(OSS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('loki://'):
         loki_connection = conf.get("logging", "REMOTE_LOG_CONN_ID", fallback=None)
         # loki:///airflow-prod-std --> airflow-prod-std
