@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftCreateClusterSnapshotOperator,
     RedshiftDeleteClusterOperator,
+    RedshiftDeleteClusterSnapshotOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -95,9 +96,17 @@ with DAG(
         cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
         snapshot_identifier=REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER,
         retention_period=1,
-        poll_interval=5,
+        wait_for_completion=True,
     )
     # [END howto_operator_redshift_create_cluster_snapshot]
+
+    # [START howto_operator_redshift_delete_cluster_snapshot]
+    task_delete_cluster_snapshot = RedshiftDeleteClusterSnapshotOperator(
+        task_id='delete_cluster_snapshot',
+        cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
+        snapshot_identifier=REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER,
+    )
+    # [END howto_operator_redshift_delete_cluster_snapshot]
 
     # [START howto_operator_redshift_delete_cluster]
     task_delete_cluster = RedshiftDeleteClusterOperator(
@@ -114,6 +123,7 @@ with DAG(
         task_wait_cluster_paused,
         task_resume_cluster,
         task_create_cluster_snapshot,
+        task_delete_cluster_snapshot,
         task_delete_cluster,
     )
 
