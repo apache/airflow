@@ -23,7 +23,9 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCopyDbSnapshotOperator,
+    RdsCreateDbInstanceOperator,
     RdsCreateDbSnapshotOperator,
+    RdsDeleteDbInstanceOperator,
     RdsDeleteDbSnapshotOperator,
 )
 from airflow.providers.amazon.aws.sensors.rds import RdsSnapshotExistenceSensor
