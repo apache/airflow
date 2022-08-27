@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -78,6 +78,8 @@ class SnowflakeOperator(BaseOperator):
         through native Okta.
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
+    :param handler: A Python callable that will act on cursor result.
+        By default, it will use ``fetchall``
     """
 
     template_fields: Sequence[str] = ('sql',)
@@ -99,6 +101,7 @@ class SnowflakeOperator(BaseOperator):
         schema: Optional[str] = None,
         authenticator: Optional[str] = None,
         session_parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -114,6 +117,7 @@ class SnowflakeOperator(BaseOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: List[str] = []
+        self.handler = handler
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -122,7 +126,8 @@ class SnowflakeOperator(BaseOperator):
         """Run query on snowflake"""
         self.log.info('Executing: %s', self.sql)
         hook = self.get_db_hook()
-        execution_info = hook.run(self.sql, self.autocommit, self.parameters, fetch_all_handler)
+        handler = self.handler or fetch_all_handler
+        execution_info = hook.run(self.sql, self.autocommit, self.parameters, handler)
         self.query_ids = hook.query_ids
 
         if self.do_xcom_push:
