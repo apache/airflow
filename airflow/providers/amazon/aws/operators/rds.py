@@ -45,6 +45,7 @@ class RdsBaseOperator(BaseOperator):
         self._await_interval = 60  # seconds
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
+
         if item_type == 'instance_snapshot':
             db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
             return db_snaps['DBSnapshots']
@@ -57,9 +58,6 @@ class RdsBaseOperator(BaseOperator):
         elif item_type == 'event_subscription':
             subscriptions = self.hook.conn.describe_event_subscriptions(SubscriptionName=item_name)
             return subscriptions['EventSubscriptionsList']
-        elif item_type == "db_instance":
-            instances = self.hook.conn.describe_db_instances(DBInstanceIdentifier=item_name)
-            return instances["DBInstances"]
         else:
             raise AirflowException(f"Method for {item_type} is not implemented")
 
