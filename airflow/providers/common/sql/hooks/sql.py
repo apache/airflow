@@ -109,6 +109,8 @@ class DbApiHook(BaseForDbApiHook):
     connector = None  # type: Optional[ConnectorProtocol]
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
+    # Override with the db-specific value used for placeholders
+    placeholder: str = "%s"
 
     def __init__(self, *args, schema: Optional[str] = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -347,10 +349,10 @@ class DbApiHook(BaseForDbApiHook):
         """Returns a cursor"""
         return self.get_conn().cursor()
 
-    @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+    @classmethod
+    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs):
         """
-        Static helper method that generates the INSERT SQL statement.
+        Helper class method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
@@ -361,7 +363,7 @@ class DbApiHook(BaseForDbApiHook):
         :rtype: str
         """
         placeholders = [
-            "%s",
+            cls.placeholder,
         ] * len(values)
 
         if target_fields:
