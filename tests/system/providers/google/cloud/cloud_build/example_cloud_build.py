@@ -31,13 +31,14 @@ This DAG relies on the following OS environment variables:
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import yaml
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildCancelBuildOperator,
@@ -106,7 +107,7 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_storage_result]
     create_build_from_storage_result = BashOperator(
-        bash_command=f"echo { create_build_from_storage.output['results'] }",
+        bash_command=f"echo {cast(str, XComArg(create_build_from_storage, key='results'))}",
         task_id="create_build_from_storage_result",
     )
     # [END howto_operator_create_build_from_storage_result]
@@ -119,7 +120,7 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_repo_result]
     create_build_from_repo_result = BashOperator(
-        bash_command=f"echo { create_build_from_repo.output['results'] }",
+        bash_command=f"echo {cast(str, XComArg(create_build_from_repo, key='results'))}",
         task_id="create_build_from_repo_result",
     )
     # [END howto_operator_create_build_from_repo_result]
@@ -142,7 +143,7 @@ with models.DAG(
     # [START howto_operator_cancel_build]
     cancel_build = CloudBuildCancelBuildOperator(
         task_id="cancel_build",
-        id_=create_build_without_wait.output['id'],
+        id_=cast(str, XComArg(create_build_without_wait, key='id')),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_cancel_build]
@@ -150,7 +151,7 @@ with models.DAG(
     # [START howto_operator_retry_build]
     retry_build = CloudBuildRetryBuildOperator(
         task_id="retry_build",
-        id_=cancel_build.output['id'],
+        id_=cast(str, XComArg(cancel_build, key='id')),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_retry_build]
@@ -158,7 +159,7 @@ with models.DAG(
     # [START howto_operator_get_build]
     get_build = CloudBuildGetBuildOperator(
         task_id="get_build",
-        id_=retry_build.output['id'],
+        id_=cast(str, XComArg(retry_build, key='id')),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_get_build]
