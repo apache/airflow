@@ -22,8 +22,7 @@ import os
 import sys
 from enum import Enum
 
-from rich.markup import escape
-
+from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 if sys.version_info >= (3, 8):
@@ -61,13 +60,6 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
-
-
-def get_ga_output(name: str, value: Any) -> str:
-    output_name = name.replace('_', '-')
-    printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
-    return f"::set-output name={output_name}::{printed_value}"
 
 
 class FileGroupForCi(Enum):
