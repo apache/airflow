@@ -61,7 +61,7 @@ You can also use a plain value or variable to call a TaskFlow function - for exa
 
     hello_name('Airflow users')
 
-If you want to learn more about using TaskFlow, you should consult :doc:`the TaskFlow tutorial </tutorial_taskflow_api>`.
+If you want to learn more about using TaskFlow, you should consult :doc:`the TaskFlow tutorial </tutorial/taskflow>`.
 
 Context
 -------

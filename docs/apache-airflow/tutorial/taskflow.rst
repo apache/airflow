@@ -18,23 +18,23 @@
 
 
 
-Tutorial on the TaskFlow API
-============================
+Working with TaskFlow
+=====================
 
 This tutorial builds on the regular Airflow Tutorial and focuses specifically
 on writing data pipelines using the TaskFlow API paradigm which is introduced as
 part of Airflow 2.0 and contrasts this with DAGs written using the traditional paradigm.
 
-The data pipeline chosen here is a simple ETL pattern with
-three separate tasks for Extract, Transform, and Load.
+The data pipeline chosen here is a simple pattern with
+three separate Extract, Transform, and Load tasks.
 
-Example "TaskFlow API" ETL Pipeline
------------------------------------
+Example "TaskFlow API" Pipeline
+-------------------------------
 
-Here is a very simple ETL pipeline using the TaskFlow API paradigm. A more detailed
+Here is a very simple pipeline using the TaskFlow API paradigm. A more detailed
 explanation is given below.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -44,7 +44,7 @@ It's a DAG definition file
 
 If this is the first DAG file you are looking at, please note that this Python script
 is interpreted by Airflow and is a configuration file for your data pipeline.
-For a complete introduction to DAG files, please look at the core :doc:`Airflow tutorial<tutorial>`
+For a complete introduction to DAG files, please look at the core :doc:`fundamentals tutorial<fundamentals>`
 which covers DAG structure and definitions extensively.
 
 
@@ -57,7 +57,7 @@ when we set this up with Airflow, without any retries or complex scheduling.
 In this example, please notice that we are creating this DAG using the ``@dag`` decorator
 as shown below, with the Python function name acting as the DAG identifier.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
@@ -67,7 +67,7 @@ Tasks
 In this data pipeline, tasks are created based on Python functions using the ``@task`` decorator
 as shown below. The function name acts as a unique identifier for the task.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START extract]
@@ -82,7 +82,7 @@ Main flow of the DAG
 Now that we have the Extract, Transform, and Load tasks defined based on the Python functions,
 we can move to the main part of the DAG.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START main_flow]
@@ -95,9 +95,9 @@ The dependencies between the tasks and the passing of data between these tasks w
 running on different workers on different nodes on the network is all handled by Airflow.
 
 Now to actually enable this to be run as a DAG, we invoke the Python function
-``tutorial_taskflow_api_etl`` set up using the ``@dag`` decorator earlier, as shown below.
+``tutorial_taskflow_api`` set up using the ``@dag`` decorator earlier, as shown below.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START dag_invocation]
     :end-before: [END dag_invocation]
@@ -108,7 +108,7 @@ But how?
 For experienced Airflow DAG authors, this is startlingly simple! Let's contrast this with
 how this DAG had to be written before Airflow 2.0 below:
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_etl_dag.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_dag.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -119,7 +119,7 @@ it is all abstracted from the DAG developer.
 Let's examine this in detail by looking at the Transform task in isolation since it is
 in the middle of the data pipeline. In Airflow 1.x, this task is defined as shown below:
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_etl_dag.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_dag.py
     :language: python
     :dedent: 4
     :start-after: [START transform_function]
@@ -131,7 +131,7 @@ into another XCom variable which will then be used by the Load task.
 
 Contrasting that with TaskFlow API in Airflow 2.0 as shown below.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START transform]
@@ -145,7 +145,7 @@ Similarly, task dependencies are automatically generated within TaskFlows based 
 functional invocation of tasks. In Airflow 1.x, tasks had to be explicitly created and
 dependencies specified as shown below.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_etl_dag.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_dag.py
     :language: python
     :dedent: 4
     :start-after: [START main_flow]
@@ -154,7 +154,7 @@ dependencies specified as shown below.
 In contrast, with the TaskFlow API in Airflow 2.0, the invocation itself automatically generates
 the dependencies as shown below.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START main_flow]
@@ -233,7 +233,7 @@ image must have a working Python installed and take in a bash command as the ``c
 
 Below is an example of using the ``@task.docker`` decorator to run a Python task.
 
-.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]
@@ -257,7 +257,7 @@ environment on the same machine, you can use the ``@task.virtualenv`` decorator 
 decorator will allow you to create a new virtualenv with custom libraries and even a different
 Python version to run your function.
 
-.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START extract_virtualenv]
@@ -471,6 +471,9 @@ Current context is accessible only during the task execution. The context is not
 What's Next?
 ------------
 
-You have seen how simple it is to write DAGs using the TaskFlow API paradigm within Airflow 2.0. Please do
-read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
-Operators, and more. There's also a whole section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.
+You have seen how simple it is to write DAGs using the TaskFlow API paradigm within Airflow 2.0. Here are a few steps you might want to take next:
+
+.. seealso::
+    - Continue to the next step of the tutorial: :doc:`/tutorial/pipeline`
+    - Read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - View the section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.

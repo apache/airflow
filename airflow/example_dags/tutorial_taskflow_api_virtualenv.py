@@ -26,16 +26,14 @@ from airflow.decorators import dag, task
 log = logging.getLogger(__name__)
 
 if not shutil.which("virtualenv"):
-    log.warning(
-        "The tutorial_taskflow_api_etl_virtualenv example DAG requires virtualenv, please install it."
-    )
+    log.warning("The tutorial_taskflow_api_virtualenv example DAG requires virtualenv, please install it.")
 else:
 
     @dag(schedule=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
-    def tutorial_taskflow_api_etl_virtualenv():
+    def tutorial_taskflow_api_virtualenv():
         """
         ### TaskFlow API example using virtualenv
-        This is a simple ETL data pipeline example which demonstrates the use of
+        This is a simple data pipeline example which demonstrates the use of
         the TaskFlow API using three simple tasks for Extract, Transform, and Load.
         """
 
@@ -86,4 +84,4 @@ else:
         order_summary = transform(order_data)
         load(order_summary["total_order_value"])
 
-    tutorial_etl_dag = tutorial_taskflow_api_etl_virtualenv()
+    tutorial_dag = tutorial_taskflow_api_virtualenv()

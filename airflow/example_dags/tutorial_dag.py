@@ -18,8 +18,8 @@
 
 
 """
-### ETL DAG Tutorial Documentation
-This ETL DAG is demonstrating an Extract -> Transform -> Load pipeline
+### DAG Tutorial Documentation
+This DAG is demonstrating an Extract -> Transform -> Load pipeline
 """
 # [START tutorial]
 # [START import_module]
@@ -38,13 +38,13 @@ from airflow.operators.python import PythonOperator
 
 # [START instantiate_dag]
 with DAG(
-    'tutorial_etl_dag',
+    'tutorial_dag',
     # [START default_args]
     # These args will get passed on to each operator
     # You can override them on a per-task basis during operator initialization
     default_args={'retries': 2},
     # [END default_args]
-    description='ETL DAG tutorial',
+    description='DAG tutorial',
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,

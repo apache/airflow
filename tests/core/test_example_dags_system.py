@@ -27,8 +27,7 @@ class TestExampleDagsSystem(SystemTest):
         [
             "example_bash_operator",
             "example_branch_operator",
-            "tutorial_etl_dag",
-            "tutorial_functional_etl_dag",
+            "tutorial_dag",
             "example_dag_decorator",
         ]
     )
