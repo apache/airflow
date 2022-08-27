@@ -463,7 +463,7 @@ class CeleryExecutor(BaseExecutor):
                 # It's now actually running, so we know it made it to celery okay!
                 self._set_celery_pending_task_timeout(key, None)
             elif state == celery_states.PENDING:
-                pass
+                self._check_if_task_still_in_queue()
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
         except Exception:
@@ -549,6 +549,27 @@ class CeleryExecutor(BaseExecutor):
             self.adopted_task_timeouts[key] = utcnow() + self.task_adoption_timeout
         elif timeout_type == _CeleryPendingTaskTimeoutType.STALLED and self.stalled_task_timeout:
             self.stalled_task_timeouts[key] = utcnow() + self.stalled_task_timeout
+
+    def _check_if_task_still_in_queue(self):
+        """
+        In some cases, workers can consume tasks from broker without ever running it and notifying the
+        database that they actually consumed it. This usually happens when a pod on which the worker is
+        _living_ is scaled down.
+        Therefore, we need to check if PENDING tasks are still present in the broker. If not, task might
+        just be being started, and the status might not have been updated in the database.
+        So we actually need to wait a little before doing anything. If after some time, task is still not
+        started, then add it back to the queue.
+        """
+
+        # Block false as it is unecessary to block the queue for nothing. We just want to know
+        # if some tasks are not in queue but not running anyway.
+        with app.pool.acquire(block=False) as conn:
+            tasks = conn.default_channel.client.lrange('default', 0, -1)
+            # Check if PENDING tasks are in there. If not, then the task has been consumed by a worker
+            # but is still pending after `x` time. So clear it and reschedule it?
+            # Thow I am scared that the other task which has a visibility_timeout will repop after some time.
+            # To avoid this, we could mark the task as failed with _worker has probably died reason_, so that
+            # Scheduler would reschedule it.
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback], Any]:
