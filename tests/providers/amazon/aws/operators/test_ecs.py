@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
+    DEFAULT_CONN_ID,
     EcsBaseOperator,
     EcsCreateClusterOperator,
     EcsDeleteClusterOperator,
@@ -84,6 +85,44 @@ RESPONSE_WITHOUT_FAILURES = {
         }
     ],
 }
+NOTSET = type("ArgumentNotSet", (), {"__str__": lambda self: "argument-not-set"})
+
+
+class TestEcsBaseOperator:
+    """Test Base ECS Operator."""
+
+    @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
+    @pytest.mark.parametrize("region_name", [None, NOTSET, "ca-central-1"])
+    def test_initialise_operator(self, aws_conn_id, region_name):
+        """Test initialize operator."""
+        op_kw = {"aws_conn_id": aws_conn_id, "region": region_name}
+        op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
+        op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
+
+        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else DEFAULT_CONN_ID)
+        assert op.region == (region_name if region_name is not NOTSET else None)
+
+    @mock.patch("airflow.providers.amazon.aws.operators.ecs.EcsHook")
+    @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
+    @pytest.mark.parametrize("region_name", [None, NOTSET, "ca-central-1"])
+    def test_hook_and_client(self, mock_ecs_hook_cls, aws_conn_id, region_name):
+        """Test initialize ``EcsHook`` and ``boto3.client``."""
+        mock_ecs_hook = mock_ecs_hook_cls.return_value
+        mock_conn = mock.MagicMock()
+        type(mock_ecs_hook).conn = mock.PropertyMock(return_value=mock_conn)
+
+        op_kw = {"aws_conn_id": aws_conn_id, "region": region_name}
+        op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
+        op = EcsBaseOperator(task_id="test_ecs_base_hook_client", **op_kw)
+
+        hook = op.hook
+        assert op.hook is hook
+        mock_ecs_hook_cls.assert_called_once_with(aws_conn_id=op.aws_conn_id, region_name=op.region)
+
+        client = op.client
+        mock_ecs_hook_cls.assert_called_once_with(aws_conn_id=op.aws_conn_id, region_name=op.region)
+        assert client == mock_conn
+        assert op.client is client
 
 
 @pytest.mark.skipif(mock_ecs is None, reason="mock_ecs package not present")
