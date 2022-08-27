@@ -23,6 +23,7 @@ from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.rds import (
     RdsBaseSensor,
     RdsExportTaskExistenceSensor,
+    RdsInstanceSensor,
     RdsSnapshotExistenceSensor,
 )
 from airflow.utils import timezone
@@ -50,15 +51,18 @@ EXPORT_TASK_NAME = 'my-db-instance-snap-export'
 EXPORT_TASK_SOURCE = 'arn:aws:rds:es-east-1::snapshot:my-db-instance-snap'
 
 
-def _create_db_instance_snapshot(hook: RdsHook):
+def _create_db_instance(hook: RdsHook):
     hook.conn.create_db_instance(
         DBInstanceIdentifier=DB_INSTANCE_NAME,
-        DBInstanceClass='db.m4.large',
-        Engine='postgres',
+        DBInstanceClass="db.t4g.micro",
+        Engine="postgres",
     )
-    if not hook.conn.describe_db_instances()['DBInstances']:
-        raise ValueError('AWS not properly mocked')
+    if not hook.conn.describe_db_instances()["DBInstances"]:
+        raise ValueError("AWS not properly mocked")
 
+
+def _create_db_instance_snapshot(hook: RdsHook):
+    _create_db_instance(hook)
     hook.conn.create_db_snapshot(
         DBInstanceIdentifier=DB_INSTANCE_NAME,
         DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT,
@@ -221,6 +225,45 @@ class TestRdsExportTaskExistenceSensor:
         op = RdsExportTaskExistenceSensor(
             task_id='export_task_false',
             export_task_identifier=EXPORT_TASK_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        assert not op.poke(None)
+
+
+@pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
+class TestRdsInstanceSensor:
+    @classmethod
+    def setup_class(cls):
+        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.dag
+        del cls.hook
+
+    @mock_rds
+    def test_poke_true(self):
+        """
+        By default RdsInstanceSensor should wait for an instance to enter the 'available' state
+        """
+        _create_db_instance(self.hook)
+        op = RdsInstanceSensor(
+            task_id="instance_poke_true",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        assert op.poke(None)
+
+    @mock_rds
+    def test_poke_false(self):
+        _create_db_instance(self.hook)
+        op = RdsInstanceSensor(
+            task_id="instance_poke_false",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            target_statuses=["stopped"],
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )

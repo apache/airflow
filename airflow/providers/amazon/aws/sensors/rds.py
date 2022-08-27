@@ -41,7 +41,6 @@ class RdsBaseSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
-
         if item_type == 'instance_snapshot':
             db_snaps = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=item_name)
             return db_snaps['DBSnapshots']
@@ -51,17 +50,22 @@ class RdsBaseSensor(BaseSensorOperator):
         elif item_type == 'export_task':
             exports = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=item_name)
             return exports['ExportTasks']
+        elif item_type == "db_instance":
+            instances = self.hook.conn.describe_db_instances(DBInstanceIdentifier=item_name)
+            return instances["DBInstances"]
         else:
             raise AirflowException(f"Method for {item_type} is not implemented")
 
-    def _check_item(self, item_type: str, item_name: str) -> bool:
+    def _check_item(self, item_type: str, item_name: str, item_status_field: str = "Status") -> bool:
         """Get certain item from `_describe_item()` and check its status"""
         try:
             items = self._describe_item(item_type, item_name)
         except ClientError:
             return False
         else:
-            return bool(items) and any(map(lambda s: items[0]['Status'].lower() == s, self.target_statuses))
+            return bool(items) and any(
+                map(lambda s: items[0][item_status_field].lower() == s, self.target_statuses)
+            )
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):
@@ -149,7 +153,43 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         return self._check_item(item_type='export_task', item_name=self.export_task_identifier)
 
 
+class RdsInstanceSensor(RdsBaseSensor):
+    """
+    Waits for an RDS instance to enter one of a number of states
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:RdsInstanceSensor`
+
+    :param db_instance_identifier: The identifier for the DB instance
+    :param target_statuses: Target status of instance
+    """
+
+    def __init__(
+        self,
+        *,
+        db_instance_identifier: str,
+        target_statuses: Optional[List[str]] = None,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.db_instance_identifier = db_instance_identifier
+        self.target_statuses = target_statuses or ["available"]
+
+    def poke(self, context: 'Context'):
+        self.log.info(
+            "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_instance_identifier
+        )
+        return self._check_item(
+            item_type="db_instance",
+            item_name=self.db_instance_identifier,
+            item_status_field="DBInstanceStatus",
+        )
+
+
 __all__ = [
     "RdsExportTaskExistenceSensor",
+    "RdsInstanceSensor",
     "RdsSnapshotExistenceSensor",
 ]
