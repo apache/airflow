@@ -280,11 +280,18 @@ class SSHHook(BaseHook):
                 "Remote Identification Change is not verified. "
                 "This won't protect against Man-In-The-Middle attacks"
             )
+            # to avoid BadHostKeyException, skip loading host keys
+            client.set_missing_host_key_policy(paramiko.MissingHostKeyPolicy)
         else:
             client.load_system_host_keys()
 
         if self.no_host_key_check:
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # to avoid BadHostKeyException, skip loading and saving host keys
+            known_hosts = os.path.expanduser("~/.ssh/known_hosts")
+            if not self.allow_host_key_change and os.path.isfile(known_hosts):
+                client.load_host_keys(known_hosts)
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
@@ -296,10 +303,6 @@ class SSHHook(BaseHook):
                     )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
-
-        if self.no_host_key_check or self.allow_host_key_change:
-            # Default is RejectPolicy
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         connect_kwargs: Dict[str, Any] = dict(
             hostname=self.remote_host,

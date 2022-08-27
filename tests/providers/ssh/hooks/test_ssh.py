@@ -102,6 +102,12 @@ class TestSSHHook(unittest.TestCase):
     )
     CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS = 'ssh_with_extra_disabled_algorithms'
     CONN_SSH_WITH_EXTRA_CIPHERS = 'ssh_with_extra_ciphers'
+    CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE = (
+        'ssh_with_no_host_key_check_true_and_allow_host_key_changes_true'
+    )
+    CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE = (
+        'ssh_with_no_host_key_check_true_and_allow_host_key_changes_false'
+    )
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -123,6 +129,8 @@ class TestSSHHook(unittest.TestCase):
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
                 cls.CONN_SSH_WITH_EXTRA_CIPHERS,
+                cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
+                cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE,
             ]
             connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
             connections.delete(synchronize_session=False)
@@ -285,6 +293,22 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({"ciphers": TEST_CIPHERS}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps({"no_host_key_check": True, "allow_host_key_change": True}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps({"no_host_key_check": True, "allow_host_key_change": False}),
             )
         )
 
@@ -881,3 +905,34 @@ class TestSSHHook(unittest.TestCase):
                 30,
             )
             assert ret == (0, b'airflow\n', b'')
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_no_host_key_check_true_and_allow_host_key_changes_true(self, ssh_mock):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_TRUE)
+        with hook.get_conn():
+            assert ssh_mock.return_value.set_missing_host_key_policy.called is True
+            assert isinstance(
+                ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+            )
+            assert ssh_mock.return_value.load_host_keys.called is False
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_no_host_key_check_true_and_allow_host_key_changes_false(self, ssh_mock):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE)
+
+        with mock.patch('os.path.isfile', return_value=True):
+            with hook.get_conn():
+                assert ssh_mock.return_value.set_missing_host_key_policy.called is True
+                assert isinstance(
+                    ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                )
+                assert ssh_mock.return_value.load_host_keys.called is True
+
+        ssh_mock.reset_mock()
+        with mock.patch('os.path.isfile', return_value=False):
+            with hook.get_conn():
+                assert ssh_mock.return_value.set_missing_host_key_policy.called is True
+                assert isinstance(
+                    ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                )
+                assert ssh_mock.return_value.load_host_keys.called is False
