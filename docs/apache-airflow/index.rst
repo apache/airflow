@@ -131,8 +131,7 @@ so coding will always be required.
     start
     installation/index
     upgrading-from-1-10/index
-    tutorial
-    tutorial_taskflow_api
+    tutorial/index
     howto/index
     ui
     concepts/index
