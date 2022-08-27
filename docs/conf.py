@@ -560,6 +560,7 @@ autodoc_mock_imports = [
     'google',
     'google_auth_httplib2',
     'googleapiclient',
+    'grafana',
     'grpc',
     'hdfs',
     'httplib2',

@@ -259,17 +259,23 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(STACKDRIVER_REMOTE_HANDLERS)
-    elif REMOTE_BASE_LOG_FOLDER.startswith('oss://'):
-        OSS_REMOTE_HANDLERS = {
-            'task': {
-                'class': 'airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler',
-                'formatter': 'airflow',
-                'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-                'oss_log_folder': REMOTE_BASE_LOG_FOLDER,
+    elif REMOTE_BASE_LOG_FOLDER.startswith('loki://'):
+        loki_connection = conf.get("logging", "REMOTE_LOG_CONN_ID", fallback=None)
+        # loki:///airflow-prod-std --> airflow-prod-std
+        log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
+        LOKI_REMOTE_HANDLERS = {
+            "task": {
+                'class': "airflow.providers.grafana.log.loki_task_handler.LokiTaskHandler",
+                'formatter': "airflow",
+                'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'filename_template': FILENAME_TEMPLATE,
+                'loki_conn_id': loki_connection,
+                'name': log_name,
+                'labels': {"airflow_name": urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]},
             },
         }
-        DEFAULT_LOGGING_CONFIG['handlers'].update(OSS_REMOTE_HANDLERS)
+
+        DEFAULT_LOGGING_CONFIG['handlers'].update(LOKI_REMOTE_HANDLERS)
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get_mandatory_value('elasticsearch', 'LOG_ID_TEMPLATE')
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value('elasticsearch', 'END_OF_LOG_MARK')

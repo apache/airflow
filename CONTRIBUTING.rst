@@ -209,44 +209,18 @@ From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
 Step 2: Configure Your Environment
 ----------------------------------
 
-You can use several development environments for Airflow. If you prefer to have development environments
-on your local machine, you might choose Local Virtualenv, or dockerized Breeze environment, however we
-also have support for popular remote development environments: GitHub Codespaces and GitPodify.
-You can see the differences between the various environments
-`here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`__.
+You can use either a local virtual env or a Docker-based env. The differences
+between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`_.
 
-The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_ file.
-
-The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
-can replicate CI failures locally and work on solving them locally rather by pushing to CI.
-
-The Breeze instructions can be found in full in the `BREEZE.rst <https://github.com/apache/airflow/blob/main/BREEZE.rst>`_ file.
+The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_ file.
+The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
 
-1. Install the latest versions of the `Docker Community Edition <https://docs.docker.com/get-docker/>`_ and `Docker Compose <https://docs.docker.com/compose/install/#install-compose>`_ and add them to the PATH.
+1. Install the latest versions of the Docker Community Edition
+   and Docker Compose and add them to the PATH.
 
-2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
-
-.. _jq: https://stedolan.github.io/jq/
-
-For example, on Ubuntu:
-
-.. code-block:: bash
-
-   sudo apt install jq
-
-or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
-
-.. code-block:: bash
-
-   brew install jq
-
-3. Enter Breeze, and run the following in the Airflow source code directory:
-
-.. code-block:: bash
-
-   breeze
+2. Enter Breeze: ``./breeze``
 
 Breeze starts with downloading the Airflow CI image from
 the Docker Hub and installing all required dependencies.
@@ -617,17 +591,17 @@ all dependencies needed in the CI environment.
 This is the full list of those extras:
 
   .. START EXTRAS HERE
-airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
-apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
-apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
-celery, cgroups, cloudant, cncf.kubernetes, common.sql, crypto, dask, databricks, datadog,
-dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker,
-druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos,
-kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
-mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
-pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment,
-sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
+
+airbyte, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid,
+apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark,
+apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel, devel_all, devel_ci,
+devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp,
+gcp_api, github_enterprise, google, google_auth, grafana, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
+jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql,
+microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, papermill,
+password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
+segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau,
 telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
@@ -856,9 +830,18 @@ This works also with extras - for example:
 
 .. code-block:: bash
 
-  pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+  pip install .[ssh] \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
+
+As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
+tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
+fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
+
+.. code-block:: bash
+
+  pip install apache-airflow[ssh]==1.10.12 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
 
 There are different set of fixed constraint files for different python major/minor versions and you should
 use the right file for the right python version.
@@ -1136,12 +1119,12 @@ itself comes bundled with jQuery and bootstrap. While they may be phased out
 over time, these packages are currently not managed with yarn.
 
 Make sure you are using recent versions of node and yarn. No problems have been
-found with node\>=8.11.3 and yarn\>=1.19.1. The pre-commit framework of ours install
-node and yarn automatically when installed - if you use ``breeze`` you do not need to install
-neither node nor yarn.
+found with node\>=8.11.3 and yarn\>=1.19.1.
 
-Installing yarn and its packages manually
------------------------------------------
+Installing yarn and its packages
+--------------------------------
+
+Make sure yarn is available in your environment.
 
 To install yarn on macOS:
 
