@@ -38,6 +38,7 @@ class RdsBaseSensor(BaseSensorOperator):
         hook_params = hook_params or {}
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
         self.target_statuses: List[str] = []
+        self.check_status_field = "Status"
         super().__init__(*args, **kwargs)
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
@@ -56,7 +57,7 @@ class RdsBaseSensor(BaseSensorOperator):
         else:
             raise AirflowException(f"Method for {item_type} is not implemented")
 
-    def _check_item(self, item_type: str, item_name: str, item_status_field: str = "Status") -> bool:
+    def _check_item(self, item_type: str, item_name: str) -> bool:
         """Get certain item from `_describe_item()` and check its status"""
         try:
             items = self._describe_item(item_type, item_name)
@@ -64,7 +65,7 @@ class RdsBaseSensor(BaseSensorOperator):
             return False
         else:
             return bool(items) and any(
-                map(lambda s: items[0][item_status_field].lower() == s, self.target_statuses)
+                map(lambda s: items[0][self.check_status_field].lower() == s, self.target_statuses)
             )
 
 
@@ -176,16 +177,13 @@ class RdsInstanceSensor(RdsBaseSensor):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_instance_identifier = db_instance_identifier
         self.target_statuses = target_statuses or ["available"]
+        self.check_status_field = "DBInstanceStatus"
 
     def poke(self, context: 'Context'):
         self.log.info(
             "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_instance_identifier
         )
-        return self._check_item(
-            item_type="db_instance",
-            item_name=self.db_instance_identifier,
-            item_status_field="DBInstanceStatus",
-        )
+        return self._check_item(item_type="db_instance", item_name=self.db_instance_identifier)
 
 
 __all__ = [
