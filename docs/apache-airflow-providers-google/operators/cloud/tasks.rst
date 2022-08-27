@@ -17,9 +17,9 @@
 
 Google Cloud Tasks
 ==================
-
-Firestore in Datastore mode is a NoSQL document database built for automatic scaling,
-high performance, and ease of application development.
+Cloud Tasks is a fully managed service that allows you to manage the execution, dispatch,
+and delivery of a large number of distributed tasks.
+Using Cloud Tasks, you can perform work asynchronously outside of a user or service-to-service request.
 
 For more information about the service visit
 `Cloud Tasks product documentation <https://cloud.google.com/tasks/docs>`__

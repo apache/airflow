@@ -633,6 +633,9 @@ sensors:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.sensors.dataform
+  - integration-name: Google Cloud Tasks
+    python-modules:
+      - airflow.providers.google.cloud.sensors.tasks
 
 hooks:
   - integration-name: Google Ads

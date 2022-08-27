@@ -30,6 +30,7 @@ Content
     Secrets backends <secrets-backends/google-cloud-secret-manager-backend>
     API Authentication backend <api-auth-backend/google-openid>
     Operators <operators/index>
+    Sensors <sensors/index>
 
 .. toctree::
     :maxdepth: 1
