@@ -47,7 +47,7 @@ with DAG(
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id='create_db_instance',
         db_instance_identifier=RDS_DB_IDENTIFIER,
-        db_instance_class="db.m5.large",
+        db_instance_class="db.t4g.micro",
         engine="postgres",
         rds_kwargs={
             "MasterUsername": RDS_USERNAME,
@@ -58,8 +58,8 @@ with DAG(
     # [END howto_operator_rds_create_db_instance]
 
     # [START howto_sensor_rds_instance]
-    wait_until_available = RdsInstanceSensor(
-        task_id="wait_until_available",
+    db_instance_available = RdsInstanceSensor(
+        task_id="db_instance_available",
         db_instance_identifier=RDS_DB_IDENTIFIER,
     )
     # [END howto_sensor_rds_instance]
@@ -74,7 +74,7 @@ with DAG(
     )
     # [END howto_operator_rds_delete_db_instance]
 
-    chain(create_db_instance, delete_db_instance)
+    chain(create_db_instance, db_instance_available, delete_db_instance)
 
 from tests.system.utils import get_test_run  # noqa: E402
 
