@@ -45,9 +45,11 @@ def _check_failed(current_state, target_state, failure_states):
 class EcsBaseSensor(BaseSensorOperator):
     """Contains general sensor behavior for Elastic Container Service."""
 
-    def __init__(self, **kwargs):
-        self.aws_conn_id = kwargs.get('aws_conn_id', DEFAULT_CONN_ID)
-        self.region = kwargs.get('region')
+    def __init__(
+        self, *, aws_conn_id: Optional[str] = DEFAULT_CONN_ID, region: Optional[str] = None, **kwargs
+    ):
+        self.aws_conn_id = aws_conn_id
+        self.region = region
         super().__init__(**kwargs)
 
     @cached_property
