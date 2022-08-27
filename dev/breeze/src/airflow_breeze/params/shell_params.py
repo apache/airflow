@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AVAILABLE_INTEGRATIONS,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
@@ -64,7 +65,7 @@ class ShellParams:
     forward_credentials: str = "false"
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
-    github_repository: str = "apache/airflow"
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     image_tag: Optional[str] = None
     include_mypy_volume: bool = False
