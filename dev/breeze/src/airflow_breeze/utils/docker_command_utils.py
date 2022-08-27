@@ -670,7 +670,7 @@ def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiPara
     # Set constant defaults if not defined
     for variable in DOCKER_VARIABLE_CONSTANTS:
         constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
-        if not env_variables.get(constant_param_value):
+        if not env_variables.get(variable):
             env_variables[variable] = str(constant_param_value)
     update_expected_environment_variables(env_variables)
     return env_variables
