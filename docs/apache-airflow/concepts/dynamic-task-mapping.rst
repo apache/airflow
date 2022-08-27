@@ -393,7 +393,7 @@ If you want to interpolate values either call ``task.render_template`` yourself,
 .. code-block:: python
 
     @task
-    def make_list(ds):
+    def make_list(ds=None):
         return [ds]
 
 
