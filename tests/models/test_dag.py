@@ -1358,6 +1358,18 @@ class TestDag:
         assert dag.schedule_interval == 'Dataset'
         assert dag.timetable.description == 'Triggered by datasets'
 
+    def test_schedule_interval_still_works(self):
+        dag = DAG("test_schedule_interval_arg", schedule_interval="*/5 * * * *")
+        assert dag.timetable == cron_timetable("*/5 * * * *")
+        assert dag.schedule_interval == "*/5 * * * *"
+        assert dag.timetable.description == "Every 5 minutes"
+
+    def test_timetable_still_works(self):
+        dag = DAG("test_schedule_interval_arg", timetable=cron_timetable("*/6 * * * *"))
+        assert dag.timetable == cron_timetable("*/6 * * * *")
+        assert dag.schedule_interval == "*/6 * * * *"
+        assert dag.timetable.description == "Every 6 minutes"
+
     @pytest.mark.parametrize(
         "timetable, expected_description",
         [

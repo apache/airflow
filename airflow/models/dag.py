@@ -502,7 +502,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = list(schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        else:
+        elif schedule is not NOTSET:
             schedule_interval = schedule
 
         if self.dataset_triggers:
