@@ -934,7 +934,7 @@ Migrating to TaskFlow API
 
 Airflow 2.0 introduced the TaskFlow API to simplify the declaration of Python callable tasks.
 Users are encouraged to replace classic operators with their TaskFlow decorator alternatives.
-For details on the TaskFlow API, see :doc:`the TaskFlow tutorial </tutorial/taskflow>`.
+For details, see :doc:`/tutorial/taskflow`.
 
 ============================= ============================================
 Classic Operator              TaskFlow Decorator
