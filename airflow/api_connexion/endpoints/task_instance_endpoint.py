@@ -30,9 +30,9 @@ from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
     TaskInstanceReferenceCollection,
-    clear_task_instance_form,
-    set_task_instance_state_form,
     task_instance_batch_form,
+    set_single_task_instance_state_form,
+    task_instance_reference_schema,
     task_instance_collection_schema,
     task_instance_reference_collection_schema,
     task_instance_schema,
@@ -543,3 +543,86 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         session=session,
     )
     return task_instance_reference_collection_schema.dump(TaskInstanceReferenceCollection(task_instances=tis))
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def patch_set_mapped_task_instance_state(*, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION) -> APIResponse:
+    """Update the state of a mapped task instance."""
+    body = get_json_request_dict()
+    try:
+        data = set_single_task_instance_state_form.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    error_message = f"Dag ID {dag_id} not found"
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound(error_message)
+
+    task_id = data['task_id']
+    task = dag.task_dict.get(task_id)
+
+    if not task:
+        error_message = f"Task ID {task_id} not found"
+        raise NotFound(error_message)
+
+
+    ti: TI = session.query(TI).get(
+        {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': map_index}
+    )
+
+    if ti is None:
+        error_message = f"Mapped task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
+        raise NotFound(detail=error_message)
+
+    ti.set_state(data["new_state"], session=session)
+
+    return task_instance_reference_schema.dump(ti)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+    ],
+)
+@provide_session
+def patch_set_task_instance_state(*, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Update the state of a task instance."""
+    body = get_json_request_dict()
+    try:
+        data = set_single_task_instance_state_form.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    error_message = f"Dag ID {dag_id} not found"
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound(error_message)
+
+    task = dag.get_task(task_id)
+
+    if not task:
+        error_message = f"Task ID {task_id} not found"
+        raise NotFound(error_message)
+
+    ti: TI = session.query(TI).get(
+        {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': -1}
+    )
+
+    if ti is None:
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
+        raise NotFound(detail=error_message)
+
+
+    ti.set_state(data["new_state"], session=session)
+
+    return task_instance_reference_schema.dump(ti)
