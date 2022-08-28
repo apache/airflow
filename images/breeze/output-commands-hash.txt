@@ -7,6 +7,7 @@ build-docs:74c301f05bbd185a19fd185f1873e38a
 ci:find-newer-dependencies:00000f7afb289e36e8c573fcc654df44
 ci:fix-ownership:84902165a54467564fbdd3598fa273e2
 ci:free-space:bb8e7ac63d12ab3ede272a898de2f527
+ci:get-workflow-info:01ee34c33ad62fa5dc33e0ac8773223f
 ci:resource-check:0fb929ac3496dbbe97acfe99e35accd7
 ci:selective-check:d4e3c250cd6f2b0040fbe6557fa423f6
 ci-image:build:f2c38a416078b4ff6967d7857d7dbdcc

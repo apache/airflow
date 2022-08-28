@@ -15,19 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
+from io import StringIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import click
 
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MOUNT_ALL,
+    RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_RUNNER,
     GithubEvents,
     github_events,
 )
@@ -54,6 +59,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
 )
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
+from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
@@ -285,3 +291,143 @@ def breeze_find_newer_dependencies(
         updated_on_or_after=updated_on_or_after,
         max_age=max_age,
     )
+
+
+TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
+
+
+class WorkflowInfo(NamedTuple):
+    event_name: str
+    pull_request_labels: List[str]
+    target_repo: str
+    head_repo: str
+    ref: Optional[str]
+    ref_name: Optional[str]
+    pr_number: Optional[int]
+
+    def print_ga_outputs(self):
+        print(get_ga_output(name="pr_labels", value=str(self.pull_request_labels)))
+        print(get_ga_output(name="target_repo", value=self.target_repo))
+        print(get_ga_output(name="head_repo", value=self.head_repo))
+        print(get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else ""))
+        print(get_ga_output(name="event_name", value=str(self.event_name)))
+        print(get_ga_output(name="runs-on", value=self.get_runs_on()))
+        print(get_ga_output(name='in-workflow-build', value=self.in_workflow_build()))
+        print(get_ga_output(name="build-job-description", value=self.get_build_job_description()))
+        print(get_ga_output(name="merge-run", value=self.is_merge_run()))
+        print(get_ga_output(name="run-coverage", value=self.run_coverage()))
+
+    def get_runs_on(self) -> str:
+        for label in self.pull_request_labels:
+            if "use public runners" in label:
+                get_console().print("[info]Force running on public runners")
+                return RUNS_ON_PUBLIC_RUNNER
+        if not os.environ.get("AIRFLOW_SELF_HOSTED_RUNNER"):
+            return RUNS_ON_PUBLIC_RUNNER
+        return RUNS_ON_SELF_HOSTED_RUNNER
+
+    def in_workflow_build(self) -> str:
+        if self.event_name == "push" or self.head_repo == "apache/airflow":
+            return "true"
+        return "false"
+
+    def get_build_job_description(self) -> str:
+        if self.in_workflow_build() == 'true':
+            return "Build"
+        return "Skip Build (look in pull_request_target)"
+
+    def is_merge_run(self) -> str:
+        if (
+            self.event_name == 'push'
+            and self.head_repo == "apache/airflow"
+            and self.ref_name
+            and (self.ref_name == "main" or TEST_BRANCH_MATCHER.match(self.ref_name))
+        ):
+            return "true"
+        return "false"
+
+    def run_coverage(self) -> str:
+        if self.event_name == 'push' and self.head_repo == "apache/airflow" and self.ref == "refs/head/main":
+            return "true"
+        return "false"
+
+
+def workflow_info(context: str) -> WorkflowInfo:
+    ctx: Dict[Any, Any] = json.loads(context)
+    event_name = ctx.get("event_name")
+    if not event_name:
+        get_console().print(f"[error]Missing event_name in: {ctx}")
+        sys.exit(1)
+    pull_request_labels = []
+    head_repo = ""
+    target_repo = ""
+    pr_number: Optional[int] = None
+    ref_name = ctx.get("ref_name")
+    ref = ctx.get("ref")
+    if event_name == "pull_request":
+        event = ctx.get('event')
+        if event:
+            pr = event.get('pull_request')
+            if pr:
+                labels = pr.get('labels')
+                if labels:
+                    for label in labels:
+                        pull_request_labels.append(label['name'])
+                target_repo = pr["base"]["repo"]["full_name"]
+                head_repo = pr["head"]["repo"]["full_name"]
+                pr_number = pr["number"]
+    elif event_name == 'push':
+        target_repo = ctx["repository"]
+        head_repo = ctx["repository"]
+        event_name = ctx["event_name"]
+    elif event_name == 'schedule':
+        target_repo = ctx["repository"]
+        head_repo = ctx["repository"]
+        event_name = ctx["event_name"]
+    elif event_name == 'pull_request_target':
+        target_repo = ctx["repository"]
+        head_repo = ctx["repository"]
+        event_name = ctx["event_name"]
+    else:
+        get_console().print(f"[error]Wrong event name: {event_name}")
+        sys.exit(1)
+    return WorkflowInfo(
+        event_name=event_name,
+        pull_request_labels=pull_request_labels,
+        target_repo=target_repo,
+        head_repo=head_repo,
+        pr_number=pr_number,
+        ref=ref,
+        ref_name=ref_name,
+    )
+
+
+@ci_group.command(
+    name="get-workflow-info",
+    help="Retrieve information about current workflow in the CI"
+    "and produce github actions output extracted from it.",
+)
+@click.option('--github-context', help="JSON-formatted github context", envvar='GITHUB_CONTEXT')
+@click.option(
+    '--github-context-input',
+    help="file input (might be `-`) with JSON-formatted github context",
+    type=click.File('rt'),
+    envvar='GITHUB_CONTEXT_INPUT',
+)
+def get_workflow_info(github_context: str, github_context_input: StringIO):
+    if github_context and github_context_input:
+        get_console().print(
+            "[error]You can only specify one of the two --github-context or --github-context-file"
+        )
+        sys.exit(1)
+    if github_context:
+        context = github_context
+    elif github_context_input:
+        context = github_context_input.read()
+    else:
+        get_console().print(
+            "[error]You must specify one of the two --github-context or --github-context-file"
+        )
+        sys.exit(1)
+    wi = workflow_info(context=context)
+    wi.print_ga_outputs()

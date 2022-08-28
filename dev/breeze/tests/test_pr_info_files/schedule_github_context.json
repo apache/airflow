@@ -1,0 +1,9 @@
+{
+    "repository": "apache/airflow",
+    "event_name": "schedule",
+    "event": {
+        "schedule": "28 0 * * *"
+    },
+    "ref_name": "main",
+    "ref": "refs/head/main"
+}
