@@ -63,9 +63,9 @@ def _create_dataset_table():
     op.create_index('idx_uri_unique', 'dataset', ['uri'], unique=True)
 
 
-def _create_dataset_dag_ref_table():
+def _create_dag_schedule_dataset_reference_table():
     op.create_table(
-        'dataset_dag_ref',
+        'dag_schedule_dataset_reference',
         sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
         sa.Column('dag_id', String(250), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
@@ -73,7 +73,7 @@ def _create_dataset_dag_ref_table():
         sa.ForeignKeyConstraint(
             ('dataset_id',),
             ['dataset.id'],
-            name="datasetdagref_dataset_fkey",
+            name="dsdr_dataset_fkey",
             ondelete="CASCADE",
         ),
         sqlite_autoincrement=True,  # ensures PK values not reused
@@ -161,7 +161,7 @@ def _create_dataset_event_dag_run_table():
 def upgrade():
     """Apply Add Dataset model"""
     _create_dataset_table()
-    _create_dataset_dag_ref_table()
+    _create_dag_schedule_dataset_reference_table()
     _create_dataset_task_ref_table()
     _create_dataset_dag_run_queue_table()
     _create_dataset_event_table()
@@ -170,7 +170,7 @@ def upgrade():
 
 def downgrade():
     """Unapply Add Dataset model"""
-    op.drop_table('dataset_dag_ref')
+    op.drop_table('dag_schedule_dataset_reference')
     op.drop_table('dataset_task_ref')
     op.drop_table('dataset_dag_run_queue')
     op.drop_table('dagrun_dataset_event')
