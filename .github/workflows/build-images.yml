@@ -166,7 +166,7 @@ jobs:
       packages: write
     timeout-minutes: 80
     name: "Build CI images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
@@ -174,7 +174,7 @@ jobs:
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
@@ -259,7 +259,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       packages: write
     timeout-minutes: 80
     name: "Build PROD images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-ci-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
@@ -267,7 +267,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
     steps:
       - name: Cleanup repo
@@ -370,7 +370,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   build-ci-images-arm:
     timeout-minutes: 50
     name: "Build ARM CI images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-prod-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
@@ -379,7 +379,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
