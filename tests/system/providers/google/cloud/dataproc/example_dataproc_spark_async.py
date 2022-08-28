@@ -21,6 +21,7 @@ Example Airflow DAG for DataprocSubmitJobOperator with async spark job.
 
 import os
 from datetime import datetime
+from typing import cast
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -90,7 +91,7 @@ with models.DAG(
         task_id='spark_task_async_sensor_task',
         region=REGION,
         project_id=PROJECT_ID,
-        dataproc_job_id=spark_task_async.output,
+        dataproc_job_id=cast(str, spark_task_async.output),
         poke_interval=10,
     )
     # [END cloud_dataproc_async_submit_sensor]

@@ -22,6 +22,7 @@ from datetime import datetime
 from google.cloud.datacatalog import FieldType, TagTemplateField
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogCreateTagTemplateFieldOperator,
@@ -73,7 +74,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_tag_template_result]
     create_tag_template_result = BashOperator(
         task_id="create_tag_template_result",
-        bash_command=f"echo {create_tag_template.output['tag_template_id']}",
+        bash_command=f"echo {XComArg(create_tag_template, key='tag_template_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_result]
 
@@ -92,7 +93,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_tag_template_field_result]
     create_tag_template_field_result = BashOperator(
         task_id="create_tag_template_field_result",
-        bash_command=f"echo {create_tag_template_field.output['tag_template_field_id']}",
+        bash_command=f"echo {XComArg(create_tag_template_field, key='tag_template_field_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field_result]
 

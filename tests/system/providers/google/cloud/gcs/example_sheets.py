@@ -20,6 +20,7 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
@@ -68,7 +69,7 @@ with models.DAG(
     # [START print_spreadsheet_url]
     print_spreadsheet_url = BashOperator(
         task_id="print_spreadsheet_url",
-        bash_command=f"echo {create_spreadsheet.output['spreadsheet_url']}",
+        bash_command=f"echo {XComArg(create_spreadsheet, key='spreadsheet_url')}",
     )
     # [END print_spreadsheet_url]
 

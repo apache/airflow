@@ -32,6 +32,7 @@ from datetime import datetime
 from urllib.parse import urlsplit
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
@@ -196,9 +197,11 @@ with models.DAG(
 
     # For export & import to work we need to add the Cloud SQL instance's Service Account
     # write access to the destination GCS bucket.
+    service_account_email = XComArg(sql_instance_create_task, key='service_account_email')
+
     # [START howto_operator_cloudsql_export_gcs_permissions]
     sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
-        entity=f"user-{sql_instance_create_task.output['service_account_email']}",
+        entity=f"user-{service_account_email}",
         role="WRITER",
         bucket=file_url_split[1],  # netloc (bucket)
         task_id='sql_gcp_add_bucket_permission_task',
@@ -215,7 +218,7 @@ with models.DAG(
     # read access to the target GCS object.
     # [START howto_operator_cloudsql_import_gcs_permissions]
     sql_gcp_add_object_permission_task = GCSObjectCreateAclEntryOperator(
-        entity=f"user-{sql_instance_create_task.output['service_account_email']}",
+        entity=f"user-{service_account_email}",
         role="READER",
         bucket=file_url_split[1],  # netloc (bucket)
         object_name=file_url_split[2][1:],  # path (strip first '/')

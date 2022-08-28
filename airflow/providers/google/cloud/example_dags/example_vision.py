@@ -33,6 +33,7 @@ This DAG relies on the following OS environment variables
 
 import os
 from datetime import datetime
+from typing import cast
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -135,7 +136,7 @@ with models.DAG(
     )
     # [END howto_operator_vision_product_set_create]
 
-    product_set_create_output = product_set_create.output
+    product_set_create_output = cast(str, product_set_create.output)
 
     # [START howto_operator_vision_product_set_get]
     product_set_get = CloudVisionGetProductSetOperator(
@@ -172,7 +173,7 @@ with models.DAG(
     )
     # [END howto_operator_vision_product_create]
 
-    product_create_output = product_create.output
+    product_create_output = cast(str, product_create.output)
 
     # [START howto_operator_vision_product_get]
     product_get = CloudVisionGetProductOperator(

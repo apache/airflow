@@ -98,6 +98,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -1365,7 +1366,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return [self]
 
     @property
-    def output(self):
+    def output(self) -> "XComArg":
         """Returns reference to XCom pushed by current operator"""
         from airflow.models.xcom_arg import XComArg
 

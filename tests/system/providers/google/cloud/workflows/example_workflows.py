@@ -17,10 +17,12 @@
 
 import os
 from datetime import datetime
+from typing import cast
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import DAG
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsCancelExecutionOperator,
     WorkflowsCreateExecutionOperator,
@@ -143,7 +145,7 @@ with DAG(
     )
     # [END how_to_create_execution]
 
-    create_execution_id = create_execution.output["execution_id"]
+    create_execution_id = cast(str, XComArg(create_execution, key="execution_id"))
 
     # [START how_to_wait_for_execution]
     wait_for_execution = WorkflowExecutionSensor(
@@ -187,7 +189,7 @@ with DAG(
         workflow_id=SLEEP_WORKFLOW_ID,
     )
 
-    cancel_execution_id = create_execution_for_cancel.output["execution_id"]
+    cancel_execution_id = cast(str, XComArg(create_execution_for_cancel, key="execution_id"))
 
     # [START how_to_cancel_execution]
     cancel_execution = WorkflowsCancelExecutionOperator(

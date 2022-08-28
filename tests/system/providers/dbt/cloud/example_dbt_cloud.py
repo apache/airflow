@@ -16,6 +16,7 @@
 # under the License.
 
 from datetime import datetime
+from typing import cast
 
 from airflow.models import DAG
 
@@ -56,7 +57,7 @@ with DAG(
 
     # [START howto_operator_dbt_cloud_get_artifact]
     get_run_results_artifact = DbtCloudGetJobRunArtifactOperator(
-        task_id="get_run_results_artifact", run_id=trigger_job_run1.output, path="run_results.json"
+        task_id="get_run_results_artifact", run_id=cast(int, trigger_job_run1.output), path="run_results.json"
     )
     # [END howto_operator_dbt_cloud_get_artifact]
 
@@ -71,7 +72,7 @@ with DAG(
 
     # [START howto_operator_dbt_cloud_run_job_sensor]
     job_run_sensor = DbtCloudJobRunSensor(
-        task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=20
+        task_id="job_run_sensor", run_id=cast(int, trigger_job_run2.output), timeout=20
     )
     # [END howto_operator_dbt_cloud_run_job_sensor]
 

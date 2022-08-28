@@ -22,8 +22,10 @@ Example Airflow DAG that creates and deletes Bigquery data transfer configuratio
 import os
 import time
 from datetime import datetime
+from typing import cast
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
     BigQueryDataTransferServiceStartTransferRunsOperator,
@@ -75,7 +77,7 @@ with models.DAG(
         task_id="gcp_bigquery_create_transfer",
     )
 
-    transfer_config_id = gcp_bigquery_create_transfer.output["transfer_config_id"]
+    transfer_config_id = cast(str, XComArg(gcp_bigquery_create_transfer, key="transfer_config_id"))
     # [END howto_bigquery_create_data_transfer]
 
     # [START howto_bigquery_start_transfer]
@@ -90,7 +92,7 @@ with models.DAG(
     gcp_run_sensor = BigQueryDataTransferServiceTransferRunSensor(
         task_id="gcp_run_sensor",
         transfer_config_id=transfer_config_id,
-        run_id=gcp_bigquery_start_transfer.output["run_id"],
+        run_id=cast(str, XComArg(gcp_bigquery_start_transfer, key="run_id")),
         expected_statuses={"SUCCEEDED"},
     )
     # [END howto_bigquery_dts_sensor]

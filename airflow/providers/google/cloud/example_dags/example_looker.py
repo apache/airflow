@@ -21,6 +21,7 @@ operators to submit PDT materialization job and manage it.
 """
 
 from datetime import datetime
+from typing import cast
 
 from airflow import models
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
@@ -43,7 +44,7 @@ with models.DAG(
     check_pdt_task_async_sensor = LookerCheckPdtBuildSensor(
         task_id='check_pdt_task_async_sensor',
         looker_conn_id='your_airflow_connection_for_looker',
-        materialization_id=start_pdt_task_async.output,
+        materialization_id=cast(str, start_pdt_task_async.output),
         poke_interval=10,
     )
     # [END cloud_looker_async_start_pdt_sensor]

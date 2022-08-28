@@ -17,6 +17,7 @@
 # under the License.
 import os
 from datetime import datetime
+from typing import cast
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
@@ -79,23 +80,22 @@ with DAG(
     )
     # [END howto_operator_emr_create_job_flow]
 
+    job_flow_id = cast(str, job_flow_creator.output)
+
     # [START howto_sensor_emr_job_flow]
-    job_sensor = EmrJobFlowSensor(
-        task_id='check_job_flow',
-        job_flow_id=job_flow_creator.output,
-    )
+    job_sensor = EmrJobFlowSensor(task_id='check_job_flow', job_flow_id=job_flow_id)
     # [END howto_sensor_emr_job_flow]
 
     # [START howto_operator_emr_modify_cluster]
     cluster_modifier = EmrModifyClusterOperator(
-        task_id='modify_cluster', cluster_id=job_flow_creator.output, step_concurrency_level=1
+        task_id='modify_cluster', cluster_id=job_flow_id, step_concurrency_level=1
     )
     # [END howto_operator_emr_modify_cluster]
 
     # [START howto_operator_emr_add_steps]
     step_adder = EmrAddStepsOperator(
         task_id='add_steps',
-        job_flow_id=job_flow_creator.output,
+        job_flow_id=job_flow_id,
         steps=SPARK_STEPS,
     )
     # [END howto_operator_emr_add_steps]
@@ -103,7 +103,7 @@ with DAG(
     # [START howto_sensor_emr_step]
     step_checker = EmrStepSensor(
         task_id='watch_step',
-        job_flow_id=job_flow_creator.output,
+        job_flow_id=job_flow_id,
         step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}",
     )
     # [END howto_sensor_emr_step]
@@ -111,7 +111,7 @@ with DAG(
     # [START howto_operator_emr_terminate_job_flow]
     cluster_remover = EmrTerminateJobFlowOperator(
         task_id='remove_cluster',
-        job_flow_id=job_flow_creator.output,
+        job_flow_id=job_flow_id,
     )
     # [END howto_operator_emr_terminate_job_flow]
 
