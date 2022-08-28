@@ -55,7 +55,7 @@ jobs:
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
-      runs-on: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
+      runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
       python-versions: "${{ steps.selective-checks.python-versions }}"
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       all-python-versions-list-as-string: >-
