@@ -20,7 +20,6 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCopyDbSnapshotOperator,
     RdsCreateDbInstanceOperator,
