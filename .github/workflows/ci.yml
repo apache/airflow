@@ -315,7 +315,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: >
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-ci-images]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
