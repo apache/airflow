@@ -168,11 +168,11 @@ jobs:
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
-      runs-on: ${{ steps.set-runs-on.outputs.runs-on }}
-      run-coverage: ${{ steps.set-run-coverage.outputs.run-coverage }}
-      in-workflow-build: ${{ steps.set-in-workflow-build.outputs.in-workflow-build }}
-      build-job-description: ${{ steps.set-in-workflow-build.outputs.build-job-description }}
-      merge-run: ${{ steps.set-merge-run.outputs.merge-run }}
+      in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
+      build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
+      runs-on: ${{ steps.source-run-info.outputs.runs-on }}
+      merge-run: ${{ steps.source-run-info.outputs.merge-run }}
+      run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -181,11 +181,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: "Get information about the PR"
-        uses: ./.github/actions/get-workflow-origin
-        id: source-run-info
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v3
         with:
@@ -228,66 +223,15 @@ jobs:
           print(output, file=sys.stderr)
           EOF
       - run: ./scripts/ci/install_breeze.sh
+      - name: "Get information about the Workflow"
+        id: source-run-info
+        run: breeze ci get-workflow-info
       - name: Selective checks
         id: selective-checks
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
           COMMIT_REF: "${{ github.sha }}"
         run: breeze ci selective-check
-      # Avoid having to specify the runs-on logic every time. We use the custom
-      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
-      # on the public runners
-      - name: Set runs-on
-        id: set-runs-on
-        env:
-          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
-        run: |
-          if [[ ${PR_LABELS=} == *"use public runners"* ]]; then
-            echo "Forcing running on Public Runners via `use public runners` label"
-            echo "::set-output name=runs-on::\"ubuntu-20.04\""
-          elif [[ ${AIRFLOW_SELF_HOSTED_RUNNER} == "" ]]; then
-            echo "Regular PR running with Public Runner"
-            echo "::set-output name=runs-on::\"ubuntu-20.04\""
-          else
-            echo "Maintainer or main run running with self-hosted runner"
-            echo "::set-output name=runs-on::\"self-hosted\""
-          fi
-      # Avoid having to specify the coverage logic every time.
-      - name: Set run coverage
-        id: set-run-coverage
-        run: echo "::set-output name=run-coverage::true"
-        if: >
-          github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
-          github.event_name == 'push' &&
-          steps.selective-checks.outputs.default-branch == 'main'
-      - name: Determine where to run image builds
-        id: set-in-workflow-build
-        # Run in-workflow build image when:
-        #  * direct push is run
-        #  * schedule build is run
-        #  * pull request is run not from fork
-        run: |
-          set -x
-          if [[  ${GITHUB_EVENT_NAME} == "push" || ${GITHUB_EVENT_NAME} == "push" || \
-                 ${{steps.source-run-info.outputs.sourceHeadRepo}} == "apache/airflow" ]]; then
-              echo "Images will be built in current workflow"
-              echo "::set-output name=in-workflow-build::true"
-              echo "::set-output name=build-job-description::Build"
-          else
-              echo "Images will be built in pull_request_target workflow"
-              echo "::set-output name=in-workflow-build::false"
-              echo "::set-output name=build-job-description::Skip Build (pull_request_target)"
-          fi
-      - name: Determine if this is merge run
-        id: set-merge-run
-        run: echo "::set-output name=merge-run::true"
-        # Only in Apache Airflow repo, when there is a merge run to main or any of v2*test branches
-        if: |
-          github.repository == 'apache/airflow' && github.event_name == 'push' &&
-          (
-              github.ref_name == 'main' ||
-              startsWith(github.ref_name, 'v2') && endsWith(github.ref_name, 'test')
-          )
       - name: env
         run: printenv
         env:
@@ -301,12 +245,12 @@ jobs:
     name: >-
       ${{needs.build-info.outputs.build-job-description}} CI images
       ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -376,7 +320,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -467,7 +411,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   run-new-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     steps:
       - name: Cleanup repo
@@ -487,7 +431,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-ui:
     timeout-minutes: 10
     name: React UI tests
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: needs.build-info.outputs.run-ui-tests == 'true'
     steps:
@@ -514,7 +458,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-www:
     timeout-minutes: 10
     name: React WWW tests
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: needs.build-info.outputs.run-www-tests == 'true'
     steps:
@@ -542,7 +486,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   test-openapi-client-generation:
     timeout-minutes: 10
     name: "Test OpenAPI client generation"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
     steps:
@@ -559,7 +503,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   test-examples-of-prod-image-building:
     timeout-minutes: 60
     name: "Test examples of production image building"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     if: needs.build-info.outputs.image-build == 'true'
     steps:
@@ -584,11 +528,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
     steps:
       - name: Cleanup repo
@@ -619,10 +563,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   static-checks:
     timeout-minutes: 30
     name: "Static checks"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
@@ -674,10 +618,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
       - name: Cleanup repo
@@ -724,11 +668,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   docs:
     timeout-minutes: 45
     name: "Build docs"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     if: needs.build-info.outputs.docs-build == 'true'
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     steps:
       - name: Cleanup repo
@@ -781,10 +725,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   prepare-test-provider-packages-wheel:
     timeout-minutes: 80
     name: "Build and test provider packages wheel"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
@@ -860,10 +804,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   prepare-test-provider-packages-sdist:
     timeout-minutes: 80
     name: "Build and test provider packages sdist"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
@@ -917,10 +861,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-helm:
     timeout-minutes: 80
     name: "Python unit tests for Helm chart"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       TEST_TYPES: "Helm"
       BACKEND: ""
@@ -978,7 +922,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.test-types}}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -987,7 +931,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.postgres-exclude) }}
       fail-fast: false
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: postgres
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
@@ -1051,7 +995,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 130
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -1060,7 +1004,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.mysql-exclude) }}
       fail-fast: false
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: mysql
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
@@ -1122,7 +1066,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 130
     name: >
       MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -1131,7 +1075,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.mssql-exclude) }}
       fail-fast: false
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: mssql
       MSSQL_VERSION: ${{ matrix.mssql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
@@ -1193,7 +1137,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 130
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -1201,7 +1145,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.sqlite-exclude) }}
       fail-fast: false
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -1261,11 +1205,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-quarantined:
     timeout-minutes: 60
     name: "Quarantined tests"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     continue-on-error: true
     needs: [build-info, wait-for-ci-images]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
       TEST_TYPES: "Quarantined"
@@ -1342,7 +1286,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   upload-coverage:
     timeout-minutes: 15
     name: "Upload coverage"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     continue-on-error: true
     needs:
       - build-info
@@ -1352,7 +1296,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mssql
       - tests-quarantined
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     # Only upload coverage on merges to main
     if: needs.build-info.outputs.run-coverage == 'true'
     steps:
@@ -1377,11 +1321,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   wait-for-prod-images:
     timeout-minutes: 120
     name: "Wait for PROD images"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     steps:
@@ -1421,7 +1365,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   test-docker-compose-quick-start:
     timeout-minutes: 60
     name: "Test docker-compose quick start"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
@@ -1456,14 +1400,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-kubernetes:
     timeout-minutes: 240
     name: Helm Chart; ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-prod-images]
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
       fail-fast: false
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
@@ -1526,10 +1470,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-helm-executor-upgrade:
     timeout-minutes: 150
     name: Helm Chart Executor Upgrade - ${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-prod-images]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
@@ -1604,7 +1548,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       contents: write
     timeout-minutes: 40
     name: "Constraints"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs:
       - build-info
       - docs
@@ -1616,7 +1560,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mssql
       - tests-postgres
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     steps:
       - name: Cleanup repo
@@ -1684,7 +1628,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       packages: write
     timeout-minutes: 50
     name: "Push Image Cache"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs:
       - build-info
       - constraints
@@ -1695,7 +1639,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       matrix:
         platform: ["linux/amd64", "linux/arm64"]
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1777,7 +1721,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: >
       Build CI ARM images
       ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs:
       - build-info
       - wait-for-ci-images
@@ -1790,7 +1734,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     if: >
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       needs.build-info.outputs.in-workflow-build == 'true' &&
