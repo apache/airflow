@@ -20,7 +20,6 @@
 
 import os
 from datetime import datetime, timedelta
-from typing import cast
 
 from airflow import DAG
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
@@ -55,7 +54,7 @@ with DAG(
 
     airbyte_sensor = AirbyteJobSensor(
         task_id='airbyte_sensor_source_dest_example',
-        airbyte_job_id=cast(int, async_source_destination.output),
+        airbyte_job_id=async_source_destination.output,
     )
     # [END howto_operator_airbyte_asynchronous]
 
