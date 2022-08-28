@@ -530,6 +530,13 @@ class MappedOperator(AbstractOperator):
         """Implementing Operator."""
         return self.dag
 
+    @property
+    def output(self) -> "XComArg":
+        """Returns reference to XCom pushed by current operator"""
+        from airflow.models.xcom_arg import XComArg
+
+        return XComArg(operator=self)
+
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id

@@ -24,10 +24,11 @@ This DAG relies on the following OS environment variables:
 
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildCreateBuildTriggerOperator,
     CloudBuildDeleteBuildTriggerOperator,
@@ -90,11 +91,13 @@ with models.DAG(
     )
     # [END howto_operator_create_build_trigger]
 
+    build_trigger_id = cast(str, XComArg(create_build_trigger, key="id"))
+
     # [START howto_operator_run_build_trigger]
     run_build_trigger = CloudBuildRunBuildTriggerOperator(
         task_id="run_build_trigger",
         project_id=PROJECT_ID,
-        trigger_id=create_build_trigger.output['id'],
+        trigger_id=build_trigger_id,
         source=create_build_from_repo_body['source']['repo_source'],
     )
     # [END howto_operator_run_build_trigger]
@@ -103,7 +106,7 @@ with models.DAG(
     update_build_trigger = CloudBuildUpdateBuildTriggerOperator(
         task_id="update_build_trigger",
         project_id=PROJECT_ID,
-        trigger_id=create_build_trigger.output['id'],
+        trigger_id=build_trigger_id,
         trigger=update_build_trigger_body,
     )
     # [END howto_operator_update_build_trigger]
@@ -112,7 +115,7 @@ with models.DAG(
     get_build_trigger = CloudBuildGetBuildTriggerOperator(
         task_id="get_build_trigger",
         project_id=PROJECT_ID,
-        trigger_id=create_build_trigger.output['id'],
+        trigger_id=build_trigger_id,
     )
     # [END howto_operator_get_build_trigger]
 
@@ -120,7 +123,7 @@ with models.DAG(
     delete_build_trigger = CloudBuildDeleteBuildTriggerOperator(
         task_id="delete_build_trigger",
         project_id=PROJECT_ID,
-        trigger_id=create_build_trigger.output['id'],
+        trigger_id=build_trigger_id,
     )
     # [END howto_operator_delete_build_trigger]
 
