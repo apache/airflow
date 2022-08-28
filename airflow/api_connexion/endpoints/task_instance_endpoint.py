@@ -582,7 +582,8 @@ def patch_set_mapped_task_instance_state(*, dag_id: str, dag_run_id: str, task_i
         error_message = f"Mapped task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
         raise NotFound(detail=error_message)
 
-    ti.set_state(data["new_state"], session=session)
+    if not data["dry_run"]:
+        ti.set_state(data["new_state"], session=session)
 
     return task_instance_reference_schema.dump(ti)
 
@@ -622,7 +623,7 @@ def patch_set_task_instance_state(*, dag_id: str, dag_run_id: str, task_id: str,
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
         raise NotFound(detail=error_message)
 
-
-    ti.set_state(data["new_state"], session=session)
+    if not data["dry_run"]:
+        ti.set_state(data["new_state"], session=session)
 
     return task_instance_reference_schema.dump(ti)
