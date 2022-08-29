@@ -169,10 +169,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _parse_host(host: str) -> str:
         """
-        Robustness to improper connections settings provided by users.
-
-        The purpose of this function is to be robust to improper connections
-        settings provided by users, specifically in the host field.
+        This function is resistant to incorrect connection settings provided by users, in the host field.
 
         For example -- when users supply ``https://xx.cloud.databricks.com`` as the
         host, we must strip out the protocol to get the host.::

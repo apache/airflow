@@ -61,9 +61,9 @@ class MySqlHook(DbApiHook):
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
-        Mysqldb client uses an `autocommit` method rather than an `autocommit` property.
+        Mysqlclient uses an `autocommit` method rather than an `autocommit` property.
 
-        The MySQLdb (mysqlclient) client uses an `autocommit` method rather
+        Mysqlclient client uses an `autocommit` method rather
         than an `autocommit` property to set the autocommit setting
 
         :param conn: connection to set autocommit setting
@@ -77,9 +77,9 @@ class MySqlHook(DbApiHook):
 
     def get_autocommit(self, conn: MySQLConnectionTypes) -> bool:
         """
-        Mysqldb client uses a `get_autocommit` method rather than an `autocommit` property.
+        Mysqlclient uses a `get_autocommit` method rather than an `autocommit` property.
 
-        The MySQLdb (mysqlclient) client uses a `get_autocommit` method
+        Mysqlclient client uses a `get_autocommit` method
         rather than an `autocommit` property to get the autocommit setting
 
         :param conn: connection to get autocommit setting from.
