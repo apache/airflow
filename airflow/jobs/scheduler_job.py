@@ -818,6 +818,12 @@ class SchedulerJob(BaseJob):
             self.adopt_or_reset_orphaned_tasks,
         )
 
+        if self.executor_class == 'CeleryExecutor':
+            timers.call_regular_interval(
+                5,  # conf.getfloat('scheduler', 'orphaned_tasks_check_interval', fallback=300.0),
+                self.executor.reset_lost_tasks,
+            )
+
         timers.call_regular_interval(
             conf.getfloat('scheduler', 'trigger_timeout_check_interval', fallback=15.0),
             self.check_trigger_timeouts,

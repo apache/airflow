@@ -21,7 +21,9 @@
     For more information on how the CeleryExecutor works, take a look at the guide:
     :ref:`executor:CeleryExecutor`
 """
+import codecs
 import datetime
+import json
 import logging
 import math
 import operator
@@ -59,6 +61,7 @@ from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
 
 log = logging.getLogger(__name__)
+bytes_reader = codecs.getreader("utf-8")
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
@@ -238,6 +241,7 @@ class CeleryExecutor(BaseExecutor):
             self._sync_parallelism = max(1, cpu_count() - 1)
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
+        self.pending_tasks_not_in_broker = {}
         self.stalled_task_timeouts: Dict[TaskInstanceKey, datetime.datetime] = {}
         self.stalled_task_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'stalled_task_timeout', fallback=0)
@@ -463,7 +467,7 @@ class CeleryExecutor(BaseExecutor):
                 # It's now actually running, so we know it made it to celery okay!
                 self._set_celery_pending_task_timeout(key, None)
             elif state == celery_states.PENDING:
-                self._check_if_task_still_in_queue()
+                pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
         except Exception:
@@ -550,26 +554,90 @@ class CeleryExecutor(BaseExecutor):
         elif timeout_type == _CeleryPendingTaskTimeoutType.STALLED and self.stalled_task_timeout:
             self.stalled_task_timeouts[key] = utcnow() + self.stalled_task_timeout
 
-    def _check_if_task_still_in_queue(self):
-        """
+    @provide_session
+    def reset_lost_tasks(self, session):
+        """Reset tasks lost in the nothingness.
+
         In some cases, workers can consume tasks from broker without ever running it and notifying the
         database that they actually consumed it. This usually happens when a pod on which the worker is
-        _living_ is scaled down.
-        Therefore, we need to check if PENDING tasks are still present in the broker. If not, task might
-        just be being started, and the status might not have been updated in the database.
-        So we actually need to wait a little before doing anything. If after some time, task is still not
-        started, then add it back to the queue.
-        """
+        _living_ is scaled down. Hence, the task is not in any queue anymore and the only trace with have
+        of it is the attribute `self.tasks` and its row inside the TaskInstance table in Airflow db.
 
-        # Block false as it is unecessary to block the queue for nothing. We just want to know
-        # if some tasks are not in queue but not running anyway.
-        with app.pool.acquire(block=False) as conn:
-            tasks = conn.default_channel.client.lrange('default', 0, -1)
-            # Check if PENDING tasks are in there. If not, then the task has been consumed by a worker
-            # but is still pending after `x` time. So clear it and reschedule it?
-            # Thow I am scared that the other task which has a visibility_timeout will repop after some time.
-            # To avoid this, we could mark the task as failed with _worker has probably died reason_, so that
-            # Scheduler would reschedule it.
+        To mitigate this rare event, we need to execute two steps :
+        1) Look for tasks with PENDING state which are not present in the broker anymore. This can only mean
+        the two following things:
+            * Either task just has been consumed by one worker and is going to be executed in the next seconds
+            * Or either worker has consumed (LPOP) the task and has been killed right away.
+        See https://github.com/apache/airflow/issues/21225#issuecomment-1229250816 for more explanations
+        Since we can't know for sure what of the two above options the task is in, we need to wait a little
+        before executing the next step.
+
+        2) After a certain delay, check if the task is still in a PENDING state and still hasn't been picked
+        up by any worker. If this is the case, clear the row in the db and reschedule a complete new task.
+        I think this is cleaner than trying to just resend the message to the queue.
+        """
+        self._try_adopt_missing_tasks_from_broker(session, list(self.pending_tasks_not_in_broker.values()))
+        queue_names = (
+            session.query(TaskInstance.queue)
+            .filter(
+                TaskInstance.state == State.QUEUED,
+                TaskInstance.job_id.is_(None),
+            )
+            .distinct()
+            .all()
+        )
+        self.pending_tasks_not_in_broker = {}
+        for row in queue_names:
+            self.pending_tasks_not_in_broker.update(
+                self._get_pending_tasks_not_in_broker_anymore(queue=row.queue)
+            )
+
+    def _get_pending_tasks_not_in_broker_anymore(self, queue='default') -> Dict[str, TaskInstanceKey]:
+        celery_pending_tasks_not_in_queue = {
+            task_result.id: ti_key
+            for ti_key, task_result in self.tasks.items()
+            if task_result.state == celery_states.PENDING
+        }
+        chunksize = 1000  # Go in reverse order to avoid missing tasks
+        start, stop = 0, chunksize
+
+        with app.pool.acquire(block=True) as conn:
+            task_ids_in_broker = self._retrieve_tasks_from_broker(conn, key=queue, start=start, stop=stop)
+            celery_pending_tasks_not_in_queue = {
+                key: celery_pending_tasks_not_in_queue[key]
+                for key in celery_pending_tasks_not_in_queue.keys() - task_ids_in_broker
+            }
+            while task_ids_in_broker and celery_pending_tasks_not_in_queue:
+                start, stop = stop, start + chunksize
+                task_ids_in_broker = self._retrieve_tasks_from_broker(
+                    conn, key='default', start=start, stop=stop
+                )
+                celery_pending_tasks_not_in_queue = {
+                    key: celery_pending_tasks_not_in_queue[key]
+                    for key in celery_pending_tasks_not_in_queue.keys() - task_ids_in_broker
+                }
+
+        return celery_pending_tasks_not_in_queue
+
+    def _retrieve_tasks_from_broker(self, conn, *, key, start: int, stop: int) -> Set[str]:
+        # TODO: Chance key queue 'default' to iterate through all queues
+        msg_list = conn.default_channel.client.lrange(key, start, stop)
+        msg_str = (bytes.decode(msg) for msg in msg_list)
+        json_msg = (json.loads(msg) for msg in msg_str)
+        task_ids = (msg['headers'].get('id', '') for msg in json_msg)
+        return set(task_ids)
+
+    def _try_adopt_missing_tasks_from_broker(self, session, keys: List[TaskInstanceKey]):
+        missing_tasks = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.filter_for_tis(keys),
+                TaskInstance.state == State.QUEUED,
+                TaskInstance.job_id.is_(None),
+            )
+            .all()
+        )
+        self.try_adopt_task_instances(missing_tasks)
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback], Any]:
