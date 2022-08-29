@@ -70,7 +70,7 @@ class QuboleFileSensor(QuboleSensor):
     """
     Wait for a file or folder to be present in cloud storage.
 
-    Check for file or folder presence via QDS APIs
+    Check for file or folder presence via QDS APIs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

@@ -394,7 +394,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-        Lists all Redis instances owned by a project at the specified location (region) or all locations.
+        List Redis instances owned by a project at the specified location (region) or all locations.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
 
@@ -753,7 +753,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-        Lists all Memcached instances owned by a projeca specified location (region) or all locations.
+        List Memcached instances owned by a project at the specified location (region) or all locations.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
 
@@ -851,7 +851,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-        Updates the defined Memcached Parameters for an existing Instance.
+        Update the defined Memcached Parameters for an existing Instance.
 
         This method only stages the parameters, it must be followed by apply_parameters
         to apply the parameters to nodes of the Memcached Instance.

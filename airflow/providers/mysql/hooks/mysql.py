@@ -61,10 +61,10 @@ class MySqlHook(DbApiHook):
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
-        Mysqlclient uses an `autocommit` method rather than an `autocommit` property.
+        Set *autocommit*.
 
-        Mysqlclient client uses an `autocommit` method rather
-        than an `autocommit` property to set the autocommit setting
+        *mysqlclient* uses an *autocommit* method rather than an *autocommit*
+        property, so we need to override this to support it.
 
         :param conn: connection to set autocommit setting
         :param autocommit: autocommit setting
@@ -77,10 +77,10 @@ class MySqlHook(DbApiHook):
 
     def get_autocommit(self, conn: MySQLConnectionTypes) -> bool:
         """
-        Mysqlclient uses a `get_autocommit` method rather than an `autocommit` property.
+        Whether *autocommit* is active.
 
-        Mysqlclient client uses a `get_autocommit` method
-        rather than an `autocommit` property to get the autocommit setting
+        *mysqlclient* uses an *get_autocommit* method rather than an *autocommit*
+        property, so we need to override this to support it.
 
         :param conn: connection to get autocommit setting from.
         :return: connection autocommit setting
@@ -208,7 +208,7 @@ class MySqlHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell: object, conn: Optional[Connection] = None) -> object:
         """
-        Mysqldb converts argument to a literal.
+        Convert argument to a literal.
 
         The package MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
@@ -222,7 +222,7 @@ class MySqlHook(DbApiHook):
 
     def get_iam_token(self, conn: Connection) -> Tuple[str, int]:
         """
-        Awshook to retrieve a temporary password to connect to MySQL Port.
+        Retrieve a temporary password to connect to MySQL.
 
         Uses AWSHook to retrieve a temporary password to connect to MySQL
         Port is required. If none is provided, default 3306 is used

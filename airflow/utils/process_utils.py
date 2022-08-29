@@ -192,7 +192,7 @@ def execute_in_subprocess_with_kwargs(cmd: List[str], **kwargs) -> None:
 
 def execute_interactive(cmd: List[str], **kwargs) -> None:
     """
-    Runs the new command as a subprocess.
+    Run the new command as a subprocess.
 
     Runs the new command as a subprocess and ensures that the terminal's state is restored to its original
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
@@ -275,7 +275,7 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
 @contextmanager
 def patch_environ(new_env_variables: Dict[str, str]) -> Generator[None, None, None]:
     """
-    Sets environment variables in context.
+    Set environment variables in context.
 
     After leaving the context, it restores its original state.
     :param new_env_variables: Environment variables to set
@@ -321,7 +321,7 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
 
 def set_new_process_group() -> None:
     """
-    Tries to set current process to a new process group.
+    Try to set current process to a new process group.
     That makes it easy to kill all sub-process of this at the OS-level,
     rather than having to iterate the child processes.
     If current process spawn by system call ``exec()`` than keep current process group

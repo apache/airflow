@@ -194,14 +194,14 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_retry_object(self) -> Retrying:
         """
-        Instantiates a retry object.
+        Instantiate a retry object.
         :return: instance of Retrying class
         """
         return Retrying(**self.retry_args)
 
     def _a_get_retry_object(self) -> AsyncRetrying:
         """
-        Instantiates an async retry object.
+        Instantiate an async retry object.
         :return: instance of AsyncRetrying class
         """
         return AsyncRetrying(**self.retry_args)
@@ -341,7 +341,7 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_aad_headers(self) -> dict:
         """
-        Fills AAD headers if necessary (SPN is outside of the workspace).
+        Fill AAD headers if necessary (SPN is outside of the workspace).
         :return: dictionary with filled AAD headers
         """
         headers = {}
