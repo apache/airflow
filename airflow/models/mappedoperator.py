@@ -88,6 +88,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
