@@ -17,9 +17,14 @@
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
+    RedshiftCreateClusterSnapshotOperator,
     RedshiftDeleteClusterOperator,
+    RedshiftDeleteClusterSnapshotOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -97,6 +102,98 @@ class TestRedshiftCreateClusterOperator:
             MasterUserPassword="Test123$",
             **params,
         )
+
+
+class TestRedshiftCreateClusterSnapshotOperator:
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_create_cluster_snapshot_is_called_when_cluster_is_available(
+        self, mock_get_conn, mock_cluster_status
+    ):
+        mock_cluster_status.return_value = "available"
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            retention_period=1,
+        )
+        create_snapshot.execute(None)
+        mock_get_conn.return_value.create_cluster_snapshot.assert_called_once_with(
+            ClusterIdentifier='test_cluster',
+            SnapshotIdentifier="test_snapshot",
+            ManualSnapshotRetentionPeriod=1,
+        )
+
+        mock_get_conn.return_value.get_waiter.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    def test_raise_exception_when_cluster_is_not_available(self, mock_cluster_status):
+        mock_cluster_status.return_value = "paused"
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot", cluster_identifier="test_cluster", snapshot_identifier="test_snapshot"
+        )
+        with pytest.raises(AirflowException):
+            create_snapshot.execute(None)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_create_cluster_snapshot_with_wait(self, mock_get_conn, mock_cluster_status):
+        mock_cluster_status.return_value = "available"
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            wait_for_completion=True,
+        )
+        create_snapshot.execute(None)
+        mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            SnapshotIdentifier="test_snapshot",
+            WaiterConfig={"Delay": 15, "MaxAttempts": 20},
+        )
+
+
+class TestRedshiftDeleteClusterSnapshotOperator:
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_cluster_snapshot_status"
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_delete_cluster_snapshot_wait(self, mock_get_conn, mock_get_cluster_snapshot_status):
+        mock_get_cluster_snapshot_status.return_value = None
+        delete_snapshot = RedshiftDeleteClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+        )
+        delete_snapshot.execute(None)
+        mock_get_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
+            SnapshotClusterIdentifier='test_cluster',
+            SnapshotIdentifier="test_snapshot",
+        )
+
+        mock_get_cluster_snapshot_status.assert_called_once_with(
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+        )
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_cluster_snapshot_status"
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_delete_cluster_snapshot(self, mock_get_conn, mock_get_cluster_snapshot_status):
+        delete_snapshot = RedshiftDeleteClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            wait_for_completion=False,
+        )
+        delete_snapshot.execute(None)
+        mock_get_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
+            SnapshotClusterIdentifier='test_cluster',
+            SnapshotIdentifier="test_snapshot",
+        )
+
+        mock_get_cluster_snapshot_status.assert_not_called()
 
 
 class TestResumeClusterOperator:

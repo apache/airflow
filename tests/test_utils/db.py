@@ -39,7 +39,7 @@ from airflow.models import (
 )
 from airflow.models.dagcode import DagCode
 from airflow.models.dataset import (
-    DatasetDagRef,
+    DagScheduleDatasetReference,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -65,7 +65,7 @@ def clear_db_datasets():
         session.query(DatasetEvent).delete()
         session.query(DatasetModel).delete()
         session.query(DatasetDagRunQueue).delete()
-        session.query(DatasetDagRef).delete()
+        session.query(DagScheduleDatasetReference).delete()
         session.query(DatasetTaskRef).delete()
 
 

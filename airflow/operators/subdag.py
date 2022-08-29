@@ -28,7 +28,7 @@ from typing import Dict, Optional, Tuple
 from sqlalchemy.orm.session import Session
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
 from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
@@ -91,7 +91,7 @@ class SubDagOperator(BaseSensorOperator):
 
         warnings.warn(
             """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=4,
         )
 

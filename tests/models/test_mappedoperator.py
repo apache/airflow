@@ -434,3 +434,48 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
     assert isinstance(op, MockOperator)
     assert op.arg1 == expected
     assert op.arg2 == "a"
+
+
+def test_xcomarg_property_of_mapped_operator(dag_maker):
+    with dag_maker("test_xcomarg_property_of_mapped_operator"):
+        op_a = MockOperator.partial(task_id="a").expand(arg1=["x", "y", "z"])
+    dag_maker.create_dagrun()
+
+    assert op_a.output == XComArg(op_a)
+
+
+def test_set_xcomarg_dependencies_with_mapped_operator(dag_maker):
+    with dag_maker("test_set_xcomargs_dependencies_with_mapped_operator"):
+        op1 = MockOperator.partial(task_id="op1").expand(arg1=[1, 2, 3])
+        op2 = MockOperator.partial(task_id="op2").expand(arg2=["a", "b", "c"])
+        op3 = MockOperator(task_id="op3", arg1=op1.output)
+        op4 = MockOperator(task_id="op4", arg1=[op1.output, op2.output])
+        op5 = MockOperator(task_id="op5", arg1={"op1": op1.output, "op2": op2.output})
+
+    assert op1 in op3.upstream_list
+    assert op1 in op4.upstream_list
+    assert op2 in op4.upstream_list
+    assert op1 in op5.upstream_list
+    assert op2 in op5.upstream_list
+
+
+def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
+    class PushXcomOperator(MockOperator):
+        def __init__(self, arg1, **kwargs):
+            super().__init__(arg1=arg1, **kwargs)
+
+        def execute(self, context):
+            return self.arg1
+
+    class ConsumeXcomOperator(PushXcomOperator):
+        def execute(self, context):
+            assert {i for i in self.arg1} == {1, 2, 3}
+
+    with dag_maker("test_all_xcomargs_from_mapped_tasks_are_consumable"):
+        op1 = PushXcomOperator.partial(task_id="op1").expand(arg1=[1, 2, 3])
+        ConsumeXcomOperator(task_id="op2", arg1=op1.output)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances(session=session)
+    for ti in tis:
+        ti.run()

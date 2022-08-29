@@ -246,6 +246,19 @@ class WebserverDeploymentTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -695,6 +708,18 @@ class WebserverServiceTest(unittest.TestCase):
 
         assert expected_ports == jmespath.search("spec.ports", docs[0])
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
 
 class WebserverConfigmapTest(unittest.TestCase):
     def test_no_webserver_config_configmap_by_default(self):
@@ -791,3 +816,31 @@ class WebserverNetworkPolicyTest(unittest.TestCase):
         assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
             "spec.ingress[0].from", docs[0]
         )
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "webserver": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-networkpolicy.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+
+class WebserverServiceAccountTest(unittest.TestCase):
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"

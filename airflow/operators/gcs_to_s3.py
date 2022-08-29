@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.gcs_to_s3`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

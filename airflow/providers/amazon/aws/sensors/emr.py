@@ -214,8 +214,6 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
-        state = None
-
         response = self.hook.conn.get_application(applicationId=self.application_id)
 
         state = response['application']['state']

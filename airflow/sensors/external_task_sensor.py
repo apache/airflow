@@ -19,6 +19,7 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.external_task import (  # noqa
     ExternalTaskMarker,
     ExternalTaskSensor,
@@ -26,5 +27,7 @@ from airflow.sensors.external_task import (  # noqa
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.external_task`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.sensors.external_task`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )

@@ -101,7 +101,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -121,7 +121,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -264,6 +264,13 @@ def _safe_parse_datetime(v):
         return timezone.parse(v)
     except (TypeError, ParserError):
         abort(400, f"Invalid datetime: {v!r}")
+
+
+def node_dict(node_id, label, node_class):
+    return {
+        "id": node_id,
+        "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
+    }
 
 
 def dag_to_grid(dag, dag_runs, session):
@@ -998,15 +1005,11 @@ class Airflow(AirflowBaseView):
         )
 
     @expose('/datasets')
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-        ]
-    )
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
         return self.render_template(
-            'airflow/datasets.html',
+            "airflow/datasets.html",
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -1751,7 +1754,7 @@ class Airflow(AirflowBaseView):
             ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     (name, getattr(ti, name))
                     for name in dir(ti)
@@ -3632,6 +3635,7 @@ class Airflow(AirflowBaseView):
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
+                'ordering': dag.timetable.run_ordering,
             }
         # avoid spaces to reduce payload size
         return (
@@ -3655,19 +3659,56 @@ class Airflow(AirflowBaseView):
                     DatasetModel.uri,
                     DatasetDagRunQueue.created_at,
                 )
-                .join(DatasetDagRef, DatasetModel.id == DatasetDagRef.dataset_id)
+                .join(DagScheduleDatasetReference, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
-                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
-                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                        DatasetDagRunQueue.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
                     ),
                     isouter=True,
                 )
-                .filter(DatasetDagRef.dag_id == dag_id)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id)
                 .order_by(DatasetModel.id)
                 .all()
             ]
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
+    @expose('/object/dataset_dependencies')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+        ]
+    )
+    def dataset_dependencies(self):
+        """Returns dataset dependencies graph."""
+        nodes_dict: Dict[str, Any] = {}
+        edge_tuples: Set[Dict[str, str]] = set()
+
+        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+            dag_node_id = f"dag:{dag}"
+            if dag_node_id not in nodes_dict:
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
+
+            for dep in dependencies:
+                if dep.node_id not in nodes_dict and (
+                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
+                ):
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
+                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+
+        nodes = list(nodes_dict.values())
+        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+
+        data = {
+            'nodes': nodes,
+            'edges': edges,
+        }
+
         return (
             htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},
@@ -4469,7 +4510,7 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots', 'scheduled_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -4526,7 +4567,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    formatters_columns = {'pool': pool_link, 'running_slots': frunning_slots, 'queued_slots': fqueued_slots}
+    def fscheduled_slots(self):
+        """Scheduled slots rendering."""
+        pool_id = self.get('pool')
+        scheduled_slots = self.get('scheduled_slots')
+        if pool_id is not None and scheduled_slots is not None:
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='scheduled')
+            return Markup("<a href='{url}'>{scheduled_slots}</a>").format(
+                url=url, scheduled_slots=scheduled_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
+    formatters_columns = {
+        'pool': pool_link,
+        'running_slots': frunning_slots,
+        'queued_slots': fqueued_slots,
+        'scheduled_slots': fscheduled_slots,
+    }
 
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 
@@ -5403,25 +5461,16 @@ class DagDependenciesView(AirflowBaseView):
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = self._node_dict(dag_node_id, dag, "dag")
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
 
             for dep in dependencies:
                 if dep.node_id not in nodes_dict:
-                    nodes_dict[dep.node_id] = self._node_dict(
-                        dep.node_id, dep.dependency_id, dep.dependency_type
-                    )
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
                 edge_tuples.add((f"dag:{dep.source}", dep.node_id))
                 edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         self.nodes = list(nodes_dict.values())
         self.edges = [{"u": u, "v": v} for u, v in edge_tuples]
-
-    @staticmethod
-    def _node_dict(node_id, label, node_class):
-        return {
-            "id": node_id,
-            "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
-        }
 
 
 class ActionModelView(PermissionModelView):

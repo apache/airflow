@@ -33,7 +33,7 @@ from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, BackfillUnfinished
+from airflow.exceptions import AirflowException, BackfillUnfinished, RemovedInAirflow3Warning
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -59,7 +59,7 @@ def dag_backfill(args, dag=None):
 
     warnings.warn(
         '--ignore-first-depends-on-past is deprecated as the value is always set to True',
-        category=PendingDeprecationWarning,
+        category=RemovedInAirflow3Warning,
     )
 
     if args.ignore_first_depends_on_past is False:

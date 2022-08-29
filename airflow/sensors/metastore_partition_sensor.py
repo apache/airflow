@@ -22,10 +22,11 @@ Please use :mod:`airflow.providers.apache.hive.sensors.metastore_partition`.
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.sensors.metastore_partition`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
