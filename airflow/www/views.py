@@ -121,7 +121,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3659,16 +3659,16 @@ class Airflow(AirflowBaseView):
                     DatasetModel.uri,
                     DatasetDagRunQueue.created_at,
                 )
-                .join(DatasetDagRef, DatasetModel.id == DatasetDagRef.dataset_id)
+                .join(DagScheduleDatasetReference, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
-                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
-                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                        DatasetDagRunQueue.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
                     ),
                     isouter=True,
                 )
-                .filter(DatasetDagRef.dag_id == dag_id)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id)
                 .order_by(DatasetModel.id)
                 .all()
             ]
@@ -4510,7 +4510,7 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots', 'scheduled_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -4567,7 +4567,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    formatters_columns = {'pool': pool_link, 'running_slots': frunning_slots, 'queued_slots': fqueued_slots}
+    def fscheduled_slots(self):
+        """Scheduled slots rendering."""
+        pool_id = self.get('pool')
+        scheduled_slots = self.get('scheduled_slots')
+        if pool_id is not None and scheduled_slots is not None:
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='scheduled')
+            return Markup("<a href='{url}'>{scheduled_slots}</a>").format(
+                url=url, scheduled_slots=scheduled_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
+    formatters_columns = {
+        'pool': pool_link,
+        'running_slots': frunning_slots,
+        'queued_slots': fqueued_slots,
+        'scheduled_slots': fscheduled_slots,
+    }
 
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 

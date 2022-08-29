@@ -295,7 +295,7 @@ repos:
         exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/*.log
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/tutorial/pipeline_example.csv,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:

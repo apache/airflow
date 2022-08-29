@@ -35,10 +35,10 @@ from airflow.decorators import dag, task
     catchup=False,
     tags=['example'],
 )
-def tutorial_taskflow_api_etl():
+def tutorial_taskflow_api():
     """
     ### TaskFlow API Tutorial Documentation
-    This is a simple ETL data pipeline example which demonstrates the use of
+    This is a simple data pipeline example which demonstrates the use of
     the TaskFlow API using three simple tasks for Extract, Transform, and Load.
     Documentation that goes along with the Airflow TaskFlow API tutorial is
     located
@@ -100,7 +100,7 @@ def tutorial_taskflow_api_etl():
 
 
 # [START dag_invocation]
-tutorial_etl_dag = tutorial_taskflow_api_etl()
+tutorial_dag = tutorial_taskflow_api()
 # [END dag_invocation]
 
 # [END tutorial]

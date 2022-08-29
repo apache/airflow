@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains AWS S3 to Snowflake operator."""
+import warnings
 from typing import Any, Optional, Sequence
 
 from airflow.models import BaseOperator
@@ -85,6 +86,15 @@ class S3ToSnowflakeOperator(BaseOperator):
         session_parameters: Optional[dict] = None,
         **kwargs,
     ) -> None:
+        warnings.warn(
+            """
+            SnowflakeToSlackOperator is deprecated.
+            Please use
+            `airflow.providers.snowflake.transfers.copy_into_snowflake.CopyFromExternalStageToSnowflakeOperator`.
+            """,
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(**kwargs)
         self.s3_keys = s3_keys
         self.table = table
