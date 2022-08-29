@@ -206,28 +206,35 @@ def parse(string: str, timezone=None) -> DateTime:
 
 
 @overload
-def coerce_datetime(v: None) -> None:
+def coerce_datetime(v: None, tz: Optional[dt.tzinfo] = None) -> None:
     ...
 
 
 @overload
-def coerce_datetime(v: DateTime) -> DateTime:
+def coerce_datetime(v: DateTime, tz: Optional[dt.tzinfo] = None) -> DateTime:
     ...
 
 
 @overload
-def coerce_datetime(v: dt.datetime) -> DateTime:
+def coerce_datetime(v: dt.datetime, tz: Optional[dt.tzinfo] = None) -> DateTime:
     ...
 
 
-def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
-    """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
+def coerce_datetime(v: Optional[dt.datetime], tz: Optional[dt.tzinfo] = None) -> Optional[DateTime]:
+    """Convert ``v`` into a timezone-aware ``pendulum.DateTime``.
+
+    * If ``v`` is *None*, *None* is returned.
+    * If ``v`` is a naive datetime, it is converted to an aware Pendulum DateTime.
+    * If ``v`` is an aware datetime, it is converted to a Pendulum DateTime.
+      Note that ``tz`` is **not** taken into account in this case; the datetime
+      will maintain its original tzinfo!
+    """
     if v is None:
         return None
     if isinstance(v, DateTime):
-        return v if v.tzinfo else make_aware(v)
-    # Only dt.datetime is left here
-    return pendulum.instance(v if v.tzinfo else make_aware(v))
+        return v if v.tzinfo else make_aware(v, tz)
+    # Only dt.datetime is left here.
+    return pendulum.instance(v if v.tzinfo else make_aware(v, tz))
 
 
 def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
