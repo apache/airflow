@@ -106,11 +106,12 @@ class DatasetModel(Base):
         If the uri doesn't have an `airflow` scheme, return it as-is.
 
         If it does have an `airflow` scheme, it takes the connection id from
-        the netloc. It then will combine the connection uri and dataset uri to
-        form the canonical uri. It does this by:
+        the username in userinfo. It then will combine the connection uri and
+        dataset uri to form the canonical uri. It does this by:
 
         * Using the scheme from the connection, unless an override is provided
           in the dataset scheme (e.g. airflow+override://)
+        * Determine the hostname and port, where the dataset values take precedence
         * Combine the path, connection first followed by the dataset path
         * Merge the query args
 
@@ -123,7 +124,7 @@ class DatasetModel(Base):
         if not parsed.scheme.startswith("airflow"):
             return self.uri
 
-        conn_id = parsed.hostname
+        conn_id = parsed.username
         conn = urlparse(Connection.get_connection_from_secrets(conn_id).get_uri())
 
         # Take the scheme from the connection, unless it is overridden in the dataset
@@ -133,9 +134,12 @@ class DatasetModel(Base):
             scheme = split_scheme[1]
 
         # Strip userinfo from the uri
-        netloc = conn.netloc
-        if "@" in netloc:
-            netloc = netloc.split("@")[1]
+        # Allow hostname/port override
+        hostname = parsed.hostname or conn.hostname
+        port = parsed.port or conn.port
+        netloc = hostname
+        if port:
+            netloc = f"{hostname}:{port}"
 
         # Combine the paths (connection followed by dataset)
         path = conn.path

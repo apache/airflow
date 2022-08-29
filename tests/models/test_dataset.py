@@ -46,26 +46,27 @@ class TestDatasetModel:
     @pytest.mark.parametrize(
         "conn_uri, dataset_uri, expected_canonical_uri",
         [
-            ("postgres://somehost/", "airflow://testconn/", "postgres://somehost/"),
-            ("postgres://somehost:111/base", "airflow://testconn", "postgres://somehost:111/base"),
-            ("postgres://somehost:111/base", "airflow+foo://testconn", "foo://somehost:111/base"),
+            ("postgres://somehost/", "airflow://testconn@/", "postgres://somehost/"),
+            ("postgres://somehost:111/base", "airflow://testconn@", "postgres://somehost:111/base"),
+            ("postgres://somehost:111/base", "airflow+foo://testconn@", "foo://somehost:111/base"),
+            ("postgres://somehost:111", "airflow://testconn@foo:222", "postgres://foo:222"),
             (
                 "postgres://somehost:111/base",
-                "airflow://testconn/extra",
+                "airflow://testconn@/extra",
                 "postgres://somehost:111/base/extra",
             ),
-            ("postgres://somehost:111", "airflow://testconn/?foo=bar", "postgres://somehost:111/?foo=bar"),
+            ("postgres://somehost:111", "airflow://testconn@/?foo=bar", "postgres://somehost:111/?foo=bar"),
             (
                 "postgres://somehost?biz=baz",
-                "airflow://testconn/?foo=bar",
+                "airflow://testconn@/?foo=bar",
                 "postgres://somehost/?biz=baz&foo=bar",
             ),
             (
                 "postgres://somehost?foo=baz",
-                "airflow://testconn/?foo=bar",
+                "airflow://testconn@/?foo=bar",
                 "postgres://somehost/?foo=bar",
             ),
-            ("postgres://user:pass@somehost", "airflow://testconn", "postgres://somehost"),
+            ("postgres://user:pass@somehost", "airflow://testconn@", "postgres://somehost"),
         ],
     )
     def test_canonical_uri(self, conn_uri, dataset_uri, expected_canonical_uri):
