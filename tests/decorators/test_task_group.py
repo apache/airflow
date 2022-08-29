@@ -54,7 +54,7 @@ def test_task_group_with_overridden_kwargs():
 
 
 def test_toolip_derived_from_function_docstring():
-    """Test that the tooltip for TaskGroup is the decorated-function's docsring."""
+    """Test that the tooltip for TaskGroup is the decorated-function's docstring."""
 
     @dag(start_date=pendulum.datetime(2022, 1, 1))
     def pipeline():
@@ -72,7 +72,7 @@ def test_toolip_derived_from_function_docstring():
 def test_toolip_not_overriden_by_function_docstring():
     """
     Test that the tooltip for TaskGroup is the explicitly set value even if the decorated function has a
-    docsring.
+    docstring.
     """
 
     @dag(start_date=pendulum.datetime(2022, 1, 1))
