@@ -180,7 +180,7 @@ class MySqlHook(DbApiHook):
         raise ValueError('Unknown MySQL client name provided!')
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """Loads a tab-delimited file into a database table."""
+        """Load a tab-delimited file into a database table."""
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -193,7 +193,7 @@ class MySqlHook(DbApiHook):
         conn.close()
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """Dumps a database table into a tab-delimited file."""
+        """Dump a database table into a tab-delimited file."""
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
