@@ -536,8 +536,8 @@ workers:
     annotations: {}
     containerSecurityContext:
       runAsUser: 0
-    #  allowPrivilegeEscalation: false
-    #  capabilities: {}
+      #  allowPrivilegeEscalation: false
+      #  capabilities: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar

@@ -85,7 +85,6 @@ spec:
             - name: airflow-cleanup-pods
               image: {{ template "airflow_image" . }}
               imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-              securityContext: {{ toYaml .Values.cleanup.containerSecurityContext | nindent 12 }}
               {{- if .Values.cleanup.command }}
               command: {{ tpl (toYaml .Values.cleanup.command) . | nindent 16 }}
               {{- end }}

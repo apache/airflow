@@ -1390,13 +1390,17 @@
                             "description": "Container security context definition. The values in this parameter will be used when `containerSecurityContext` is not defined for specific Containers",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {},
+                            "default": {
+                                "runAsUser": 0
+                            },
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -1441,7 +1445,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -1649,7 +1655,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -1678,7 +1686,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -1719,7 +1729,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -2083,7 +2095,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -2112,7 +2126,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -2158,7 +2174,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -2458,7 +2476,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -2504,7 +2524,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -2796,7 +2818,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -2842,7 +2866,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -3047,7 +3073,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -3274,7 +3302,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -3533,7 +3563,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -3826,7 +3858,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -4201,7 +4235,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -4390,7 +4426,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -4531,7 +4569,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -4780,7 +4820,9 @@
                                 {
                                     "allowPrivilegeEscalation": false,
                                     "capabilities": {
-                                        "drop": ["ALL"]
+                                        "drop": [
+                                            "ALL"
+                                        ]
                                     }
                                 }
                             ]
@@ -4958,7 +5000,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
@@ -5323,7 +5367,9 @@
                         {
                             "allowPrivilegeEscalation": false,
                             "capabilities": {
-                                "drop": ["ALL"]
+                                "drop": [
+                                    "ALL"
+                                ]
                             }
                         }
                     ]
