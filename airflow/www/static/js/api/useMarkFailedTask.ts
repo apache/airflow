@@ -19,28 +19,50 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const markSuccessUrl = getMetaValue('dagrun_success_url');
+const failedUrl = getMetaValue('failed_url');
 const csrfToken = getMetaValue('csrf_token');
 
-export default function useMarkSuccessRun(dagId, runId) {
+export default function useMarkFailedTask({
+  dagId, runId, taskId,
+}: {
+  dagId: string, runId: string, taskId: string,
+}) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunSuccess', dagId, runId],
-    ({ confirmed = false }) => {
-      const params = new URLSearchParams({
+    ['markFailed', dagId, runId, taskId],
+    ({
+      past, future, upstream, downstream, mapIndexes = [],
+    }: {
+      past: boolean,
+      future: boolean,
+      upstream: boolean,
+      downstream: boolean,
+      mapIndexes: number[]
+    }) => {
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
-        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-      }).toString();
+        task_id: taskId,
+        confirmed: true,
+        past,
+        future,
+        upstream,
+        downstream,
+      });
 
-      return axios.post(markSuccessUrl, params, {
+      mapIndexes.forEach((mi: number) => {
+        params.append('map_index', mi.toString());
+      });
+
+      return axios.post(failedUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -49,9 +71,10 @@ export default function useMarkSuccessRun(dagId, runId) {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }
