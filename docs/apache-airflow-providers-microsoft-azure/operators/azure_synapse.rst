@@ -35,7 +35,7 @@ terminate with a "Succeeded" status.
 
 Below is an example of using this operator to execute a Spark application on Azure Synapse.
 
-  .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+  .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_synapse.py
       :language: python
       :dedent: 0
       :start-after: [START howto_operator_azure_synapse]

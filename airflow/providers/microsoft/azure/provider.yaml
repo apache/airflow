@@ -117,10 +117,9 @@ integrations:
       - /docs/apache-airflow-providers-microsoft-azure/operators/asb.rst
     tags: [azure]
   - integration-name: Microsoft Azure Synapse
-    external-doc-url: https://azure.microsoft.com/en-us/services/service-bus/
-    logo: /integration-logos/azure/Service-Bus.svg
+    external-doc-url: https://azure.microsoft.com/en-us/services/synapse-analytics/
     how-to-guide:
-      - /docs/apache-airflow-providers-microsoft-azure/operators/asb.rst
+      - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
     tags: [azure]
 
 operators:
