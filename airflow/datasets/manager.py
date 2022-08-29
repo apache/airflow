@@ -30,9 +30,9 @@ if TYPE_CHECKING:
 
 class DatasetManager(LoggingMixin):
     """
-    A pluggable class that manages operations for dataset events.
+    A pluggable class that manages operations for datasets.
 
-    The intent is to have one place to handle all DatasetEvent-related operations, so different
+    The intent is to have one place to handle all Dataset-related operations, so different
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
