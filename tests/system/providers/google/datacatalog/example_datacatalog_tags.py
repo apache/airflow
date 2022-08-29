@@ -18,10 +18,12 @@
 
 import os
 from datetime import datetime
+from typing import cast
 
 from google.cloud.datacatalog import TagField, TagTemplateField
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogCreateEntryGroupOperator,
@@ -74,7 +76,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_entry_group_result]
     create_entry_group_result = BashOperator(
         task_id="create_entry_group_result",
-        bash_command=f"echo {create_entry_group.output['entry_group_id']}",
+        bash_command=f"echo {XComArg(create_entry_group, key='entry_group_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_group_result]
 
@@ -95,7 +97,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_entry_gcs_result]
     create_entry_gcs_result = BashOperator(
         task_id="create_entry_gcs_result",
-        bash_command=f"echo {create_entry_gcs.output['entry_id']}",
+        bash_command=f"echo {XComArg(create_entry_gcs, key='entry_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_gcs_result]
 
@@ -110,10 +112,12 @@ with models.DAG(
     )
     # [END howto_operator_gcp_datacatalog_create_tag]
 
+    tag_id = cast(str, XComArg(create_tag, key='tag_id'))
+
     # [START howto_operator_gcp_datacatalog_create_tag_result]
     create_tag_result = BashOperator(
         task_id="create_tag_result",
-        bash_command=f"echo {create_tag.output['tag_id']}",
+        bash_command=f"echo {tag_id}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_result]
 
@@ -136,7 +140,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_tag_template_result]
     create_tag_template_result = BashOperator(
         task_id="create_tag_template_result",
-        bash_command=f"echo {create_tag_template.output['tag_template_id']}",
+        bash_command=f"echo {XComArg(create_tag_template, key='tag_template_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_result]
 
@@ -160,7 +164,7 @@ with models.DAG(
         location=LOCATION,
         entry_group=ENTRY_GROUP_ID,
         entry=ENTRY_ID,
-        tag_id=f"{create_tag.output['tag_id']}",
+        tag_id=tag_id,
     )
     # [END howto_operator_gcp_datacatalog_update_tag]
 
@@ -185,7 +189,7 @@ with models.DAG(
         location=LOCATION,
         entry_group=ENTRY_GROUP_ID,
         entry=ENTRY_ID,
-        tag=create_tag.output["tag_id"],
+        tag=tag_id,
     )
     # [END howto_operator_gcp_datacatalog_delete_tag]
     delete_tag.trigger_rule = TriggerRule.ALL_DONE

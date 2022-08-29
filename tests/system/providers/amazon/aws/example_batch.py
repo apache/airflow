@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
+from typing import cast
 
 import boto3
 
@@ -193,7 +194,7 @@ with DAG(
     # [START howto_sensor_batch]
     wait_for_batch_job = BatchSensor(
         task_id='wait_for_batch_job',
-        job_id=submit_batch_job.output,
+        job_id=cast(str, submit_batch_job.output),
     )
     # [END howto_sensor_batch]
 

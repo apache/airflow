@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, cast
 
 import boto3
 from botocore.client import BaseClient
@@ -162,7 +162,7 @@ with DAG(
         job_name=glue_job_name,
         script_location=f's3://{bucket_name}/etl_script.py',
         s3_bucket=bucket_name,
-        iam_role_name=role_name,
+        iam_role_name=cast(str, role_name),
         create_job_kwargs={'GlueVersion': '3.0', 'NumberOfWorkers': 2, 'WorkerType': 'G.1X'},
         # Waits by default, set False to test the Sensor below
         wait_for_completion=False,
@@ -174,7 +174,7 @@ with DAG(
         task_id='wait_for_job',
         job_name=glue_job_name,
         # Job ID extracted from previous Glue Job Operator task
-        run_id=submit_glue_job.output,
+        run_id=cast(str, submit_glue_job.output),
     )
     # [END howto_sensor_glue]
 
@@ -199,7 +199,7 @@ with DAG(
         # TEST TEARDOWN
         glue_cleanup(glue_crawler_name, glue_job_name, glue_db_name),
         delete_bucket,
-        delete_logs(submit_glue_job.output, glue_crawler_name),
+        delete_logs(cast(str, submit_glue_job.output), glue_crawler_name),
     )
 
     from tests.system.utils.watcher import watcher
