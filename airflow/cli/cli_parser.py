@@ -1170,6 +1170,7 @@ DAGS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_EXECUTION_DATE,
+            ARG_CONF,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
