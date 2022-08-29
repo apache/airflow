@@ -633,6 +633,9 @@ sensors:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.sensors.dataform
+  - integration-name: Google Cloud Tasks
+    python-modules:
+      - airflow.providers.google.cloud.sensors.tasks
 
 hooks:
   - integration-name: Google Ads
@@ -1004,6 +1007,10 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceListLink
   - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceDetailsLink
   - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 

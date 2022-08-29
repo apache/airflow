@@ -7,6 +7,7 @@ build-docs:74c301f05bbd185a19fd185f1873e38a
 ci:find-newer-dependencies:00000f7afb289e36e8c573fcc654df44
 ci:fix-ownership:84902165a54467564fbdd3598fa273e2
 ci:free-space:bb8e7ac63d12ab3ede272a898de2f527
+ci:get-workflow-info:01ee34c33ad62fa5dc33e0ac8773223f
 ci:resource-check:0fb929ac3496dbbe97acfe99e35accd7
 ci:selective-check:d4e3c250cd6f2b0040fbe6557fa423f6
 ci-image:build:f2c38a416078b4ff6967d7857d7dbdcc
@@ -30,7 +31,7 @@ setup:config:92653afc11889e1b78e3a2e38f41107f
 setup:regenerate-command-images:4fd2e7ecbfd6eebb18b854f3eb0f29c8
 setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:d11da4c17a23179830079b646160149c
-shell:1cefbacc29c6aff3c5fb2d1be2cd1950
+shell:2dc8c9d6328897c7b3fcb5d505a893a9
 start-airflow:3e793b11dc2158c54bfc189bfe20d6f2
 static-checks:5563b797f9a95e55e9f6f06e125f12eb
 stop:8ebd8a42f1003495d37b884de5ac7ce6

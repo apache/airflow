@@ -47,6 +47,23 @@ def roles_create(args):
     print(f"Added {len(args.role)} role(s)")
 
 
+@cli_utils.action_cli
+@suppress_logs_and_warning
+def roles_delete(args):
+    """Deletes role in DB"""
+    appbuilder = cached_app().appbuilder
+
+    for role_name in args.role:
+        role = appbuilder.sm.find_role(role_name)
+        if not role:
+            print(f"Role named '{role_name}' does not exist")
+            exit(1)
+
+    for role_name in args.role:
+        appbuilder.sm.delete_role(role_name)
+    print(f"Deleted {len(args.role)} role(s)")
+
+
 @suppress_logs_and_warning
 def roles_export(args):
     """

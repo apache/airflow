@@ -308,6 +308,57 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             )
 
 
+class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
+    """
+    Deletes the specified manual snapshot
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftDeleteClusterSnapshotOperator`
+
+    :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
+    :param cluster_identifier: The unique identifier of the cluster the snapshot was created from
+    :param wait_for_completion: Whether wait for cluster deletion or not
+        The default value is ``True``
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        The default connection id is ``aws_default``
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check snapshot state
+    """
+
+    def __init__(
+        self,
+        *,
+        snapshot_identifier: str,
+        cluster_identifier: str,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        poll_interval: int = 10,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.snapshot_identifier = snapshot_identifier
+        self.cluster_identifier = cluster_identifier
+        self.wait_for_completion = wait_for_completion
+        self.poll_interval = poll_interval
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
+
+    def execute(self, context: "Context") -> Any:
+        self.redshift_hook.get_conn().delete_cluster_snapshot(
+            SnapshotClusterIdentifier=self.cluster_identifier,
+            SnapshotIdentifier=self.snapshot_identifier,
+        )
+
+        if self.wait_for_completion:
+            while self.get_status() is not None:
+                time.sleep(self.poll_interval)
+
+    def get_status(self) -> str:
+        return self.redshift_hook.get_cluster_snapshot_status(
+            snapshot_identifier=self.snapshot_identifier,
+            cluster_identifier=self.cluster_identifier,
+        )
+
+
 class RedshiftResumeClusterOperator(BaseOperator):
     """
     Resume a paused AWS Redshift Cluster

@@ -693,7 +693,7 @@ autoapi_ignore = [
     '*/migrations/*',
     '*/contrib/*',
     '**/example_sla_dag.py',
-    '**/example_taskflow_api_etl_docker_virtualenv.py',
+    '**/example_taskflow_api_docker_virtualenv.py',
     '**/example_dag_decorator.py',
 ]
 if PACKAGE_NAME == 'apache-airflow':
