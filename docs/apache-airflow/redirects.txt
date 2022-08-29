@@ -61,3 +61,7 @@ upgrading-to-2.rst upgrading-from-1-10/index.rst
 
 # Release Notes
 changelog.rst release_notes.rst
+
+# Tutorials
+tutorial.rst tutorial/index.rst
+tutorial_taskflow_api.rst tutorial/taskflow.rst

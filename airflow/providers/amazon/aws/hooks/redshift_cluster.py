@@ -153,3 +153,21 @@ class RedshiftHook(AwsBaseHook):
             ManualSnapshotRetentionPeriod=retention_period,
         )
         return response['Snapshot'] if response['Snapshot'] else None
+
+    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str):
+        """
+        Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
+
+        :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
+        :param cluster_identifier: The unique identifier of the cluster the snapshot was created from
+        """
+        try:
+            response = self.get_conn().describe_cluster_snapshots(
+                ClusterIdentifier=cluster_identifier,
+                SnapshotIdentifier=snapshot_identifier,
+            )
+            snapshot = response.get("Snapshots")[0]
+            snapshot_status: str = snapshot.get("Status")
+            return snapshot_status
+        except self.get_conn().exceptions.ClusterSnapshotNotFoundFault:
+            return None

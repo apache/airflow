@@ -126,6 +126,8 @@ with DAG(
         s3_prefix='rds-test',
         iam_role_arn=test_context[ROLE_ARN_KEY],
         kms_key_id=test_context[KMS_KEY_ID_KEY],
+        # Waits by default, set False to test the CancelExportTaskOperator below
+        wait_for_completion=False,
     )
     # [END howto_operator_rds_start_export_task]
 

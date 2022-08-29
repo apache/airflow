@@ -1,0 +1,11 @@
+{
+    "repository": "apache/airflow",
+    "event_name": "push",
+    "event": {
+        "repository": {
+            "full_name": "apache/airflow"
+        }
+    },
+    "ref_name": "main",
+    "ref": "refs/head/main"
+}
