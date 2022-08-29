@@ -192,7 +192,7 @@ def execute_in_subprocess_with_kwargs(cmd: List[str], **kwargs) -> None:
 
 def execute_interactive(cmd: List[str], **kwargs) -> None:
     """
-    Runs the new command as a subproce.
+    Runs the new command as a subprocess.
 
     Runs the new command as a subprocess and ensures that the terminal's state is restored to its original
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
