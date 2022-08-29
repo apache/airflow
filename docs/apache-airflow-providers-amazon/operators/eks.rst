@@ -84,7 +84,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_in_one_step.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_fargate_in_one_step.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster_with_fargate_profile]
@@ -160,7 +160,7 @@ Note:  An AWS IAM role with the following permissions is required:
   ``AmazonEC2ContainerRegistryReadOnly`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_fargate_profile.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_fargate_profile]
@@ -174,7 +174,7 @@ Delete an AWS Fargate Profile
 To delete an existing AWS Fargate Profile you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteFargateProfileOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_fargate_profile.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_delete_fargate_profile]
@@ -235,7 +235,7 @@ Wait on an AWS Fargate profile state
 To check the state of an AWS Fargate profile until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksFargateProfileSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_fargate_profile.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_eks_fargate]
