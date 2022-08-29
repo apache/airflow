@@ -387,7 +387,7 @@
       default: "0o077"
       example: ~
     - name: dataset_manager_class
-      description: Class to use as dataset event manager.
+      description: Class to use as dataset manager.
       version_added: 2.4.0
       type: string
       default: ~
