@@ -30,9 +30,9 @@ This DAG relies on the following OS environment variables
 
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK,
     BUCKET_NAME,
@@ -61,17 +61,22 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServiceListOperationsOperator,
     CloudDataTransferServiceUpdateJobOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
 )
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-GCP_TRANSFER_FIRST_TARGET_BUCKET = os.environ.get(
-    "GCP_TRANSFER_FIRST_TARGET_BUCKET", "gcp-transfer-first-target"
-)
-GCP_TRANSFER_SECOND_TARGET_BUCKET = os.environ.get(
-    "GCP_TRANSFER_SECOND_TARGET_BUCKET", "gcp-transfer-second-target"
-)
+ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
+GCP_PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
+DAG_ID = "cloud_storage_transfer"
+
+GCP_TRANSFER_FIRST_TARGET_BUCKET = f"bucket1_{DAG_ID}_{ENV_ID}"
+GCP_TRANSFER_SECOND_TARGET_BUCKET = f"bucket2_{DAG_ID}_{ENV_ID}"
+
+FILE_NAME = "text.txt"
+UPLOAD_SRC = str(Path(__file__).parent / "resources" / FILE_NAME)
 
 # [START howto_operator_gcp_transfer_create_job_body_gcp]
 gcs_to_gcs_transfer_body = {
@@ -100,11 +105,25 @@ update_body = {
 # [END howto_operator_gcp_transfer_update_job_body]
 
 with models.DAG(
-    "example_gcp_transfer",
+    DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "cloud_storage_transfer"],
 ) as dag:
+
+    create_bucket_1 = GCSCreateBucketOperator(
+        task_id="create_bucket_1", bucket_name=GCP_TRANSFER_FIRST_TARGET_BUCKET, project_id=GCP_PROJECT_ID
+    )
+    create_bucket_2 = GCSCreateBucketOperator(
+        task_id="create_bucket_2", bucket_name=GCP_TRANSFER_SECOND_TARGET_BUCKET, project_id=GCP_PROJECT_ID
+    )
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload_file",
+        src=UPLOAD_SRC,
+        dst=FILE_NAME,
+        bucket=GCP_TRANSFER_FIRST_TARGET_BUCKET,
+    )
 
     create_transfer = CloudDataTransferServiceCreateJobOperator(
         task_id="create_transfer", body=gcs_to_gcs_transfer_body
@@ -142,13 +161,40 @@ with models.DAG(
         task_id="delete_transfer_from_gcp_job",
         job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
         project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    chain(
-        create_transfer,
-        wait_for_transfer,
-        update_transfer,
-        list_operations,
-        get_operation,
-        delete_transfer,
+    delete_bucket_1 = GCSDeleteBucketOperator(
+        task_id="delete_bucket_1",
+        bucket_name=GCP_TRANSFER_FIRST_TARGET_BUCKET,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
+    delete_bucket_2 = GCSDeleteBucketOperator(
+        task_id="delete_bucket_2",
+        bucket_name=GCP_TRANSFER_SECOND_TARGET_BUCKET,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    (
+        [create_bucket_1, create_bucket_2]
+        >> upload_file
+        >> create_transfer
+        >> wait_for_transfer
+        >> update_transfer
+        >> list_operations
+        >> get_operation
+        >> delete_transfer
+        >> [delete_bucket_1, delete_bucket_2]
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
