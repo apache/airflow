@@ -263,6 +263,24 @@ class Pool(Base):
         )
 
     @provide_session
+    def scheduled_slots(self, session: Session = NEW_SESSION):
+        """
+        Get the number of slots scheduled at the moment.
+
+        :param session: SQLAlchemy ORM Session
+        :return: the number of scheduled slots
+        """
+        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+
+        return int(
+            session.query(func.sum(TaskInstance.pool_slots))
+            .filter(TaskInstance.pool == self.pool)
+            .filter(TaskInstance.state == State.SCHEDULED)
+            .scalar()
+            or 0
+        )
+
+    @provide_session
     def open_slots(self, session: Session = NEW_SESSION) -> float:
         """
         Get the number of slots open at the moment.

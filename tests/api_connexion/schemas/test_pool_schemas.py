@@ -43,6 +43,7 @@ class TestPoolSchema(unittest.TestCase):
             "occupied_slots": 0,
             "running_slots": 0,
             "queued_slots": 0,
+            "scheduled_slots": 0,
             "open_slots": 2,
             "description": None,
         }
@@ -73,6 +74,7 @@ class TestPoolCollectionSchema(unittest.TestCase):
                     "occupied_slots": 0,
                     "running_slots": 0,
                     "queued_slots": 0,
+                    "scheduled_slots": 0,
                     "open_slots": 3,
                     "description": None,
                 },
@@ -82,6 +84,7 @@ class TestPoolCollectionSchema(unittest.TestCase):
                     "occupied_slots": 0,
                     "running_slots": 0,
                     "queued_slots": 0,
+                    "scheduled_slots": 0,
                     "open_slots": 3,
                     "description": None,
                 },

@@ -84,8 +84,13 @@ def test_list(app, admin_client, pool_factory):
 
         url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='queued')
         queued_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+
+        url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='scheduled')
+        scheduled_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+
     check_content_in_response(used_tag, resp)
     check_content_in_response(queued_tag, resp)
+    check_content_in_response(scheduled_tag, resp)
 
 
 def test_pool_muldelete(session, admin_client, pool_factory):
