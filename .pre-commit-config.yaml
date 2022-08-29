@@ -295,7 +295,7 @@ repos:
         exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/*.log
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/tutorial/pipeline_example.csv,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
@@ -512,6 +512,13 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_decorator_operator_implements_custom_name.py
         pass_filenames: true
         files: ^airflow/.*\.py$
+      - id: check-core-deprecation-classes
+        language: pygrep
+        name: Verify using of dedicated Airflow deprecation classes in core
+        entry: category=DeprecationWarning|category=PendingDeprecationWarning
+        files: \.py$
+        exclude: ^airflow/configuration.py|^airflow/providers|^scripts/in_container/verify_providers.py
+        pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
         name: Check provide_session and create_session imports

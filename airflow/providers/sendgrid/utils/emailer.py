@@ -133,7 +133,7 @@ def _post_sendgrid_mail(mail_data: Dict, conn_id: str = "sendgrid_default") -> N
         warnings.warn(
             "Fetching Sendgrid credentials from environment variables will be deprecated in a future "
             "release. Please set credentials using a connection instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         api_key = os.environ.get('SENDGRID_API_KEY')

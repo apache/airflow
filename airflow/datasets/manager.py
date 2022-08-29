@@ -15,12 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import TYPE_CHECKING
+
 from sqlalchemy.orm.session import Session
 
+from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 class DatasetEventManager(LoggingMixin):
@@ -31,8 +36,11 @@ class DatasetEventManager(LoggingMixin):
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
     def register_dataset_change(
-        self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
+        self, *, task_instance: "TaskInstance", dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
         """
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
@@ -59,3 +67,20 @@ class DatasetEventManager(LoggingMixin):
         self.log.debug("consuming dag ids %s", consuming_dag_ids)
         for dag_id in consuming_dag_ids:
             session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
+
+
+def resolve_dataset_event_manager():
+    _dataset_event_manager_class = conf.getimport(
+        section='core',
+        key='dataset_event_manager_class',
+        fallback='airflow.datasets.manager.DatasetEventManager',
+    )
+    _dataset_event_manager_kwargs = conf.getjson(
+        section='core',
+        key='dataset_event_manager_kwargs',
+        fallback={},
+    )
+    return _dataset_event_manager_class(**_dataset_event_manager_kwargs)
+
+
+dataset_event_manager = resolve_dataset_event_manager()

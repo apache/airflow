@@ -3096,11 +3096,20 @@ class TestSchedulerJob:
         with create_session() as session:
             self.scheduler_job._create_dagruns_for_dags(session, session)
 
+        def dict_from_obj(obj):
+            """Get dict of column attrs from SqlAlchemy object."""
+            return {k.key: obj.__dict__.get(k) for k in obj.__mapper__.column_attrs}
+
         # dag3 should be triggered since it only depends on dataset1, and it's been queued
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one()
         assert created_run.state == State.QUEUED
         assert created_run.start_date is None
-        assert created_run.consumed_dataset_events == [event1, event2]
+
+        # we don't have __eq__ defined on DatasetEvent because... given the fact that in the future
+        # we may register events from other systems, dataset_id + timestamp might not be enough PK
+        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == list(
+            map(dict_from_obj, [event1, event2])
+        )
         assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
         assert created_run.data_interval_end == DEFAULT_DATE + timedelta(days=11)
         # dag2 DDRQ record should still be there since the dag run was *not* triggered

@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.3.3"
+defaultAirflowTag: "2.3.4"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.3.3"
+airflowVersion: "2.3.4"
 
 # Images
 images:
@@ -452,6 +452,16 @@ workers:
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
 
+  # If the worker stops responding for 5 minutes (5*60s) kill the
+  # worker and let Kubernetes restart it
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
   # Update Strategy when worker is deployed as a Deployment
@@ -586,6 +596,9 @@ workers:
 
   podAnnotations: {}
 
+  # Labels specific to workers objects and pods
+  labels: {}
+
   logGroomerSidecar:
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
@@ -699,6 +712,9 @@ scheduler:
 
   podAnnotations: {}
 
+  # Labels specific to scheduler objects and pods
+  labels: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -753,6 +769,9 @@ createUserJob:
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
+
+  # Labels specific to createUserJob objects and pods
+  labels: {}
 
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
@@ -999,6 +1018,9 @@ webserver:
 
   podAnnotations: {}
 
+  # Labels specific webserver app
+  labels: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1093,6 +1115,9 @@ triggerer:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  # Labels specific to triggerer objects and pods
+  labels: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1291,6 +1316,8 @@ flower:
 
   podAnnotations: {}
 
+  # Labels specific to flower objects and pods
+  labels: {}
   env: []
 
 # StatsD settings
@@ -1584,6 +1611,9 @@ cleanup:
   topologySpreadConstraints: []
 
   podAnnotations: {}
+
+  # Labels specific to cleanup objects and pods
+  labels: {}
 
   resources: {}
   #  limits:

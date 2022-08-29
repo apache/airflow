@@ -34,17 +34,17 @@ describe('Test areActiveRuns()', () => {
     const runs = [
       { runType: 'scheduled', state: 'success' },
       { runType: 'manual', state: 'failed' },
-      { runType: 'manual', state: 'not_queued' },
+      { runType: 'manual', state: 'failed' },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
   });
 
-  test('Returns false when filtering runs runtype ["backfill"] and state ["not_queued"]', () => {
+  test('Returns false when filtering runs runtype ["backfill"] and state ["failed"]', () => {
     const runs = [
       { runType: 'scheduled', state: 'success' },
       { runType: 'manual', state: 'failed' },
-      { runType: 'backfill', state: 'not_queued' },
+      { runType: 'backfill', state: 'failed' },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
@@ -58,6 +58,39 @@ describe('Test areActiveRuns()', () => {
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
+  });
+
+  [
+    {
+      runType: 'manual', state: 'queued', expectedResult: true,
+    },
+    {
+      runType: 'manual', state: 'running', expectedResult: true,
+    },
+    {
+      runType: 'scheduled', state: 'queued', expectedResult: true,
+    },
+    {
+      runType: 'scheduled', state: 'running', expectedResult: true,
+    },
+    {
+      runType: 'dataset_triggered', state: 'queued', expectedResult: true,
+    },
+    {
+      runType: 'dataset_triggered', state: 'running', expectedResult: true,
+    },
+    {
+      runType: 'backfill', state: 'queued', expectedResult: false,
+    },
+    {
+      runType: 'backfill', state: 'running', expectedResult: false,
+    },
+  ].forEach(({ state, runType, expectedResult }) => {
+    test(`Returns ${expectedResult} when filtering runs with runtype ["${runType}"] and state ["${state}"]`, () => {
+      const runs = [{ runType, state }];
+      const result = areActiveRuns(runs);
+      expect(result).toBe(expectedResult);
+    });
   });
 
   test('Returns false when there are no runs', () => {

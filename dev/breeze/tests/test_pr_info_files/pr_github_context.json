@@ -1,0 +1,35 @@
+{
+    "repository": "apache/airflow",
+    "event_name": "pull_request",
+    "event": {
+        "pull_request": {
+            "number": 26004,
+            "base": {
+                "repo": {
+                    "full_name": "apache/airflow"
+                }
+            },
+            "head": {
+                "repo": {
+                    "full_name": "test/airflow"
+                }
+            },
+            "labels": [
+                {
+                    "name": "area:providers"
+                },
+                {
+                    "name": "area:dev-tools"
+                },
+                {
+                    "name": "area:logging"
+                },
+                {
+                    "name": "kind:documentation"
+                }
+            ]
+        }
+    },
+    "ref_name": "main",
+    "ref": "refs/head/main"
+}

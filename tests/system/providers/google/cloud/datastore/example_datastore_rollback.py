@@ -22,7 +22,7 @@ Airflow System Test DAG that verifies Datastore rollback operators.
 
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from airflow import models
 from airflow.providers.google.cloud.operators.datastore import (
@@ -54,7 +54,7 @@ with models.DAG(
     # [START how_to_rollback_transaction]
     rollback_transaction = CloudDatastoreRollbackOperator(
         task_id="rollback_transaction",
-        transaction=begin_transaction_to_rollback.output,
+        transaction=cast(str, begin_transaction_to_rollback.output),
     )
     # [END how_to_rollback_transaction]
 
