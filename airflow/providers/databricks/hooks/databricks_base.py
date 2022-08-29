@@ -624,7 +624,7 @@ class _TokenAuth(AuthBase):
     """
     Helper class for requests Auth field.
 
-    AuthBase requires you to implement the __call__
+    AuthBase requires you to implement the ``__call__``
     magic function.
     """
 
