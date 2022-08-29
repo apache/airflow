@@ -34,13 +34,13 @@ const Events = ({
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
 
   const sort = sortBy[0];
-  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  const orderBy = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
 
   const {
-    data: { datasetEvents, totalEntries },
+    data: { datasetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
   } = useDatasetEvents({
-    datasetId, limit, offset, order,
+    datasetId, limit, offset, orderBy,
   });
 
   const columns = useMemo(

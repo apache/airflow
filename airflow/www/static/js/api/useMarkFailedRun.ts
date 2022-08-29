@@ -19,45 +19,29 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const clearUrl = getMetaValue('clear_url');
+const markFailedUrl = getMetaValue('dagrun_failed_url');
 
-export default function useClearTask({
-  dagId, runId, taskId, executionDate,
-}) {
+export default function useMarkFailedRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
-
   return useMutation(
-    ['clearTask', dagId, runId, taskId],
-    ({
-      past, future, upstream, downstream, recursive, failed, confirmed, mapIndexes = [],
-    }) => {
-      const params = new URLSearchParams({
+    ['dagRunFailed', dagId, runId],
+    ({ confirmed = false }: { confirmed: boolean }) => {
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
+        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-        task_id: taskId,
-        confirmed,
-        execution_date: executionDate,
-        past,
-        future,
-        upstream,
-        downstream,
-        recursive,
-        only_failed: failed,
-      });
+      }).toString();
 
-      mapIndexes.forEach((mi) => {
-        params.append('map_index', mi);
-      });
-
-      return axios.post(clearUrl, params.toString(), {
+      return axios.post(markFailedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -66,10 +50,9 @@ export default function useClearTask({
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

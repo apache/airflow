@@ -41,6 +41,7 @@ import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
 import RunTypeIcon from 'src/components/RunTypeIcon';
 
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
@@ -69,10 +70,10 @@ const DagRun = ({ runId }: Props) => {
     startDate,
     endDate,
   } = run;
-  const detailsParams = new URLSearchParams({
+  const detailsParams = new URLSearchParamsWrapper({
     run_id: runId,
   }).toString();
-  const graphParams = new URLSearchParams({
+  const graphParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
   }).toString();
   const graphLink = appendSearchParams(graphUrl, graphParams);

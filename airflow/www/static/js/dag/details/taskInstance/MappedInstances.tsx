@@ -50,13 +50,13 @@ const MappedInstances = ({
 
   const sort = sortBy[0];
 
-  const order = sort && (sort.id === 'state' || sort.id === 'mapIndex') ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  const orderBy = sort && (sort.id === 'state' || sort.id === 'mapIndex') ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
 
   const {
-    data: { taskInstances, totalEntries } = { taskInstances: [], totalEntries: 0 },
+    data: { taskInstances = [], totalEntries = 0 } = { taskInstances: [], totalEntries: 0 },
     isLoading,
   } = useMappedInstances({
-    dagId, runId, taskId, limit, offset, order,
+    dagId, dagRunId: runId, taskId, limit, offset, orderBy,
   });
 
   const data = useMemo(() => taskInstances.map((mi) => ({

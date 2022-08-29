@@ -19,42 +19,28 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const successUrl = getMetaValue('success_url');
+const queuedUrl = getMetaValue('dagrun_queued_url');
 
-export default function useMarkSuccessTask({
-  dagId, runId, taskId,
-}) {
+export default function useQueueRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['markSuccess', dagId, runId, taskId],
-    ({
-      past, future, upstream, downstream, mapIndexes = [],
-    }) => {
-      const params = new URLSearchParams({
+    ['dagRunQueue', dagId, runId],
+    ({ confirmed = false }: { confirmed: boolean }) => {
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
+        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-        task_id: taskId,
-        confirmed: true,
-        past,
-        future,
-        upstream,
-        downstream,
-        map_indexes: mapIndexes,
-      });
-
-      mapIndexes.forEach((mi) => {
-        params.append('map_index', mi);
-      });
-
-      return axios.post(successUrl, params.toString(), {
+      }).toString();
+      return axios.post(queuedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -63,10 +49,9 @@ export default function useMarkSuccessTask({
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

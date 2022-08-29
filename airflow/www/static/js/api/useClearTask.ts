@@ -17,30 +17,58 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
-const queuedUrl = getMetaValue('dagrun_queued_url');
+const clearUrl = getMetaValue('clear_url');
 
-export default function useQueueRun(dagId, runId) {
+export default function useClearTask({
+  dagId, runId, taskId, executionDate,
+}: { dagId: string,
+  runId: string,
+  taskId: string,
+  executionDate: string }) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
+
   return useMutation(
-    ['dagRunQueue', dagId, runId],
-    ({ confirmed = false }) => {
-      const params = new URLSearchParams({
+    ['clearTask', dagId, runId, taskId],
+    ({
+      past, future, upstream, downstream, recursive, failed, confirmed, mapIndexes = [],
+    }: { past: boolean,
+      future: boolean,
+      upstream: boolean,
+      downstream: boolean,
+      recursive: boolean,
+      failed: boolean,
+      confirmed: boolean,
+      mapIndexes: number[] }) => {
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
-        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-      }).toString();
+        task_id: taskId,
+        confirmed,
+        execution_date: executionDate,
+        past,
+        future,
+        upstream,
+        downstream,
+        recursive,
+        only_failed: failed,
+      });
 
-      return axios.post(queuedUrl, params, {
+      mapIndexes.forEach((mi: number) => {
+        params.append('map_index', mi.toString());
+      });
+
+      return axios.post<AxiosResponse, string>(clearUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -49,9 +77,10 @@ export default function useQueueRun(dagId, runId) {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

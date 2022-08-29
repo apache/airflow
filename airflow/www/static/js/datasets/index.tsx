@@ -61,7 +61,7 @@ const Datasets = () => {
     <Flex alignItems="flex-start" justifyContent="space-between">
       <Box width="600px" height="calc(100vh - 125px)" overflowY="scroll">
         {datasetUri
-          ? <DatasetDetails datasetUri={datasetUri} onBack={onBack} />
+          ? <DatasetDetails uri={datasetUri} onBack={onBack} />
           : <DatasetsList onSelect={onSelect} />}
       </Box>
       <Graph selectedUri={datasetUri} onSelect={onSelect} />

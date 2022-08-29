@@ -32,7 +32,7 @@ interface Props {
 }
 
 const DatasetTriggerEvents = ({ runId }: Props) => {
-  const { data: { datasetEvents }, isLoading } = useUpstreamDatasetEvents({ runId });
+  const { data: { datasetEvents = [] }, isLoading } = useUpstreamDatasetEvents({ runId });
 
   const columns = useMemo(
     () => [

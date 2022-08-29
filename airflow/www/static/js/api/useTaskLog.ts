@@ -20,6 +20,7 @@
 import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 import { useAutoRefresh } from 'src/context/autorefresh';
+import type { API } from 'src/types';
 
 import { getMetaValue } from 'src/utils';
 
@@ -27,14 +28,7 @@ const taskLogApi = getMetaValue('task_log_api');
 
 const useTaskLog = ({
   dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent,
-}: {
-  dagId: string,
-  dagRunId: string,
-  taskId: string,
-  taskTryNumber: number,
-  mapIndex?: number,
-  fullContent: boolean,
-}) => {
+}: API.GetLogVariables) => {
   let url: string = '';
   if (taskLogApi) {
     url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber.toString());

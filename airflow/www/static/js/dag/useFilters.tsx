@@ -20,6 +20,7 @@
 /* global moment */
 
 import { useSearchParams } from 'react-router-dom';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 
 declare const defaultDagRunDisplayNumber: number;
 
@@ -66,7 +67,7 @@ const useFilters = (): FilterHookReturn => {
     formatFn?: (arg: string) => string,
   ) => (value: string) => {
     const formattedValue = formatFn ? formatFn(value) : value;
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParamsWrapper(searchParams);
 
     if (formattedValue) params.set(paramName, formattedValue);
     else params.delete(paramName);

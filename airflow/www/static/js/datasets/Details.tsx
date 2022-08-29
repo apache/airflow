@@ -28,12 +28,12 @@ import InfoTooltip from 'src/components/InfoTooltip';
 import Events from './DatasetEvents';
 
 interface Props {
-  datasetUri: string;
+  uri: string;
   onBack: () => void;
 }
 
-const DatasetDetails = ({ datasetUri, onBack }: Props) => {
-  const { data: dataset, isLoading } = useDataset({ datasetUri });
+const DatasetDetails = ({ uri, onBack }: Props) => {
+  const { data: dataset, isLoading } = useDataset({ uri });
   return (
     <Box mt={[6, 3]}>
       <Button onClick={onBack}>See all datasets</Button>
@@ -42,8 +42,8 @@ const DatasetDetails = ({ datasetUri, onBack }: Props) => {
         <Heading my={2} fontWeight="normal" size="lg">
           Dataset:
           {' '}
-          {datasetUri}
-          <ClipboardButton value={datasetUri} iconOnly ml={2} />
+          {uri}
+          <ClipboardButton value={uri} iconOnly ml={2} />
         </Heading>
       </Box>
       <Flex alignItems="center">

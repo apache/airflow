@@ -19,42 +19,53 @@
 
 /* global describe, test, expect */
 
+import type { DagRun } from 'src/types';
 import { areActiveRuns } from './useGridData';
+
+const commonDagRunParams = {
+  runId: 'runId',
+  executionDate: '2022-01-01T10:00+00:00',
+  dataIntervalStart: '2022-01-01T05:00+00:00',
+  dataIntervalEnd: '2022-01-01T10:00+00:00',
+  startDate: null,
+  endDate: null,
+  lastSchedulingDecision: null,
+};
 
 describe('Test areActiveRuns()', () => {
   test('Correctly detects active runs', () => {
-    const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'queued' },
+    const runs: DagRun[] = [
+      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
+      { runType: 'manual', state: 'queued', ...commonDagRunParams },
     ];
     expect(areActiveRuns(runs)).toBe(true);
   });
 
   test('Returns false when all runs are resolved', () => {
-    const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'failed' },
-      { runType: 'manual', state: 'failed' },
+    const runs: DagRun[] = [
+      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
+      { runType: 'manual', state: 'failed', ...commonDagRunParams },
+      { runType: 'manual', state: 'failed', ...commonDagRunParams },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
   });
 
-  test('Returns false when filtering runs runtype ["backfill"] and state ["failed"]', () => {
-    const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'failed' },
-      { runType: 'backfill', state: 'failed' },
+  test('Returns false when filtering runs runtype ["backfill"]', () => {
+    const runs: DagRun[] = [
+      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
+      { runType: 'manual', state: 'failed', ...commonDagRunParams },
+      { runType: 'backfill', state: 'failed', ...commonDagRunParams },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
   });
 
   test('Returns false when filtering runs runtype ["backfill"] and state ["queued"]', () => {
-    const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'failed' },
-      { runType: 'backfill', state: 'queued' },
+    const runs: DagRun[] = [
+      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
+      { runType: 'manual', state: 'failed', ...commonDagRunParams },
+      { runType: 'backfill', state: 'queued', ...commonDagRunParams },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
@@ -87,7 +98,7 @@ describe('Test areActiveRuns()', () => {
     },
   ].forEach(({ state, runType, expectedResult }) => {
     test(`Returns ${expectedResult} when filtering runs with runtype ["${runType}"] and state ["${state}"]`, () => {
-      const runs = [{ runType, state }];
+      const runs: DagRun[] = [{ runType, state, ...commonDagRunParams } as DagRun];
       const result = areActiveRuns(runs);
       expect(result).toBe(expectedResult);
     });

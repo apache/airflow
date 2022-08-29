@@ -19,28 +19,29 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
+const markSuccessUrl = getMetaValue('dagrun_success_url');
 const csrfToken = getMetaValue('csrf_token');
-const markFailedUrl = getMetaValue('dagrun_failed_url');
 
-export default function useMarkFailedRun(dagId, runId) {
+export default function useMarkSuccessRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunFailed', dagId, runId],
-    ({ confirmed = false }) => {
-      const params = new URLSearchParams({
+    ['dagRunSuccess', dagId, runId],
+    ({ confirmed = false }: { confirmed: boolean }) => {
+      const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         confirmed,
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();
 
-      return axios.post(markFailedUrl, params, {
+      return axios.post(markSuccessUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -51,7 +52,7 @@ export default function useMarkFailedRun(dagId, runId) {
         queryClient.invalidateQueries('gridData');
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

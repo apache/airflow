@@ -37,6 +37,7 @@ import { useTimezone } from 'src/context/timezone';
 import type { Dag, DagRun, TaskInstance } from 'src/types';
 import MultiSelect from 'src/components/MultiSelect';
 
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import LogLink from './LogLink';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
 
@@ -113,7 +114,7 @@ const Logs = ({
     fullContent: shouldRequestFullContent,
   });
 
-  const params = new URLSearchParams({
+  const params = new URLSearchParamsWrapper({
     task_id: taskId,
     execution_date: executionDate,
   });
