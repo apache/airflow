@@ -4510,7 +4510,7 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots', 'scheduled_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -4567,7 +4567,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    formatters_columns = {'pool': pool_link, 'running_slots': frunning_slots, 'queued_slots': fqueued_slots}
+    def fscheduled_slots(self):
+        """Scheduled slots rendering."""
+        pool_id = self.get('pool')
+        scheduled_slots = self.get('scheduled_slots')
+        if pool_id is not None and scheduled_slots is not None:
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='scheduled')
+            return Markup("<a href='{url}'>{scheduled_slots}</a>").format(
+                url=url, scheduled_slots=scheduled_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
+    formatters_columns = {
+        'pool': pool_link,
+        'running_slots': frunning_slots,
+        'queued_slots': fqueued_slots,
+        'scheduled_slots': fscheduled_slots,
+    }
 
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 
