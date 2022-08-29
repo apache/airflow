@@ -126,8 +126,6 @@ def render_chart(
             chart_dir,
             "--values",
             tmp_file.name,
-            "--kube-version",
-            kubernetes_version,
             "--namespace",
             namespace,
         ]
