@@ -456,7 +456,7 @@ def dag_test(args, session=None):
         try:
             run_conf = json.loads(args.conf)
         except ValueError as e:
-            raise SystemExit(f"Configuration '{args.conf}' is not valid JSON. Error: {e}")
+            raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
 
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=False)
