@@ -394,7 +394,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-         Lists all Redis instances owned by a project at the specified location (region) or all locations.
+        Lists all Redis instances owned by a project at the specified location (region) or all locations.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
 
