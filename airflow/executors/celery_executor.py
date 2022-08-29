@@ -573,10 +573,9 @@ class CeleryExecutor(BaseExecutor):
         before executing the next step.
 
         2) After a certain delay, check if the task is still in a PENDING state and still hasn't been picked
-        up by any worker. If this is the case, clear the row in the db and reschedule a complete new task.
-        I think this is cleaner than trying to just resend the message to the queue.
+        up by any worker. If this is the case, mark task as failed to reschedule a complete new task.
         """
-        self._try_adopt_missing_tasks_from_broker(session, list(self.pending_tasks_not_in_broker.values()))
+        self.mark_missing_tasks_as_failed(session, list(self.pending_tasks_not_in_broker.values()))
         queue_names = (
             session.query(TaskInstance.queue)
             .filter(
@@ -592,13 +591,29 @@ class CeleryExecutor(BaseExecutor):
                 self._get_pending_tasks_not_in_broker_anymore(queue=row.queue)
             )
 
+    def mark_missing_tasks_as_failed(self, session, keys: List[TaskInstanceKey]):
+        if keys:
+            missing_tasks = (
+                session.query(TaskInstance)
+                .filter(
+                    TaskInstance.filter_for_tis(keys),
+                    TaskInstance.state == State.QUEUED,
+                    TaskInstance.job_id.is_(None),
+                )
+                .all()
+            )
+            for ti in missing_tasks:
+                self.fail(
+                    ti.key, f"TaskInstance {ti.key} is missing from broker probably due to a worker shutdown"
+                )
+
     def _get_pending_tasks_not_in_broker_anymore(self, queue='default') -> Dict[str, TaskInstanceKey]:
         celery_pending_tasks_not_in_queue = {
             task_result.id: ti_key
             for ti_key, task_result in self.tasks.items()
             if task_result.state == celery_states.PENDING
         }
-        chunksize = 1000  # Go in reverse order to avoid missing tasks
+        chunksize = 1000
         start, stop = 0, chunksize
 
         with app.pool.acquire(block=True) as conn:
@@ -620,24 +635,11 @@ class CeleryExecutor(BaseExecutor):
         return celery_pending_tasks_not_in_queue
 
     def _retrieve_tasks_from_broker(self, conn, *, key, start: int, stop: int) -> Set[str]:
-        # TODO: Chance key queue 'default' to iterate through all queues
         msg_list = conn.default_channel.client.lrange(key, start, stop)
         msg_str = (bytes.decode(msg) for msg in msg_list)
         json_msg = (json.loads(msg) for msg in msg_str)
         task_ids = (msg['headers'].get('id', '') for msg in json_msg)
         return set(task_ids)
-
-    def _try_adopt_missing_tasks_from_broker(self, session, keys: List[TaskInstanceKey]):
-        missing_tasks = (
-            session.query(TaskInstance)
-            .filter(
-                TaskInstance.filter_for_tis(keys),
-                TaskInstance.state == State.QUEUED,
-                TaskInstance.job_id.is_(None),
-            )
-            .all()
-        )
-        self.try_adopt_task_instances(missing_tasks)
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback], Any]:
