@@ -273,7 +273,7 @@ def create_volume_if_missing(volume_name: str):
             )
 
 
-def create_static_check_volumes():
+def create_mypy_volume_if_needed():
     create_volume_if_missing("mypy-cache-volume")
 
 

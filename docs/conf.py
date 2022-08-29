@@ -287,10 +287,10 @@ else:
     html_js_files = []
 if PACKAGE_NAME == 'apache-airflow':
     html_extra_path = [
-        f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
+        f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/airflow.sh",
     ]
     html_extra_with_substitutions = [
-        f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/docker-compose.yaml",
         f"{ROOT_DIR}/docs/docker-stack/build.rst",
     ]
     # Replace "|version|" in links
@@ -693,7 +693,7 @@ autoapi_ignore = [
     '*/migrations/*',
     '*/contrib/*',
     '**/example_sla_dag.py',
-    '**/example_taskflow_api_etl_docker_virtualenv.py',
+    '**/example_taskflow_api_docker_virtualenv.py',
     '**/example_dag_decorator.py',
 ]
 if PACKAGE_NAME == 'apache-airflow':

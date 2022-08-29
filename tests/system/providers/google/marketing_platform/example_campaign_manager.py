@@ -21,8 +21,10 @@ Example Airflow DAG that shows how to use CampaignManager.
 import os
 import time
 from datetime import datetime
+from typing import cast
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
@@ -105,14 +107,14 @@ with models.DAG(
     create_report = GoogleCampaignManagerInsertReportOperator(
         profile_id=PROFILE_ID, report=REPORT, task_id="create_report"
     )
-    report_id = create_report.output["report_id"]
+    report_id = cast(str, XComArg(create_report, key="report_id"))
     # [END howto_campaign_manager_insert_report_operator]
 
     # [START howto_campaign_manager_run_report_operator]
     run_report = GoogleCampaignManagerRunReportOperator(
         profile_id=PROFILE_ID, report_id=report_id, task_id="run_report"
     )
-    file_id = run_report.output["file_id"]
+    file_id = cast(str, XComArg(run_report, key="file_id"))
     # [END howto_campaign_manager_run_report_operator]
 
     # [START howto_campaign_manager_wait_for_operation]

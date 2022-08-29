@@ -16,6 +16,7 @@
 # under the License.
 import json
 from datetime import datetime
+from typing import cast
 
 from airflow import DAG
 from airflow.decorators import task
@@ -79,19 +80,21 @@ with DAG(
 
     # [START howto_operator_step_function_start_execution]
     start_execution = StepFunctionStartExecutionOperator(
-        task_id='start_execution', state_machine_arn=state_machine_arn
+        task_id='start_execution', state_machine_arn=cast(str, state_machine_arn)
     )
     # [END howto_operator_step_function_start_execution]
 
+    execution_arn = cast(str, start_execution.output)
+
     # [START howto_sensor_step_function_execution]
     wait_for_execution = StepFunctionExecutionSensor(
-        task_id='wait_for_execution', execution_arn=start_execution.output
+        task_id='wait_for_execution', execution_arn=execution_arn
     )
     # [END howto_sensor_step_function_execution]
 
     # [START howto_operator_step_function_get_execution_output]
     get_execution_output = StepFunctionGetExecutionOutputOperator(
-        task_id='get_execution_output', execution_arn=start_execution.output
+        task_id='get_execution_output', execution_arn=execution_arn
     )
     # [END howto_operator_step_function_get_execution_output]
 
