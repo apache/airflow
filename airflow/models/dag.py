@@ -2869,6 +2869,8 @@ class DAG(LoggingMixin):
         if not cls.__serialized_fields:
             exclusion_list = {
                 'parent_dag',
+                'schedule_dataset_references',
+                'task_outlet_dataset_references',
                 '_old_context_manager_dags',
                 'safe_dag_id',
                 'last_loaded',
@@ -3060,10 +3062,16 @@ class DagModel(Base):
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
     schedule_dataset_references = relationship(
-        "DagScheduleDatasetReference", cascade='all, delete, delete-orphan'
+        "DagScheduleDatasetReference",
+        cascade='all, delete, delete-orphan',
+        backref=backref("dag"),
+        lazy='joined',
     )
     task_outlet_dataset_references = relationship(
-        "TaskOutletDatasetReference", cascade='all, delete, delete-orphan'
+        "TaskOutletDatasetReference",
+        cascade='all, delete, delete-orphan',
+        backref=backref("dag"),
+        lazy='joined',
     )
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
