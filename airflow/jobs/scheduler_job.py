@@ -141,7 +141,7 @@ class SchedulerJob(BaseJob):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
-        self._stalled_dags_update_timeout = conf.getboolean("scheduler", "stalled_dags_update_timeout")
+        self._stalled_dags_update_timeout = conf.getint("scheduler", "stalled_dags_update_timeout")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
@@ -710,7 +710,7 @@ class SchedulerJob(BaseJob):
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         if not self._standalone_dag_processor:
             self.processor_agent = DagFileProcessorAgent(
-                dag_directory=self.subdir,
+                dag_directory=str(self.subdir),
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],

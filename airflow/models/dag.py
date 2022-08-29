@@ -66,7 +66,6 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.dag_processing.dag_directory.dag_directory import DagProcessorDirectory
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -2533,18 +2532,28 @@ class DAG(LoggingMixin):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
+    def bulk_sync_to_db(
+        cls,
+        dags: Collection["DAG"],
+        dag_directory: Optional[str] = None,
+        session=NEW_SESSION,
+    ):
         """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        return cls.bulk_write_to_db(dags, session)
+        return cls.bulk_write_to_db(dags, dag_directory, session)
 
     @classmethod
     @provide_session
-    def bulk_write_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
+    def bulk_write_to_db(
+        cls,
+        dags: Collection["DAG"],
+        dag_directory: Optional[str] = None,
+        session=NEW_SESSION,
+    ):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
         calculated fields.
@@ -2625,7 +2634,7 @@ class DAG(LoggingMixin):
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            orm_dag.dag_directory = DagProcessorDirectory.get_dag_directory()
+            orm_dag.dag_directory = dag_directory
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2731,10 +2740,10 @@ class DAG(LoggingMixin):
         session.flush()
 
         for dag in dags:
-            cls.bulk_write_to_db(dag.subdags, session=session)
+            cls.bulk_write_to_db(dag.subdags, dag_directory=dag_directory, session=session)
 
     @provide_session
-    def sync_to_db(self, session=NEW_SESSION):
+    def sync_to_db(self, dag_directory: Optional[str] = None, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
@@ -2742,7 +2751,7 @@ class DAG(LoggingMixin):
 
         :return: None
         """
-        self.bulk_write_to_db([self], session)
+        self.bulk_write_to_db([self], dag_directory=dag_directory, session=session)
 
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
@@ -3044,8 +3053,6 @@ class DagModel(Base):
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
-
-        self.dag_directory = DagProcessorDirectory.get_dag_directory()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"

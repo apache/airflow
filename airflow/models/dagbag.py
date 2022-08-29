@@ -575,7 +575,7 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, session: Session = None):
+    def sync_to_db(self, dag_directory: Optional[str] = None, session: Session = None):
         """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
@@ -622,7 +622,7 @@ class DagBag(LoggingMixin):
                     for dag in self.dags.values():
                         serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
 
-                    DAG.bulk_write_to_db(self.dags.values(), session=session)
+                    DAG.bulk_write_to_db(self.dags.values(), dag_directory=dag_directory, session=session)
                 except OperationalError:
                     session.rollback()
                     raise

@@ -27,7 +27,6 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.dag_processing.dag_directory.dag_directory import DagProcessorDirectory
 from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
@@ -422,14 +421,12 @@ class TestDagRun:
         def on_success_callable(context):
             assert context['dag_run'].dag_id == 'test_dagrun_update_state_with_handle_callback_success'
 
-        DagProcessorDirectory.set_dag_directory('/tmp/test')
-
         dag = DAG(
             dag_id='test_dagrun_update_state_with_handle_callback_success',
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], session=session)
+        DAG.bulk_write_to_db(dags=[dag], dag_directory='/tmp/test', session=session)
 
         dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
         dag_task2 = EmptyOperator(task_id='test_state_succeeded2', dag=dag)
@@ -462,14 +459,12 @@ class TestDagRun:
         def on_failure_callable(context):
             assert context['dag_run'].dag_id == 'test_dagrun_update_state_with_handle_callback_failure'
 
-        DagProcessorDirectory.set_dag_directory('/tmp/test')
-
         dag = DAG(
             dag_id='test_dagrun_update_state_with_handle_callback_failure',
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], session=session)
+        DAG.bulk_write_to_db(dags=[dag], dag_directory='/tmp/test', session=session)
 
         dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
         dag_task2 = EmptyOperator(task_id='test_state_failed2', dag=dag)

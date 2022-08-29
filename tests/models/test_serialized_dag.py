@@ -24,7 +24,6 @@ from unittest import mock
 from parameterized import parameterized, parameterized_class
 
 from airflow import DAG, example_dags as example_dags_module
-from airflow.dag_processing.dag_directory.dag_directory import DagProcessorDirectory
 from airflow.models import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
@@ -65,7 +64,6 @@ class SerializedDagModelTest(unittest.TestCase):
         clear_db_serialized_dags()
 
     def tearDown(self):
-        DagProcessorDirectory._dag_directory = None
         self.patcher.stop()
         clear_db_serialized_dags()
 
@@ -127,7 +125,7 @@ class SerializedDagModelTest(unittest.TestCase):
         """Test Serialized DAG is updated if dag_directory is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag)
+        dag_updated = SDM.write_dag(dag=example_bash_op_dag, dag_directory='/tmp/test')
         assert dag_updated is True
 
         with create_session() as session:
@@ -135,7 +133,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, dag_directory='/tmp/test')
             s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
@@ -144,8 +142,7 @@ class SerializedDagModelTest(unittest.TestCase):
             session.flush()
 
             # Update DAG
-            DagProcessorDirectory.set_dag_directory("/tmp/test")
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, dag_directory='/tmp/other')
             s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             assert s_dag.dag_directory != s_dag_2.dag_directory
