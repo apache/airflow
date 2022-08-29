@@ -2698,7 +2698,7 @@ class DAG(LoggingMixin):
                 input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
-                dataset_outlets = [x for x in task.outlets if isinstance(x, Dataset)]
+                dataset_outlets = [x for x in task.outlets or [] if isinstance(x, Dataset)]
                 if not dataset_outlets:
                     if curr_outlet_references:
                         this_task_outlet_refs = [
