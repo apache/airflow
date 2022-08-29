@@ -98,6 +98,7 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
+  tt += `Trigger Rule: ${task.trigger_rule}<br>`
 
   // Calculate duration on the fly if task instance is still running
   if (ti.state === 'running') {
@@ -124,9 +125,6 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   }
   // dagTZ has been defined in dag.html
   tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ || 'UTC');
-
-  tt += `Trigger Rule: ${task.trigger_rule}<br>`
-
   return tt;
 }
 
