@@ -21,7 +21,7 @@ import logging
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 from airflow import AirflowException
-from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
+from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
 
 try:
     from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -58,7 +58,7 @@ class CloudComposerExecutionTrigger(BaseTrigger):
 
         self.pooling_period_seconds = pooling_period_seconds
 
-        self.gcp_hook = CloudComposerHook(
+        self.gcp_hook = CloudComposerAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             delegate_to=self.delegate_to,
@@ -80,7 +80,7 @@ class CloudComposerExecutionTrigger(BaseTrigger):
 
     async def run(self):
         while True:
-            operation = self.gcp_hook.get_operation(operation_name=self.operation_name)
+            operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
             if operation.done:
                 break
             elif operation.error.message:

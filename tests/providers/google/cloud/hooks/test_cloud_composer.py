@@ -20,9 +20,10 @@
 import unittest
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
+from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook, CloudComposerHook
 
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"
@@ -188,6 +189,84 @@ class TestCloudComposerHook(unittest.TestCase):
                 "page_size": None,
                 "page_token": None,
                 "include_past_releases": False,
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+
+class TestCloudComposerAsyncHook(unittest.TestCase):
+    def setUp(
+        self,
+    ) -> None:
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+            self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    async def test_create_environment(self, mock_client) -> None:
+        await self.hook.create_environment(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment=TEST_ENVIRONMENT,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.create_environment.assert_called_once_with(
+            request={
+                'parent': self.hook.get_parent(TEST_GCP_PROJECT, TEST_GCP_REGION),
+                'environment': TEST_ENVIRONMENT,
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    async def test_delete_environment(self, mock_client) -> None:
+        await self.hook.delete_environment(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.delete_environment.assert_called_once_with(
+            request={
+                "name": self.hook.get_environment_name(TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID)
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    async def test_update_environment(self, mock_client) -> None:
+        await self.hook.update_environment(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            environment=TEST_UPDATED_ENVIRONMENT,
+            update_mask=TEST_UPDATE_MASK,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.update_environment.assert_called_once_with(
+            request={
+                "name": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                ),
+                "environment": TEST_UPDATED_ENVIRONMENT,
+                "update_mask": TEST_UPDATE_MASK,
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
