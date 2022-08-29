@@ -504,7 +504,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["inlets"] = value
 
     @property  # type: ignore[override]
-    def outlets(self) -> Optional[Any]:  # type: ignore[override]
+    def outlets(self) -> List[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("outlets") or []
 
     @outlets.setter

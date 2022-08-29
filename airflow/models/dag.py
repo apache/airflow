@@ -2752,7 +2752,9 @@ class DAG(LoggingMixin):
             }
             task_refs_stored = set(
                 session.query(TaskOutletDatasetReference)
-                .filter(TaskOutletDatasetReference.dag_id == dag_id, TaskOutletDatasetReference.task_id == task_id)
+                .filter(
+                    TaskOutletDatasetReference.dag_id == dag_id, TaskOutletDatasetReference.task_id == task_id
+                )
                 .all()
             )
             task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}
@@ -3060,7 +3062,9 @@ class DagModel(Base):
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference", cascade='all, delete, delete-orphan'
     )
-    task_outlet_dataset_references = relationship("TaskOutletDatasetReference", cascade='all, delete, delete-orphan')
+    task_outlet_dataset_references = relationship(
+        "TaskOutletDatasetReference", cascade='all, delete, delete-orphan'
+    )
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
     def __init__(self, concurrency=None, **kwargs):
