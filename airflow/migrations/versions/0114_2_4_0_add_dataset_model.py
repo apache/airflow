@@ -100,7 +100,7 @@ def _create_task_outlet_dataset_reference_table():
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            columns=('dag_di',),
+            columns=('dag_id',),
             refcolumns=['dag.dag_id'],
             name='todr_dag_id_fkey',
             ondelete='CASCADE',
