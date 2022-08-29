@@ -212,7 +212,8 @@ class BaseDatabricksHook(BaseHook):
     def _get_aad_token(self, resource: str) -> str:
         """
         Function to get AAD token for given resource.
-        Supports managed identity or service principal auth
+
+        Supports managed identity or service principal auth.
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
