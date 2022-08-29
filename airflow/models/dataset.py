@@ -76,7 +76,9 @@ class DatasetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Dataset) -> DatasetModel:
-        return cls(uri=obj.uri, extra=obj.extra)
+        from airflow.datasets.manager import dataset_event_manager
+
+        return dataset_event_manager.resolve_dataset_model(obj)
 
     def __init__(self, uri: str, **kwargs):
         try:

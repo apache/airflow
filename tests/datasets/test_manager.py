@@ -21,8 +21,17 @@ from unittest import mock
 import pytest
 
 from airflow.datasets import Dataset
-from airflow.datasets.manager import DatasetEventManager
+from airflow.datasets.manager import DatasetEventManager, dataset_event_manager
 from airflow.models.dataset import DatasetModel
+from airflow.operators.empty import EmptyOperator
+from tests.test_utils.db import clear_db_datasets
+
+
+@pytest.fixture(autouse=True)
+def cleanup_db():
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
 
 
 @pytest.fixture()
@@ -84,3 +93,20 @@ class TestDatasetEventManager:
         mock_session.add.assert_called_once()
         # Ensure that we've created DatasetDagRunQueue rows
         assert mock_session.merge.call_count == 2
+
+    def test_resolve_dataset_model(self, dag_maker, session, monkeypatch):
+        class Foo:
+            @classmethod
+            def resolve_dataset_model(cls, dataset):
+                new_uri = f"{dataset.uri}?foo=bar"
+                return DatasetModel(uri=new_uri)
+
+        monkeypatch.setattr(dataset_event_manager, "resolve_dataset_model", Foo.resolve_dataset_model)
+        dataset = Dataset(uri="s3://example_dataset")
+        with dag_maker(dag_id="example_dataset"):
+            EmptyOperator(task_id="task1", outlets=[dataset])
+
+        datasets = session.query(DatasetModel).all()
+        assert len(datasets) == 1
+        dataset = datasets[0]
+        assert dataset.uri == "s3://example_dataset?foo=bar"

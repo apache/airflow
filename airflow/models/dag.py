@@ -2681,13 +2681,15 @@ class DAG(LoggingMixin):
         input_datasets: Dict[Dataset, None] = {}
         for dag in dags:
             for dataset in dag.dataset_triggers:
-                dag_references.add(InletRef(dag.dag_id, dataset.uri))
-                input_datasets[DatasetModel.from_public(dataset)] = None
+                resolved_dataset = DatasetModel.from_public(dataset)
+                dag_references.add(InletRef(dag.dag_id, resolved_dataset.uri))
+                input_datasets[resolved_dataset] = None
             for task in dag.tasks:
                 for obj in task.outlets or []:
                     if isinstance(obj, Dataset):
-                        outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
-                        outlet_datasets[DatasetModel.from_public(obj)] = None
+                        resolved_dataset = DatasetModel.from_public(obj)
+                        outlet_references.add(OutletRef(task.dag_id, task.task_id, resolved_dataset.uri))
+                        outlet_datasets[resolved_dataset] = None
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 

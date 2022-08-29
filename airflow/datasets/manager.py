@@ -68,6 +68,9 @@ class DatasetEventManager(LoggingMixin):
         for dag_id in consuming_dag_ids:
             session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
+    def resolve_dataset_model(self, dataset: Dataset) -> DatasetModel:
+        return DatasetModel(uri=dataset.uri, extra=dataset.extra)
+
 
 def resolve_dataset_event_manager():
     _dataset_event_manager_class = conf.getimport(
