@@ -470,3 +470,102 @@ class EmrStepSensor(EmrBaseSensor):
                 f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None
+
+
+class EmrStepsSensor(EmrBaseSensor):
+    """
+    Asks for the state of the step until it reaches any of the target states.
+    If it fails the sensor errors, failing the task.
+    With the default target states, sensor waits step to be completed.
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrStepSensor`
+    :param job_flow_id: job_flow_id which contains the step check the state of
+    :param step_id: step to check the state of
+    :param target_states: the target states, sensor waits until
+        step reaches any of these states
+    :param failed_states: the failure states, sensor fails when
+        step reaches any of these states
+    """
+
+    template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
+    template_ext: Sequence[str] = ()
+
+    def __init__(
+        self,
+        *,
+        job_flow_id: str,
+        target_states: Optional[Iterable[str]] = None,
+        failed_states: Optional[Iterable[str]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.job_flow_id = job_flow_id
+        self.target_states = target_states or ["COMPLETED"]
+        self.failed_states = failed_states or ["CANCELLED", "FAILED", "INTERRUPTED"]
+
+    def get_emr_response(self) -> Dict[str, Any]:
+        """
+        Make an API call with boto3 and get details about the cluster step.
+        .. seealso::
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.describe_step
+        :return: response
+        :rtype: dict[str, Any]
+        """
+        emr_client = self.get_hook().get_conn()
+
+        self.log.info("Poking steps on cluster %s", self.job_flow_id)
+        # return emr_client.describe_step(ClusterId=self.job_flow_id, StepId="qq")
+        return emr_client.list_steps(ClusterId=self.job_flow_id)
+
+    def poke(self, context: "Context") -> bool:
+        response = self.get_emr_response()
+        # self.log.info(response)
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            self.log.info("Bad HTTP response: %s", response)
+            return False
+
+        steps = response["Steps"]
+
+        states = [self.state_from_response(step) for step in steps]
+        self.log.info("Job flow currently %s", states)
+
+        if all([state in self.target_states for state in states]):
+            return True
+
+        if any([state in self.failed_states for state in states]):
+            final_message = "EMR job failed"
+            for i in range(len(states)):
+                failure_message = self.failure_message_from_response(steps[i])
+                if failure_message:
+                    final_message += " " + failure_message + "\n"
+            raise AirflowException(final_message)
+
+        return False
+
+    @staticmethod
+    def state_from_response(response: Dict[str, Any]) -> str:
+        """
+        Get state from response dictionary.
+        :param response: response from AWS API
+        :return: execution state of the cluster step
+        :rtype: str
+        """
+        return response["Status"]["State"]
+
+    @staticmethod
+    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+        """
+        Get failure message from response dictionary.
+        :param response: response from AWS API
+        :return: failure message
+        :rtype: Optional[str]
+        """
+        fail_details = response["Status"].get("FailureDetails")
+        if fail_details:
+            return (
+                f"for reason {fail_details.get('Reason')} "
+                f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
+            )
+        return None
