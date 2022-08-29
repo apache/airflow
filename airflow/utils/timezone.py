@@ -221,13 +221,20 @@ def coerce_datetime(v: dt.datetime, tz: Optional[dt.tzinfo] = None) -> DateTime:
 
 
 def coerce_datetime(v: Optional[dt.datetime], tz: Optional[dt.tzinfo] = None) -> Optional[DateTime]:
-    """Convert whatever is passed in to a timezone-aware ``pendulum.DateTime``."""
+    """Convert ``v`` into a timezone-aware ``pendulum.DateTime``.
+
+    * If ``v`` is *None*, *None* is returned.
+    * If ``v`` is a naive datetime, it is converted to an aware Pendulum DateTime.
+    * If ``v`` is an aware datetime, it is converted to a Pendulum DateTime.
+      Note that ``tz`` is **not** taken into account in this case; the datetime
+      will maintain its original tzinfo!
+    """
     if v is None:
         return None
     if isinstance(v, DateTime):
         return v if v.tzinfo else make_aware(v, tz)
-    # Only dt.datetime is left here
-    return pendulum.instance(v if v.tzinfo else make_aware(v))
+    # Only dt.datetime is left here.
+    return pendulum.instance(v if v.tzinfo else make_aware(v, tz))
 
 
 def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
