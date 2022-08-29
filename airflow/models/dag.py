@@ -2659,7 +2659,11 @@ class DAG(LoggingMixin):
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
         from airflow.datasets import Dataset
-        from airflow.models.dataset import DagScheduleDatasetReference, DatasetModel, DatasetTaskRef
+        from airflow.models.dataset import (
+            DagScheduleDatasetReference,
+            DatasetModel,
+            TaskOutletDatasetReference,
+        )
 
         class OutletRef(NamedTuple):
             dag_id: str
@@ -2713,7 +2717,7 @@ class DAG(LoggingMixin):
         # store task-outlet-dataset references
         for outlet_ref in outlet_references:
             session.merge(
-                DatasetTaskRef(
+                TaskOutletDatasetReference(
                     dataset_id=stored_datasets[outlet_ref.uri].id,
                     dag_id=outlet_ref.dag_id,
                     task_id=outlet_ref.task_id,

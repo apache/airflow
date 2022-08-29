@@ -43,7 +43,7 @@ from airflow.models.dataset import (
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    DatasetTaskRef,
+    TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
@@ -66,7 +66,7 @@ def clear_db_datasets():
         session.query(DatasetModel).delete()
         session.query(DatasetDagRunQueue).delete()
         session.query(DagScheduleDatasetReference).delete()
-        session.query(DatasetTaskRef).delete()
+        session.query(TaskOutletDatasetReference).delete()
 
 
 def clear_db_dags():

@@ -265,7 +265,7 @@ class TestDBCleanup:
             'connection',  # leave alone
             'slot_pool',  # leave alone
             'dag_schedule_dataset_reference',  # leave alone for now
-            'dataset_task_ref',  # leave alone for now
+            'task_outlet_dataset_reference',  # leave alone for now
             'dataset_dag_run_queue',  # self-managed
             'dataset_event_dag_run',  # foreign keys
         }

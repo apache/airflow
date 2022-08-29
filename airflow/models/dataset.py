@@ -66,7 +66,7 @@ class DatasetModel(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     consuming_dags = relationship("DagScheduleDatasetReference", back_populates="dataset")
-    producing_tasks = relationship("DatasetTaskRef", back_populates="dataset")
+    producing_tasks = relationship("TaskOutletDatasetReference", back_populates="dataset")
 
     __tablename__ = "dataset"
     __table_args__ = (
@@ -145,8 +145,8 @@ class DagScheduleDatasetReference(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
-class DatasetTaskRef(Base):
-    """References from a task to a downstream dataset."""
+class TaskOutletDatasetReference(Base):
+    """References from a task to a dataset that it updates / produces."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
@@ -156,15 +156,15 @@ class DatasetTaskRef(Base):
 
     dataset = relationship("DatasetModel")
 
-    __tablename__ = "dataset_task_ref"
+    __tablename__ = "task_outlet_dataset_reference"
     __table_args__ = (
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='datasettaskref_dataset_fkey',
+            name='todr_dataset_fkey',
             ondelete="CASCADE",
         ),
-        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="datasettaskref_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey", mssql_clustered=True),
     )
 
     def __eq__(self, other):

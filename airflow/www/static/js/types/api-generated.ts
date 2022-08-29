@@ -1478,14 +1478,14 @@ export interface components {
       /** @description The dataset update time */
       updated_at?: string;
       consuming_dags?: components["schemas"]["DagScheduleDatasetReference"][];
-      producing_tasks?: components["schemas"]["DatasetTaskRef"][];
+      producing_tasks?: components["schemas"]["TaskOutletDatasetReference"][];
     };
     /**
      * @description A datasets reference to an upstream task.
      *
      * *New in version 2.4.0*
      */
-    DatasetTaskRef: {
+    TaskOutletDatasetReference: {
       /** @description The DAG ID that updates the dataset. */
       dag_id?: string | null;
       /** @description The task ID that updates the dataset. */
@@ -4112,7 +4112,7 @@ export type ActionCollection = CamelCasedPropertiesDeep<components['schemas']['A
 export type Resource = CamelCasedPropertiesDeep<components['schemas']['Resource']>;
 export type ActionResource = CamelCasedPropertiesDeep<components['schemas']['ActionResource']>;
 export type Dataset = CamelCasedPropertiesDeep<components['schemas']['Dataset']>;
-export type DatasetTaskRef = CamelCasedPropertiesDeep<components['schemas']['DatasetTaskRef']>;
+export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<components['schemas']['TaskOutletDatasetReference']>;
 export type DagScheduleDatasetReference = CamelCasedPropertiesDeep<components['schemas']['DagScheduleDatasetReference']>;
 export type DatasetCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = CamelCasedPropertiesDeep<components['schemas']['DatasetEvent']>;
