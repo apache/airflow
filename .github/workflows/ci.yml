@@ -167,7 +167,7 @@ jobs:
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
-      pull-request-labels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
+      pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
       runs-on: ${{ steps.source-run-info.outputs.runs-on }}
@@ -229,13 +229,13 @@ jobs:
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
+          PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
         run: breeze ci selective-check
       - name: env
         run: printenv
         env:
-          PR_LABELS: ${{ steps.source-run-info.outputs.pullRequestLabels }}
+          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
   build-ci-images:
