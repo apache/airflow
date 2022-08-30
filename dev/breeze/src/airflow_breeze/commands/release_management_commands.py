@@ -26,6 +26,7 @@ import click
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MOUNT_ALL,
@@ -525,7 +526,7 @@ def alias_image(image_from: str, image_to: str, dry_run: bool, verbose: bool):
 @click.option('--airflow-version', required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
 @click.option(
     '--dockerhub-repo',
-    default="apache/airflow",
+    default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     help="DockerHub repository for the images",
 )
