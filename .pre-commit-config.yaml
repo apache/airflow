@@ -239,6 +239,15 @@ repos:
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
+        args:
+          # These -p options are duplicated to known_first_party in setup.cfg,
+          # Please keep these in sync for now. (See comments there for details.)
+          - -p=airflow
+          - -p=airflow_breeze
+          - -p=docker_tests
+          - -p=docs
+          - -p=kubernetes_tests
+          - -p=tests
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
