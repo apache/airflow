@@ -81,7 +81,7 @@ from airflow import settings
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.datasets.manager import dataset_event_manager
+from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -1535,7 +1535,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                dataset_event_manager.register_dataset_change(
+                dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
                     session=session,
