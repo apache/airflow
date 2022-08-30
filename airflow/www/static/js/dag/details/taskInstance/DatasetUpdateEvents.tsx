@@ -36,7 +36,13 @@ interface Props {
 const dagId = getMetaValue('dag_id') || undefined;
 
 const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
-  const { data: { datasetEvents }, isLoading } = useDatasetEvents({ runId, taskId, dagId });
+  const { data: { datasetEvents = [] }, isLoading } = useDatasetEvents(
+    {
+      sourceDagId: dagId,
+      sourceRunId: runId,
+      sourceTaskId: taskId,
+    },
+  );
 
   const columns = useMemo(
     () => [

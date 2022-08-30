@@ -58,7 +58,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1716,7 +1716,8 @@ class TestTaskInstance:
 
         # check that one queue record created for each dag that depends on dataset 1
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
-            DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'producing_task_1'
+            TaskOutletDatasetReference.dag_id == dag1.dag_id,
+            TaskOutletDatasetReference.task_id == 'producing_task_1',
         ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
             ('dataset_consumes_1',),
             ('dataset_consumes_1_and_2',),

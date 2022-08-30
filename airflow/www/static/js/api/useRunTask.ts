@@ -19,53 +19,57 @@
 
 import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const failedUrl = getMetaValue('failed_url');
 const csrfToken = getMetaValue('csrf_token');
+const runUrl = getMetaValue('run_url');
 
-export default function useMarkFailedTask({
-  dagId, runId, taskId,
-}) {
+export default function useRunTask(dagId: string, runId: string, taskId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['markFailed', dagId, runId, taskId],
-    ({
-      past, future, upstream, downstream, mapIndexes = [],
-    }) => {
-      const params = new URLSearchParams({
-        csrf_token: csrfToken,
-        dag_id: dagId,
-        dag_run_id: runId,
-        task_id: taskId,
-        confirmed: true,
-        past,
-        future,
-        upstream,
-        downstream,
-      });
+    ['runTask', dagId, runId, taskId],
+    async ({
+      ignoreAllDeps,
+      ignoreTaskState,
+      ignoreTaskDeps,
+      mapIndexes,
+    }:{
+      ignoreAllDeps: boolean,
+      ignoreTaskState: boolean,
+      ignoreTaskDeps: boolean,
+      mapIndexes: number[],
+    }) => Promise.all(
+      (mapIndexes.length ? mapIndexes : [-1]).map((mi) => {
+        const params = new URLSearchParamsWrapper({
+          csrf_token: csrfToken,
+          dag_id: dagId,
+          dag_run_id: runId,
+          task_id: taskId,
+          ignore_all_deps: ignoreAllDeps,
+          ignore_task_deps: ignoreTaskDeps,
+          ignore_ti_state: ignoreTaskState,
+          map_index: mi,
+        }).toString();
 
-      mapIndexes.forEach((mi) => {
-        params.append('map_index', mi);
-      });
-
-      return axios.post(failedUrl, params.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    },
+        return axios.post(runUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+      }),
+    ),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
         queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }
