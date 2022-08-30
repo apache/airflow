@@ -585,7 +585,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param wait_for_completion:  If True, waits for creation of the DB instance to complete. (default: True)
     """
 
-    template_fields = ("db_instance_identifier", "db_instance_class", "rds_kwargs")
+    template_fields = ("db_instance_identifier", "db_instance_class", "engine", "rds_kwargs")
 
     def __init__(
         self,
