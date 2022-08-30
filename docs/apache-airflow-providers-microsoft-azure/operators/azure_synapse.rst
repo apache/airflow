@@ -37,7 +37,7 @@ Below is an example of using this operator to execute a Spark application on Azu
 
   .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_synapse.py
       :language: python
-      :dedent: 0
+      :dedent: 4
       :start-after: [START howto_operator_azure_synapse]
       :end-before: [END howto_operator_azure_synapse]
 
