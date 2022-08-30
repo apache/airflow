@@ -2958,8 +2958,10 @@ components:
           type: integer
         queue:
           type: string
+          nullable: true
         priority_weight:
           type: integer
+          nullable: true
         operator:
           type: string
           nullable: true
@@ -3279,6 +3281,7 @@ components:
         queue:
           type: string
           readOnly: true
+          nullable: true
         pool:
           type: string
           readOnly: true
