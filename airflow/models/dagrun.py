@@ -25,8 +25,8 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     Iterable,
+    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -945,7 +945,7 @@ class DagRun(Base, LoggingMixin):
 
     def _get_task_creator(
         self, created_counts: Dict[str, int], ti_mutation_hook: Callable, hook_is_noop: bool
-    ) -> Callable:
+    ) -> Callable[[Operator, Tuple[int, ...]], Union[Iterator[Dict[str, Any]], Iterator[TI]]]:
         """
         Get the task creator function.
 
@@ -958,7 +958,7 @@ class DagRun(Base, LoggingMixin):
         """
         if hook_is_noop:
 
-            def create_ti_mapping(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+            def create_ti_mapping(task: "Operator", indexes: Tuple[int, ...]) -> Iterator[Dict[str, Any]]:
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(self.run_id, task, map_index=map_index)
@@ -967,7 +967,7 @@ class DagRun(Base, LoggingMixin):
 
         else:
 
-            def create_ti(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+            def create_ti(task: "Operator", indexes: Tuple[int, ...]) -> Iterator[TI]:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index)
                     ti_mutation_hook(ti)
@@ -980,11 +980,11 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         dag: "DAG",
-        task_creator: Callable,
-        task_filter: Callable,
+        task_creator: Callable[[Operator, Tuple[int, ...]], Union[Iterator[Dict[str, Any]], Iterator[TI]]],
+        task_filter: Callable[[Operator], bool],
         *,
         session: Session,
-    ) -> Iterable["Operator"]:
+    ) -> Union[Iterator[Dict[str, Any]], Iterator[TI]]:
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
 
@@ -1018,7 +1018,7 @@ class DagRun(Base, LoggingMixin):
     def _create_task_instances(
         self,
         dag_id: str,
-        tasks: Iterable["Operator"],
+        tasks: Union[Iterator[Dict[str, Any]], Iterator[TI]],
         created_counts: Dict[str, int],
         hook_is_noop: bool,
         *,
@@ -1040,9 +1040,9 @@ class DagRun(Base, LoggingMixin):
         run_id = self.run_id
         try:
             if hook_is_noop:
-                session.bulk_insert_mappings(TI, tasks)
+                session.bulk_insert_mappings(TI, tasks)  # type: ignore
             else:
-                session.bulk_save_objects(tasks)
+                session.bulk_save_objects(tasks)  # type: ignore
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)
