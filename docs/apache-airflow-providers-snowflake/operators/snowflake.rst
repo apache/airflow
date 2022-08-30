@@ -46,7 +46,7 @@ the connection metadata is structured as follows:
      - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``
 
 An example usage of the SnowflakeOperator is as follows:
-
+# see comment
 .. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
     :language: python
     :start-after: [START howto_operator_snowflake]
