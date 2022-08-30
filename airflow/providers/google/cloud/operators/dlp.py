@@ -800,7 +800,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPDeleteDLPJobOperator`
 
-    :param dlp_job_id: The ID of the DLP job resource to be cancelled.
+    :param dlp_job_id: The ID of the DLP job resource to be deleted.
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
