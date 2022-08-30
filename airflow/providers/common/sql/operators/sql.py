@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import re
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
 
 from packaging.version import Version
@@ -57,6 +58,34 @@ def _get_failed_checks(checks, col=None):
     ]
 
 
+_PROVIDERS_MATCHER = re.compile(r'airflow\.providers\.(.*)\.hooks.*')
+
+_MIN_SUPPORTED_PROVIDERS_VERSION = {
+    "amazon": "4.1.0",
+    "apache.drill": "2.1.0",
+    "apache.druid": "3.1.0",
+    "apache.hive": "3.1.0",
+    "apache.pinot": "3.1.0",
+    "databricks": "3.1.0",
+    "elasticsearch": "4.1.0",
+    "exasol": "3.1.0",
+    "google": "8.2.0",
+    "jdbc": "3.1.0",
+    "mssql": "3.1.0",
+    "mysql": "3.1.0",
+    "odbc": "3.1.0",
+    "oracle": "3.1.0",
+    "postgres": "5.1.0",
+    "presto": "3.1.0",
+    "qubole": "3.1.0",
+    "slack": "5.1.0",
+    "snowflake": "3.1.0",
+    "sqlite": "3.1.0",
+    "trino": "3.1.0",
+    "vertica": "3.1.0",
+}
+
+
 class BaseSQLOperator(BaseOperator):
     """
     This is a base class for generic SQL Operator to get a DB Hook
@@ -92,9 +121,28 @@ class BaseSQLOperator(BaseOperator):
             # when "apache-airflow-providers-common-sql" will depend on Airflow >= 2.3.
             hook = _backported_get_hook(conn, hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
+            from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
+
+            if isinstance(hook, _DbApiHook):
+                # This case might happen if user installed common.sql provider but did not upgrade the
+                # Other provider's versions to a version that supports common.sql provider
+                class_module = hook.__class__.__module__
+                match = _PROVIDERS_MATCHER.match(class_module)
+                if match:
+                    provider = match.group(1)
+                    min_version = _MIN_SUPPORTED_PROVIDERS_VERSION.get(provider)
+                    if min_version:
+                        raise AirflowException(
+                            f'You are trying to use common-sql with {hook.__class__.__name__},'
+                            f' but the Hook class comes from provider {provider} that does not support it.'
+                            f' Please upgrade provider {provider} to at least {min_version}.'
+                        )
             raise AirflowException(
-                f'The connection type is not supported by {self.__class__.__name__}. '
-                f'The associated hook should be a subclass of `DbApiHook`. Got {hook.__class__.__name__}'
+                f'You are trying to use `common-sql` with {hook.__class__.__name__},'
+                ' but its provider does not support it. Please upgrade the provider to a version that'
+                ' supports `common-sql`. The hook class should be a subclass of'
+                ' `airflow.providers.common.sql.hooks.sql.DbApiHook`.'
+                f' Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}'
             )
 
         if self.database:
