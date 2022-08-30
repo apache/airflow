@@ -26,7 +26,7 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from Microsoft SQL Server to Google Cloud Storage
-    in JSON or CSV format.
+    in JSON, CSV or Parquet format.
 
     :param mssql_conn_id: Reference to a specific MSSQL hook.
 

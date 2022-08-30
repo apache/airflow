@@ -147,7 +147,6 @@ class KubernetesPodOperator(BaseOperator):
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
-    :param: kubernetes_conn_id: To retrieve credentials for your k8s cluster from an Airflow connection
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -163,6 +162,7 @@ class KubernetesPodOperator(BaseOperator):
         'pod_template_file',
         'namespace',
     )
+    template_fields_renderers = {'env_vars': 'py'}
 
     def __init__(
         self,
@@ -433,6 +433,7 @@ class KubernetesPodOperator(BaseOperator):
                 )
 
             if self.do_xcom_push:
+                self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
             remote_pod = self.pod_manager.await_pod_completion(self.pod)
         finally:

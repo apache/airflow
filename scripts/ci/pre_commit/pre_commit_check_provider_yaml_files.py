@@ -83,7 +83,7 @@ def get_all_integration_names(yaml_files) -> List[str]:
     all_integrations = [
         i['integration-name'] for f in yaml_files.values() if 'integrations' in f for i in f["integrations"]
     ]
-    all_integrations += ["SQL", "Local"]
+    all_integrations += ["Local"]
     return all_integrations
 
 

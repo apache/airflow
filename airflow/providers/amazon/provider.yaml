@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 5.0.0
   - 4.1.0
   - 4.0.0
   - 3.4.0
@@ -44,7 +45,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql
+  - apache-airflow-providers-common-sql>=1.1.0
   - boto3>=1.15.0
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:
@@ -329,6 +330,9 @@ sensors:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2
+  - integration-name: Amazon ECS
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.ecs
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.eks
@@ -394,6 +398,9 @@ hooks:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
+  - integration-name: Amazon ECS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.ecs
   - integration-name: Amazon ElastiCache
     python-modules:
       - airflow.providers.amazon.aws.hooks.elasticache_replication_group
@@ -526,7 +533,7 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/local_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.local_to_s3
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3

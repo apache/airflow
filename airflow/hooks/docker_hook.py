@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.docker.hooks.docker import DockerHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.docker.hooks.docker`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

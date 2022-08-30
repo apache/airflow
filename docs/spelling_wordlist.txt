@@ -86,6 +86,7 @@ Cron
 Ctrl
 DAGs
 DBs
+DOS'ing
 Daemonize
 DagCallbackRequest
 DagFileProcessorManager
@@ -99,6 +100,7 @@ DataTransferServiceClient
 Databricks
 Datadog
 Dataflow
+Dataform
 Dataframe
 Datalake
 Datanodes
@@ -677,6 +679,7 @@ customizable
 customizations
 cx
 daemonize
+daemonized
 dagbag
 dagbags
 dagmodel
@@ -729,6 +732,7 @@ delim
 dep
 deploymentUrl
 deps
+deregister
 desc
 deserialization
 deserialize
@@ -952,6 +956,7 @@ infile
 influxdb
 infoType
 infoTypes
+ing
 ingestions
 ini
 init
@@ -1583,6 +1588,7 @@ webservice
 werkzeug
 whitespace
 whl
+wildcarded
 winrm
 workgroup
 workgroups

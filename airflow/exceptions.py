@@ -91,6 +91,19 @@ class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
 
+class XComNotFound(AirflowException):
+    """Raise when an XCom reference is being resolved against a non-existent XCom."""
+
+    def __init__(self, dag_id: str, task_id: str, key: str) -> None:
+        super().__init__()
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.key = key
+
+    def __str__(self) -> str:
+        return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
+
+
 class UnmappableOperator(AirflowException):
     """Raise when an operator is not implemented to be mappable."""
 
@@ -325,3 +338,17 @@ class TaskDeferralError(AirflowException):
 
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
+
+
+class RemovedInAirflow3Warning(DeprecationWarning):
+    """Issued for usage of deprecated features that will be removed in Airflow3."""
+
+    deprecated_since: Optional[str] = None
+    "Indicates the airflow version that started raising this deprecation warning"
+
+
+class AirflowProviderDeprecationWarning(DeprecationWarning):
+    """Issued for usage of deprecated features of Airflow provider."""
+
+    deprecated_provider_since: Optional[str] = None
+    "Indicates the provider version that started raising this deprecation warning"

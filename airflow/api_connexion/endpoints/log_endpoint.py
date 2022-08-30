@@ -48,6 +48,7 @@ def get_log(
     task_id: str,
     task_try_number: int,
     full_content: bool = False,
+    map_index: int = -1,
     token: Optional[str] = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -72,13 +73,13 @@ def get_log(
     task_log_reader = TaskLogReader()
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
-
     ti = (
         session.query(TaskInstance)
         .filter(
             TaskInstance.task_id == task_id,
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
+            TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
         .one_or_none()

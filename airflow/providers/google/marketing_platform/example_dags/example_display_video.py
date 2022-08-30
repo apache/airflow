@@ -20,9 +20,10 @@ Example Airflow DAG that shows how to use DisplayVideo.
 """
 import os
 from datetime import datetime
-from typing import Dict
+from typing import Dict, cast
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
@@ -86,13 +87,12 @@ START_DATE = datetime(2021, 1, 1)
 
 with models.DAG(
     "example_display_video",
-    schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
 ) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
-    report_id = create_report.output["report_id"]
+    report_id = cast(str, XComArg(create_report, key="report_id"))
     # [END howto_google_display_video_createquery_report_operator]
 
     # [START howto_google_display_video_runquery_report_operator]
@@ -129,7 +129,6 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_misc",
-    schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
 ) as dag2:
@@ -163,7 +162,6 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_sdf",
-    schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
 ) as dag3:

@@ -144,7 +144,7 @@ def downgrade():
         join_columns=['dag_id', 'run_id'],
     )
     op.execute(update_query)
-    with op.batch_alter_table('task_fail', copy_from=task_fail) as batch_op:
+    with op.batch_alter_table('task_fail') as batch_op:
         batch_op.alter_column('execution_date', existing_type=TIMESTAMP, nullable=False)
         if dialect_name != 'sqlite':
             batch_op.drop_constraint('task_fail_ti_fkey', type_='foreignkey')

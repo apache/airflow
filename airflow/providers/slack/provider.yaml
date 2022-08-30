@@ -37,7 +37,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql
+  - apache-airflow-providers-common-sql>=1.1.0
   - apache-airflow-providers-http
   - slack_sdk>=3.0.0
 
@@ -62,7 +62,7 @@ hooks:
       - airflow.providers.slack.hooks.slack_webhook
 
 transfers:
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Slack
     python-module: airflow.providers.slack.transfers.sql_to_slack
     how-to-guide: /docs/apache-airflow-providers-slack/operators/sql_to_slack.rst

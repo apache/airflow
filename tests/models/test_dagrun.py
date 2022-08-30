@@ -20,7 +20,6 @@ import datetime
 from typing import Mapping, Optional
 from unittest import mock
 from unittest.mock import call
-from uuid import uuid4
 
 import pendulum
 import pytest
@@ -29,21 +28,10 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import task
-from airflow.models import (
-    DAG,
-    DagBag,
-    DagModel,
-    DagRun,
-    TaskInstance,
-    TaskInstance as TI,
-    clear_task_instances,
-)
+from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dataset import Dataset, DatasetDagRunQueue
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -853,7 +841,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule=schedule_interval)
         dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:
@@ -1104,9 +1092,8 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
     dr.dag = serialized_dag
-    # Since we change the literal on the dag file itself, the dag_hash will
-    # change which will have the scheduler verify the dr integrity
-    dr.verify_integrity()
+    # Every mapped task is revised at task_instance_scheduling_decision
+    dr.task_instance_scheduling_decisions()
 
     tis = dr.get_task_instances()
     indices = [(ti.map_index, ti.state) for ti in tis]
@@ -1291,6 +1278,390 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     ]
 
 
+def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_integrity(dag_maker, session):
+    """
+    Test that when there's no change to mapped task indexes at runtime, the dagrun.verify_integrity
+    is not called
+    """
+    from airflow.models import Variable
+
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    @task
+    def task_1():
+        return Variable.get('arg1', deserialize_json=True)
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id='task_1')
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+    ]
+
+    # Now "clear" and no change to length
+    dag.clear()
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    with dag:
+        task_2.expand(arg2=task_1()).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+
+    # Run the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id='task_1')
+    task1 = dag.get_task('task_1')
+    ti.refresh_from_task(task1)
+    ti.run()
+
+    # this would be called by the localtask job
+    # Verify that DagRun.verify_integrity is not called
+    with mock.patch('airflow.models.dagrun.DagRun.verify_integrity') as mock_verify_integrity:
+        dr.task_instance_scheduling_decisions()
+        mock_verify_integrity.assert_not_called()
+
+
+def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_maker, session):
+    """
+    Test increase in mapped task at runtime with calls to dagrun.verify_integrity
+    """
+    from airflow.models import Variable
+
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    @task
+    def task_1():
+        return Variable.get('arg1', deserialize_json=True)
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id='task_1')
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+    ]
+    # Now "clear" and "increase" the length of literal
+    dag.clear()
+    Variable.set(key='arg1', value=[1, 2, 3, 4, 5])
+
+    with dag:
+        task_2.expand(arg2=task_1()).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+
+    # Run the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id='task_1')
+    task1 = dag.get_task('task_1')
+    ti.refresh_from_task(task1)
+    ti.run()
+    task2 = dag.get_task('task_2')
+    for ti in dr.get_task_instances():
+        if ti.map_index < 0:
+            ti.task = task1
+        else:
+            ti.task = task2
+        session.merge(ti)
+    session.flush()
+    # create the additional task
+    dr.task_instance_scheduling_decisions()
+    # Run verify_integrity as a whole and assert new tasks were added
+    dr.verify_integrity()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+        (3, State.NONE),
+        (4, State.NONE),
+    ]
+    ti3 = dr.get_task_instance(task_id='task_2', map_index=3)
+    ti3.task = task2
+    ti3.state = TaskInstanceState.FAILED
+    session.merge(ti3)
+    session.flush()
+    # assert repeated calls did not change the instances
+    dr.verify_integrity()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+        (3, TaskInstanceState.FAILED),
+        (4, State.NONE),
+    ]
+
+
+def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_maker, session):
+    """
+    Test reduction in mapped task at runtime with calls to dagrun.verify_integrity
+    """
+    from airflow.models import Variable
+
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    @task
+    def task_1():
+        return Variable.get('arg1', deserialize_json=True)
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id='task_1')
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+    ]
+    # Now "clear" and "reduce" the length of literal
+    dag.clear()
+    Variable.set(key='arg1', value=[1])
+
+    with dag:
+        task_2.expand(arg2=task_1()).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+
+    # Run the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id='task_1')
+    task1 = dag.get_task('task_1')
+    ti.refresh_from_task(task1)
+    ti.run()
+    task2 = dag.get_task('task_2')
+    for ti in dr.get_task_instances():
+        if ti.map_index < 0:
+            ti.task = task1
+        else:
+            ti.task = task2
+            ti.state = TaskInstanceState.SUCCESS
+        session.merge(ti)
+    session.flush()
+
+    # Run verify_integrity as a whole and assert some tasks were removed
+    dr.verify_integrity()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, TaskInstanceState.SUCCESS),
+        (1, TaskInstanceState.REMOVED),
+        (2, TaskInstanceState.REMOVED),
+    ]
+
+    # assert repeated calls did not change the instances
+    dr.verify_integrity()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, TaskInstanceState.SUCCESS),
+        (1, TaskInstanceState.REMOVED),
+        (2, TaskInstanceState.REMOVED),
+    ]
+
+
+def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(dag_maker, session):
+    """
+    Test no change in mapped task at runtime with calls to dagrun.verify_integrity
+    """
+    from airflow.models import Variable
+
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    @task
+    def task_1():
+        return Variable.get('arg1', deserialize_json=True)
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id='task_1')
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+    ]
+    # Now "clear" and return the same length
+    dag.clear()
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    with dag:
+        task_2.expand(arg2=task_1()).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+
+    # Run the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id='task_1')
+    task1 = dag.get_task('task_1')
+    ti.refresh_from_task(task1)
+    ti.run()
+    task2 = dag.get_task('task_2')
+    for ti in dr.get_task_instances():
+        if ti.map_index < 0:
+            ti.task = task1
+        else:
+            ti.task = task2
+            ti.state = TaskInstanceState.SUCCESS
+        session.merge(ti)
+    session.flush()
+
+    # Run verify_integrity as a whole and assert no changes
+    dr.verify_integrity()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, TaskInstanceState.SUCCESS),
+        (1, TaskInstanceState.SUCCESS),
+        (2, TaskInstanceState.SUCCESS),
+    ]
+
+    # assert repeated calls did not change the instances
+    dr.verify_integrity()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, TaskInstanceState.SUCCESS),
+        (1, TaskInstanceState.SUCCESS),
+        (2, TaskInstanceState.SUCCESS),
+    ]
+
+
+def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_maker, session, caplog):
+    """
+    Test zero length reduction in mapped task at runtime with calls to dagrun.verify_integrity
+    """
+    import logging
+
+    from airflow.models import Variable
+
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    @task
+    def task_1():
+        return Variable.get('arg1', deserialize_json=True)
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id='task_1')
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+    ]
+    ti1 = [i for i in tis if i.map_index == 0][0]
+    # Now "clear" and "reduce" the length to empty list
+    dag.clear()
+    Variable.set(key='arg1', value=[])
+
+    with dag:
+        task_2.expand(arg2=task_1()).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+
+    # Run the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id='task_1')
+    task1 = dag.get_task('task_1')
+    ti.refresh_from_task(task1)
+    ti.run()
+    task2 = dag.get_task('task_2')
+    for ti in dr.get_task_instances():
+        if ti.map_index < 0:
+            ti.task = task1
+        else:
+            ti.task = task2
+        session.merge(ti)
+    session.flush()
+    with caplog.at_level(logging.DEBUG):
+
+        # Run verify_integrity as a whole and assert the tasks were removed
+        dr.verify_integrity()
+        tis = dr.get_task_instances()
+        indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+        assert sorted(indices) == [
+            (0, TaskInstanceState.REMOVED),
+            (1, TaskInstanceState.REMOVED),
+            (2, TaskInstanceState.REMOVED),
+        ]
+        assert (
+            f"Removing task '{ti1}' as the map_index is longer than the resolved mapping list (0)"
+            in caplog.text
+        )
+
+
 @pytest.mark.need_serialized_dag
 def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
@@ -1341,7 +1712,8 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
 
 
-def test_mapped_task_upstream_failed(dag_maker, session):
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.ALL_SUCCESS])
+def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     from airflow.operators.python import PythonOperator
 
     with dag_maker(session=session) as dag:
@@ -1353,7 +1725,11 @@ def test_mapped_task_upstream_failed(dag_maker, session):
         def consumer(*args):
             print(repr(args))
 
-        PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_list())
+        PythonOperator.partial(
+            task_id="consumer",
+            trigger_rule=trigger_rule,
+            python_callable=consumer,
+        ).expand(op_args=make_list())
 
     dr = dag_maker.create_dagrun()
     _, make_list_ti = sorted(dr.task_instances, key=lambda ti: ti.task_id)
@@ -1373,47 +1749,6 @@ def test_mapped_task_upstream_failed(dag_maker, session):
     tis, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
-
-
-def test_dataset_dagruns_triggered(session):
-    unique_id = str(uuid4())
-    session = settings.Session()
-    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", start_date=timezone.utcnow())
-    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
-    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
-    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1])
-    task = BashOperator(task_id="task", bash_command="echo 1", dag=dag1, outlets=[dataset1])
-    # BashOperator(task_id="task", bash_command="echo 1", dag=dag2)
-    # BashOperator(task_id="task", bash_command="echo 1", dag=dag3)
-    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
-    session.commit()
-    dr = DagRun(dag1.dag_id, run_id=unique_id, run_type='anything')
-    dr.dag = dag1
-    session.add(dr)
-    session.add(TaskInstance(task=task, run_id=unique_id, state=State.SUCCESS))
-    session.commit()
-
-    session.bulk_save_objects(
-        [
-            *[SerializedDagModel(dag) for dag in [dag1, dag2, dag3]],
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
-        ]
-    )
-    session.commit()
-    session.expunge_all()
-    dr.update_state(session=session)
-    session.commit()
-
-    # dag3 should be triggered since it only depends on dataset1, and it's been queued
-    assert session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one() is not None
-    # dag3 DDRQ record should still be there since the dag run was *not* triggered
-    assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag3.dag_id).one() is not None
-    # dag2 should not be triggered since it depends on both dataset 1  and 2
-    assert session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
-    # dag2 DDRQ record should be deleted since the dag run was triggered
-    assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):

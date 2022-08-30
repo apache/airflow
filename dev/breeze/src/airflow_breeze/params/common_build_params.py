@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, DOCKER_DEFAULT_PLATFORM
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -38,9 +38,6 @@ class CommonBuildParams:
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""
     additional_python_deps: str = ""
-    additional_runtime_apt_command: str = ""
-    additional_runtime_apt_deps: str = ""
-    additional_runtime_apt_env: str = ""
     additional_pip_install_flags: str = ""
     airflow_branch: str = os.environ.get('DEFAULT_BRANCH', AIRFLOW_BRANCH)
     default_constraints_branch: str = os.environ.get(
@@ -50,14 +47,13 @@ class CommonBuildParams:
     answer: Optional[str] = None
     build_id: int = 0
     builder: str = "default"
-    constraints_github_repository: str = "apache/airflow"
-    debian_version: str = os.environ.get('DEBIAN_VERSION', "bullseye")
+    constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
     empty_image: bool = False
     github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
-    github_repository: str = "apache/airflow"
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     github_username: str = ""
     image_tag: Optional[str] = None
@@ -67,8 +63,6 @@ class CommonBuildParams:
     python_image: Optional[str] = None
     push: bool = False
     python: str = "3.7"
-    runtime_apt_command: str = ""
-    runtime_apt_deps: str = ""
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
 
@@ -119,7 +113,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f'python:{self.python}-slim-{self.debian_version}'
+        return f'python:{self.python}-slim-bullseye'
 
     @property
     def airflow_image_repository(self):

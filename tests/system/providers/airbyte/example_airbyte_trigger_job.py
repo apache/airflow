@@ -31,7 +31,7 @@ CONN_ID = '15bc3800-82e4-48c3-a32d-620661273f28'
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],

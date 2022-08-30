@@ -55,6 +55,7 @@
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
+  - [Update EndOfLife data](#update-endoflife-data)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1172,7 +1173,7 @@ This includes:
 - For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
-- Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
+- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
 
 ## Update default Airflow version in the helm chart
@@ -1196,3 +1197,8 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
     ```
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
+
+## Update EndOfLife data
+
+- Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
+changelog link.

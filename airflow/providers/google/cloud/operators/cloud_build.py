@@ -31,6 +31,12 @@ from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoS
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
+from airflow.providers.google.cloud.links.cloud_build import (
+    CloudBuildLink,
+    CloudBuildListLink,
+    CloudBuildTriggerDetailsLink,
+    CloudBuildTriggersListLink,
+)
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -70,6 +76,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
+    operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
         self,
@@ -101,6 +108,16 @@ class CloudBuildCancelBuildOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        self.xcom_push(context, key="id", value=result.id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -136,6 +153,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
+    operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
         self,
@@ -185,6 +203,16 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        self.xcom_push(context, key="id", value=result.id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -219,6 +247,10 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger", "gcp_conn_id")
+    operator_extra_links = (
+        CloudBuildTriggersListLink(),
+        CloudBuildTriggerDetailsLink(),
+    )
 
     def __init__(
         self,
@@ -250,6 +282,20 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        self.xcom_push(context, key="id", value=result.id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_id=result.id,
+            )
+            CloudBuildTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
         return BuildTrigger.to_dict(result)
 
 
@@ -281,6 +327,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
+    operator_extra_links = (CloudBuildTriggersListLink(),)
 
     def __init__(
         self,
@@ -312,6 +359,13 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
 
 
 class CloudBuildGetBuildOperator(BaseOperator):
@@ -344,6 +398,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
+    operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
         self,
@@ -375,6 +430,14 @@ class CloudBuildGetBuildOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -408,6 +471,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
+    operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
         self,
@@ -439,6 +503,14 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_id=result.id,
+            )
         return BuildTrigger.to_dict(result)
 
 
@@ -474,6 +546,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
+    operator_extra_links = (CloudBuildTriggersListLink(),)
 
     def __init__(
         self,
@@ -511,6 +584,13 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggersListLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
         return [BuildTrigger.to_dict(result) for result in results]
 
 
@@ -546,6 +626,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("location", "project_id", "gcp_conn_id")
+    operator_extra_links = (CloudBuildListLink(),)
 
     def __init__(
         self,
@@ -583,6 +664,9 @@ class CloudBuildListBuildsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildListLink.persist(context=context, task_instance=self, project_id=project_id)
         return [Build.to_dict(result) for result in results]
 
 
@@ -618,6 +702,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
+    operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
         self,
@@ -652,6 +737,16 @@ class CloudBuildRetryBuildOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        self.xcom_push(context, key="id", value=result.id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -688,6 +783,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id")
+    operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
         self,
@@ -725,6 +821,15 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        self.xcom_push(context, key="id", value=result.id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                build_id=result.id,
+            )
         return Build.to_dict(result)
 
 
@@ -760,6 +865,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id")
+    operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
         self,
@@ -794,6 +900,15 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        self.xcom_push(context, key="id", value=result.id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudBuildTriggerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                trigger_id=result.id,
+            )
         return BuildTrigger.to_dict(result)
 
 

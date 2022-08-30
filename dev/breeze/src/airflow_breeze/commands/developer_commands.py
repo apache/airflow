@@ -41,12 +41,12 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_db_reset,
-    option_debian_version,
     option_dry_run,
     option_force_build,
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
+    option_include_mypy_volume,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -69,7 +69,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, create_mypy_volume_if_needed
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     assert_pre_commit_installed,
@@ -93,7 +93,6 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, C
 @option_python
 @option_platform_single
 @option_backend
-@option_debian_version
 @option_github_repository
 @option_postgres_version
 @option_mysql_version
@@ -110,6 +109,7 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, C
 @option_db_reset
 @option_image_tag_for_running
 @option_answer
+@option_include_mypy_volume
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
     verbose: bool,
@@ -121,7 +121,6 @@ def shell(
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
-    debian_version: str,
     forward_credentials: bool,
     mount_sources: str,
     use_packages_from_dist: bool,
@@ -131,6 +130,7 @@ def shell(
     airflow_constraints_reference: str,
     force_build: bool,
     db_reset: bool,
+    include_mypy_volume: bool,
     answer: Optional[str],
     image_tag: Optional[str],
     platform: Optional[str],
@@ -159,9 +159,9 @@ def shell(
         package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
+        include_mypy_volume=include_mypy_volume,
         extra_args=extra_args,
         answer=answer,
-        debian_version=debian_version,
         image_tag=image_tag,
         platform=platform,
     )
@@ -406,7 +406,8 @@ def static_checks(
         env=env,
     )
     if static_checks_result.returncode != 0:
-        get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
+        if os.environ.get('CI'):
+            get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
     sys.exit(static_checks_result.returncode)
 
 
@@ -427,6 +428,8 @@ def compile_www_assets(
     verbose: bool,
     dry_run: bool,
 ):
+    perform_environment_checks(verbose=verbose)
+    assert_pre_commit_installed(verbose=verbose)
     compile_www_assets_result = run_compile_www_assets(dev=dev, verbose=verbose, dry_run=dry_run)
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
@@ -501,8 +504,9 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
-    enter_shell_params.include_mypy_volume = True
     rebuild_or_pull_ci_image_if_needed(command_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
+    if enter_shell_params.include_mypy_volume:
+        create_mypy_volume_if_needed()
     return run_shell(verbose, dry_run, enter_shell_params)
 
 

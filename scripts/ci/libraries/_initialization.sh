@@ -339,8 +339,6 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
-    export DEBIAN_VERSION=${DEBIAN_VERSION:="bullseye"}
-
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
         awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
@@ -463,7 +461,7 @@ function initialization::initialize_image_build_variables() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.24.0" "v1.23.6" "v1.22.9" "v1.21.12" "v1.20.15")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.24.2" "v1.23.6" "v1.22.9" "v1.21.12")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
@@ -472,7 +470,7 @@ function initialization::initialize_kubernetes_variables() {
     CURRENT_KIND_VERSIONS+=("v0.14.0")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
-    CURRENT_HELM_VERSIONS+=("v3.6.3")
+    CURRENT_HELM_VERSIONS+=("v3.9.2")
     export CURRENT_HELM_VERSIONS
     # Current executor in chart
     CURRENT_EXECUTOR+=("KubernetesExecutor")
@@ -613,7 +611,7 @@ function initialization::get_github_container_registry_image_prefix() {
 
 function initialization::get_docker_cache_image_names() {
     # Python base image to use
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-${DEBIAN_VERSION}"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-bullseye"
 
     local image_name
     image_name="ghcr.io/$(initialization::get_github_container_registry_image_prefix)"

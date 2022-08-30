@@ -254,13 +254,13 @@ ARG_REVISION_RANGE = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
 ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state")
 
 # list_jobs
+ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 
 # next_execution
@@ -349,6 +349,11 @@ ARG_RUN_BACKWARDS = Arg(
         "recent day first.  if there are tasks that depend_on_past "
         "this option will throw an exception"
     ),
+    action="store_true",
+)
+ARG_TREAT_DAG_AS_REGEX = Arg(
+    ("--treat-dag-as-regex",),
+    help=("if set, dag_id will be treated as regex instead of an exact string"),
     action="store_true",
 )
 # test_dag
@@ -469,7 +474,8 @@ ARG_VAR_VALUE = Arg(("value",), metavar='VALUE', help="Variable value")
 ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
-ARG_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
 ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
 
@@ -666,7 +672,6 @@ ARG_CELERY_HOSTNAME = Arg(
 ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
-    default=conf.get('celery', 'worker_umask'),
 )
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
@@ -994,7 +999,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
         args=(
-            ARG_DAG_ID_OPT,
+            ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_STATE,
             ARG_OUTPUT,
@@ -1135,6 +1140,7 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
+            ARG_TREAT_DAG_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1164,6 +1170,7 @@ DAGS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_EXECUTION_DATE,
+            ARG_CONF,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
@@ -1348,13 +1355,13 @@ VARIABLES_COMMANDS = (
         name='get',
         help='Get variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, ARG_VERBOSE),
+        args=(ARG_VAR, ARG_DESERIALIZE_JSON, ARG_DEFAULT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
         help='Set variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_JSON),
+        args=(ARG_VAR, ARG_VAR_VALUE, ARG_SERIALIZE_JSON),
     ),
     ActionCommand(
         name='delete',
@@ -1657,6 +1664,12 @@ ROLES_COMMANDS = (
         name='create',
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
+        args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='delete',
+        help='Delete role',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_delete'),
         args=(ARG_ROLES, ARG_VERBOSE),
     ),
     ActionCommand(

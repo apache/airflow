@@ -100,7 +100,8 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.datasets import Dataset
+from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -120,7 +121,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import Dataset, DatasetDagRef, DatasetDagRunQueue
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -265,6 +266,13 @@ def _safe_parse_datetime(v):
         abort(400, f"Invalid datetime: {v!r}")
 
 
+def node_dict(node_id, label, node_class):
+    return {
+        "id": node_id,
+        "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
+    }
+
+
 def dag_to_grid(dag, dag_runs, session):
     """
     Create a nested dict representation of the DAG's TaskGroup and its children
@@ -321,13 +329,11 @@ def dag_to_grid(dag, dag_runs, session):
                             record['state'] = state
                             break
                     if None in record['mapped_states']:
-                        # When turnong the dict into JSON we can't have None as a key, so use the string that
-                        # the UI does
+                        # When turning the dict into JSON we can't have None as a key,
+                        # so use the string that the UI does.
                         record['mapped_states']['no_status'] = record['mapped_states'].pop(None)
 
                 for ti_summary in ti_summaries:
-                    if ti_summary.state is None:
-                        ti_summary.state == 'no_status'
                     if run_id != ti_summary.run_id:
                         run_id = ti_summary.run_id
                         if record:
@@ -364,8 +370,8 @@ def dag_to_grid(dag, dag_runs, session):
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,
-                'has_outlet_datasets': any(isinstance(i, Dataset) for i in getattr(item, "_outlets", [])),
-                'operator': item.task_type,
+                'has_outlet_datasets': any(isinstance(i, Dataset) for i in (item.outlets or [])),
+                'operator': item.operator_name,
             }
 
         # Task Group
@@ -999,15 +1005,11 @@ class Airflow(AirflowBaseView):
         )
 
     @expose('/datasets')
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-        ]
-    )
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
         return self.render_template(
-            'airflow/datasets.html',
+            "airflow/datasets.html",
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -1752,7 +1754,7 @@ class Airflow(AirflowBaseView):
             ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     (name, getattr(ti, name))
                     for name in dir(ti)
@@ -2746,6 +2748,7 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
             default_dag_run_display_number=default_dag_run_display_number,
+            default_wrap=conf.getboolean('webserver', 'default_wrap'),
             filters_drop_down_values=htmlsafe_json_dumps(
                 {
                     "taskStates": [state.value for state in TaskInstanceState],
@@ -3468,7 +3471,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = end_date
             task_dict['start_date'] = task_dict['start_date'] or end_date
             task_dict['state'] = State.FAILED
-            task_dict['operator'] = task.task_type
+            task_dict['operator'] = task.operator_name
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
             task_dict['execution_date'] = dttm.isoformat()
@@ -3624,12 +3627,15 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            dag_runs = query.order_by(DagRun.execution_date.desc()).limit(num_runs).all()
+            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
+            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
             dag_runs.reverse()
+
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
+                'ordering': dag.timetable.run_ordering,
             }
         # avoid spaces to reduce payload size
         return (
@@ -3649,23 +3655,60 @@ class Airflow(AirflowBaseView):
             data = [
                 dict(info)
                 for info in session.query(
-                    Dataset.id,
-                    Dataset.uri,
+                    DatasetModel.id,
+                    DatasetModel.uri,
                     DatasetDagRunQueue.created_at,
                 )
-                .join(DatasetDagRef, Dataset.id == DatasetDagRef.dataset_id)
+                .join(DagScheduleDatasetReference, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
-                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
-                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                        DatasetDagRunQueue.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
                     ),
                     isouter=True,
                 )
-                .filter(DatasetDagRef.dag_id == dag_id)
-                .order_by(Dataset.id)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id)
+                .order_by(DatasetModel.id)
                 .all()
             ]
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
+
+    @expose('/object/dataset_dependencies')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+        ]
+    )
+    def dataset_dependencies(self):
+        """Returns dataset dependencies graph."""
+        nodes_dict: Dict[str, Any] = {}
+        edge_tuples: Set[Dict[str, str]] = set()
+
+        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+            dag_node_id = f"dag:{dag}"
+            if dag_node_id not in nodes_dict:
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
+
+            for dep in dependencies:
+                if dep.node_id not in nodes_dict and (
+                    dep.dependency_type == 'dag' or dep.dependency_type == 'dataset'
+                ):
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
+                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+
+        nodes = list(nodes_dict.values())
+        edges = [{"u": u, "v": v} for u, v in edge_tuples]
+
+        data = {
+            'nodes': nodes,
+            'edges': edges,
+        }
+
         return (
             htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},
@@ -3718,7 +3761,24 @@ class Airflow(AirflowBaseView):
             excluded_events = {event.strip() for event in excluded_events_raw.split(',')}
             query = query.filter(Log.event.notin_(excluded_events))
 
-        dag_audit_logs = query.all()
+        current_page = request.args.get('page', default=0, type=int)
+        arg_sorting_key = request.args.get('sorting_key', 'dttm')
+        arg_sorting_direction = request.args.get('sorting_direction', default='asc')
+
+        logs_per_page = PAGE_SIZE
+        audit_logs_count = query.count()
+        num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
+
+        start = current_page * logs_per_page
+        end = start + logs_per_page
+
+        sort_column = Log.__table__.c.get(arg_sorting_key)
+        if sort_column is not None:
+            if arg_sorting_direction == 'desc':
+                sort_column = sort_column.desc()
+            query = query.order_by(sort_column)
+
+        dag_audit_logs = query.offset(start).limit(logs_per_page).all()
         return self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
@@ -3726,7 +3786,16 @@ class Airflow(AirflowBaseView):
             root=request.args.get('root'),
             dag_id=dag_id,
             dag_logs=dag_audit_logs,
+            num_log_from=min(start + 1, audit_logs_count),
+            num_log_to=min(end, audit_logs_count),
+            audit_logs_count=audit_logs_count,
             page_size=PAGE_SIZE,
+            paging=wwwutils.generate_pages(
+                current_page,
+                num_of_pages,
+            ),
+            sorting_key=arg_sorting_key,
+            sorting_direction=arg_sorting_direction,
         )
 
 
@@ -4441,7 +4510,7 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots', 'scheduled_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -4498,7 +4567,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    formatters_columns = {'pool': pool_link, 'running_slots': frunning_slots, 'queued_slots': fqueued_slots}
+    def fscheduled_slots(self):
+        """Scheduled slots rendering."""
+        pool_id = self.get('pool')
+        scheduled_slots = self.get('scheduled_slots')
+        if pool_id is not None and scheduled_slots is not None:
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='scheduled')
+            return Markup("<a href='{url}'>{scheduled_slots}</a>").format(
+                url=url, scheduled_slots=scheduled_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
+    formatters_columns = {
+        'pool': pool_link,
+        'running_slots': frunning_slots,
+        'queued_slots': fqueued_slots,
+        'scheduled_slots': fscheduled_slots,
+    }
 
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 
@@ -5375,25 +5461,16 @@ class DagDependenciesView(AirflowBaseView):
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = self._node_dict(dag_node_id, dag, "dag")
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
 
             for dep in dependencies:
                 if dep.node_id not in nodes_dict:
-                    nodes_dict[dep.node_id] = self._node_dict(
-                        dep.node_id, dep.dependency_id, dep.dependency_type
-                    )
+                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
                 edge_tuples.add((f"dag:{dep.source}", dep.node_id))
                 edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         self.nodes = list(nodes_dict.values())
         self.edges = [{"u": u, "v": v} for u, v in edge_tuples]
-
-    @staticmethod
-    def _node_dict(node_id, label, node_class):
-        return {
-            "id": node_id,
-            "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
-        }
 
 
 class ActionModelView(PermissionModelView):

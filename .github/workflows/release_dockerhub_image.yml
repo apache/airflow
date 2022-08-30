@@ -27,6 +27,8 @@ on:  # yamllint disable-line rule:truthy
         description: 'Skip Latest: Set to true if not latest.'
         default: ''
         required: false
+permissions:
+  contents: read
 concurrency:
   group: ${{ github.event.inputs.airflowVersion }}
   cancel-in-progress: true

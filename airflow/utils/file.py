@@ -28,6 +28,7 @@ from pathspec.patterns import GitWildMatchPattern
 from typing_extensions import Protocol
 
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     import pathlib
@@ -125,7 +126,7 @@ def TemporaryDirectory(*args, **kwargs):
 
     warnings.warn(
         "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
 
@@ -144,7 +145,7 @@ def mkdirs(path, mode):
 
     warnings.warn(
         f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)

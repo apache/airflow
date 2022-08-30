@@ -81,7 +81,7 @@ def delete_rds_instance(instance_name) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
@@ -126,6 +126,8 @@ with DAG(
         s3_prefix='rds-test',
         iam_role_arn=test_context[ROLE_ARN_KEY],
         kms_key_id=test_context[KMS_KEY_ID_KEY],
+        # Waits by default, set False to test the CancelExportTaskOperator below
+        wait_for_completion=False,
     )
     # [END howto_operator_rds_start_export_task]
 

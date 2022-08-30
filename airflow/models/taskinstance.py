@@ -80,6 +80,8 @@ from sqlalchemy.sql.expression import ColumnOperators
 from airflow import settings
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.datasets import Dataset
+from airflow.datasets.manager import dataset_event_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -88,6 +90,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
     DagRunNotFound,
+    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -95,7 +98,6 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -257,7 +259,7 @@ def clear_task_instances(
         warnings.warn(
             "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
             "Please use `dag_run_state`",
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         if not activate_dag_runs:
@@ -287,6 +289,7 @@ def clear_task_instances(
             if dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
                 dr.start_date = None
+    session.flush()
 
 
 class _LazyXComAccessIterator(collections.abc.Iterator):
@@ -540,7 +543,7 @@ class TaskInstance(Base, LoggingMixin):
 
             warnings.warn(
                 "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 # Stack level is 4 because SQLA adds some wrappers around the constructor
                 stacklevel=4,
             )
@@ -848,28 +851,35 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
 
-        qry = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.run_id == self.run_id,
-            TaskInstance.map_index == self.map_index,
+        if self in session:
+            session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
+
+        qry = (
+            # To avoid joining any relationships, by default select all
+            # columns, not the object. This also means we get (effectively) a
+            # namedtuple back, not a TI object
+            session.query(*TaskInstance.__table__.columns).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.run_id == self.run_id,
+                TaskInstance.map_index == self.map_index,
+            )
         )
 
         if lock_for_update:
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
-                    ti: Optional[TaskInstance] = qry.with_for_update().first()
+                    ti: Optional[TaskInstance] = qry.with_for_update().one_or_none()
         else:
-            ti = qry.first()
+            ti = qry.one_or_none()
         if ti:
             # Fields ordered per model definition
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.duration = ti.duration
             self.state = ti.state
-            # Get the raw value of try_number column, don't read through the
-            # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number
+            # Since we selected columns, not the object, this is the raw value
+            self.try_number = ti.try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.unixname = ti.unixname
@@ -1049,7 +1059,7 @@ class TaskInstance(Base, LoggingMixin):
             This attribute is deprecated.
             Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_previous_ti()
@@ -1065,7 +1075,7 @@ class TaskInstance(Base, LoggingMixin):
             This attribute is deprecated.
             Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_previous_ti(state=DagRunState.SUCCESS)
@@ -1112,7 +1122,7 @@ class TaskInstance(Base, LoggingMixin):
             This attribute is deprecated.
             Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
             """,
-            DeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         return self.get_previous_start_date(state=DagRunState.SUCCESS)
@@ -1517,32 +1527,19 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(self.state, self))
             session.merge(self)
             if self.state == TaskInstanceState.SUCCESS:
-                self._create_dataset_dag_run_queue_records(session=session)
+                self._register_dataset_changes(session=session)
             session.commit()
 
-    def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
-        from airflow.models import Dataset
-
-        for obj in getattr(self.task, '_outlets', []):
+    def _register_dataset_changes(self, *, session: Session) -> None:
+        for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
+            # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
-                if not dataset:
-                    self.log.warning("Dataset %s not found", obj)
-                    continue
-                downstream_dag_ids = [x.dag_id for x in dataset.downstream_dag_references]
-                self.log.debug("downstream dag ids %s", downstream_dag_ids)
-                session.add(
-                    DatasetEvent(
-                        dataset_id=dataset.id,
-                        source_task_id=self.task_id,
-                        source_dag_id=self.dag_id,
-                        source_run_id=self.run_id,
-                        source_map_index=self.map_index,
-                    )
+                dataset_event_manager.register_dataset_change(
+                    task_instance=self,
+                    dataset=obj,
+                    session=session,
                 )
-                for dag_id in downstream_dag_ids:
-                    session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""
@@ -1798,6 +1795,7 @@ class TaskInstance(Base, LoggingMixin):
                 actual_start_date,
                 self.end_date,
                 reschedule_exception.reschedule_date,
+                self.map_index,
             )
         )
 
@@ -1835,7 +1833,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, BaseException],
+        error: Union[None, str, Exception, KeyboardInterrupt],
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,
@@ -2047,7 +2045,7 @@ class TaskInstance(Base, LoggingMixin):
             if dag_run.external_trigger:
                 return logical_date
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 return dag.previous_schedule(logical_date)
 
         @cache
@@ -2354,7 +2352,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
             elif execution_date is not None:
                 message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
-                warnings.warn(message, DeprecationWarning, stacklevel=3)
+                warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
         XCom.set(
             key=key,

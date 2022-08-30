@@ -203,7 +203,19 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
         except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
+            # The head_bucket api is odd in that it cannot return proper
+            # exception objects, so error codes must be used. Only 200, 404 and 403
+            # are ever returned. See the following links for more details:
+            # https://github.com/boto/boto3/issues/2499
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_bucket
+            return_code = int(e.response['Error']['Code'])
+            if return_code == 404:
+                self.log.error('Bucket "%s" does not exist', bucket_name)
+            elif return_code == 403:
+                self.log.error(
+                    'Access to bucket "%s" is forbidden or there was an error with the request', bucket_name
+                )
+                self.log.error(e)
             return False
 
     @provide_bucket_name
@@ -215,12 +227,9 @@ class S3Hook(AwsBaseHook):
         :return: the bucket object to the bucket name.
         :rtype: boto3.S3.Bucket
         """
-        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
-        # break compatibility, so we set it explicitly to None.
-        session, endpoint_url = self._get_credentials(region_name=None)
-        s3_resource = session.resource(
+        s3_resource = self.get_session().resource(
             "s3",
-            endpoint_url=endpoint_url,
+            endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )
@@ -235,7 +244,13 @@ class S3Hook(AwsBaseHook):
         :param region_name: The name of the aws region in which to create the bucket.
         """
         if not region_name:
-            region_name = self.get_conn().meta.region_name
+            if self.conn_region_name == "aws-global":
+                raise AirflowException(
+                    "Unable to create bucket if `region_name` not set "
+                    "and boto3 configured to use s3 regional endpoints."
+                )
+            region_name = self.conn_region_name
+
         if region_name == 'us-east-1':
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
@@ -465,12 +480,9 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-        # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
-        # break compatibility, so we set it explicitly to None.
-        session, endpoint_url = self._get_credentials(region_name=None)
-        s3_resource = session.resource(
+        s3_resource = self.get_session().resource(
             "s3",
-            endpoint_url=endpoint_url,
+            endpoint_url=self.conn_config.endpoint_url,
             config=self.config,
             verify=self.verify,
         )

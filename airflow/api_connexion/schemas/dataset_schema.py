@@ -21,16 +21,21 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
-from airflow.models.dataset import Dataset, DatasetDagRef, DatasetEvent, DatasetTaskRef
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 
 
-class DatasetTaskRefSchema(SQLAlchemySchema):
-    """DatasetTaskRef DB schema"""
+class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
+    """TaskOutletDatasetReference DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DatasetTaskRef
+        model = TaskOutletDatasetReference
 
     dag_id = auto_field()
     task_id = auto_field()
@@ -38,13 +43,13 @@ class DatasetTaskRefSchema(SQLAlchemySchema):
     updated_at = auto_field()
 
 
-class DatasetDagRefSchema(SQLAlchemySchema):
-    """DatasetDagRef DB schema"""
+class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
+    """DagScheduleDatasetReference DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DatasetDagRef
+        model = DagScheduleDatasetReference
 
     dag_id = auto_field()
     created_at = auto_field()
@@ -57,21 +62,21 @@ class DatasetSchema(SQLAlchemySchema):
     class Meta:
         """Meta"""
 
-        model = Dataset
+        model = DatasetModel
 
     id = auto_field()
     uri = auto_field()
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
-    upstream_task_references = fields.List(fields.Nested(DatasetTaskRefSchema))
-    downstream_dag_references = fields.List(fields.Nested(DatasetDagRefSchema))
+    producing_tasks = fields.List(fields.Nested(TaskOutletDatasetReferenceSchema))
+    consuming_dags = fields.List(fields.Nested(DagScheduleDatasetReferenceSchema))
 
 
 class DatasetCollection(NamedTuple):
     """List of Datasets with meta"""
 
-    datasets: List[Dataset]
+    datasets: List[DatasetModel]
     total_entries: int
 
 

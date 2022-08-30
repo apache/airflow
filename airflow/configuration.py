@@ -522,7 +522,17 @@ class AirflowConfigParser(ConfigParser):
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
 
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:  # type: ignore[override]
+
+        ...
+
+    @overload  # type: ignore[override]
     def get(self, section: str, key: str, **kwargs) -> Optional[str]:  # type: ignore[override]
+
+        ...
+
+    def get(self, section: str, key: str, **kwargs) -> Optional[str]:  # type: ignore[override, misc]
         section = str(section).lower()
         key = str(key).lower()
 
@@ -1534,16 +1544,20 @@ def ensure_secrets_loaded() -> List[BaseSecretsBackend]:
 def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
     """Get Secret Backend if defined in airflow.cfg"""
     secrets_backend_cls = conf.getimport(section='secrets', key='backend')
-
     if secrets_backend_cls:
-        try:
-            backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
-            alternative_secrets_config_dict = json.loads(backends)
-        except JSONDecodeError:
-            alternative_secrets_config_dict = {}
-
-        return secrets_backend_cls(**alternative_secrets_config_dict)
+        backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
+        return _custom_secrets_backend(secrets_backend_cls, backends)
     return None
+
+
+@functools.lru_cache(maxsize=2)
+def _custom_secrets_backend(secrets_backend_cls, backend_kwargs):
+    """Separate function to create secrets backend instance to allow caching"""
+    try:
+        alternative_secrets_config_dict = json.loads(backend_kwargs)
+    except JSONDecodeError:
+        alternative_secrets_config_dict = {}
+    return secrets_backend_cls(**alternative_secrets_config_dict)
 
 
 def initialize_secrets_backends() -> List[BaseSecretsBackend]:

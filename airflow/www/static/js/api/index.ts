@@ -34,8 +34,10 @@ import useGridData from './useGridData';
 import useMappedInstances from './useMappedInstances';
 import useDatasets from './useDatasets';
 import useDataset from './useDataset';
+import useDatasetDependencies from './useDatasetDependencies';
 import useDatasetEvents from './useDatasetEvents';
 import useUpstreamDatasetEvents from './useUpstreamDatasetEvents';
+import useTaskInstance from './useTaskInstance';
 
 axios.interceptors.response.use(
   (res: AxiosResponse) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
@@ -45,19 +47,21 @@ axios.defaults.headers.common.Accept = 'application/json';
 
 export {
   useClearRun,
-  useQueueRun,
-  useMarkFailedRun,
-  useMarkSuccessRun,
-  useRunTask,
   useClearTask,
-  useMarkFailedTask,
-  useMarkSuccessTask,
-  useExtraLinks,
   useConfirmMarkTask,
+  useDataset,
+  useDatasetDependencies,
+  useDatasetEvents,
+  useDatasets,
+  useExtraLinks,
   useGridData,
   useMappedInstances,
-  useDatasets,
-  useDataset,
-  useDatasetEvents,
+  useMarkFailedRun,
+  useMarkFailedTask,
+  useMarkSuccessRun,
+  useMarkSuccessTask,
+  useQueueRun,
+  useRunTask,
+  useTaskInstance,
   useUpstreamDatasetEvents,
 };

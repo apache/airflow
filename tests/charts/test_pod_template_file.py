@@ -260,7 +260,7 @@ class PodTemplateFileTest(unittest.TestCase):
     @parameterized.expand(
         [
             ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
             (
                 {"enabled": True, "existingClaim": "test-claim"},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
@@ -295,7 +295,7 @@ class PodTemplateFileTest(unittest.TestCase):
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'} in jmespath.search(
+        assert {'configMap': {'name': 'release-name-airflow-config'}, 'name': 'config'} in jmespath.search(
             "spec.volumes", docs[0]
         )
         assert {
@@ -634,10 +634,36 @@ class PodTemplateFileTest(unittest.TestCase):
         assert {
             "label1": "value1",
             "label2": "value2",
-            "release": "RELEASE-NAME",
+            "release": "release-name",
             "component": "worker",
             "tier": "airflow",
         } == jmespath.search("metadata.labels", docs[0])
+
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={"workers": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.containers[0].env", docs[0]
+        )
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_should_add_resources(self):
         docs = render_chart(

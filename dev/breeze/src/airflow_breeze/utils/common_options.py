@@ -25,8 +25,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
-    ALLOWED_DEBIAN_VERSIONS,
-    ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_INTEGRATIONS,
     ALLOWED_MOUNT_OPTIONS,
@@ -37,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     SINGLE_PLATFORMS,
     get_available_packages,
 )
@@ -47,7 +46,7 @@ from airflow_breeze.utils.custom_param_types import (
     CacheableDefault,
     UseAirflowVersionType,
 )
-from airflow_breeze.utils.recording import output_file_for_recording
+from airflow_breeze.utils.recording import generating_command_images
 
 option_verbose = click.option(
     "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
@@ -70,7 +69,7 @@ option_github_repository = click.option(
     '-g',
     '--github-repository',
     help='GitHub repository used to pull, push run images.',
-    default="apache/airflow",
+    default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     envvar='GITHUB_REPOSITORY',
 )
@@ -121,11 +120,6 @@ option_mssql_version = click.option(
     type=CacheableChoice(ALLOWED_MSSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MSSQL_VERSIONS[0]),
     show_default=True,
-)
-option_executor = click.option(
-    '--executor',
-    help='Executor to use for a kubernetes cluster. Default is KubernetesExecutor.',
-    type=BetterChoice(ALLOWED_EXECUTORS),
 )
 option_forward_credentials = click.option(
     '-f', '--forward-credentials', help="Forward local credentials to container when running.", is_flag=True
@@ -226,14 +220,6 @@ option_platform_single = click.option(
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(SINGLE_PLATFORMS),
-)
-option_debian_version = click.option(
-    '--debian-version',
-    help='Debian version used for the image.',
-    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
-    default=ALLOWED_DEBIAN_VERSIONS[0],
-    show_default=True,
-    envvar='DEBIAN_VERSION',
 )
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
@@ -403,8 +389,8 @@ option_run_in_parallel = click.option(
 option_parallelism = click.option(
     '--parallelism',
     help="Maximum number of processes to use while running the operation in parallel.",
-    type=click.IntRange(1, mp.cpu_count() * 2 if not output_file_for_recording else 8),
-    default=mp.cpu_count() if not output_file_for_recording else 4,
+    type=click.IntRange(1, mp.cpu_count() * 2 if not generating_command_images() else 8),
+    default=mp.cpu_count() if not generating_command_images() else 4,
     envvar='PARALLELISM',
     show_default=True,
 )
@@ -476,4 +462,22 @@ option_builder = click.option(
     help="Buildx builder used to perform `docker buildx build` commands",
     envvar='BUILDER',
     default='default',
+)
+option_include_success_outputs = click.option(
+    '--include-success-outputs',
+    help="Whether to include outputs of successful parallel runs (by default they are not printed).",
+    is_flag=True,
+    envvar='INCLUDE_SUCCESS_OUTPUTS',
+)
+option_skip_cleanup = click.option(
+    '--skip-cleanup',
+    help="Skip cleanup of temporary files created during parallel run",
+    is_flag=True,
+    envvar='SKIP_CLEANUP',
+)
+option_include_mypy_volume = click.option(
+    '--include-mypy-volume',
+    help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
+    is_flag=True,
+    envvar='INCLUDE_MYPY_VOLUME',
 )

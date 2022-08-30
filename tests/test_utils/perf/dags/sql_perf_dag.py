@@ -61,7 +61,7 @@ with DAG(
     DAG_ID,
     default_args=default_args,
     catchup=True,
-    schedule_interval=timedelta(minutes=1),
+    schedule=timedelta(minutes=1),
     is_paused_upon_creation=False,
 ):
     zero_level_tasks = generate_parallel_tasks("l0", 1, [])
