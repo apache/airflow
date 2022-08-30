@@ -22,7 +22,7 @@ Airflow requires a database. If you're just experimenting and learning Airflow, 
 default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`/howto/set-up-database` to setup a different database.
 
-Usually, you need to run ``airflow db upgrade`` in order to create the database schema that Airflow can use.
+Usually, you need to run ``airflow db init`` in order to create the database schema that Airflow can use.
 
 Similarly, upgrading Airflow usually requires an extra step of upgrading the database. This is done
 with ``airflow db upgrade`` CLI command. You should make sure that Airflow components are
