@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterable, Optional, Sequence, Set, Union
+from typing import Any, Dict, FrozenSet, Iterable, Optional, Sequence, Set, TYPE_CHECKING, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -479,9 +479,8 @@ class EmrStepsSensor(EmrBaseSensor):
     With the default target states, sensor waits step to be completed.
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/sensor:EmrStepSensor`
+        :ref:`howto/sensor:EmrStepsSensor`
     :param job_flow_id: job_flow_id which contains the step check the state of
-    :param step_id: step to check the state of
     :param target_states: the target states, sensor waits until
         step reaches any of these states
     :param failed_states: the failure states, sensor fails when
@@ -489,7 +488,6 @@ class EmrStepsSensor(EmrBaseSensor):
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
-    template_ext: Sequence[str] = ()
 
     def __init__(
         self,
@@ -508,19 +506,17 @@ class EmrStepsSensor(EmrBaseSensor):
         """
         Make an API call with boto3 and get details about the cluster step.
         .. seealso::
-            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.describe_step
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.list_steps
         :return: response
         :rtype: dict[str, Any]
         """
         emr_client = self.get_hook().get_conn()
 
         self.log.info("Poking steps on cluster %s", self.job_flow_id)
-        # return emr_client.describe_step(ClusterId=self.job_flow_id, StepId="qq")
         return emr_client.list_steps(ClusterId=self.job_flow_id)
 
     def poke(self, context: "Context") -> bool:
         response = self.get_emr_response()
-        # self.log.info(response)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             self.log.info("Bad HTTP response: %s", response)
