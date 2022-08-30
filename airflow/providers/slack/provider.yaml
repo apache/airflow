@@ -62,7 +62,7 @@ hooks:
       - airflow.providers.slack.hooks.slack_webhook
 
 transfers:
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Slack
     python-module: airflow.providers.slack.transfers.sql_to_slack
     how-to-guide: /docs/apache-airflow-providers-slack/operators/sql_to_slack.rst
