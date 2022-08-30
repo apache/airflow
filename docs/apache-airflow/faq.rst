@@ -265,7 +265,7 @@ What does ``execution_date`` mean?
 ----------------------------------
 
 *Execution date* or ``execution_date`` is a historical name for what is called a
-*logical date*, and also usually the start of the data interval represented by a
+*logical date*, and also usually the start of the date interval represented by a
 DAG run.
 
 Airflow was developed as a solution for ETL needs. In the ETL world, you
