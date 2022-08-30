@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import atexit
 import os
+import sys
 from typing import Optional
 
 import rich
@@ -24,11 +24,13 @@ from rich.console import Console
 
 from airflow_breeze.utils.path_utils import in_autocomplete
 
-output_file_for_recording = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
-
 help_console: Optional[Console] = None
 
 DEFAULT_COLUMNS = 129
+
+
+def generating_command_images() -> bool:
+    return "regenerate-command-images" in sys.argv
 
 
 def enable_recording_of_help_output(path: str, title: Optional[str], width: Optional[str]):
@@ -61,9 +63,12 @@ def enable_recording_of_help_output(path: str, title: Optional[str], width: Opti
     click.rich_click.Console = RecordingConsole  # type: ignore[misc]
 
 
-if output_file_for_recording and not in_autocomplete():
+output_file = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
+
+
+if output_file and not in_autocomplete():
     enable_recording_of_help_output(
-        path=output_file_for_recording,
+        path=output_file,
         title=os.environ.get('RECORD_BREEZE_TITLE'),
         width=os.environ.get('RECORD_BREEZE_WIDTH'),
     )

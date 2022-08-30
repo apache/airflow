@@ -30,7 +30,7 @@ from airflow_breeze.utils.cache import (
 )
 from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.recording import output_file_for_recording
+from airflow_breeze.utils.recording import generating_command_images
 
 
 class BetterChoice(click.Choice):
@@ -141,7 +141,7 @@ class CacheableChoice(click.Choice):
     def get_metavar(self, param) -> str:
         param_name = param.envvar if param.envvar else param.name.upper()
         current_value = (
-            read_from_cache_file(param_name) if not output_file_for_recording else param.default.value
+            read_from_cache_file(param_name) if not generating_command_images() else param.default.value
         )
         if not current_value:
             current_choices = self.choices

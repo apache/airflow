@@ -406,7 +406,8 @@ def static_checks(
         env=env,
     )
     if static_checks_result.returncode != 0:
-        get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
+        if os.environ.get('CI'):
+            get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
     sys.exit(static_checks_result.returncode)
 
 

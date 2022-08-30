@@ -25,11 +25,11 @@ def insert_documentation(file_path: Path, content: List[str], header: str, foote
     replacing = False
     result: List[str] = []
     for line in text:
-        if line.startswith(header):
+        if line.strip().startswith(header.strip()):
             replacing = True
             result.append(line)
             result.extend(content)
-        if line.startswith(footer):
+        if line.strip().startswith(footer.strip()):
             replacing = False
         if not replacing:
             result.append(line)

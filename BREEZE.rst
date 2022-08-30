@@ -943,23 +943,19 @@ You can self-upgrade breeze automatically. Those are all available flags of ``se
   :width: 100%
   :alt: Breeze setup self-upgrade
 
-Exporting breeze command hash output
-....................................
-
-You can also dump hash of the configuration options used - this is mostly used to generate the dump
-of help of the commands only when they change by pre-commit..
-
-.. image:: ./images/breeze/output_setup_command-hash-export.svg
-  :width: 100%
-  :alt: Breeze config command-hash-export
-
 
 Regenerating images for documentation
 .....................................
 
 This documentation contains exported images with "help" of their commands and parameters. You can
-regenerate all those images (which might be needed in case new version of rich is used) via
-``regenerate-command-images`` command.
+regenerate those images that need to be regenerated because their commands changed (usually after
+the breeze code has been changed) via ``regenerate-command-images`` command. Usually this is done
+automatically via pre-commit, but sometimes (for example when ``rich`` or ``rich-click`` library changes)
+you need to regenerate those images.
+
+You can add ``--force`` flag (or ``FORCE="true"`` environment variable to regenerate all images (not
+only those that need regeneration). You can also run the command with ``--check-only`` flag to simply
+check if there are any images that need regeneration.
 
 .. image:: ./images/breeze/output_setup_regenerate-command-images.svg
   :width: 100%

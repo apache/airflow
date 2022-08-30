@@ -30,7 +30,6 @@ import click
 
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    MOUNT_ALL,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
     GithubEvents,
@@ -54,13 +53,11 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
-    get_env_variables_for_docker_commands,
-    get_extra_docker_flags,
+    fix_ownership_using_docker,
     perform_environment_checks,
 )
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
@@ -166,21 +163,7 @@ def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run
         fix_ownership_without_docker(dry_run=dry_run, verbose=verbose)
         sys.exit(0)
     get_console().print("[info]Fixing ownership using docker.")
-    perform_environment_checks(verbose=verbose)
-    shell_params = find_available_ci_image(github_repository, dry_run, verbose)
-    extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
-    env = get_env_variables_for_docker_commands(shell_params)
-    cmd = [
-        "docker",
-        "run",
-        "-t",
-        *extra_docker_flags,
-        "--pull",
-        "never",
-        shell_params.airflow_image_name_with_tag,
-        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
-    ]
-    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
+    fix_ownership_using_docker(dry_run=dry_run, verbose=verbose)
     # Always succeed
     sys.exit(0)
 

@@ -30,6 +30,7 @@ from typing import Dict, List, Mapping, Optional, Union
 from rich.markup import escape
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -375,7 +376,7 @@ def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction:
 
 
 def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
-    github_repository = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
+    github_repository = os.environ.get('GITHUB_REPOSITORY', APACHE_AIRFLOW_GITHUB_REPOSITORY)
     python_version = "3.7"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
     fail_if_image_missing(

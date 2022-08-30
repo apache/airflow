@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     SINGLE_PLATFORMS,
     get_available_packages,
 )
@@ -45,7 +46,7 @@ from airflow_breeze.utils.custom_param_types import (
     CacheableDefault,
     UseAirflowVersionType,
 )
-from airflow_breeze.utils.recording import output_file_for_recording
+from airflow_breeze.utils.recording import generating_command_images
 
 option_verbose = click.option(
     "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
@@ -68,7 +69,7 @@ option_github_repository = click.option(
     '-g',
     '--github-repository',
     help='GitHub repository used to pull, push run images.',
-    default="apache/airflow",
+    default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     envvar='GITHUB_REPOSITORY',
 )
@@ -388,8 +389,8 @@ option_run_in_parallel = click.option(
 option_parallelism = click.option(
     '--parallelism',
     help="Maximum number of processes to use while running the operation in parallel.",
-    type=click.IntRange(1, mp.cpu_count() * 2 if not output_file_for_recording else 8),
-    default=mp.cpu_count() if not output_file_for_recording else 4,
+    type=click.IntRange(1, mp.cpu_count() * 2 if not generating_command_images() else 8),
+    default=mp.cpu_count() if not generating_command_images() else 4,
     envvar='PARALLELISM',
     show_default=True,
 )
