@@ -55,7 +55,7 @@ SPARK_JOB_PAYLOAD = {
 with DAG(
     dag_id="example_synapse_spark_job",
     start_date=datetime(2022, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     default_args=default_args,
     tags=["example", "synapse"],

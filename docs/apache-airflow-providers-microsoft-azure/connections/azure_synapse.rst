@@ -39,7 +39,7 @@ There are multiple ways to connect to Azure Synapse using Airflow.
 Default Connection IDs
 ----------------------
 
-All hooks and operators related to Microsoft Azure Data Factory use ``azure_synapse_default`` by default.
+All hooks and operators related to Microsoft Azure Synapse use ``azure_synapse_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -61,10 +61,9 @@ Tenant ID
     Use the key ``extra__azure_synapse__tenantId`` to pass in the tenant ID.
 
 Subscription ID
-    Specify the ID of the subscription used for the initial connection.
+    A subscription ID is required for the connection.
     This is needed for all authentication mechanisms.
     Use the key ``extra__azure_synapse__subscriptionId`` to pass in the Azure subscription ID.
 
 Synapse Workspace URL
     Specify the Azure Synapse endpoint to interface with.
-    If not specified in the connection, this needs to be passed in directly to hooks, operators, and sensors.

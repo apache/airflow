@@ -54,7 +54,6 @@ def setup_module():
             {
                 "extra__azure_synapse__tenantId": "tenantId",
                 "extra__azure_synapse__subscriptionId": "subscriptionId",
-                "extra__azure_synapse__spark_pool": DEFAULT_SPARK_POOL,
             }
         ),
     )
@@ -65,7 +64,6 @@ def setup_module():
         extra=json.dumps(
             {
                 "extra__azure_synapse__subscriptionId": "subscriptionId",
-                "extra__azure_synapse__spark_pool": DEFAULT_SPARK_POOL,
             }
         ),
     )
@@ -78,7 +76,6 @@ def setup_module():
         extra=json.dumps(
             {
                 "extra__azure_synapse__tenantId": "tenantId",
-                "extra__azure_synapse__spark_pool": DEFAULT_SPARK_POOL,
             }
         ),
     )
@@ -91,7 +88,6 @@ def setup_module():
         extra=json.dumps(
             {
                 "extra__azure_synapse__subscriptionId": "subscriptionId",
-                "extra__azure_synapse__spark_pool": DEFAULT_SPARK_POOL,
             }
         ),
     )
