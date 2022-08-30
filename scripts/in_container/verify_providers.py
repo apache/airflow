@@ -230,7 +230,6 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
@@ -242,32 +241,8 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
     ' got 216 from PyObject',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.step_function`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.dms`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.dms`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
-    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
-    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.emr`.',
     'This module is deprecated. Please use `airflow.providers.opsgenie.hooks.opsgenie`.',
     'This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie`.',
-    'This module is deprecated. Please use `airflow.hooks.redshift_sql` '
-    'or `airflow.hooks.redshift_cluster` as appropriate.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` or '
-    '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
-    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
     "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
     (
