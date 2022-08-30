@@ -904,7 +904,11 @@ class TestDag:
         d2_orm = stored_datasets[d2.uri]
         assert [x.dag_id for x in d1_orm.consuming_dags] == []
         assert set(
-            session.query(TaskOutletDatasetReference.task_id, TaskOutletDatasetReference.dag_id, TaskOutletDatasetReference.dataset_id)
+            session.query(
+                TaskOutletDatasetReference.task_id,
+                TaskOutletDatasetReference.dag_id,
+                TaskOutletDatasetReference.dataset_id,
+            )
             .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
