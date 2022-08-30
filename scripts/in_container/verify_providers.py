@@ -272,7 +272,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
     (
         """
-        SnowflakeToSlackOperator is deprecated.
+        S3ToSnowflakeOperator is deprecated.
         Please use
         `airflow.providers.snowflake.transfers.copy_into_snowflake.CopyFromExternalStageToSnowflakeOperator`.
         """
