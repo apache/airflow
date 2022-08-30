@@ -1477,15 +1477,15 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      consuming_dags?: components["schemas"]["DatasetDagRef"][];
-      producing_tasks?: components["schemas"]["DatasetTaskRef"][];
+      consuming_dags?: components["schemas"]["DagScheduleDatasetReference"][];
+      producing_tasks?: components["schemas"]["TaskOutletDatasetReference"][];
     };
     /**
      * @description A datasets reference to an upstream task.
      *
      * *New in version 2.4.0*
      */
-    DatasetTaskRef: {
+    TaskOutletDatasetReference: {
       /** @description The DAG ID that updates the dataset. */
       dag_id?: string | null;
       /** @description The task ID that updates the dataset. */
@@ -1500,7 +1500,7 @@ export interface components {
      *
      * *New in version 2.4.0*
      */
-    DatasetDagRef: {
+    DagScheduleDatasetReference: {
       /** @description The DAG ID that depends on the dataset. */
       dag_id?: string | null;
       /** @description The dataset reference creation time */
@@ -3194,7 +3194,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstance"];
+          "application/json": components["schemas"]["TaskInstanceCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -4112,8 +4112,8 @@ export type ActionCollection = CamelCasedPropertiesDeep<components['schemas']['A
 export type Resource = CamelCasedPropertiesDeep<components['schemas']['Resource']>;
 export type ActionResource = CamelCasedPropertiesDeep<components['schemas']['ActionResource']>;
 export type Dataset = CamelCasedPropertiesDeep<components['schemas']['Dataset']>;
-export type DatasetTaskRef = CamelCasedPropertiesDeep<components['schemas']['DatasetTaskRef']>;
-export type DatasetDagRef = CamelCasedPropertiesDeep<components['schemas']['DatasetDagRef']>;
+export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<components['schemas']['TaskOutletDatasetReference']>;
+export type DagScheduleDatasetReference = CamelCasedPropertiesDeep<components['schemas']['DagScheduleDatasetReference']>;
 export type DatasetCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = CamelCasedPropertiesDeep<components['schemas']['DatasetEvent']>;
 export type DatasetEventCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetEventCollection']>;

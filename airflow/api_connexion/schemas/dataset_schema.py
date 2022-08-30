@@ -21,16 +21,21 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
-from airflow.models.dataset import DatasetDagRef, DatasetEvent, DatasetModel, DatasetTaskRef
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 
 
-class DatasetTaskRefSchema(SQLAlchemySchema):
-    """DatasetTaskRef DB schema"""
+class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
+    """TaskOutletDatasetReference DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DatasetTaskRef
+        model = TaskOutletDatasetReference
 
     dag_id = auto_field()
     task_id = auto_field()
@@ -38,13 +43,13 @@ class DatasetTaskRefSchema(SQLAlchemySchema):
     updated_at = auto_field()
 
 
-class DatasetDagRefSchema(SQLAlchemySchema):
-    """DatasetDagRef DB schema"""
+class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
+    """DagScheduleDatasetReference DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DatasetDagRef
+        model = DagScheduleDatasetReference
 
     dag_id = auto_field()
     created_at = auto_field()
@@ -64,8 +69,8 @@ class DatasetSchema(SQLAlchemySchema):
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
-    producing_tasks = fields.List(fields.Nested(DatasetTaskRefSchema))
-    consuming_dags = fields.List(fields.Nested(DatasetDagRefSchema))
+    producing_tasks = fields.List(fields.Nested(TaskOutletDatasetReferenceSchema))
+    consuming_dags = fields.List(fields.Nested(DagScheduleDatasetReferenceSchema))
 
 
 class DatasetCollection(NamedTuple):

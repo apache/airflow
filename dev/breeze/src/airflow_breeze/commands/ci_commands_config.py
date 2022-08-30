@@ -24,6 +24,7 @@ CI_COMMANDS: Dict[str, Union[str, List[str]]] = {
         "resource-check",
         "selective-check",
         "find-newer-dependencies",
+        "get-workflow-info",
     ],
 }
 CI_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
@@ -56,6 +57,15 @@ CI_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
                 "--airflow-constraints-reference",
                 "--updated-on-or-after",
                 "--max-age",
+            ],
+        }
+    ],
+    "breeze ci get-workflow-info": [
+        {
+            "name": "Get workflow info flags",
+            "options": [
+                "--github-context",
+                "--github-context-input",
             ],
         }
     ],
