@@ -92,8 +92,8 @@ export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
         Cell: DagRunLink,
       },
       {
-        Header: 'Execution Date',
-        accessor: 'executionDate',
+        Header: 'Logical Date',
+        accessor: 'logicalDate',
         Cell: TimeCell,
       },
     ],

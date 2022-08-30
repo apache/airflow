@@ -1559,18 +1559,6 @@ export interface components {
       logical_date?: string | null;
       /**
        * Format: date-time
-       * @deprecated
-       * @description The execution date. This is the same as logical_date, kept for backwards compatibility.
-       * If both this field and logical_date are provided but with different values, the request
-       * will fail with an BAD_REQUEST error.
-       *
-       * *Changed in version 2.2.0*&#58; Field becomes nullable.
-       *
-       * *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
-       */
-      execution_date?: string | null;
-      /**
-       * Format: date-time
        * @description The start time. The time when DAG run was actually created.
        *
        * *Changed in version 2.1.3*&#58; Field becomes nullable.
