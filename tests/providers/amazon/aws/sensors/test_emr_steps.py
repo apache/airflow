@@ -21,6 +21,7 @@ from copy import deepcopy
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
@@ -131,8 +132,9 @@ LIST_JOB_STEP_COMPLETED_RETURN = {
 }
 
 
-class TestEmrStepsSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrStepsSensor:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         self.emr_client_mock = MagicMock()
         self.sensor = EmrStepsSensor(
             task_id="test_task",
@@ -175,7 +177,7 @@ class TestEmrStepsSensor(unittest.TestCase):
         self.emr_client_mock.list_steps.side_effect = [self.return_value_running, return_value_one_failed]
 
         with patch("boto3.session.Session", self.boto3_session_mock):
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
     def test_steps_all_failed(self):
@@ -186,5 +188,5 @@ class TestEmrStepsSensor(unittest.TestCase):
         self.emr_client_mock.list_steps.side_effect = [self.return_value_running, return_value]
 
         with patch("boto3.session.Session", self.boto3_session_mock):
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 self.sensor.execute(None)
