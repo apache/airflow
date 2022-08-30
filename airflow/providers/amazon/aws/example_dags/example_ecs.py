@@ -16,7 +16,6 @@
 # under the License.
 
 from datetime import datetime
-from typing import cast
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
@@ -100,7 +99,7 @@ with DAG(
     )
     # [END howto_operator_ecs_register_task_definition]
 
-    registered_task_definition = cast(str, register_task.output)
+    registered_task_definition = register_task.output
 
     # [START howto_sensor_ecs_task_definition_state]
     await_task_definition = EcsTaskDefinitionStateSensor(

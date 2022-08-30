@@ -20,7 +20,6 @@ Example Airflow DAG that shows how to use DataFusion.
 """
 import os
 from datetime import datetime
-from typing import cast
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -222,7 +221,7 @@ with models.DAG(
     start_pipeline_sensor = CloudDataFusionPipelineStateSensor(
         task_id="pipeline_state_sensor",
         pipeline_name=PIPELINE_NAME,
-        pipeline_id=cast(str, start_pipeline_async.output),
+        pipeline_id=start_pipeline_async.output,
         expected_statuses=["COMPLETED"],
         failure_statuses=["FAILED"],
         instance_name=INSTANCE_NAME,
