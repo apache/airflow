@@ -65,7 +65,7 @@ class RdsBaseSensor(BaseSensorOperator):
             return False
         else:
             return bool(items) and any(
-                map(lambda s: items[0][self.check_status_field].lower() == s, self.target_statuses)
+                map(lambda status: items[0][self.check_status_field].lower() == status, self.target_statuses)
             )
 
 
