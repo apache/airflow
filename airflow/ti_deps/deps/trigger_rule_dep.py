@@ -30,6 +30,8 @@ from airflow.utils.trigger_rule import TriggerRule as TR
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    # Without this we get 'Cannot determine type of "trigger_rule"' on `ti.task.trigger_rule`
+    import airflow.models.baseoperator  # noqa
     from airflow.models.taskinstance import TaskInstance
 
 
