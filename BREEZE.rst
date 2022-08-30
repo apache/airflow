@@ -1037,6 +1037,19 @@ Those are all available flags of ``selective-check`` command:
   :width: 100%
   :alt: Breeze ci selective-check
 
+Getting workflow information
+............................
+
+When our CI runs a job, it might be within one of several workflows. Information about those workflows
+is stored in GITHUB_CONTEXT. Rather than using some jq/bash commands, we retrieve the necessary information
+(like PR labels, event_type, where the job runs on, job description and convert them into GA outputs.
+
+Those are all available flags of ``get-workflow-info`` command:
+
+.. image:: ./images/breeze/output_ci_get-workflow-info.svg
+  :width: 100%
+  :alt: Breeze ci get-workflow-info
+
 Tracking backtracking issues for CI builds
 ..........................................
 

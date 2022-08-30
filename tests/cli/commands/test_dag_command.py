@@ -17,6 +17,7 @@
 # under the License.
 import contextlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -607,6 +608,40 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    conf=None,
+                    run_at_least_once=True,
+                ),
+            ]
+        )
+
+    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_conf(self, mock_get_dag, mock_executor):
+        cli_args = self.parser.parse_args(
+            [
+                'dags',
+                'test',
+                'example_bash_operator',
+                DEFAULT_DATE.isoformat(),
+                "-c",
+                "{\"dag_run_conf_param\": \"param_value\"}",
+            ]
+        )
+        dag_command.dag_test(cli_args)
+
+        mock_get_dag.assert_has_calls(
+            [
+                mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
+                mock.call().clear(
+                    start_date=cli_args.execution_date,
+                    end_date=cli_args.execution_date,
+                    dag_run_state=False,
+                ),
+                mock.call().run(
+                    executor=mock_executor.return_value,
+                    start_date=cli_args.execution_date,
+                    end_date=cli_args.execution_date,
+                    conf=json.loads(cli_args.conf),
                     run_at_least_once=True,
                 ),
             ]
@@ -636,6 +671,7 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    conf=None,
                     run_at_least_once=True,
                 ),
             ]

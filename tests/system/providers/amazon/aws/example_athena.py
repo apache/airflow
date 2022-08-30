@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
+from typing import cast
 
 import boto3
 
@@ -121,7 +122,7 @@ with DAG(
     # [START howto_sensor_athena]
     await_query = AthenaSensor(
         task_id='await_query',
-        query_execution_id=read_table.output,
+        query_execution_id=cast(str, read_table.output),
     )
     # [END howto_sensor_athena]
 
