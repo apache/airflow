@@ -857,7 +857,6 @@ class TestDag:
         """
         Ensure that datasets referenced in a dag are correctly loaded into the database.
         """
-        # todo: clear db
         dag_id1 = 'test_dataset_dag1'
         dag_id2 = 'test_dataset_dag2'
         task_id = 'test_dataset_task'
@@ -894,6 +893,10 @@ class TestDag:
             (task_id, dag_id2, d1_orm.id),
         }
 
+        # now that we have verified that a new dag has its dataset references recorded properly,
+        # we need to verify that *changes* are recorded properly.
+        # so if any references are *removed*, they should also be deleted from the DB
+        # so let's remove some references and see what happens
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2])
         DAG.bulk_write_to_db([dag1], session)
