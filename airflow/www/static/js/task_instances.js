@@ -98,7 +98,7 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
-  tt += `Trigger Rule: ${task.trigger_rule}<br>`
+  tt += `Trigger Rule: ${task.trigger_rule}<br>`;
 
   // Calculate duration on the fly if task instance is still running
   if (ti.state === 'running') {
