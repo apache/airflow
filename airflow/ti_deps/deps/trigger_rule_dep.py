@@ -146,7 +146,7 @@ class TriggerRuleDep(BaseTIDep):
         """
         task = ti.task
         upstream = self._count_upstreams(ti, session=session)
-        trigger_rule = task.trigger_rule
+        trigger_rule: TR = task.trigger_rule  # type: ignore[has-type]
         upstream_done = done >= upstream
         upstream_tasks_state = {
             "total": upstream,
