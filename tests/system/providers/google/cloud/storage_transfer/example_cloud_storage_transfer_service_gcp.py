@@ -74,8 +74,8 @@ PROJECT_ID_TRANSFER = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_transfer"
 
-BUCKET_NAME_SRC = f"src_bucket-{DAG_ID}-{ENV_ID}"
-BUCKET_NAME_DST = f"dst_bucket-{DAG_ID}_{ENV_ID}"
+BUCKET_NAME_SRC = f"src-bucket-{DAG_ID}-{ENV_ID}"
+BUCKET_NAME_DST = f"dst-bucket-{DAG_ID}-{ENV_ID}"
 FILE_NAME = "file"
 FILE_URI = f"gs://{BUCKET_NAME_SRC}/{FILE_NAME}"
 
