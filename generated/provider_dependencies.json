@@ -166,6 +166,13 @@
     ],
     "cross-providers-deps": []
   },
+  "atlassian.jira": {
+    "deps": [
+      "JIRA>1.0.7",
+      "apache-airflow>=2.2.0"
+    ],
+    "cross-providers-deps": []
+  },
   "celery": {
     "deps": [
       "apache-airflow>=2.2.0",
@@ -415,10 +422,12 @@
   },
   "jira": {
     "deps": [
-      "JIRA>1.0.7",
+      "apache-airflow-providers-atlassian-jira",
       "apache-airflow>=2.2.0"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "atlassian.jira"
+    ]
   },
   "microsoft.azure": {
     "deps": [
