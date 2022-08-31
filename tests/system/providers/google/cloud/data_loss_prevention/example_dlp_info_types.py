@@ -31,6 +31,9 @@ from airflow import models
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateStoredInfoTypeOperator,
     CloudDLPDeleteStoredInfoTypeOperator,
+    CloudDLPGetStoredInfoTypeOperator,
+    CloudDLPListInfoTypesOperator,
+    CloudDLPListStoredInfoTypesOperator,
     CloudDLPUpdateStoredInfoTypeOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -92,6 +95,8 @@ with models.DAG(
         bucket=BUCKET_NAME,
     )
 
+    list_possible_info_types = CloudDLPListInfoTypesOperator(task_id="list_info_types")
+
     # [START howto_operator_dlp_create_info_type]
     create_info_type = CloudDLPCreateStoredInfoTypeOperator(
         project_id=PROJECT_ID,
@@ -100,6 +105,14 @@ with models.DAG(
         task_id="create_info_type",
     )
     # [END howto_operator_dlp_create_info_type]
+
+    list_stored_info_types = CloudDLPListStoredInfoTypesOperator(
+        task_id="list_stored_info_types", project_id=PROJECT_ID
+    )
+
+    get_stored_info_type = CloudDLPGetStoredInfoTypeOperator(
+        task_id="list_stored_info_type", project_id=PROJECT_ID, stored_info_type_id=CUSTOM_INFO_TYPE_ID
+    )
 
     # [START howto_operator_dlp_update_info_type]
     update_info_type = CloudDLPUpdateStoredInfoTypeOperator(
@@ -126,7 +139,10 @@ with models.DAG(
     (
         create_bucket
         >> upload_file
+        >> list_possible_info_types
         >> create_info_type
+        >> list_stored_info_types
+        >> get_stored_info_type
         >> update_info_type
         >> delete_info_type
         >> delete_bucket

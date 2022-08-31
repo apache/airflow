@@ -17,11 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG that execute the following tasks using
-Cloud DLP service in the Google Cloud:
-1) Creating a content inspect template;
-2) Using the created template to inspect content;
-3) Deleting the template from Google Cloud .
+Example Airflow DAG that creates, updates, list and deletes Data Loss Prevention inspect templates.
 """
 
 from __future__ import annotations
@@ -34,7 +30,10 @@ from airflow import models
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator,
     CloudDLPDeleteInspectTemplateOperator,
+    CloudDLPGetInspectTemplateOperator,
     CloudDLPInspectContentOperator,
+    CloudDLPListInspectTemplatesOperator,
+    CloudDLPUpdateInspectTemplateOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -62,13 +61,29 @@ with models.DAG(
 ) as dag:
     # [START howto_operator_dlp_create_inspect_template]
     create_template = CloudDLPCreateInspectTemplateOperator(
+        task_id="create_template",
         project_id=PROJECT_ID,
         inspect_template=INSPECT_TEMPLATE,
         template_id=TEMPLATE_ID,
-        task_id="create_template",
         do_xcom_push=True,
     )
     # [END howto_operator_dlp_create_inspect_template]
+
+    list_templates = CloudDLPListInspectTemplatesOperator(
+        task_id="list_templates",
+        project_id=PROJECT_ID,
+    )
+
+    get_template = CloudDLPGetInspectTemplateOperator(
+        task_id="get_template", project_id=PROJECT_ID, template_id=TEMPLATE_ID
+    )
+
+    update_template = CloudDLPUpdateInspectTemplateOperator(
+        task_id="update_template",
+        project_id=PROJECT_ID,
+        template_id=TEMPLATE_ID,
+        inspect_template=INSPECT_TEMPLATE,
+    )
 
     # [START howto_operator_dlp_use_inspect_template]
     inspect_content = CloudDLPInspectContentOperator(
@@ -88,7 +103,14 @@ with models.DAG(
     # [END howto_operator_dlp_delete_inspect_template]
     delete_template.trigger_rule = TriggerRule.ALL_DONE
 
-    create_template >> inspect_content >> delete_template
+    (
+        create_template
+        >> list_templates
+        >> get_template
+        >> update_template
+        >> inspect_content
+        >> delete_template
+    )
 
     from tests.system.utils.watcher import watcher
 

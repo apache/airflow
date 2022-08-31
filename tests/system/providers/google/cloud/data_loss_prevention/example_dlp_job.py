@@ -17,18 +17,22 @@
 # under the License.
 
 """
-Example Airflow DAG that creates, update and delete trigger for Data Loss Prevention actions.
+Example Airflow DAG that creates, update, get and delete trigger for Data Loss Prevention actions.
 """
 
 from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.dlp_v2.types import InspectConfig, InspectJobConfig
+
 from airflow import models
 from airflow.providers.google.cloud.operators.dlp import (
-    CloudDLPCreateJobTriggerOperator,
-    CloudDLPDeleteJobTriggerOperator,
-    CloudDLPUpdateJobTriggerOperator,
+    CloudDLPCancelDLPJobOperator,
+    CloudDLPCreateDLPJobOperator,
+    CloudDLPDeleteDLPJobOperator,
+    CloudDLPGetDLPJobOperator,
+    CloudDLPListDLPJobsOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -36,17 +40,16 @@ DAG_ID = "dlp_job"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-JOB_TRIGGER = {
-    "inspect_job": {
-        "storage_config": {
-            "datastore_options": {"partition_id": {"project_id": PROJECT_ID}, "kind": {"name": "test"}}
-        }
-    },
-    "triggers": [{"schedule": {"recurrence_period_duration": {"seconds": 60 * 60 * 24}}}],
-    "status": "HEALTHY",
-}
+JOB_ID = f"dlp_job_{ENV_ID}"
 
-TRIGGER_ID = "example_trigger"
+INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
+INSPECT_JOB = InspectJobConfig(
+    inspect_config=INSPECT_CONFIG,
+    storage_config={
+        "datastore_options": {"partition_id": {"project_id": PROJECT_ID}, "kind": {"name": "test"}}
+    },
+)
+
 
 with models.DAG(
     DAG_ID,
@@ -55,34 +58,34 @@ with models.DAG(
     catchup=False,
     tags=["dlp", "example"],
 ) as dag:
-    # [START howto_operator_dlp_create_job_trigger]
-    create_trigger = CloudDLPCreateJobTriggerOperator(
+    create_job = CloudDLPCreateDLPJobOperator(
+        task_id="create_job", project_id=PROJECT_ID, inspect_job=INSPECT_JOB, job_id=JOB_ID
+    )
+
+    list_jobs = CloudDLPListDLPJobsOperator(
+        task_id="list_jobs", project_id=PROJECT_ID, results_filter="state=DONE"
+    )
+
+    get_job = CloudDLPGetDLPJobOperator(
+        task_id="get_job",
         project_id=PROJECT_ID,
-        job_trigger=JOB_TRIGGER,
-        trigger_id=TRIGGER_ID,
-        task_id="create_trigger",
+        dlp_job_id="{{ task_instance.xcom_pull('create_job')['name'].split('/')[-1] }}",
     )
-    # [END howto_operator_dlp_create_job_trigger]
 
-    JOB_TRIGGER["triggers"] = [{"schedule": {"recurrence_period_duration": {"seconds": 2 * 60 * 60 * 24}}}]
-
-    # [START howto_operator_dlp_update_job_trigger]
-    update_trigger = CloudDLPUpdateJobTriggerOperator(
+    cancel_job = CloudDLPCancelDLPJobOperator(
+        task_id="cancel_job",
         project_id=PROJECT_ID,
-        job_trigger_id=TRIGGER_ID,
-        job_trigger=JOB_TRIGGER,
-        task_id="update_info_type",
+        dlp_job_id="{{ task_instance.xcom_pull('create_job')['name'].split('/')[-1] }}",
     )
-    # [END howto_operator_dlp_update_job_trigger]
 
-    # [START howto_operator_dlp_delete_job_trigger]
-    delete_trigger = CloudDLPDeleteJobTriggerOperator(
-        project_id=PROJECT_ID, job_trigger_id=TRIGGER_ID, task_id="delete_info_type"
+    delete_job = CloudDLPDeleteDLPJobOperator(
+        task_id="delete_job",
+        project_id=PROJECT_ID,
+        dlp_job_id="{{ task_instance.xcom_pull('create_job')['name'].split('/')[-1] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END howto_operator_dlp_delete_job_trigger]
-    delete_trigger.trigger_rule = TriggerRule.ALL_DONE
 
-    create_trigger >> update_trigger >> delete_trigger
+    (create_job >> list_jobs >> get_job >> cancel_job >> delete_job)
 
     from tests.system.utils.watcher import watcher
 
