@@ -1171,8 +1171,8 @@ export interface components {
       unixname?: string;
       pool?: string;
       pool_slots?: number;
-      queue?: string;
-      priority_weight?: number;
+      queue?: string | null;
+      priority_weight?: number | null;
       /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
       operator?: string | null;
       queued_when?: string | null;
@@ -1349,7 +1349,7 @@ export interface components {
       is_mapped?: boolean;
       wait_for_downstream?: boolean;
       retries?: number;
-      queue?: string;
+      queue?: string | null;
       pool?: string;
       pool_slots?: number;
       execution_timeout?: components["schemas"]["TimeDelta"] | null;
