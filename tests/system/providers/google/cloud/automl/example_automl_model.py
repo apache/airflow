@@ -28,6 +28,7 @@ from typing import Dict, List
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
@@ -55,7 +56,8 @@ GCP_AUTOML_LOCATION = "us-central1"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATA_SAMPLE_GCS_OBJECT_NAME = "automl/bank-marketing/bank-marketing.csv"
-CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "bank-marketing.csv")
+TAR_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "bank-marketing.csv.tar")
+TMP_CSV_FILE_LOCAL_PATH = "/tmp/bank-marketing.csv"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 DATASET = {
@@ -125,9 +127,13 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
     )
 
+    unzip_file = BashOperator(
+        task_id="unzip_csv_data_file", bash_command=f"tar xvf {TAR_CSV_FILE_LOCAL_PATH} -C /tmp/"
+    )
+
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
-        src=CSV_FILE_LOCAL_PATH,
+        src=TMP_CSV_FILE_LOCAL_PATH,
         dst=DATA_SAMPLE_GCS_OBJECT_NAME,
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
     )
@@ -250,7 +256,7 @@ with models.DAG(
 
     (
         # TEST SETUP
-        [create_bucket, create_dataset]
+        [create_bucket, create_dataset, unzip_file]
         >> upload_file
         >> import_dataset
         >> list_tables_spec
