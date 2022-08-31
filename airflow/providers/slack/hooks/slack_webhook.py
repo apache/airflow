@@ -31,6 +31,10 @@ class SlackWebhookHook(HttpHook):
     If both supplied, http_conn_id will be used as base_url,
     and webhook_token will be taken as endpoint, the relative path of the url.
 
+    .. warning::
+        This hook intend to use `Slack Webhook` connection
+        and might not work correctly with `Slack API` connection.
+
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
 
