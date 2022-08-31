@@ -115,7 +115,7 @@ spec:
       topologySpreadConstraints:
 {{ toYaml $topologySpreadConstraints | indent 8 }}
 {{- if .Values.webserver.hostAliases }}
-      hostAliases: 
+      hostAliases:
 {{ toYaml .Values.webserver.hostAliases | indent 8 }}
 {{- end }}
 
