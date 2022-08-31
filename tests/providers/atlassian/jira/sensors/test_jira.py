@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.jira.sensors.jira import JiraTicketSensor
+from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -61,7 +61,7 @@ class TestJiraSensor(unittest.TestCase):
             )
         )
 
-    @patch("airflow.providers.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
+    @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
     def test_issue_label_set(self, jira_mock):
         jira_mock.return_value.issue.return_value = minimal_test_ticket
 

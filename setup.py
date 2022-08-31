@@ -519,6 +519,10 @@ EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: List[str] = [
     "webhdfs",
 ]
 
+EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS: List[str] = [
+    "jira",
+]
+
 
 def add_extras_for_all_deprecated_aliases() -> None:
     """
@@ -599,12 +603,21 @@ EXTRAS_DEPENDENCIES["all_dbs"] = all_dbs
 # to separately add providers dependencies - they have been already added as 'providers' extras above
 _all_dependencies = get_unique_dependency_list(EXTRAS_DEPENDENCIES.values())
 
+_all_dependencies_without_airflow_providers = list(
+    filter(lambda k: 'apache-airflow-' not in k, _all_dependencies)
+)
+
 # All user extras here
-EXTRAS_DEPENDENCIES["all"] = _all_dependencies
+# all is purely development extra and it should contain only direct dependencies of Airflow
+# It should contain all dependencies of airflow and dependencies of all community providers,
+# but not the providers themselves
+EXTRAS_DEPENDENCIES["all"] = _all_dependencies_without_airflow_providers
 
 # This can be simplified to devel_hadoop + _all_dependencies due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
-devel_all = get_unique_dependency_list([_all_dependencies, doc, devel, devel_hadoop])
+devel_all = get_unique_dependency_list(
+    [_all_dependencies_without_airflow_providers, doc, devel, devel_hadoop]
+)
 
 # Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []

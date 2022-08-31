@@ -16,14 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.jira.hooks.jira`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.atlassian.jira.hooks.jira`."""
 
 import warnings
 
-from airflow.providers.jira.hooks.jira import JiraHook  # noqa
+from airflow.providers.atlassian.jira.hooks.jira import JiraHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.jira.hooks.jira`.",
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.hooks.jira`.",
     DeprecationWarning,
     stacklevel=2,
 )

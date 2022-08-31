@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
-from airflow.providers.jira.hooks.jira import JiraHook
+from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 from airflow.utils import db
 
 jira_client_mock = Mock(name="jira_client")
@@ -39,7 +39,7 @@ class TestJiraHook(unittest.TestCase):
             )
         )
 
-    @patch("airflow.providers.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
+    @patch("airflow.providers.atlassian.jira.hooks.jira.JIRA", autospec=True, return_value=jira_client_mock)
     def test_jira_client_connection(self, jira_mock):
         jira_hook = JiraHook()
 

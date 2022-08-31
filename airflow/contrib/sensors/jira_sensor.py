@@ -16,14 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.jira.sensors.jira`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.atlassian.jira.sensors.jira`."""
 
 import warnings
 
-from airflow.providers.jira.sensors.jira import JiraSensor, JiraTicketSensor  # noqa
+from airflow.providers.atlassian.jira.sensors.jira import JiraSensor, JiraTicketSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.jira.sensors.jira`.",
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.sensors.jira`.",
     DeprecationWarning,
     stacklevel=2,
 )
