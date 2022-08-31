@@ -1542,7 +1542,7 @@ export interface components {
     };
     BasicDAGRun: {
       /** @description Run ID. */
-      run_id?: string | null;
+      run_id?: string;
       dag_id?: string;
       /**
        * Format: date-time
@@ -1556,7 +1556,7 @@ export interface components {
        *
        * *New in version 2.2.0*
        */
-      logical_date?: string | null;
+      logical_date?: string;
       /**
        * Format: date-time
        * @description The start time. The time when DAG run was actually created.

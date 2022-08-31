@@ -3636,7 +3636,6 @@ components:
       properties:
         run_id:
           type: string
-          nullable: true
           description: |
             Run ID.
         dag_id:
@@ -3644,7 +3643,6 @@ components:
           readOnly: true
         logical_date:
           type: string
-          nullable: true
           description: |
             The logical date (previously called execution date). This is the time or interval covered by
             this DAG run, according to the DAG definition.
