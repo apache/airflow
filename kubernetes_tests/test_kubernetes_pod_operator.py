@@ -23,6 +23,7 @@ import sys
 import textwrap
 import unittest
 from copy import copy
+from typing import Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -74,6 +75,12 @@ def get_kubeconfig_path():
     return kubeconfig_path if kubeconfig_path else os.path.expanduser('~/.kube/config')
 
 
+def get_label():
+    test = os.environ.get('PYTEST_CURRENT_TEST')
+    label = ''.join(filter(str.isalnum, test)).lower()
+    return label[-63]
+
+
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)
@@ -82,6 +89,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
         self.api_client = ApiClient()
+        self.labels = {"test_label": get_label()}
         self.expected_pod = {
             'apiVersion': 'v1',
             'kind': 'Pod',
@@ -90,7 +98,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'name': ANY,
                 'annotations': {},
                 'labels': {
-                    'foo': 'bar',
+                    'test_label': get_label(),
                     'kubernetes_pod_operator': 'True',
                     'airflow_version': airflow_version.replace('+', '-'),
                     'airflow_kpo_in_cluster': 'False',
@@ -126,25 +134,26 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             },
         }
 
+    def _get_labels_selector(self) -> Optional[str]:
+        if not self.labels:
+            return None
+        return ",".join([f'{key}={value}' for key, value in enumerate(self.labels)])
+
     def tearDown(self) -> None:
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
-        client.delete_collection_namespaced_pod(namespace="default")
-        import time
-
-        time.sleep(1)
+        client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
 
     def test_do_xcom_push_defaults_false(self):
         new_config_path = '/tmp/kube_config'
         old_config_path = get_kubeconfig_path()
         shutil.copy(old_config_path, new_config_path)
-
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -163,7 +172,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test1",
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -183,7 +192,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -201,7 +210,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -225,7 +234,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name=pod_name,
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -249,7 +258,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["lalala"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name=pod_name,
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -271,7 +280,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -292,7 +301,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -315,7 +324,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -335,7 +344,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -358,7 +367,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -393,7 +402,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -417,7 +426,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -450,7 +459,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=args,
-                labels={"foo": "bar"},
+                labels=self.labels,
                 volume_mounts=[volume_mount],
                 volumes=[volume],
                 name="test-" + str(random.randint(0, 1000000)),
@@ -482,7 +491,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -507,7 +516,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -532,7 +541,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-fs-group",
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -552,7 +561,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image=bad_image_name,
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -573,7 +582,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -596,7 +605,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=bad_internal_command,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -611,14 +620,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     @mock.patch("airflow.models.taskinstance.TaskInstance.xcom_push")
     def test_xcom_push(self, xcom_push):
-        return_value = '{"foo": "bar"\n, "buzz": 2}'
+        return_value = f'{{"test_label": "{get_label()}"\n, "buzz": 2}}'
         args = [f'echo \'{return_value}\' > /airflow/xcom/return.json']
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=args,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -654,7 +663,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             secrets=secrets,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -686,7 +695,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             env_vars=env_vars,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -708,6 +717,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
+            labels=self.labels,
             pod_template_file=fixture,
             do_xcom_push=True,
         )
@@ -721,7 +731,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
-            labels={"foo": "bar", "fizz": "buzz"},
+            labels=self.labels,
             env_vars=[k8s.V1EnvVar(name="env_name", value="value")],
             in_cluster=False,
             pod_template_file=fixture,
@@ -732,8 +742,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         result = k.execute(context)
         assert result is not None
         assert k.pod.metadata.labels == {
-            'fizz': 'buzz',
-            'foo': 'bar',
+            'test_label': get_label(),
             'airflow_version': mock.ANY,
             'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
@@ -749,7 +758,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                labels={"foo": "bar", "fizz": "buzz"},
+                labels={"test_label": get_label(), "fizz": "buzz"},
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -762,6 +771,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         )
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
+            labels=self.labels,
             in_cluster=False,
             pod_template_file=fixture,
             full_pod_spec=pod_spec,
@@ -773,7 +783,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert result is not None
         assert k.pod.metadata.labels == {
             'fizz': 'buzz',
-            'foo': 'bar',
+            'test_label': get_label(),
             'airflow_version': mock.ANY,
             'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
@@ -788,7 +798,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def test_full_pod_spec(self):
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                labels={"foo": "bar", "fizz": "buzz"}, namespace="default", name="test-pod"
+                labels={"test_label": get_label(), "fizz": "buzz"}, namespace="default", name="test-pod"
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -806,6 +816,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
+            labels=self.labels,
             full_pod_spec=pod_spec,
             do_xcom_push=True,
             is_delete_operator_pod=False,
@@ -816,7 +827,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert result is not None
         assert k.pod.metadata.labels == {
             'fizz': 'buzz',
-            'foo': 'bar',
+            'test_label': get_label(),
             'airflow_version': mock.ANY,
             'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
@@ -866,7 +877,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             volumes=[volume],
@@ -898,6 +909,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
+            labels=self.labels,
             random_name_suffix=False,
             pod_template_file=path,
             do_xcom_push=True,
@@ -929,6 +941,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'metadata': {
                 'annotations': {},
                 'labels': {
+                    "test_label": get_label(),
                     'airflow_kpo_in_cluster': 'False',
                     'dag_id': 'dag',
                     'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
@@ -993,7 +1006,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -1018,7 +1031,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=["echo 10"],
-                labels={"foo": "bar"},
+                labels=self.labels,
                 name=pod_name_too_long,
                 task_id="task" + self.get_current_task_name(),
                 in_cluster=False,
@@ -1036,7 +1049,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["sleep 1000"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test",
             task_id=name,
             in_cluster=False,
@@ -1066,7 +1079,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=["exit 1"],
-                labels={"foo": "bar"},
+                labels=self.labels,
                 name="test",
                 task_id=name,
                 in_cluster=False,
