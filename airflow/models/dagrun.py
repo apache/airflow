@@ -83,6 +83,9 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
 
+CreatedTasksType = TypeVar("CreatedTasksType")
+
+
 class TISchedulingDecision(NamedTuple):
     """Type of return for DagRun.task_instance_scheduling_decisions"""
 
@@ -1000,8 +1003,6 @@ class DagRun(Base, LoggingMixin):
             creator = create_ti
         return creator
 
-    CreatedTasksType = TypeVar("CreatedTasksType")
-
     def _create_tasks(
         self,
         dag: "DAG",
@@ -1036,12 +1037,10 @@ class DagRun(Base, LoggingMixin):
 
         tasks_and_map_idxs = map(expand_mapped_literals, filter(task_filter, dag.task_dict.values()))
 
-        tasks: Union[Iterator[Dict[str, Any]], Iterator[TI]] = itertools.chain.from_iterable(
+        tasks: CreatedTasksType = itertools.chain.from_iterable(  # type: ignore
             itertools.starmap(task_creator, tasks_and_map_idxs)  # type: ignore
         )
-
-        # itertools.chain returns a chain[object] instead of the Iterator type we are looking for.
-        return tasks  # type: ignore
+        return tasks
 
     def _create_task_instances(
         self,
