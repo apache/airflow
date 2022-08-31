@@ -55,6 +55,7 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
   * ``spark_python_task`` - python file path and parameters to run the python file with
   * ``spark_submit_task`` - parameters needed to run a ``spark-submit`` command
   * ``pipeline_task`` - parameters needed to run a Delta Live Tables pipeline
+  * ``dbt_task`` - parameters needed to run a dbt project
 
 * Cluster specification - it should be one of:
   * ``new_cluster`` - specs for a new cluster on which this task will be run
@@ -68,9 +69,10 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``spark_jar_task``
     - ``notebook_task``
     - ``spark_python_task``
-    - ``spark_jar_task``
     - ``spark_submit_task``
     - ``pipeline_task``
+    - ``dbt_task``
+    - ``git_source``
     - ``new_cluster``
     - ``existing_cluster_id``
     - ``libraries``

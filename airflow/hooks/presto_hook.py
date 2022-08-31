@@ -19,10 +19,11 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.presto.hooks.presto import PrestoHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.presto.hooks.presto`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

@@ -99,10 +99,12 @@ with DAG(
     )
     # [END howto_operator_ecs_register_task_definition]
 
+    registered_task_definition = register_task.output
+
     # [START howto_sensor_ecs_task_definition_state]
     await_task_definition = EcsTaskDefinitionStateSensor(
         task_id='await_task_definition',
-        task_definition=register_task.output,
+        task_definition=registered_task_definition,
     )
     # [END howto_sensor_ecs_task_definition_state]
 
@@ -110,7 +112,7 @@ with DAG(
     run_task = EcsRunTaskOperator(
         task_id="run_task",
         cluster=EXISTING_CLUSTER_NAME,
-        task_definition=register_task.output,
+        task_definition=registered_task_definition,
         launch_type="EC2",
         overrides={
             "containerOverrides": [
@@ -156,7 +158,7 @@ with DAG(
     deregister_task = EcsDeregisterTaskDefinitionOperator(
         task_id='deregister_task',
         trigger_rule=TriggerRule.ALL_DONE,
-        task_definition=register_task.output,
+        task_definition=registered_task_definition,
     )
     # [END howto_operator_ecs_deregister_task_definition]
 

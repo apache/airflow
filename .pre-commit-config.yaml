@@ -239,6 +239,15 @@ repos:
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
+        args:
+          # These -p options are duplicated to known_first_party in setup.cfg,
+          # Please keep these in sync for now. (See comments there for details.)
+          - -p=airflow
+          - -p=airflow_breeze
+          - -p=docker_tests
+          - -p=docs
+          - -p=kubernetes_tests
+          - -p=tests
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -295,7 +304,7 @@ repos:
         exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/*.log
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/tutorial/pipeline_example.csv,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
@@ -352,13 +361,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-breeze-cmd-output
-        name: Update output of breeze commands in BREEZE.rst
-        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
-        language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
@@ -512,6 +514,13 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_decorator_operator_implements_custom_name.py
         pass_filenames: true
         files: ^airflow/.*\.py$
+      - id: check-core-deprecation-classes
+        language: pygrep
+        name: Verify using of dedicated Airflow deprecation classes in core
+        entry: category=DeprecationWarning|category=PendingDeprecationWarning
+        files: \.py$
+        exclude: ^airflow/configuration.py|^airflow/providers|^scripts/in_container/verify_providers.py
+        pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
         name: Check provide_session and create_session imports
@@ -884,6 +893,13 @@ repos:
         exclude: ^docs/rtd-deprecation
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+      - id: update-breeze-cmd-output
+        name: Update output of breeze commands in BREEZE.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
+        language: python
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: run-flake8
         name: Run flake8
         language: python

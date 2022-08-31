@@ -34,6 +34,7 @@ PRE_COMMIT_LIST = [
     'check-breeze-top-dependencies-limited',
     'check-builtin-literals',
     'check-changelog-has-no-duplicates',
+    'check-core-deprecation-classes',
     'check-daysago-import-from-utils',
     'check-decorated-operator-implements-custom-name',
     'check-docstring-param-types',

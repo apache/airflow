@@ -101,7 +101,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -121,7 +121,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -1008,8 +1008,11 @@ class Airflow(AirflowBaseView):
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/datasets.html",
+            state_color_mapping=state_color_mapping,
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -1754,7 +1757,7 @@ class Airflow(AirflowBaseView):
             ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     (name, getattr(ti, name))
                     for name in dir(ti)
@@ -3659,16 +3662,16 @@ class Airflow(AirflowBaseView):
                     DatasetModel.uri,
                     DatasetDagRunQueue.created_at,
                 )
-                .join(DatasetDagRef, DatasetModel.id == DatasetDagRef.dataset_id)
+                .join(DagScheduleDatasetReference, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
-                        DatasetDagRunQueue.dataset_id == DatasetDagRef.dataset_id,
-                        DatasetDagRunQueue.target_dag_id == DatasetDagRef.dag_id,
+                        DatasetDagRunQueue.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
                     ),
                     isouter=True,
                 )
-                .filter(DatasetDagRef.dag_id == dag_id)
+                .filter(DagScheduleDatasetReference.dag_id == dag_id)
                 .order_by(DatasetModel.id)
                 .all()
             ]
@@ -4510,7 +4513,7 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots', 'scheduled_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -4567,7 +4570,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    formatters_columns = {'pool': pool_link, 'running_slots': frunning_slots, 'queued_slots': fqueued_slots}
+    def fscheduled_slots(self):
+        """Scheduled slots rendering."""
+        pool_id = self.get('pool')
+        scheduled_slots = self.get('scheduled_slots')
+        if pool_id is not None and scheduled_slots is not None:
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='scheduled')
+            return Markup("<a href='{url}'>{scheduled_slots}</a>").format(
+                url=url, scheduled_slots=scheduled_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
+    formatters_columns = {
+        'pool': pool_link,
+        'running_slots': frunning_slots,
+        'queued_slots': fqueued_slots,
+        'scheduled_slots': fscheduled_slots,
+    }
 
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 

@@ -33,7 +33,7 @@ from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, BackfillUnfinished
+from airflow.exceptions import AirflowException, BackfillUnfinished, RemovedInAirflow3Warning
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -59,7 +59,7 @@ def dag_backfill(args, dag=None):
 
     warnings.warn(
         '--ignore-first-depends-on-past is deprecated as the value is always set to True',
-        category=PendingDeprecationWarning,
+        category=RemovedInAirflow3Warning,
     )
 
     if args.ignore_first_depends_on_past is False:
@@ -451,6 +451,13 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
 @cli_utils.action_cli
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+    run_conf = None
+    if args.conf:
+        try:
+            run_conf = json.loads(args.conf)
+        except ValueError as e:
+            raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
+
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=False)
     try:
@@ -458,6 +465,7 @@ def dag_test(args, session=None):
             executor=DebugExecutor(),
             start_date=args.execution_date,
             end_date=args.execution_date,
+            conf=run_conf,
             # Always run the DAG at least once even if no logical runs are
             # available. This does not make a lot of sense, but Airflow has
             # been doing this prior to 2.2 so we keep compatibility.

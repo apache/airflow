@@ -39,6 +39,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -46,7 +47,7 @@ from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetEvent
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -132,7 +133,7 @@ class SchedulerJob(BaseJob):
             warnings.warn(
                 "The 'processor_poll_interval' parameter is deprecated. "
                 "Please use 'scheduler_idle_sleep_time'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
             scheduler_idle_sleep_time = processor_poll_interval
@@ -1117,14 +1118,17 @@ class SchedulerJob(BaseJob):
                     .first()
                 )
                 dataset_event_filters = [
-                    DatasetDagRef.dag_id == dag.dag_id,
+                    DagScheduleDatasetReference.dag_id == dag.dag_id,
                     DatasetEvent.timestamp <= exec_date,
                 ]
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
                 dataset_events = (
                     session.query(DatasetEvent)
-                    .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
+                    .join(
+                        DagScheduleDatasetReference,
+                        DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
+                    )
                     .join(DatasetEvent.source_dag_run)
                     .filter(*dataset_event_filters)
                     .all()

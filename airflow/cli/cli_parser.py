@@ -254,13 +254,13 @@ ARG_REVISION_RANGE = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
 ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state")
 
 # list_jobs
+ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 
 # next_execution
@@ -999,7 +999,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
         args=(
-            ARG_DAG_ID_OPT,
+            ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_STATE,
             ARG_OUTPUT,
@@ -1170,6 +1170,7 @@ DAGS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_EXECUTION_DATE,
+            ARG_CONF,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
@@ -1663,6 +1664,12 @@ ROLES_COMMANDS = (
         name='create',
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
+        args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='delete',
+        help='Delete role',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_delete'),
         args=(ARG_ROLES, ARG_VERBOSE),
     ),
     ActionCommand(

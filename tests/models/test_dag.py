@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamVali
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -609,7 +609,7 @@ class TestDag:
 
     def test_following_schedule_relativedelta(self):
         """
-        Tests following_schedule a dag with a relativedelta schedule_interval
+        Tests following_schedule a dag with a relativedelta schedule
         """
         dag_id = "test_schedule_dag_relativedelta"
         delta = relativedelta(hours=+1)
@@ -620,6 +620,43 @@ class TestDag:
         assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
 
         _next = dag.following_schedule(_next)
+        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
+
+    def test_following_schedule_relativedelta_with_deprecated_schedule_interval(self):
+        """
+        Tests following_schedule a dag with a relativedelta schedule_interval
+        """
+        dag_id = "test_schedule_dag_relativedelta"
+        delta = relativedelta(hours=+1)
+        dag = DAG(dag_id=dag_id, schedule_interval=delta)
+        dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
+
+        _next = dag.following_schedule(TEST_DATE)
+        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
+
+        _next = dag.following_schedule(_next)
+        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
+
+    def test_following_schedule_relativedelta_with_depr_schedule_interval_decorated_dag(self):
+        """
+        Tests following_schedule a dag with a relativedelta schedule_interval
+        using decorated dag
+        """
+        from airflow.decorators import dag
+
+        dag_id = "test_schedule_dag_relativedelta"
+        delta = relativedelta(hours=+1)
+
+        @dag(dag_id=dag_id, schedule_interval=delta)
+        def mydag():
+            BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE)
+
+        _dag = mydag()
+
+        _next = _dag.following_schedule(TEST_DATE)
+        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
+
+        _next = _dag.following_schedule(_next)
         assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
 
     def test_previous_schedule_datetime_timezone(self):
@@ -844,8 +881,12 @@ class TestDag:
         assert [x.dag_id for x in d1.consuming_dags] == [dag_id1]
         assert [(x.task_id, x.dag_id) for x in d1.producing_tasks] == [(task_id, dag_id2)]
         assert set(
-            session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id)
-            .filter(DatasetTaskRef.dag_id.in_((dag_id1, dag_id2)))
+            session.query(
+                TaskOutletDatasetReference.task_id,
+                TaskOutletDatasetReference.dag_id,
+                TaskOutletDatasetReference.dataset_id,
+            )
+            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
             (task_id, dag_id1, d2.id),
@@ -1357,6 +1398,18 @@ class TestDag:
         assert dag.timetable == DatasetTriggeredTimetable()
         assert dag.schedule_interval == 'Dataset'
         assert dag.timetable.description == 'Triggered by datasets'
+
+    def test_schedule_interval_still_works(self):
+        dag = DAG("test_schedule_interval_arg", schedule_interval="*/5 * * * *")
+        assert dag.timetable == cron_timetable("*/5 * * * *")
+        assert dag.schedule_interval == "*/5 * * * *"
+        assert dag.timetable.description == "Every 5 minutes"
+
+    def test_timetable_still_works(self):
+        dag = DAG("test_schedule_interval_arg", timetable=cron_timetable("*/6 * * * *"))
+        assert dag.timetable == cron_timetable("*/6 * * * *")
+        assert dag.schedule_interval == "*/6 * * * *"
+        assert dag.timetable.description == "Every 6 minutes"
 
     @pytest.mark.parametrize(
         "timetable, expected_description",

@@ -19,7 +19,7 @@ import datetime
 import warnings
 from typing import Iterable, Union
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -71,17 +71,19 @@ class BranchDateTimeOperator(BaseBranchOperator):
             self.use_task_logical_date = use_task_execution_date
             warnings.warn(
                 "Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
 
     def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         if self.use_task_logical_date:
-            now = timezone.make_naive(context["logical_date"], self.dag.timezone)
+            now = context["logical_date"]
         else:
-            now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
-
+            now = timezone.coerce_datetime(timezone.utcnow())
         lower, upper = target_times_as_dates(now, self.target_lower, self.target_upper)
+        lower = timezone.coerce_datetime(lower, self.dag.timezone)
+        upper = timezone.coerce_datetime(upper, self.dag.timezone)
+
         if upper is not None and upper < now:
             return self.follow_task_ids_if_false
 

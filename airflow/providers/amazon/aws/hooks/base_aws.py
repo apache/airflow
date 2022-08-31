@@ -325,7 +325,7 @@ class BaseSessionFactory(LoggingMixin):
         warnings.warn(
             "`BaseSessionFactory._get_region_name` method deprecated and will be removed "
             "in a future releases. Please use `BaseSessionFactory.region_name` property instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.region_name
@@ -334,7 +334,7 @@ class BaseSessionFactory(LoggingMixin):
         warnings.warn(
             "`BaseSessionFactory._read_role_arn_from_extra_config` method deprecated and will be removed "
             "in a future releases. Please use `BaseSessionFactory.role_arn` property instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.role_arn
@@ -344,7 +344,7 @@ class BaseSessionFactory(LoggingMixin):
             "`BaseSessionFactory._read_credentials_from_connection` method deprecated and will be removed "
             "in a future releases. Please use `BaseSessionFactory.conn.aws_access_key_id` and "
             "`BaseSessionFactory.aws_secret_access_key` properties instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.conn.aws_access_key_id, self.conn.aws_secret_access_key

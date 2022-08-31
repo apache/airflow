@@ -386,6 +386,18 @@
       type: string
       default: "0o077"
       example: ~
+    - name: dataset_manager_class
+      description: Class to use as dataset manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: 'airflow.datasets.manager.DatasetManager'
+    - name: dataset_manager_kwargs
+      description: Kwargs to supply to dataset manager.
+      version_added: 2.4.0
+      type: string
+      default: ~
+      example: '{"some_param": "some_value"}'
 
 - name: database
   description: ~

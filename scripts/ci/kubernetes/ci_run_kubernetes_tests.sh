@@ -96,7 +96,7 @@ function create_virtualenv() {
 
     pip install pytest freezegun "${constraints[@]}"
 
-    pip install -e ".[cncf.kubernetes,postgres]" "${constraints[@]}"
+    pip install -e ".[cncf.kubernetes]" "${constraints[@]}"
 }
 
 function run_tests() {

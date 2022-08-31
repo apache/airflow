@@ -26,6 +26,7 @@ import click
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MOUNT_ALL,
@@ -50,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_python_versions,
     option_run_in_parallel,
+    option_skip_cleanup,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -308,6 +310,7 @@ def run_generate_constraints_in_parallel(
     python_version_list: List[str],
     include_success_outputs: bool,
     parallelism: int,
+    skip_cleanup: bool,
     dry_run: bool,
     verbose: bool,
 ):
@@ -336,6 +339,7 @@ def run_generate_constraints_in_parallel(
         success="All constraints are generated.",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
     )
 
 
@@ -349,6 +353,7 @@ def run_generate_constraints_in_parallel(
 @option_github_repository
 @option_run_in_parallel
 @option_parallelism
+@option_skip_cleanup
 @option_python_versions
 @option_image_tag_for_running
 @option_answer
@@ -361,6 +366,7 @@ def generate_constraints(
     github_repository: str,
     run_in_parallel: bool,
     parallelism: int,
+    skip_cleanup: bool,
     python_versions: str,
     image_tag: Optional[str],
     answer: Optional[str],
@@ -411,6 +417,7 @@ def generate_constraints(
         run_generate_constraints_in_parallel(
             shell_params_list=shell_params_list,
             parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
             include_success_outputs=True,
             dry_run=dry_run,
             verbose=verbose,
@@ -519,7 +526,7 @@ def alias_image(image_from: str, image_to: str, dry_run: bool, verbose: bool):
 @click.option('--airflow-version', required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
 @click.option(
     '--dockerhub-repo',
-    default="apache/airflow",
+    default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     help="DockerHub repository for the images",
 )

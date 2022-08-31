@@ -633,6 +633,9 @@ sensors:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.sensors.dataform
+  - integration-name: Google Cloud Tasks
+    python-modules:
+      - airflow.providers.google.cloud.sensors.tasks
 
 hooks:
   - integration-name: Google Ads
@@ -814,7 +817,7 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/trino_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.trino_to_gcs
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.sql_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
@@ -893,7 +896,7 @@ transfers:
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.sql_to_sheets
@@ -1004,6 +1007,10 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceListLink
   - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceDetailsLink
   - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 
