@@ -28,6 +28,7 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_DATA_VOLUME
 
 try:
@@ -39,6 +40,7 @@ except ImportError:
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_PACKAGE_FORMATS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     FLOWER_HOST_PORT,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
@@ -76,10 +78,11 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
-    ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
+    ("BREEZE.rst", "/opt/airflow/BREEZE.rst"),
     ("LICENSE", "/opt/airflow/LICENSE"),
     ("MANIFEST.in", "/opt/airflow/MANIFEST.in"),
     ("NOTICE", "/opt/airflow/NOTICE"),
+    ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
     ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
@@ -87,6 +90,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
     ("hooks", "/opt/airflow/hooks"),
+    ("images", "/opt/airflow/images"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("pytest.ini", "/opt/airflow/pytest.ini"),
@@ -566,7 +570,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'CI_EVENT_TYPE', "pull_request")
     set_value_to_default_if_not_set(env, 'CI_JOB_ID', "0")
     set_value_to_default_if_not_set(env, 'CI_TARGET_BRANCH', AIRFLOW_BRANCH)
-    set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', "apache/airflow")
+    set_value_to_default_if_not_set(env, 'CI_TARGET_REPO', APACHE_AIRFLOW_GITHUB_REPOSITORY)
     set_value_to_default_if_not_set(env, 'COMMIT_SHA', commit_sha())
     set_value_to_default_if_not_set(env, 'DB_RESET', "false")
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
@@ -721,3 +725,23 @@ LABEL description="test warmup image"
             f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
             f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
         )
+
+
+def fix_ownership_using_docker(dry_run: bool, verbose: bool):
+    perform_environment_checks(verbose=verbose)
+    shell_params = find_available_ci_image(
+        github_repository=APACHE_AIRFLOW_GITHUB_REPOSITORY, dry_run=dry_run, verbose=verbose
+    )
+    extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
+    env = get_env_variables_for_docker_commands(shell_params)
+    cmd = [
+        "docker",
+        "run",
+        "-t",
+        *extra_docker_flags,
+        "--pull",
+        "never",
+        shell_params.airflow_image_name_with_tag,
+        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
+    ]
+    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)

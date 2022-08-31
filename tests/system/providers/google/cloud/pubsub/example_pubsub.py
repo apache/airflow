@@ -21,7 +21,6 @@ Example Airflow DAG that uses Google PubSub services.
 """
 import os
 from datetime import datetime
-from typing import cast
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -72,7 +71,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_create_subscription]
 
     # [START howto_operator_gcp_pubsub_pull_message_with_sensor]
-    subscription = cast(str, subscribe_task.output)
+    subscription = subscribe_task.output
 
     pull_messages = PubSubPullSensor(
         task_id="pull_messages",

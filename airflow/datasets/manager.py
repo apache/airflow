@@ -28,11 +28,11 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-class DatasetEventManager(LoggingMixin):
+class DatasetManager(LoggingMixin):
     """
-    A pluggable class that manages operations for dataset events.
+    A pluggable class that manages operations for datasets.
 
-    The intent is to have one place to handle all DatasetEvent-related operations, so different
+    The intent is to have one place to handle all Dataset-related operations, so different
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
@@ -69,18 +69,18 @@ class DatasetEventManager(LoggingMixin):
             session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
 
-def resolve_dataset_event_manager():
-    _dataset_event_manager_class = conf.getimport(
+def resolve_dataset_manager():
+    _dataset_manager_class = conf.getimport(
         section='core',
-        key='dataset_event_manager_class',
-        fallback='airflow.datasets.manager.DatasetEventManager',
+        key='dataset_manager_class',
+        fallback='airflow.datasets.manager.DatasetManager',
     )
-    _dataset_event_manager_kwargs = conf.getjson(
+    _dataset_manager_kwargs = conf.getjson(
         section='core',
-        key='dataset_event_manager_kwargs',
+        key='dataset_manager_kwargs',
         fallback={},
     )
-    return _dataset_event_manager_class(**_dataset_event_manager_kwargs)
+    return _dataset_manager_class(**_dataset_manager_kwargs)
 
 
-dataset_event_manager = resolve_dataset_event_manager()
+dataset_manager = resolve_dataset_manager()

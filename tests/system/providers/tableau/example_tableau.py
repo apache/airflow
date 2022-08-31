@@ -22,7 +22,6 @@ when the operation actually finishes. That's why we have another task that check
 """
 import os
 from datetime import datetime, timedelta
-from typing import cast
 
 from airflow import DAG
 from airflow.providers.tableau.operators.tableau import TableauOperator
@@ -61,7 +60,7 @@ with DAG(
     )
     # The following task queries the status of the workbook refresh job until it succeeds.
     task_check_job_status = TableauJobStatusSensor(
-        job_id=cast(str, task_refresh_workbook_non_blocking.output),
+        job_id=task_refresh_workbook_non_blocking.output,
         task_id='check_tableau_job_status',
     )
 
