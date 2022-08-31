@@ -2080,7 +2080,7 @@ async def test_get_job_status_success(mock_session, mock_job_instance):
 @pytest.mark.asyncio
 @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHookAsync.get_job_instance")
 async def test_get_job_status_oserror(mock_job_instance):
-    """Assets that the BigQueryHookAsync returns a pending response when OSError is raised"""
+    """Asserts that the BigQueryHookAsync returns a pending response when OSError is raised"""
     mock_job_instance.return_value.result.side_effect = OSError()
     hook = BigQueryHookAsync()
     job_status = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
@@ -2090,7 +2090,7 @@ async def test_get_job_status_oserror(mock_job_instance):
 @pytest.mark.asyncio
 @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHookAsync.get_job_instance")
 async def test_get_job_status_exception(mock_job_instance, caplog):
-    """Assets that the logging is done correctly when BigQueryHookAsync raises Exception"""
+    """Asserts that the logging is done correctly when BigQueryHookAsync raises Exception"""
     mock_job_instance.return_value.result.side_effect = Exception()
     hook = BigQueryHookAsync()
     await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
