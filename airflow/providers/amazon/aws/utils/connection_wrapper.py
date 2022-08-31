@@ -26,6 +26,7 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 
 try:
     from airflow.utils.types import NOTSET, ArgNotSet
@@ -428,6 +429,7 @@ def _parse_s3_config(
         try:
             access_key = config.get(cred_section, key_id_option)
             secret_key = config.get(cred_section, secret_key_option)
+            mask_secret(secret_key)
         except Exception:
             raise AirflowException("Option Error in parsing s3 config file")
         return access_key, secret_key

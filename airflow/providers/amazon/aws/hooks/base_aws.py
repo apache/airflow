@@ -49,6 +49,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
@@ -524,11 +525,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         Get the underlying `botocore.Credentials` object.
 
         This contains the following authentication attributes: access_key, secret_key and token.
+        By use this method also secret_key and token will mask in tasks logs.
         """
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
-        return self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
+        creds = self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
+        mask_secret(creds.secret_key)
+        if creds.token:
+            mask_secret(creds.token)
+        return creds
 
     def expand_role(self, role: str, region_name: Optional[str] = None) -> str:
         """
