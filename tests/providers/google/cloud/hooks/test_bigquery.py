@@ -2174,7 +2174,7 @@ async def test_get_job_output(mock_job_instance):
         "etag": "test_etag",
         "schema": {"fields": [{"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"}]},
         "jobReference": {
-            "projectId": "test_astronomer-airflow-providers",
+            "projectId": "test_projectId",
             "jobId": "test_jobid",
             "location": "US",
         },
