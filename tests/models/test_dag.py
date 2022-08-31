@@ -609,7 +609,7 @@ class TestDag:
 
     def test_following_schedule_relativedelta(self):
         """
-        Tests following_schedule a dag with a relativedelta schedule_interval
+        Tests following_schedule a dag with a relativedelta schedule
         """
         dag_id = "test_schedule_dag_relativedelta"
         delta = relativedelta(hours=+1)
@@ -620,6 +620,43 @@ class TestDag:
         assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
 
         _next = dag.following_schedule(_next)
+        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
+
+    def test_following_schedule_relativedelta_with_deprecated_schedule_interval(self):
+        """
+        Tests following_schedule a dag with a relativedelta schedule_interval
+        """
+        dag_id = "test_schedule_dag_relativedelta"
+        delta = relativedelta(hours=+1)
+        dag = DAG(dag_id=dag_id, schedule_interval=delta)
+        dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
+
+        _next = dag.following_schedule(TEST_DATE)
+        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
+
+        _next = dag.following_schedule(_next)
+        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
+
+    def test_following_schedule_relativedelta_with_depr_schedule_interval_decorated_dag(self):
+        """
+        Tests following_schedule a dag with a relativedelta schedule_interval
+        using decorated dag
+        """
+        from airflow.decorators import dag
+
+        dag_id = "test_schedule_dag_relativedelta"
+        delta = relativedelta(hours=+1)
+
+        @dag(dag_id=dag_id, schedule_interval=delta)
+        def mydag():
+            BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE)
+
+        _dag = mydag()
+
+        _next = _dag.following_schedule(TEST_DATE)
+        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
+
+        _next = _dag.following_schedule(_next)
         assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
 
     def test_previous_schedule_datetime_timezone(self):
