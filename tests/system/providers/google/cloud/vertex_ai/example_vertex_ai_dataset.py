@@ -226,28 +226,28 @@ with models.DAG(
     # [END how_to_cloud_vertex_ai_update_dataset_operator]
 
     delete_time_series_dataset_job = DeleteDatasetOperator(
-        task_id="delete_time_series_dataset_job",
+        task_id="delete_time_series_dataset",
         dataset_id=create_time_series_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
 
     delete_tabular_dataset_job = DeleteDatasetOperator(
-        task_id="delete_tabular_dataset_job",
+        task_id="delete_tabular_dataset",
         dataset_id=create_tabular_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
 
     delete_image_dataset_job = DeleteDatasetOperator(
-        task_id="delete_image_dataset_job",
+        task_id="delete_image_dataset",
         dataset_id=create_image_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
 
     delete_video_dataset_job = DeleteDatasetOperator(
-        task_id="delete_dataset",
+        task_id="delete_video_dataset",
         dataset_id=create_video_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,

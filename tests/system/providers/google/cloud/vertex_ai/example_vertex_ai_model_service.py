@@ -85,22 +85,7 @@ MODEL_OUTPUT_CONFIG = {
     },
     "export_format_id": "custom-trained",
 }
-MODEL_ARTIFACT_URI = os.environ.get("MODEL_ARTIFACT_URI", "path_to_folder_with_model_artifacts")
 MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
-MODEL_OBJ = {
-    "display_name": f"model-{ENV_ID}",
-    "artifact_uri": MODEL_ARTIFACT_URI,
-    "container_spec": {
-        "image_uri": MODEL_SERVING_CONTAINER_URI,
-        "command": [],
-        "args": [],
-        "env": [],
-        "ports": [],
-        "predict_route": "",
-        "health_route": "",
-    },
-}
-CUSTOM_JOB_ID = "test-custom-job-id"
 
 
 with models.DAG(
@@ -108,6 +93,7 @@ with models.DAG(
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    render_template_as_native_obj=True,
     tags=["example", "vertex_ai", "model_service"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -146,6 +132,19 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    MODEL_OBJ = {
+        "display_name": f"model-{ENV_ID}",
+        "artifact_uri": "{{ti.xcom_pull('custom_task')['artifactUri']}}",
+        "container_spec": {
+            "image_uri": MODEL_SERVING_CONTAINER_URI,
+            "command": [],
+            "args": [],
+            "env": [],
+            "ports": [],
+            "predict_route": "",
+            "health_route": "",
+        },
+    }
 
     # [START how_to_cloud_vertex_ai_upload_model_operator]
     upload_model = UploadModelOperator(
@@ -186,7 +185,7 @@ with models.DAG(
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id=create_custom_training_job.output['training_id'],
-        custom_job_id=CUSTOM_JOB_ID,
+        custom_job_id=create_custom_training_job.output['custom_job_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )

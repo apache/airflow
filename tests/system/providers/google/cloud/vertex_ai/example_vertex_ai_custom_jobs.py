@@ -59,7 +59,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
 CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "california_housing_train.csv")
 CUSTOM_PYTHON_FILES_LOCAL_PATH = [
     CSV_FILE_LOCAL_PATH,
-    str(Path(__file__).parent / "resources" / "custom_trainer_script-0.1.tar.gz"),
+    str(Path(__file__).parent / "resources" / "custom_trainer_script-0.1.tar"),
 ]
 
 TABULAR_DATASET = lambda bucket_name: {
@@ -82,14 +82,12 @@ TRAINING_FRACTION_SPLIT = 0.7
 TEST_FRACTION_SPLIT = 0.15
 VALIDATION_FRACTION_SPLIT = 0.15
 
-PYTHON_PACKAGE_GCS_URI = f'gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/custom_trainer_script-0.1.tar.gz'
+PYTHON_PACKAGE_GCS_URI = f'gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/vertex-ai/custom_trainer_script-0.1.tar'
 PYTHON_MODULE_NAME = "aiplatform_custom_trainer_script.task"
 
 LOCAL_TRAINING_SCRIPT_PATH = str(
     Path(__file__).parent / "resources" / "california_housing_training_script.py"
 )
-
-CUSTOM_JOB_ID = "test-custom-job-id"
 
 
 with models.DAG(
@@ -145,7 +143,7 @@ with models.DAG(
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id=create_custom_container_training_job.output['training_id'],
-        custom_job_id=CUSTOM_JOB_ID,
+        custom_job_id=create_custom_container_training_job.output['custom_job_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -231,7 +229,7 @@ with models.DAG(
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id=create_custom_python_package_training_job.output['training_id'],
-        custom_job_id=CUSTOM_JOB_ID,
+        custom_job_id=create_custom_python_package_training_job.output['custom_job_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -311,7 +309,7 @@ with models.DAG(
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id=create_custom_training_job.output['training_id'],
-        custom_job_id=CUSTOM_JOB_ID,
+        custom_job_id=create_custom_training_job.output['custom_job_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )

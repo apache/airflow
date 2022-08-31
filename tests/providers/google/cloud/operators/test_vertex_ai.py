@@ -170,7 +170,11 @@ TEST_OUTPUT_CONFIG = {
 class TestVertexAICreateCustomContainerTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_custom_container_training_job.return_value = (None, "training_id")
+        mock_hook.return_value.create_custom_container_training_job.return_value = (
+            None,
+            "training_id",
+            "custom_job_id",
+        )
         op = CreateCustomContainerTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -251,7 +255,11 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_custom_python_package_training_job.return_value = (None, "training_id")
+        mock_hook.return_value.create_custom_python_package_training_job.return_value = (
+            None,
+            "training_id",
+            "custom_job_id",
+        )
         op = CreateCustomPythonPackageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -334,7 +342,11 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
 class TestVertexAICreateCustomTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_custom_training_job.return_value = (None, "training_id")
+        mock_hook.return_value.create_custom_training_job.return_value = (
+            None,
+            "training_id",
+            "custom_job_id",
+        )
         op = CreateCustomTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,

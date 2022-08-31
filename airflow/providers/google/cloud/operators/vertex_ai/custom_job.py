@@ -119,7 +119,7 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.staging_bucket = staging_bucket
         # END Custom
         # START Run param
-        self.dataset = Dataset(name=dataset_id) if dataset_id else None
+        self.dataset_id = dataset_id
         self.annotation_schema_uri = annotation_schema_uri
         self.model_display_name = model_display_name
         self.model_labels = model_labels
@@ -433,7 +433,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model, training_id = self.hook.create_custom_container_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -455,7 +455,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -490,6 +490,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -785,7 +786,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model, training_id = self.hook.create_custom_python_package_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -808,7 +809,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -843,6 +844,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -1140,7 +1142,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model, training_id = self.hook.create_custom_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -1163,7 +1165,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -1198,6 +1200,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 

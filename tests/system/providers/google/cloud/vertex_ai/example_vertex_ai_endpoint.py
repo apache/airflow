@@ -58,7 +58,7 @@ REGION = "us-central1"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/image-dataset.csv"
-CSV_FILE_LOCAL_PATH = (str(Path(__file__).parent / "resources" / "image-dataset.csv"),)
+CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv")
 
 IMAGE_DATASET = {
     "display_name": f"image-dataset-{ENV_ID}",
@@ -82,6 +82,7 @@ with models.DAG(
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    render_template_as_native_obj=True,
     tags=["example", "vertex_ai", "endpoint_service"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -130,7 +131,7 @@ with models.DAG(
     )
     DEPLOYED_MODEL = {
         # format: 'projects/{project}/locations/{location}/models/{model}'
-        'model': create_auto_ml_image_training_job.output['name'],
+        'model': "{{ti.xcom_pull('auto_ml_image_task')['name']}}",
         'display_name': f"temp_endpoint_test_{ENV_ID}",
         "dedicated_resources": {
             "machine_spec": {

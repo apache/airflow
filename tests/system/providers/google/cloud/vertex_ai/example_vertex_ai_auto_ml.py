@@ -66,11 +66,11 @@ TABULAR_GCS_OBJECT_NAME = "vertex-ai/tabular-dataset.csv"
 TEXT_GCS_OBJECT_NAME = "vertex-ai/text-dataset.csv"
 VIDEO_GCS_OBJECT_NAME = "vertex-ai/video-dataset.csv"
 
-FORECAST_CSV_FILE_LOCAL_PATH = (str(Path(__file__).parent / "resources" / "forecast-dataset.csv"),)
-IMAGE_CSV_FILE_LOCAL_PATH = (str(Path(__file__).parent / "resources" / "image-dataset.csv"),)
-TABULAR_CSV_FILE_LOCAL_PATH = (str(Path(__file__).parent / "resources" / "tabular-dataset.csv"),)
-TEXT_CSV_FILE_LOCAL_PATH = (str(Path(__file__).parent / "resources" / "text-dataset.csv"),)
-VIDEO_CSV_FILE_LOCAL_PATH = (str(Path(__file__).parent / "resources" / "video-dataset.csv"),)
+FORECAST_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv")
+IMAGE_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv")
+TABULAR_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "tabular-dataset.csv")
+TEXT_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "text-dataset.csv")
+VIDEO_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "video-dataset.csv")
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",

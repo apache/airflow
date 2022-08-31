@@ -93,6 +93,7 @@ with models.DAG(
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    render_template_as_native_obj=True,
     tags=["example", "vertex_ai", "batch_prediction_job"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -142,7 +143,7 @@ with models.DAG(
     create_batch_prediction_job = CreateBatchPredictionJobOperator(
         task_id="create_batch_prediction_job",
         job_display_name=JOB_DISPLAY_NAME,
-        model_name=create_auto_ml_forecasting_training_job.output['name'],
+        model_name="{{ti.xcom_pull('auto_ml_forecasting_task')['name']}}",
         predictions_format="csv",
         bigquery_source=BIGQUERY_SOURCE,
         gcs_destination_prefix=GCS_DESTINATION_PREFIX,
