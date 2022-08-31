@@ -30,8 +30,6 @@ from airflow.utils.trigger_rule import TriggerRule as TR
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    # Without this we get 'Cannot determine type of "trigger_rule"' on `ti.task.trigger_rule`
-    import airflow.models.baseoperator  # noqa
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -146,7 +144,7 @@ class TriggerRuleDep(BaseTIDep):
         """
         task = ti.task
         upstream = self._count_upstreams(ti, session=session)
-        trigger_rule: TR = task.trigger_rule  # type: ignore[has-type]
+        trigger_rule = task.trigger_rule
         upstream_done = done >= upstream
         upstream_tasks_state = {
             "total": upstream,
