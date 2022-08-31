@@ -482,7 +482,13 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
         pass_filenames: false
-        files: ^airflow/models/(?:base|mapped)operator.py$
+        files: ^airflow/models/(?:base|mapped)operator\.py$
+      - id: check-dag-init-decorator-arguments
+        name: Check DAG and @dag arguments
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_dag_init_decorator.py
+        pass_filenames: false
+        files: ^airflow/models/dag\.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
