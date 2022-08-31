@@ -112,7 +112,7 @@ Creating Template
 To create a inspection template you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPCreateInspectTemplateOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_inspect_template.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_create_inspect_template]
@@ -139,7 +139,7 @@ Using Template
 To find potentially sensitive info using the inspection template we just created, we can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPInspectContentOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_inspect_template.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_use_inspect_template]
@@ -161,7 +161,7 @@ Deleting Template
 To delete the template you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeleteInspectTemplateOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_inspect_template.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_delete_inspect_template]
@@ -236,7 +236,7 @@ Creating Job Trigger
 To create a job trigger you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPCreateJobTriggerOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_create_job_trigger]
@@ -261,7 +261,7 @@ Updating Job Trigger
 To update a job trigger you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPUpdateJobTriggerOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_update_job_trigger]
@@ -275,7 +275,7 @@ Deleting Job Trigger
 To delete a job trigger you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeleteJobTriggerOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/data_loss_prevention/example_dlp_job_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dlp_delete_job_trigger]
