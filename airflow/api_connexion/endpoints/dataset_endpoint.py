@@ -113,6 +113,8 @@ def get_dataset_events(
     if source_map_index:
         query = query.filter(DatasetEvent.source_map_index == source_map_index)
 
+    query = query.options(subqueryload(DatasetEvent.created_dagruns))
+
     total_entries = query.count()
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     events = query.offset(offset).limit(limit).all()

@@ -1533,6 +1533,18 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                     'source_map_index': ti.map_index,
                     'source_run_id': ti.run_id,
                     'source_task_id': ti.task_id,
+                    'created_dagruns': [
+                        {
+                            'dag_id': 'TEST_DAG_ID',
+                            'dag_run_id': 'TEST_DAG_RUN_ID',
+                            'data_interval_end': dr.data_interval_end.isoformat(),
+                            'data_interval_start': dr.data_interval_start.isoformat(),
+                            'end_date': None,
+                            'logical_date': dr.logical_date.isoformat(),
+                            'start_date': dr.start_date.isoformat(),
+                            'state': 'running',
+                        }
+                    ],
                 }
             ],
             'total_entries': 1,

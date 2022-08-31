@@ -1536,8 +1536,41 @@ export interface components {
       source_run_id?: string | null;
       /** @description The task map index that updated the dataset. */
       source_map_index?: number | null;
+      created_dagruns?: components["schemas"]["BasicDAGRun"][];
       /** @description The dataset event creation time */
       timestamp?: string;
+    };
+    BasicDAGRun: {
+      /** @description Run ID. */
+      run_id?: string;
+      dag_id?: string;
+      /**
+       * Format: date-time
+       * @description The logical date (previously called execution date). This is the time or interval covered by
+       * this DAG run, according to the DAG definition.
+       *
+       * The value of this field can be set only when creating the object. If you try to modify the
+       * field of an existing object, the request fails with an BAD_REQUEST error.
+       *
+       * This together with DAG_ID are a unique key.
+       *
+       * *New in version 2.2.0*
+       */
+      logical_date?: string;
+      /**
+       * Format: date-time
+       * @description The start time. The time when DAG run was actually created.
+       *
+       * *Changed in version 2.1.3*&#58; Field becomes nullable.
+       */
+      start_date?: string | null;
+      /** Format: date-time */
+      end_date?: string | null;
+      /** Format: date-time */
+      data_interval_start?: string | null;
+      /** Format: date-time */
+      data_interval_end?: string | null;
+      state?: components["schemas"]["DagState"];
     };
     /**
      * @description A collection of dataset events.
@@ -4116,6 +4149,7 @@ export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<components['sc
 export type DagScheduleDatasetReference = CamelCasedPropertiesDeep<components['schemas']['DagScheduleDatasetReference']>;
 export type DatasetCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = CamelCasedPropertiesDeep<components['schemas']['DatasetEvent']>;
+export type BasicDAGRun = CamelCasedPropertiesDeep<components['schemas']['BasicDAGRun']>;
 export type DatasetEventCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetEventCollection']>;
 export type ConfigOption = CamelCasedPropertiesDeep<components['schemas']['ConfigOption']>;
 export type ConfigSection = CamelCasedPropertiesDeep<components['schemas']['ConfigSection']>;

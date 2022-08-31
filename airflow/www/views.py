@@ -1008,8 +1008,11 @@ class Airflow(AirflowBaseView):
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/datasets.html",
+            state_color_mapping=state_color_mapping,
         )
 
     @expose('/dag_stats', methods=['POST'])
