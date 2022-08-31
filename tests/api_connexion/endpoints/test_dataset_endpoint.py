@@ -21,14 +21,16 @@ import pytest
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
+from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_datasets
+from tests.test_utils.db import clear_db_datasets, clear_db_runs
 
 
 @pytest.fixture(scope="module")
@@ -59,9 +61,11 @@ class TestDatasetEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()
         clear_db_datasets()
+        clear_db_runs()
 
     def teardown_method(self) -> None:
         clear_db_datasets()
+        clear_db_runs()
 
     def _create_dataset(self, session):
         dataset_model = DatasetModel(
@@ -315,6 +319,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
+            "created_dagruns": [],
         }
 
         events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
@@ -402,6 +407,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "source_run_id": "run2",
                     "source_map_index": 2,
                     "timestamp": self.default_time,
+                    "created_dagruns": [],
                 }
             ],
             "total_entries": 1,
@@ -436,6 +442,65 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.get("/api/v1/datasets/events")
         assert_401(response)
+
+    def test_includes_created_dagrun(self, session):
+        self._create_dataset(session)
+        event = DatasetEvent(
+            id=1,
+            dataset_id=1,
+            timestamp=timezone.parse(self.default_time),
+        )
+        session.add(event)
+        session.commit()
+
+        dagrun = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.DATASET_TRIGGERED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state='success',
+        )
+        dagrun.end_date = timezone.parse(self.default_time)
+        session.add(dagrun)
+        session.commit()
+
+        event.created_dagruns.append(dagrun)
+        session.commit()
+
+        response = self.client.get("/api/v1/datasets/events", environ_overrides={'REMOTE_USER': "test"})
+
+        assert response.status_code == 200
+        response_data = response.json
+        assert response_data == {
+            "dataset_events": [
+                {
+                    "id": 1,
+                    "dataset_id": 1,
+                    "dataset_uri": 's3://bucket/key',
+                    "extra": {},
+                    "source_dag_id": None,
+                    "source_task_id": None,
+                    "source_run_id": None,
+                    "source_map_index": -1,
+                    "timestamp": self.default_time,
+                    "created_dagruns": [
+                        {
+                            'dag_id': 'TEST_DAG_ID',
+                            'dag_run_id': 'TEST_DAG_RUN_ID',
+                            'data_interval_end': None,
+                            'data_interval_start': None,
+                            'end_date': self.default_time,
+                            'logical_date': self.default_time,
+                            'start_date': self.default_time,
+                            'state': 'success',
+                        },
+                    ],
+                }
+            ],
+            "total_entries": 1,
+        }
 
 
 class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):

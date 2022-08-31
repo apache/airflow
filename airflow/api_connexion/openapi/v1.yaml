@@ -3625,10 +3625,65 @@ components:
           type: integer
           description: The task map index that updated the dataset.
           nullable: true
+        created_dagruns:
+            type: array
+            items:
+              $ref: '#/components/schemas/BasicDAGRun'
         timestamp:
           type: string
           description: The dataset event creation time
           nullable: false
+
+    BasicDAGRun:
+      type: object
+      properties:
+        run_id:
+          type: string
+          description: |
+            Run ID.
+        dag_id:
+          type: string
+          readOnly: true
+        logical_date:
+          type: string
+          description: |
+            The logical date (previously called execution date). This is the time or interval covered by
+            this DAG run, according to the DAG definition.
+
+            The value of this field can be set only when creating the object. If you try to modify the
+            field of an existing object, the request fails with an BAD_REQUEST error.
+
+            This together with DAG_ID are a unique key.
+
+            *New in version 2.2.0*
+          format: date-time
+        start_date:
+          type: string
+          format: date-time
+          description: |
+            The start time. The time when DAG run was actually created.
+
+            *Changed in version 2.1.3*&#58; Field becomes nullable.
+          readOnly: true
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_start:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_end:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        state:
+          $ref: '#/components/schemas/DagState'
+          readOnly: true
 
     DatasetEventCollection:
       description: |

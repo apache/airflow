@@ -155,6 +155,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
             "source_run_id": "custom",
             "source_map_index": -1,
             "timestamp": self.timestamp,
+            "created_dagruns": [],
         }
 
 
@@ -167,6 +168,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
+            "created_dagruns": [],
         }
 
         events = [DatasetEvent(id=i, **common) for i in [1, 2]]
