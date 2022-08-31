@@ -4198,13 +4198,14 @@ class TestSchedulerJob:
 
         dags = self.scheduler_job.dagbag.dags.values()
         assert ['test_only_empty_tasks'] == [dag.dag_id for dag in dags]
-        assert 5 == len(tis)
+        assert 6 == len(tis)
         assert {
             ('test_task_a', 'success'),
             ('test_task_b', None),
             ('test_task_c', 'success'),
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
+            ('test_task_outlets', 'scheduled'),
         } == {(ti.task_id, ti.state) for ti in tis}
         for state, start_date, end_date, duration in [
             (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis
@@ -4222,13 +4223,14 @@ class TestSchedulerJob:
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        assert 5 == len(tis)
+        assert 6 == len(tis)
         assert {
             ('test_task_a', 'success'),
             ('test_task_b', 'success'),
             ('test_task_c', 'success'),
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
+            ('test_task_outlets', 'scheduled'),
         } == {(ti.task_id, ti.state) for ti in tis}
         for state, start_date, end_date, duration in [
             (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis
