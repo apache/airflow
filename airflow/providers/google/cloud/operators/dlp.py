@@ -1648,7 +1648,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        template = hook.list_deidentify_templates(
+        templates = hook.list_deidentify_templates(
             organization_id=self.organization_id,
             project_id=self.project_id,
             page_size=self.page_size,
@@ -1658,7 +1658,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             metadata=self.metadata,
         )
         # the MessageToDict does not have the right type defined as possible to pass in constructor
-        return MessageToDict(template)  # type: ignore[arg-type]
+        return [MessageToDict(template) for template in templates]  # type: ignore[arg-type]
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1735,7 +1735,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        job = hook.list_dlp_jobs(
+        jobs = hook.list_dlp_jobs(
             project_id=self.project_id,
             results_filter=self.results_filter,
             page_size=self.page_size,
@@ -1746,7 +1746,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             metadata=self.metadata,
         )
         # the MessageToDict does not have the right type defined as possible to pass in constructor
-        return MessageToDict(job)  # type: ignore[arg-type]
+        return [MessageToDict(job) for job in jobs]  # type: ignore[arg-type]
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
