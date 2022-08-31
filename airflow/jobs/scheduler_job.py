@@ -1319,7 +1319,7 @@ class SchedulerJob(BaseJob):
             return
 
         if not dag.timetable.periodic:
-            self.log.info("Skipping SLA check for %s because DAG is not scheduled", dag)
+            self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
             return
 
         request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
