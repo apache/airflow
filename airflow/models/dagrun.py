@@ -36,6 +36,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload
 )
 
 from sqlalchemy import (
@@ -57,7 +58,6 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.expression import false, select, true
-from typing_extensions import Literal, overload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -70,6 +70,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -844,6 +845,7 @@ class DagRun(Base, LoggingMixin):
         from airflow.settings import task_instance_mutation_hook
 
         # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
+        # Note: Literal[True, False] instead of bool because otherwise it doesn't correctly find the overload.
         hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, 'is_noop', False)
 
         dag = self.get_dag()
