@@ -304,13 +304,6 @@ def pull_prod_image(
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
-    if image_tag == "latest":
-        get_console().print("[red]You cannot pull latest images because they are not published any more!\n")
-        get_console().print(
-            "[yellow]You need to specify commit tag to pull and image. If you wish to get"
-            " the latest image, you need to run `breeze ci-image build` command\n"
-        )
-        sys.exit(1)
     perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
