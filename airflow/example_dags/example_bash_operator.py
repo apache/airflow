@@ -58,7 +58,7 @@ with DAG(
     # [START howto_operator_bash_template]
     also_run_this = BashOperator(
         task_id='also_run_this',
-        bash_command='echo "run_id={{ run_id }} | dag_run={{ dag_run }}"',
+        bash_command='echo "ti_key={{ task_instance_key_str }}"',
     )
     # [END howto_operator_bash_template]
     also_run_this >> run_this_last
