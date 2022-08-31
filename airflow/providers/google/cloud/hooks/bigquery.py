@@ -2825,7 +2825,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
 
 class BigQueryHookAsync(GoogleBaseHookAsync):
-    """Big query async hook inherits from GoogleBaseHookAsync class and connects to the google Big query"""
+    """BigQueryHookAsync inherits from GoogleBaseHookAsync class. Interacts with Google BigQuery"""
 
     sync_hook_class = BigQueryHook
 
@@ -2845,7 +2845,6 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         Polls for job status asynchronously using gcloud-aio.
 
         Note that an OSError is raised when Job results are still pending.
-        Exception means that Job finished with errors
         """
         async with ClientSession() as s:
             try:
@@ -2880,11 +2879,10 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         :param query_results: the results from a SQL query
         """
         buffer = []
-        if "rows" in query_results and query_results["rows"]:
+        if query_results.get("rows", None):
             rows = query_results["rows"]
             for dict_row in rows:
-                typed_row = [vs["v"] for vs in dict_row["f"]]
-                buffer.append(typed_row)
+                buffer.append([vs["v"] for vs in dict_row["f"]])
         return buffer
 
     def value_check(
@@ -2897,7 +2895,7 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         """
         Match a single query resulting row and tolerance with pass_value
 
-        :return: If Match fail, we throw an AirflowException.
+        :return: Raises AirflowException if there is no match.
         """
         if not records:
             raise AirflowException("The query returned None")
@@ -2939,12 +2937,9 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         :param pass_value: Expected value
         :param tolerance: Allowed tolerance for match to succeed
         """
-        if tolerance:
-            return [
-                pass_value * (1 - tolerance) <= record <= pass_value * (1 + tolerance) for record in records
-            ]
-
-        return [record == pass_value for record in records]
+        if not tolerance:
+            return [record == pass_value for record in records]
+        return [pass_value * (1 - tolerance) <= record <= pass_value * (1 + tolerance) for record in records]
 
     @staticmethod
     def _convert_to_float_if_possible(s: Any) -> Any:
@@ -2954,10 +2949,9 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         :param s: the string to be converted
         """
         try:
-            ret = float(s)
+            return float(s)
         except (ValueError, TypeError):
-            ret = s
-        return ret
+            return s
 
     def interval_check(
         self,

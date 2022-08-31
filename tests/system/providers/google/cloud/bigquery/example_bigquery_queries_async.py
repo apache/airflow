@@ -61,6 +61,35 @@ INSERT_ROWS_QUERY = (
     f"(42, 'fishy fish', '{INSERT_DATE}');"
 )
 
+
+CONFIGURATION = {
+    "query": {
+        "query": f"""DECLARE success BOOL;
+        DECLARE size_bytes INT64;
+        DECLARE row_count INT64;
+        DECLARE DELAY_TIME DATETIME;
+        DECLARE WAIT STRING;
+        SET success = FALSE;
+
+        SELECT row_count = (SELECT row_count FROM {DATASET}.__TABLES__ WHERE table_id='NON_EXISTING_TABLE');
+        IF row_count > 0  THEN
+            SELECT 'Table Exists!' as message, retry_count as retries;
+            SET success = TRUE;
+        ELSE
+            SELECT 'Table does not exist' as message, row_count;
+            SET WAIT = 'TRUE';
+            SET DELAY_TIME = DATETIME_ADD(CURRENT_DATETIME,INTERVAL 1 MINUTE);
+            WHILE WAIT = 'TRUE' DO
+                IF (DELAY_TIME < CURRENT_DATETIME) THEN
+                    SET WAIT = 'FALSE';
+                END IF;
+            END WHILE;
+        END IF;""",
+        "useLegacySql": False,
+    }
+}
+
+
 default_args = {
     "execution_timeout": timedelta(hours=6),
     "retries": 2,
@@ -205,32 +234,7 @@ with DAG(
 
     execute_long_running_query = BigQueryInsertJobOperatorAsync(
         task_id="execute_long_running_query",
-        configuration={
-            "query": {
-                "query": f"""DECLARE success BOOL;
-    DECLARE size_bytes INT64;
-    DECLARE row_count INT64;
-    DECLARE DELAY_TIME DATETIME;
-    DECLARE WAIT STRING;
-    SET success = FALSE;
-
-    SELECT row_count = (SELECT row_count FROM {DATASET}.__TABLES__ WHERE table_id='NON_EXISTING_TABLE');
-    IF row_count > 0  THEN
-        SELECT 'Table Exists!' as message, retry_count as retries;
-        SET success = TRUE;
-    ELSE
-        SELECT 'Table does not exist' as message, row_count;
-        SET WAIT = 'TRUE';
-        SET DELAY_TIME = DATETIME_ADD(CURRENT_DATETIME,INTERVAL 1 MINUTE);
-        WHILE WAIT = 'TRUE' DO
-          IF (DELAY_TIME < CURRENT_DATETIME) THEN
-              SET WAIT = 'FALSE';
-          END IF;
-        END WHILE;
-    END IF;""",
-                "useLegacySql": False,
-            }
-        },
+        configuration=CONFIGURATION,
         location=LOCATION,
     )
 

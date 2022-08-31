@@ -2497,7 +2497,7 @@ class BigQueryGetDataOperatorAsync(BigQueryGetDataOperator):
             query += self.selected_fields
         else:
             query += "*"
-        query += " from " + self.dataset_id + "." + self.table_id + " limit " + str(self.max_results)
+        query += f" from {self.dataset_id}. {self.table_id} limit {self.max_results}"
         return query
 
     def execute(self, context: 'Context') -> None:  # type: ignore[override]

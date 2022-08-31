@@ -228,7 +228,7 @@ async def test_bigquery_check_op_trigger_success_with_data(mock_job_output, mock
         "etag": "test_etag",
         "schema": {"fields": [{"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"}]},
         "jobReference": {
-            "projectId": "test_astronomer-airflow-providers",
+            "projectId": "test_projectId",
             "jobId": "test_jobid",
             "location": "US",
         },
@@ -274,7 +274,7 @@ async def test_bigquery_check_op_trigger_success_without_data(mock_job_output, m
             ]
         },
         "jobReference": {
-            "projectId": "test_astronomer-airflow-providers",
+            "projectId": "test_projectId",
             "jobId": "test_jobid",
             "location": "US",
         },
@@ -335,7 +335,7 @@ async def test_bigquery_get_data_trigger_success_with_data(mock_job_output, mock
         "etag": "test_etag",
         "schema": {"fields": [{"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"}]},
         "jobReference": {
-            "projectId": "test_astronomer-airflow-providers",
+            "projectId": "test_projectId",
             "jobId": "test_jobid",
             "location": "US",
         },
@@ -410,21 +410,29 @@ def test_bigquery_interval_check_trigger_serialization():
     }
 
 
-@pytest.mark.parametrize(
-    "get_output_value",
-    ["0", "1"],
-)
 @pytest.mark.asyncio
 @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHookAsync.get_job_status")
 @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHookAsync.get_job_output")
-async def test_bigquery_interval_check_trigger_success(
-    mock_get_job_output, mock_job_status, get_output_value
-):
+async def test_bigquery_interval_check_trigger_success(mock_get_job_output, mock_job_status):
     """
     Tests the BigQueryIntervalCheckTrigger only fires once the query execution reaches a successful state.
     """
     mock_job_status.return_value = "success"
-    mock_get_job_output.return_value = get_output_value
+    mock_get_job_output.return_value = {
+        "kind": "bigquery#tableDataList",
+        "etag": "test_etag",
+        "schema": {"fields": [{"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"}]},
+        "jobReference": {
+            "projectId": "test_projectId",
+            "jobId": "test_jobid",
+            "location": "US",
+        },
+        "totalRows": "10",
+        "rows": [{"f": [{"v": "0"}, {"v": "1"}]}],
+        "totalBytesProcessed": "0",
+        "jobComplete": True,
+        "cacheHit": False,
+    }
 
     trigger = BigQueryIntervalCheckTrigger(
         conn_id=TEST_CONN_ID,
@@ -444,7 +452,20 @@ async def test_bigquery_interval_check_trigger_success(
 
     generator = trigger.run()
     actual = await generator.asend(None)
-    assert actual == TriggerEvent({"status": "error", "message": "The second SQL query returned None"})
+
+    assert (
+        TriggerEvent(
+            {
+                "status": "success",
+                "message": "Job completed",
+                "first_row_data": ["0", "1"],
+                "second_row_data": ["0", "1"],
+            }
+        )
+        == actual
+    )
+    # Prevents error when task is destroyed while in "pending" state
+    asyncio.get_event_loop().stop()
 
 
 @pytest.mark.parametrize(
