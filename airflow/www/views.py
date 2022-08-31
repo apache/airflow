@@ -2970,6 +2970,7 @@ class Airflow(AirflowBaseView):
                 'task_type': t.task_type,
                 'extra_links': t.extra_links,
                 'is_mapped': t.is_mapped,
+                'trigger_rule': t.trigger_rule,
             }
             for t in dag.tasks
         }
