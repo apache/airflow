@@ -119,16 +119,6 @@ class AwsConnectionWrapper(LoggingMixin):
         elif not conn:
             return
 
-        extra = deepcopy(conn.extra_dejson)
-        session_kwargs = extra.get("session_kwargs", {})
-        if session_kwargs:
-            warnings.warn(
-                "'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
-                f"Please specify arguments passed to boto3 Session directly in {self.conn_repr} extra.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         # Assign attributes from AWS Connection
         self.conn_id = conn.conn_id
         self.conn_type = conn.conn_type or "aws"
@@ -140,6 +130,16 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}.",
                 UserWarning,
+                stacklevel=2,
+            )
+
+        extra = deepcopy(conn.extra_dejson)
+        session_kwargs = extra.get("session_kwargs", {})
+        if session_kwargs:
+            warnings.warn(
+                "'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
+                f"Please specify arguments passed to boto3 Session directly in {self.conn_repr} extra.",
+                DeprecationWarning,
                 stacklevel=2,
             )
 
