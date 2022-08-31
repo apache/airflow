@@ -33,6 +33,7 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    TypeVar,
     Union,
     cast,
 )
@@ -56,6 +57,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.expression import false, select, true
+from typing_extensions import Literal, overload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -839,7 +841,7 @@ class DagRun(Base, LoggingMixin):
         from airflow.settings import task_instance_mutation_hook
 
         # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
-        hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
+        hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, 'is_noop', False)
 
         dag = self.get_dag()
         task_ids: Set[str] = set()
@@ -943,9 +945,30 @@ class DagRun(Base, LoggingMixin):
 
         return task_ids
 
+    @overload
     def _get_task_creator(
-        self, created_counts: Dict[str, int], ti_mutation_hook: Callable, hook_is_noop: bool
-    ) -> Callable[[Operator, Tuple[int, ...]], Union[Iterator[Dict[str, Any]], Iterator[TI]]]:
+        self,
+        created_counts: Dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[True],
+    ) -> Callable[["Operator", Tuple[int, ...]], Iterator[Dict[str, Any]]]:
+        ...
+
+    @overload
+    def _get_task_creator(
+        self,
+        created_counts: Dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[False],
+    ) -> Callable[["Operator", Tuple[int, ...]], Iterator[TI]]:
+        ...
+
+    def _get_task_creator(
+        self,
+        created_counts: Dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[True, False],
+    ) -> Callable[["Operator", Tuple[int, ...]], Union[Iterator[Dict[str, Any]], Iterator[TI]]]:
         """
         Get the task creator function.
 
@@ -977,14 +1000,16 @@ class DagRun(Base, LoggingMixin):
             creator = create_ti
         return creator
 
+    CreatedTasksType = TypeVar("CreatedTasksType")
+
     def _create_tasks(
         self,
         dag: "DAG",
-        task_creator: Callable[[Operator, Tuple[int, ...]], Union[Iterator[Dict[str, Any]], Iterator[TI]]],
-        task_filter: Callable[[Operator], bool],
+        task_creator: Callable[["Operator", Tuple[int, ...]], CreatedTasksType],
+        task_filter: Callable[["Operator"], bool],
         *,
         session: Session,
-    ) -> Union[Iterator[Dict[str, Any]], Iterator[TI]]:
+    ) -> CreatedTasksType:
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
 
@@ -1011,9 +1036,12 @@ class DagRun(Base, LoggingMixin):
 
         tasks_and_map_idxs = map(expand_mapped_literals, filter(task_filter, dag.task_dict.values()))
 
-        tasks = itertools.chain.from_iterable(itertools.starmap(task_creator, tasks_and_map_idxs))
+        tasks: Union[Iterator[Dict[str, Any]], Iterator[TI]] = itertools.chain.from_iterable(
+            itertools.starmap(task_creator, tasks_and_map_idxs)  # type: ignore
+        )
 
-        return tasks
+        # itertools.chain returns a chain[object] instead of the Iterator type we are looking for.
+        return tasks  # type: ignore
 
     def _create_task_instances(
         self,
@@ -1040,9 +1068,9 @@ class DagRun(Base, LoggingMixin):
         run_id = self.run_id
         try:
             if hook_is_noop:
-                session.bulk_insert_mappings(TI, tasks)  # type: ignore
+                session.bulk_insert_mappings(TI, tasks)
             else:
-                session.bulk_save_objects(tasks)  # type: ignore
+                session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count)
