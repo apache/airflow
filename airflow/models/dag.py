@@ -2688,6 +2688,11 @@ class DAG(LoggingMixin):
         # We can't use a set here as we want to preserve order
         outlet_datasets: Dict[Dataset, None] = {}
         input_datasets: Dict[Dataset, None] = {}
+
+        # here we go through dags and tasks to check for dataset references
+        # if there are now None and previously there were some, we delete them
+        # if there are now *any*, we add them to the above data structures and
+        # later we'll persist them to the database.
         for dag in dags:
             curr_orm_dag = existing_dag_dict.get(dag.dag_id)
             if not dag.dataset_triggers:
@@ -2735,14 +2740,19 @@ class DAG(LoggingMixin):
                 for uri in uri_list
             }
             dag_refs_stored = set(
-                session.query(DagScheduleDatasetReference)
-                .filter(DagScheduleDatasetReference.dag_id == dag_id)
-                .all()
+                existing_dag_dict.get(dag_id)
+                and existing_dag_dict.get(dag_id).schedule_dataset_references
+                or []
             )
             dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
             session.bulk_save_objects(dag_refs_to_add)
             for obj in dag_refs_stored - dag_refs_needed:
                 session.delete(obj)
+
+        existing_task_outlet_refs_dict = collections.defaultdict(set)
+        for dag_id, orm_dag in existing_dag_dict.items():
+            for todr in orm_dag.task_outlet_dataset_references:
+                existing_task_outlet_refs_dict[(dag_id, todr.task_id)].add(todr)
 
         # reconcile task-outlet-dataset references
         for (dag_id, task_id), uri_list in outlet_references.items():
@@ -2750,13 +2760,7 @@ class DAG(LoggingMixin):
                 TaskOutletDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id, task_id=task_id)
                 for uri in uri_list
             }
-            task_refs_stored = set(
-                session.query(TaskOutletDatasetReference)
-                .filter(
-                    TaskOutletDatasetReference.dag_id == dag_id, TaskOutletDatasetReference.task_id == task_id
-                )
-                .all()
-            )
+            task_refs_stored = existing_task_outlet_refs_dict[(dag_id, task_id)]
             task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}
             session.bulk_save_objects(task_refs_to_add)
             for obj in task_refs_stored - task_refs_needed:
