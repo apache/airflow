@@ -36,6 +36,7 @@ Changelog
 .....
 
 Bug Fixes
+~~~~~~~~~
 
 * ``Fix the error caused by passing unused context in JiraSensor.poke (#23352)``
 
