@@ -61,4 +61,13 @@ SETUP_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             ],
         },
     ],
+    "breeze setup regenerate-command-images": [
+        {
+            "name": "Image regeneration option",
+            "options": [
+                "--force",
+                "--command",
+            ],
+        },
+    ],
 }

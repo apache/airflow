@@ -239,6 +239,15 @@ repos:
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
+        args:
+          # These -p options are duplicated to known_first_party in setup.cfg,
+          # Please keep these in sync for now. (See comments there for details.)
+          - -p=airflow
+          - -p=airflow_breeze
+          - -p=docker_tests
+          - -p=docs
+          - -p=kubernetes_tests
+          - -p=tests
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -352,13 +361,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-breeze-cmd-output
-        name: Update output of breeze commands in BREEZE.rst
-        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
-        language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
@@ -891,6 +893,13 @@ repos:
         exclude: ^docs/rtd-deprecation
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+      - id: update-breeze-cmd-output
+        name: Update output of breeze commands in BREEZE.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
+        language: python
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: run-flake8
         name: Run flake8
         language: python

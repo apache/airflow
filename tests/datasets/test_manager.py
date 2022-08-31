@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.datasets import Dataset
-from airflow.datasets.manager import DatasetEventManager
+from airflow.datasets.manager import DatasetManager
 from airflow.models.dataset import DatasetModel
 
 
@@ -44,9 +44,9 @@ def create_mock_dag():
         yield mock_dag
 
 
-class TestDatasetEventManager:
+class TestDatasetManager:
     def test_register_dataset_change_dataset_doesnt_exist(self, mock_task_instance):
-        dsem = DatasetEventManager()
+        dsem = DatasetManager()
 
         dataset = Dataset(uri="dataset_doesnt_exist")
 
@@ -62,7 +62,7 @@ class TestDatasetEventManager:
         mock_session.merge.assert_not_called()
 
     def test_register_dataset_change(self, mock_task_instance):
-        dsem = DatasetEventManager()
+        dsem = DatasetManager()
 
         mock_dag_1 = mock.MagicMock()
         mock_dag_1.dag_id = 1

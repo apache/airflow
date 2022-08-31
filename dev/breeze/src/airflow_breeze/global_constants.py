@@ -36,6 +36,7 @@ ANSWER = ""
 SKIP_CHECK_REMOTE_IMAGE = False
 # PUSH_PYTHON_BASE_IMAGE = False
 
+APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
