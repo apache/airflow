@@ -2578,9 +2578,13 @@ class DAG(LoggingMixin):
 
         dag_ids = set(dag_by_ids.keys())
         query = (
-            session.query(DagModel)
-            .options(joinedload(DagModel.tags, innerjoin=False))
-            .filter(DagModel.dag_id.in_(dag_ids))
+            (
+                session.query(DagModel)
+                .options(joinedload(DagModel.tags, innerjoin=False))
+                .filter(DagModel.dag_id.in_(dag_ids))
+            )
+            .options(joinedload(DagModel.schedule_dataset_references))
+            .options(joinedload(DagModel.task_outlet_dataset_references))
         )
         orm_dags: List[DagModel] = with_row_locks(query, of=DagModel, session=session).all()
         existing_dag_dict = {x.dag_id: x for x in orm_dags}
@@ -3068,14 +3072,10 @@ class DagModel(Base):
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
         cascade='all, delete, delete-orphan',
-        backref=backref("dag"),
-        lazy='joined',
     )
     task_outlet_dataset_references = relationship(
         "TaskOutletDatasetReference",
         cascade='all, delete, delete-orphan',
-        backref=backref("dag"),
-        lazy='joined',
     )
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
