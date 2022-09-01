@@ -445,7 +445,8 @@
       "azure-servicebus>=7.6.1; platform_machine != \"aarch64\"",
       "azure-storage-blob>=12.7.0,<12.9.0",
       "azure-storage-common>=2.1.0",
-      "azure-storage-file>=2.1.0"
+      "azure-storage-file>=2.1.0",
+      "azure-synapse-spark"
     ],
     "cross-providers-deps": [
       "google",
