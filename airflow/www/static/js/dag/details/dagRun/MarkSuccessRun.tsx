@@ -20,14 +20,19 @@
 import React, { useState } from 'react';
 import { Button, useDisclosure } from '@chakra-ui/react';
 
-import { useMarkSuccessRun } from '../../../api';
-import ConfirmDialog from '../ConfirmDialog';
-import { getMetaValue } from '../../../utils';
+import { useMarkSuccessRun } from 'src/api';
+import ConfirmDialog from 'src/components/ConfirmDialog';
+import { getMetaValue } from 'src/utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const MarkSuccessRun = ({ dagId, runId }) => {
-  const [affectedTasks, setAffectedTasks] = useState([]);
+interface Props {
+  dagId: string;
+  runId: string;
+}
+
+const MarkSuccessRun = ({ dagId, runId }: Props) => {
+  const [affectedTasks, setAffectedTasks] = useState('');
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { mutateAsync: markSuccess, isLoading } = useMarkSuccessRun(dagId, runId);
 
@@ -39,7 +44,7 @@ const MarkSuccessRun = ({ dagId, runId }) => {
 
   const onConfirm = async () => {
     await markSuccess({ confirmed: true });
-    setAffectedTasks([]);
+    setAffectedTasks('');
     onClose();
   };
 

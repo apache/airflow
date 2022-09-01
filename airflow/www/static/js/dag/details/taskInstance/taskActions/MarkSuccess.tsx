@@ -25,17 +25,25 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
-import ConfirmDialog from '../../ConfirmDialog';
+import ConfirmDialog from 'src/components/ConfirmDialog';
+import { useMarkSuccessTask, useConfirmMarkTask } from 'src/api';
+import { getMetaValue } from 'src/utils';
+
 import ActionButton from './ActionButton';
-import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
-import { getMetaValue } from '../../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
+interface Props {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  mapIndexes: number[];
+}
+
 const MarkSuccess = ({
   dagId, runId, taskId, mapIndexes,
-}) => {
-  const [affectedTasks, setAffectedTasks] = useState([]);
+}: Props) => {
+  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
   const [past, setPast] = useState(false);
@@ -89,10 +97,10 @@ const MarkSuccess = ({
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
-        <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
-        <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
-        <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
-        <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
+        <ActionButton bg={past ? 'gray.100' : undefined} onClick={onTogglePast} name="Past" />
+        <ActionButton bg={future ? 'gray.100' : undefined} onClick={onToggleFuture} name="Future" />
+        <ActionButton bg={upstream ? 'gray.100' : undefined} onClick={onToggleUpstream} name="Upstream" />
+        <ActionButton bg={downstream ? 'gray.100' : undefined} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
       <Button colorScheme="green" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
         Mark Success
