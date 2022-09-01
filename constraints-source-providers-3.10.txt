@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-01T01:54:52Z
+# This constraints file was automatically generated on 2022-09-01T12:26:35Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -168,9 +168,9 @@ flaky==3.7.0
 flower==1.2.0
 freezegun==1.2.2
 frozenlist==1.3.1
-fsspec==2022.8.1
+fsspec==2022.8.2
 future==0.18.2
-gcsfs==2022.8.1
+gcsfs==2022.8.2
 geomet==0.2.1.post1
 gevent==21.12.0
 gitdb==4.0.9
@@ -435,7 +435,7 @@ sentry-sdk==1.9.6
 setproctitle==1.3.2
 simple-salesforce==1.12.1
 six==1.16.0
-slack-sdk==3.18.1
+slack-sdk==3.18.2
 smbprotocol==1.9.0
 smmap==5.0.0
 sniffio==1.2.0
