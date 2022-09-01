@@ -349,7 +349,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
         dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
         task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
 
-        partial_kwargs, default_params = get_merged_defaults(
+        partial_kwargs, partial_params = get_merged_defaults(
             dag=dag,
             task_group=task_group,
             task_params=task_kwargs.pop("params", None),
@@ -360,7 +360,6 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
             task_id = task_group.child_id(task_id)
-        params = partial_kwargs.pop("params", None) or default_params
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:
@@ -400,7 +399,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            params=params,
+            params=partial_params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,

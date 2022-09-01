@@ -131,6 +131,9 @@ class ParamsDict(MutableMapping[str, Any]):
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
 
+    def __bool__(self) -> bool:
+        return bool(self.__dict)
+
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
 
