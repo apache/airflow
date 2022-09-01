@@ -136,7 +136,6 @@ class TestSchedulerJob:
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec: Optional[MockExecutor] = MockExecutor()
-        # Required by DagModel/SerializedDagModel created by dag_maker to set 'dag_directory' field.
         # Since we don't want to store the code for the DAG defined in this file
         with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
             'airflow.models.dag.DagCode.bulk_sync_to_db'
