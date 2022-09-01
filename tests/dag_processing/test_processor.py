@@ -799,7 +799,7 @@ class TestProcessorAgent:
 
     def test_error_when_waiting_in_async_mode(self, tmp_path):
         self.processor_agent = DagFileProcessorAgent(
-            dag_directory=str(tmp_path),
+            dag_directory=tmp_path,
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
@@ -812,7 +812,7 @@ class TestProcessorAgent:
 
     def test_default_multiprocessing_behaviour(self, tmp_path):
         self.processor_agent = DagFileProcessorAgent(
-            dag_directory=str(tmp_path),
+            dag_directory=tmp_path,
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
@@ -826,7 +826,7 @@ class TestProcessorAgent:
     @conf_vars({("core", "mp_start_method"): "spawn"})
     def test_spawn_multiprocessing_behaviour(self, tmp_path):
         self.processor_agent = DagFileProcessorAgent(
-            dag_directory=str(tmp_path),
+            dag_directory=tmp_path,
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],

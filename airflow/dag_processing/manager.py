@@ -109,7 +109,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def __init__(
         self,
-        dag_directory: str,
+        dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
@@ -118,7 +118,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     ):
         super().__init__()
         self._file_path_queue: List[str] = []
-        self._dag_directory: str = dag_directory
+        self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
@@ -207,7 +207,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     @staticmethod
     def _run_processor_manager(
-        dag_directory: str,
+        dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
@@ -370,7 +370,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def __init__(
         self,
-        dag_directory: os.PathLike
+        dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
