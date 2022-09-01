@@ -428,33 +428,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: python -m pytest ./dev/breeze/ -n auto --color=yes
       - run: breeze setup version
 
-  tests-ui:
-    timeout-minutes: 10
-    name: React UI tests
-    runs-on: ${{ needs.build-info.outputs.runs-on }}
-    needs: [build-info]
-    if: needs.build-info.outputs.run-ui-tests == 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-      - name: "Setup node"
-        uses: actions/setup-node@v3
-        with:
-          node-version: 14
-      - name: "Cache eslint"
-        uses: actions/cache@v2
-        with:
-          path: 'airflow/ui/node_modules'
-          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
-      - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
-      - run: yarn --cwd airflow/ui/ run test
-        env:
-          FORCE_COLOR: 2
-
   tests-www:
     timeout-minutes: 10
     name: React WWW tests
@@ -476,7 +449,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/cache@v3
         with:
           path: 'airflow/www/node_modules'
-          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
+          key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/www/**/yarn.lock') }}
       - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/www/ run test
         env:

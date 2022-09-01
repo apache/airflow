@@ -31,9 +31,6 @@
 /airflow/api/ @mik-laj @ephraimbuddy
 /airflow/api_connexion/ @mik-laj @ephraimbuddy
 
-# UI
-/airflow/ui/ @ryanahamilton @ashb @bbovenzi
-
 # WWW
 /airflow/www/ @ryanahamilton @ashb @bbovenzi
 

@@ -131,7 +131,6 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
-    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py
