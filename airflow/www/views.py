@@ -2052,10 +2052,14 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-        # if run_id is not None, filter dag runs based on run id and ignore execution date
+
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
         if dr:
-            flash(f"The run_id {dr.run_id} already exists", "error")
+            if dr.run_id == run_id:
+                message = f"The run ID {run_id} already exists"
+            else:
+                message = f"The logical date {execution_date} already exists"
+            flash(message, "error")
             return redirect(origin)
 
         # Flash a warning when slash is used, but still allow it to continue on.

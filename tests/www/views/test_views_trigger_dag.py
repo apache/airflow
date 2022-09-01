@@ -63,7 +63,7 @@ def test_duplicate_run_id(admin_client):
     run_id = 'test_run'
     admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
     response = admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
-    check_content_in_response(f'The run_id {run_id} already exists', response)
+    check_content_in_response(f'The run ID {run_id} already exists', response)
 
 
 def test_trigger_dag_conf(admin_client):
