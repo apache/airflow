@@ -97,7 +97,7 @@ class DatasetManager(LoggingMixin):
         from sqlalchemy.dialects.postgresql import insert
 
         stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
-        session.get_bind().execute(
+        session.execute(
             stmt,
             [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
         )
