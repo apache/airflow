@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 
 from airflow import settings
@@ -608,6 +609,36 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    conf=None,
+                    run_at_least_once=True,
+                ),
+            ]
+        )
+
+    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.utils.timezone.utcnow")
+    def test_dag_test_no_execution_date(self, mock_utcnow, mock_get_dag, mock_executor):
+        now = pendulum.now()
+        mock_utcnow.return_value = now
+        cli_args = self.parser.parse_args(['dags', 'test', 'example_bash_operator'])
+
+        assert cli_args.execution_date is None
+
+        dag_command.dag_test(cli_args)
+
+        mock_get_dag.assert_has_calls(
+            [
+                mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
+                mock.call().clear(
+                    start_date=now,
+                    end_date=now,
+                    dag_run_state=False,
+                ),
+                mock.call().run(
+                    executor=mock_executor.return_value,
+                    start_date=now,
+                    end_date=now,
                     conf=None,
                     run_at_least_once=True,
                 ),
