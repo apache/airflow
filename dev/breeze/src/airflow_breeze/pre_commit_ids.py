@@ -35,6 +35,7 @@ PRE_COMMIT_LIST = [
     'check-builtin-literals',
     'check-changelog-has-no-duplicates',
     'check-core-deprecation-classes',
+    'check-dag-init-decorator-arguments',
     'check-daysago-import-from-utils',
     'check-decorated-operator-implements-custom-name',
     'check-docstring-param-types',

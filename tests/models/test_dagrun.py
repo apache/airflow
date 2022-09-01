@@ -31,7 +31,6 @@ from airflow.decorators import task
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -290,19 +289,20 @@ class TestDagRun:
             execution_date=now,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
             start_date=now,
+            session=session,
         )
 
-        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
         ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
-        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
         ti_op2.set_state(state=None, session=session)
 
-        dr.update_state()
+        dr.update_state(session=session)
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        op2.trigger_rule = 'invalid'
-        dr.update_state()
+        op2.trigger_rule = 'invalid'  # type: ignore
+        dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
     def test_dagrun_no_deadlock_with_shutdown(self, session):
@@ -1036,7 +1036,7 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     dag._remove_task('task_2')
 
     with dag:
-        mapped = task_2.expand(arg2=XComArg(t1)).operator
+        mapped = task_2.expand(arg2=t1.output).operator
 
     # At this point, we need to test that the change works on the serialized
     # DAG (which is what the scheduler operates on)
@@ -1667,7 +1667,7 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').expand(arg1=literal, arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg1=literal, arg2=task.output)
 
     dr = dag_maker.create_dagrun()
     query = (
@@ -1686,7 +1686,7 @@ def test_mapped_mixed__literal_not_expanded_at_create(dag_maker, session):
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id='task_1')
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task))
+        mapped = MockOperator.partial(task_id='task_2').expand(arg2=task.output)
 
     dr: DagRun = dag_maker.create_dagrun()
     ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
@@ -1824,21 +1824,77 @@ def test_schedule_tis_map_index(dag_maker, session):
 
 
 def test_mapped_expand_kwargs(dag_maker):
-    with dag_maker() as dag:
+    with dag_maker():
 
         @task
-        def task_1():
-            return [{"arg1": "a", "arg2": "b"}, {"arg1": "y"}, {"arg2": "z"}]
+        def task_0():
+            return {"arg1": "a", "arg2": "b"}
 
-        MockOperator.partial(task_id="task_2").expand_kwargs(task_1())
+        @task
+        def task_1(args_0):
+            return [args_0, {"arg1": "y"}, {"arg2": "z"}]
+
+        args_0 = task_0()
+        args_list = task_1(args_0=args_0)
+
+        MockOperator.partial(task_id="task_2").expand_kwargs(args_list)
+        MockOperator.partial(task_id="task_3").expand_kwargs(
+            [{"arg1": "a", "arg2": "b"}, {"arg1": "y"}, {"arg2": "z"}],
+        )
+        MockOperator.partial(task_id="task_4").expand_kwargs([args_0, {"arg1": "y"}, {"arg2": "z"}])
 
     dr: DagRun = dag_maker.create_dagrun()
-    assert len([ti for ti in dr.get_task_instances() if ti.task_id == "task_2"]) == 1
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
 
-    ti1 = dr.get_task_instance("task_1")
-    ti1.refresh_from_task(dag.get_task("task_1"))
-    ti1.run()
+    # task_2 is not expanded yet since it relies on one single XCom input.
+    # task_3 and task_4 received a pure literal and can expanded right away.
+    # task_4 relies on an XCom input in the list, but can also be expanded.
+    assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_2") == [-1]
+    assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_3") == [0, 1, 2]
+    assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_4") == [0, 1, 2]
 
-    dr.task_instance_scheduling_decisions()
-    ti_states = {ti.map_index: ti.state for ti in dr.get_task_instances() if ti.task_id == "task_2"}
-    assert ti_states == {0: None, 1: None, 2: None}
+    tis[("task_0", -1)].run()
+    tis[("task_1", -1)].run()
+
+    # With the upstreams available, everything should get expanded now.
+    decision = dr.task_instance_scheduling_decisions()
+    assert {(ti.task_id, ti.map_index): ti.state for ti in decision.schedulable_tis} == {
+        ("task_2", 0): None,
+        ("task_2", 1): None,
+        ("task_2", 2): None,
+        ("task_3", 0): None,
+        ("task_3", 1): None,
+        ("task_3", 2): None,
+        ("task_4", 0): None,
+        ("task_4", 1): None,
+        ("task_4", 2): None,
+    }
+
+
+def test_mapped_skip_upstream_not_deadlock(dag_maker):
+    with dag_maker() as dag:
+
+        @dag.task
+        def add_one(x: int):
+            return x + 1
+
+        @dag.task
+        def say_hi():
+            print("Hi")
+
+        added_values = add_one.expand(x=[])
+        added_more_values = add_one.expand(x=[])
+        say_hi() >> added_values
+        added_values >> added_more_values
+
+    dr = dag_maker.create_dagrun()
+
+    session = dag_maker.session
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+
+    tis['say_hi'].state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+    assert tis['add_one__1'].state == TaskInstanceState.SKIPPED
