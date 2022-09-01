@@ -1008,8 +1008,11 @@ class Airflow(AirflowBaseView):
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets(self):
         """Datasets view."""
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/datasets.html",
+            state_color_mapping=state_color_mapping,
         )
 
     @expose('/dag_stats', methods=['POST'])
@@ -2049,10 +2052,14 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-        # if run_id is not None, filter dag runs based on run id and ignore execution date
+
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
         if dr:
-            flash(f"The run_id {dr.run_id} already exists", "error")
+            if dr.run_id == run_id:
+                message = f"The run ID {run_id} already exists"
+            else:
+                message = f"The logical date {execution_date} already exists"
+            flash(message, "error")
             return redirect(origin)
 
         # Flash a warning when slash is used, but still allow it to continue on.
@@ -2967,6 +2974,7 @@ class Airflow(AirflowBaseView):
                 'task_type': t.task_type,
                 'extra_links': t.extra_links,
                 'is_mapped': t.is_mapped,
+                'trigger_rule': t.trigger_rule,
             }
             for t in dag.tasks
         }

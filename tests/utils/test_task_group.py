@@ -1247,3 +1247,18 @@ def test_task_group_edge_modifier_chain():
     assert tg.downstream_task_ids == {t3.node_id}
     # Check that we can perform a topological_sort
     dag.topological_sort()
+
+
+def test_mapped_task_group_id_prefix_task_id():
+    from tests.test_utils.mock_operators import MockOperator
+
+    with DAG(dag_id="d", start_date=DEFAULT_DATE) as dag:
+        t1 = MockOperator.partial(task_id="t1").expand(arg1=[])
+        with TaskGroup("g"):
+            t2 = MockOperator.partial(task_id="t2").expand(arg1=[])
+
+    assert t1.task_id == "t1"
+    assert t2.task_id == "g.t2"
+
+    dag.get_task("t1") == t1
+    dag.get_task("g.t2") == t2
