@@ -27,9 +27,6 @@ Changelog
 5.1.0
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
 
 Features
 ~~~~~~~~
@@ -47,13 +44,13 @@ Bug Fixes
 
 * ``Fix display aws connection info (#26025)``
 * ``Fix 'EcsBaseOperator' and 'EcsBaseSensor' arguments (#25989)``
-* ``Fix EMR serverless system test (#25969)``
 * ``Fix RDS system test (#25839)``
 * ``Avoid circular import problems when instantiating AWS SM backend (#25810)``
 * ``fix bug construction of Connection object in version 5.0.0rc3 (#25716)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix EMR serverless system test (#25969)``
    * ``Add 'output' property to MappedOperator (#25604)``
    * ``Add Airflow specific warning classes (#25799)``
    * ``Replace SQL with Common SQL in pre commit (#26058)``
