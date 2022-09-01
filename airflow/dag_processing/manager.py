@@ -370,7 +370,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def __init__(
         self,
-        dag_directory: Union[str, Path],
+        dag_directory: os.PathLike
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
