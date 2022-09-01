@@ -2985,10 +2985,18 @@ class TestSchedulerJob:
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
             self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, dag_maker):
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            "@daily",
+            "0 10 * * *",
+            timedelta(hours=2),
+        ],
+    )
+    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, schedule, dag_maker):
         """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
         dag_id = 'test_send_sla_callbacks_to_processor_sla_with_task_slas'
-        with dag_maker(dag_id=dag_id, schedule='@daily') as dag:
+        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
             EmptyOperator(task_id='task1', sla=timedelta(seconds=60))
 
         with patch.object(settings, "CHECK_SLAS", True):
@@ -2999,6 +3007,26 @@ class TestSchedulerJob:
 
             expected_callback = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
             self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            None,
+            [Dataset("foo")],
+        ],
+    )
+    def test_send_sla_callbacks_to_processor_sla_dag_not_scheduled(self, schedule, dag_maker):
+        """Test SLA Callbacks are not sent when DAG isn't scheduled"""
+        dag_id = 'test_send_sla_callbacks_to_processor_sla_no_task_slas'
+        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
+            EmptyOperator(task_id='task1', sla=timedelta(seconds=5))
+
+        with patch.object(settings, "CHECK_SLAS", True):
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.executor = MockExecutor()
+
+            self.scheduler_job._send_sla_callbacks_to_processor(dag)
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_create_dag_runs(self, dag_maker):
         """

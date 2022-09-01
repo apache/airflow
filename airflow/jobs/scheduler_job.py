@@ -1318,6 +1318,10 @@ class SchedulerJob(BaseJob):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
+        if not dag.timetable.periodic:
+            self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
+            return
+
         request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
         self.executor.send_callback(request)
 
