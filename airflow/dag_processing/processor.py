@@ -775,7 +775,7 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
         # Save individual DAGs in the ORM
-        dagbag.sync_to_db(dag_directory=self._dag_directory, session=session)
+        dagbag.sync_to_db(processor_subdir=self._dag_directory, session=session)
         session.commit()
 
         if pickle_dags:

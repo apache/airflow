@@ -1611,7 +1611,7 @@ class TestSchedulerJob:
             dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
             dagrun_timeout=datetime.timedelta(seconds=60),
         ) as dag:
             EmptyOperator(task_id='dummy')
@@ -1677,7 +1677,7 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id='test_scheduler_fail_dagrun_timeout',
             dagrun_timeout=datetime.timedelta(seconds=60),
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
             session=session,
         ):
             EmptyOperator(task_id='dummy')
@@ -1756,7 +1756,7 @@ class TestSchedulerJob:
             dag_id='test_dagrun_callbacks_are_called',
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id='dummy')
 
@@ -1793,7 +1793,7 @@ class TestSchedulerJob:
             dag_id='test_dagrun_timeout_callbacks_are_stored_in_database',
             on_failure_callback=lambda x: print("failed"),
             dagrun_timeout=timedelta(hours=1),
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id='empty')
 
@@ -3008,7 +3008,7 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id=dag_id,
             schedule=schedule,
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
         ) as dag:
             EmptyOperator(task_id='task1', sla=timedelta(seconds=60))
 
@@ -4151,7 +4151,7 @@ class TestSchedulerJob:
             session = settings.Session()
             session.query(LocalTaskJob).delete()
             dag = dagbag.get_dag('test_example_bash_operator')
-            dag.sync_to_db(dag_directory=TEST_DAG_FOLDER)
+            dag.sync_to_db(processor_subdir=TEST_DAG_FOLDER)
 
             dag_run = dag.create_dagrun(
                 state=DagRunState.RUNNING,

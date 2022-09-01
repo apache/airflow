@@ -2121,7 +2121,7 @@
       type: integer
       example: ~
       default: "20"
-    - name: stalled_dags_update_timeout
+    - name: dag_stale_not_seen_duration
       description: |
         Only applicable if `[scheduler]standalone_dag_processor` is true.
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.

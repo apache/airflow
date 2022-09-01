@@ -2535,7 +2535,7 @@ class DAG(LoggingMixin):
     def bulk_sync_to_db(
         cls,
         dags: Collection["DAG"],
-        dag_directory: Optional[str] = None,
+        processor_subdir: Optional[str] = None,
         session=NEW_SESSION,
     ):
         """This method is deprecated in favor of bulk_write_to_db"""
@@ -2544,14 +2544,14 @@ class DAG(LoggingMixin):
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        return cls.bulk_write_to_db(dags, dag_directory, session)
+        return cls.bulk_write_to_db(dags, processor_subdir, session)
 
     @classmethod
     @provide_session
     def bulk_write_to_db(
         cls,
         dags: Collection["DAG"],
-        dag_directory: Optional[str] = None,
+        processor_subdir: Optional[str] = None,
         session=NEW_SESSION,
     ):
         """
@@ -2634,7 +2634,7 @@ class DAG(LoggingMixin):
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            orm_dag.dag_directory = dag_directory
+            orm_dag.processor_subdir = processor_subdir
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2740,10 +2740,10 @@ class DAG(LoggingMixin):
         session.flush()
 
         for dag in dags:
-            cls.bulk_write_to_db(dag.subdags, dag_directory=dag_directory, session=session)
+            cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @provide_session
-    def sync_to_db(self, dag_directory: Optional[str] = None, session=NEW_SESSION):
+    def sync_to_db(self, processor_subdir: Optional[str] = None, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
@@ -2751,7 +2751,7 @@ class DAG(LoggingMixin):
 
         :return: None
         """
-        self.bulk_write_to_db([self], dag_directory=dag_directory, session=session)
+        self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
 
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
@@ -2989,7 +2989,7 @@ class DagModel(Base):
     # associated zip.
     fileloc = Column(String(2000))
     # The base directory used by Dag Processor that parsed this dag.
-    dag_directory = Column(String(1000), nullable=True)
+    processor_subdir = Column(String(1000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Description of the dag

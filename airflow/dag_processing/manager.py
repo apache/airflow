@@ -505,7 +505,7 @@ class DagFileProcessorManager(LoggingMixin):
                 session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time)
                 .filter(
                     or_(
-                        DagModel.dag_directory == self.get_dag_directory(),
+                        DagModel.processor_subdir == self.get_dag_directory(),
                         not self.standalone_dag_processor,
                     ),
                     DagModel.is_active,
@@ -760,7 +760,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             SerializedDagModel.remove_deleted_dags(
                 alive_dag_filelocs=dag_filelocs,
-                dag_directory=self.get_dag_directory(),
+                processor_subdir=self.get_dag_directory(),
             )
             DagModel.deactivate_deleted_dags(self._file_paths)
 

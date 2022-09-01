@@ -26,6 +26,7 @@ import time
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
 
 from sqlalchemy import func, not_, or_, text
@@ -141,7 +142,7 @@ class SchedulerJob(BaseJob):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
-        self._stalled_dags_update_timeout = conf.getint("scheduler", "stalled_dags_update_timeout")
+        self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
@@ -686,7 +687,7 @@ class SchedulerJob(BaseJob):
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
-                        dag_directory=ti.dag_model.dag_directory,
+                        dag_directory=ti.dag_model.processor_subdir,
                     )
                     self.executor.send_callback(request)
                 else:
@@ -710,7 +711,7 @@ class SchedulerJob(BaseJob):
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         if not self._standalone_dag_processor:
             self.processor_agent = DagFileProcessorAgent(
-                dag_directory=str(self.subdir),
+                dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],
@@ -1268,7 +1269,7 @@ class SchedulerJob(BaseJob):
                 dag_id=dag.dag_id,
                 run_id=dag_run.run_id,
                 is_failure_callback=True,
-                dag_directory=dag_model.dag_directory,
+                dag_directory=dag_model.processor_subdir,
                 msg='timed_out',
             )
 
@@ -1335,7 +1336,7 @@ class SchedulerJob(BaseJob):
         request = SlaCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dag.dag_id,
-            dag_directory=dag_model.dag_directory,
+            dag_directory=dag_model.processor_subdir,
         )
         self.executor.send_callback(request)
 
@@ -1499,7 +1500,7 @@ class SchedulerJob(BaseJob):
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                dag_directory=ti.dag_model.dag_directory,
+                dag_directory=ti.dag_model.processor_subdir,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )
@@ -1534,8 +1535,8 @@ class SchedulerJob(BaseJob):
         Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """
-        self.log.debug("Checking dags not parsed within last %s seconds.", self._stalled_dags_update_timeout)
-        limit_lpt = timezone.utcnow() - timedelta(seconds=self._stalled_dags_update_timeout)
+        self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
+        limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
         stale_dags = (
             session.query(DagModel).filter(DagModel.is_active, DagModel.last_parsed_time < limit_lpt).all()
         )

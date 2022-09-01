@@ -426,7 +426,7 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], dag_directory='/tmp/test', session=session)
+        DAG.bulk_write_to_db(dags=[dag], processor_subdir='/tmp/test', session=session)
 
         dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
         dag_task2 = EmptyOperator(task_id='test_state_succeeded2', dag=dag)
@@ -464,7 +464,7 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], dag_directory='/tmp/test', session=session)
+        DAG.bulk_write_to_db(dags=[dag], processor_subdir='/tmp/test', session=session)
 
         dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
         dag_task2 = EmptyOperator(task_id='test_state_failed2', dag=dag)

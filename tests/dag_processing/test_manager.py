@@ -551,12 +551,12 @@ class TestDagFileProcessorManager:
             # Add stale DAG to the DB
             dag = dagbag.get_dag('test_example_bash_operator')
             dag.last_parsed_time = timezone.utcnow()
-            dag.sync_to_db(dag_directory=dag_directory)
+            dag.sync_to_db(processor_subdir=dag_directory)
 
             # Add stale DAG to the DB
             other_dag = other_dagbag.get_dag('test_start_date_scheduling')
             other_dag.last_parsed_time = timezone.utcnow()
-            other_dag.sync_to_db(dag_directory='other')
+            other_dag.sync_to_db(processor_subdir='other')
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(

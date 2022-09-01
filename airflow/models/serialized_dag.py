@@ -72,7 +72,7 @@ class SerializedDagModel(Base):
     _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
-    dag_directory = Column(String(1000), nullable=True)
+    processor_subdir = Column(String(1000), nullable=True)
 
     __table_args__ = (Index('idx_fileloc_hash', fileloc_hash, unique=False),)
 
@@ -93,12 +93,12 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG, dag_directory: Optional[str] = None):
+    def __init__(self, dag: DAG, processor_subdir: Optional[str] = None):
         self.dag_id = dag.dag_id
         self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
-        self.dag_directory = dag_directory
+        self.processor_subdir = processor_subdir
 
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
@@ -125,7 +125,7 @@ class SerializedDagModel(Base):
         cls,
         dag: DAG,
         min_update_interval: Optional[int] = None,
-        dag_directory: Optional[str] = None,
+        processor_subdir: Optional[str] = None,
         session: Session = None,
     ) -> bool:
         """Serializes a DAG and writes it into database.
@@ -159,15 +159,15 @@ class SerializedDagModel(Base):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        new_serialized_dag = cls(dag, dag_directory)
+        new_serialized_dag = cls(dag, processor_subdir)
         serialized_dag_db = (
-            session.query(cls.dag_hash, cls.dag_directory).filter(cls.dag_id == dag.dag_id).first()
+            session.query(cls.dag_hash, cls.processor_subdir).filter(cls.dag_id == dag.dag_id).first()
         )
 
         if (
             serialized_dag_db is not None
             and serialized_dag_db.dag_hash == new_serialized_dag.dag_hash
-            and serialized_dag_db.dag_directory == new_serialized_dag.dag_directory
+            and serialized_dag_db.processor_subdir == new_serialized_dag.processor_subdir
         ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
@@ -237,7 +237,7 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def remove_deleted_dags(
-        cls, alive_dag_filelocs: List[str], dag_directory: Optional[str] = None, session=None
+        cls, alive_dag_filelocs: List[str], processor_subdir: Optional[str] = None, session=None
     ):
         """Deletes DAGs not included in alive_dag_filelocs.
 
@@ -256,8 +256,8 @@ class SerializedDagModel(Base):
                     cls.fileloc_hash.notin_(alive_fileloc_hashes),
                     cls.fileloc.notin_(alive_dag_filelocs),
                     or_(
-                        cls.dag_directory is None,
-                        cls.dag_directory == dag_directory,
+                        cls.processor_subdir is None,
+                        cls.processor_subdir == processor_subdir,
                     ),
                 )
             )
@@ -304,7 +304,7 @@ class SerializedDagModel(Base):
 
     @staticmethod
     @provide_session
-    def bulk_sync_to_db(dags: List[DAG], dag_directory: Optional[str] = None, session: Session = None):
+    def bulk_sync_to_db(dags: List[DAG], processor_subdir: Optional[str] = None, session: Session = None):
         """
         Saves DAGs as Serialized DAG objects in the database. Each
         DAG is saved in a separate database query.
@@ -318,7 +318,7 @@ class SerializedDagModel(Base):
                 SerializedDagModel.write_dag(
                     dag=dag,
                     min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    dag_directory=dag_directory,
+                    processor_subdir=processor_subdir,
                     session=session,
                 )
 
