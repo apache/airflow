@@ -1525,7 +1525,7 @@ class SchedulerJob(BaseJob):
         return zombie_message_details
 
     @provide_session
-    def _cleanup_stale_dags(self, session: Session) -> None:
+    def _cleanup_stale_dags(self, session: Session = NEW_SESSION) -> None:
         """
         Find all dags that were not updated by Dag Processor recently and mark them as inactive.
 
