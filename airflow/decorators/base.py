@@ -18,7 +18,6 @@
 import inspect
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -57,6 +56,8 @@ from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ExpandInput,
     ListOfDictsExpandInput,
+    OperatorExpandArgument,
+    OperatorExpandKwargsArgument,
 )
 from airflow.models.mappedoperator import (
     MappedOperator,
@@ -72,9 +73,6 @@ from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
-
-if TYPE_CHECKING:
-    from airflow.models.mappedoperator import Mappable
 
 
 def validate_python_callable(python_callable: Any) -> None:
@@ -329,7 +327,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def expand(self, **map_kwargs: "Mappable") -> XComArg:
+    def expand(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
         self._validate_arg_names("expand", map_kwargs)
@@ -338,9 +336,13 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
-        if not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        if isinstance(kwargs, Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
@@ -500,10 +502,10 @@ class Task(Generic[FParams, FReturn]):
     def partial(self, **kwargs: Any) -> "Task[FParams, FReturn]":
         ...
 
-    def expand(self, **kwargs: "Mappable") -> XComArg:
+    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg:
         ...
 
-    def expand_kwargs(self, kwargs: XComArg, *, strict: bool = True) -> XComArg:
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         ...
 
     def override(self, **kwargs: Any) -> "Task[FParams, FReturn]":
