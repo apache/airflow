@@ -3274,6 +3274,7 @@ class DagModel(Base):
 def dag(
     dag_id: str = "",
     description: Optional[str] = None,
+    schedule: ScheduleArg = NOTSET,
     schedule_interval: ScheduleIntervalArg = NOTSET,
     timetable: Optional[Timetable] = None,
     start_date: Optional[datetime] = None,
@@ -3301,7 +3302,6 @@ def dag(
     jinja_environment_kwargs: Optional[Dict] = None,
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
-    schedule: ScheduleArg = NOTSET,
     owner_links: Optional[Dict[str, str]] = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
