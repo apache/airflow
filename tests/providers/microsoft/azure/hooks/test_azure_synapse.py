@@ -133,7 +133,7 @@ def test_run_spark_job(hook: AzureSynapseHook):
 
 
 def test_get_job_run_status(hook: AzureSynapseHook):
-    hook.get_job_run_status(JOB_ID)
+    hook.get_job_run_status()
     if hook._conn is not None and isinstance(hook._conn, SparkClient):
         hook._conn.spark_batch.get_spark_batch_job.assert_called_with(  # type: ignore[attr-defined]
             batch_id=JOB_ID
