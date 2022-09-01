@@ -82,6 +82,7 @@ class AzureSynapseHook(BaseHook):
         }
 
     def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ''):
+        self.job_id: Optional[int] = None
         self._conn: Optional[SparkClient] = None
         self.conn_id = azure_synapse_conn_id
         self.spark_pool = spark_pool
@@ -138,33 +139,29 @@ class AzureSynapseHook(BaseHook):
         self.job_id = job.id
         return job
 
-    def get_job_run_status(
-        self,
-        job_id: int,
-    ):
-        """
-        Get the job run status.
-        :param job_id: The job identifier.
-        """
-        job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=job_id).state
+    def get_job_run_status(self):
+        """Get the job run status."""
+        job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=self.job_id).state
         return job_run_status
 
     def wait_for_job_run_status(
         self,
-        job_id: int,
+        job_id: Optional[int],
         expected_statuses: Union[str, Set[str]],
         check_interval: int = 60,
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
         Waits for a job run to match an expected status.
+
         :param job_id: The job run identifier.
         :param expected_statuses: The desired status(es) to check against a job run's current status.
         :param check_interval: Time in seconds to check on a job run's status.
         :param timeout: Time in seconds to wait for a job to reach a terminal status or the expected
             status.
+
         """
-        job_run_status = self.get_job_run_status(job_id)
+        job_run_status = self.get_job_run_status()
         start_time = time.monotonic()
 
         while (
@@ -181,7 +178,7 @@ class AzureSynapseHook(BaseHook):
             self.log.info("Sleeping for %s seconds", str(check_interval))
             time.sleep(check_interval)
 
-            job_run_status = self.get_job_run_status(job_id)
+            job_run_status = self.get_job_run_status()
             self.log.info("Current spark job run status is %s", job_run_status)
 
         return job_run_status in expected_statuses

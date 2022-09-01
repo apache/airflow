@@ -29,9 +29,11 @@ if TYPE_CHECKING:
 class AzureSynapseRunSparkBatchOperator(BaseOperator):
     """
     Executes a Spark job on Azure Synapse.
-    .. seealso::
+
+    .. see also::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AzureSynapseRunSparkBatchOperator`
+
     :param azure_synapse_conn_id: The connection identifier for connecting to Azure Synapse.
     :param wait_for_termination: Flag to wait on a job run's termination.
     :param spark_pool: The target synapse spark pool used to submit the job
@@ -62,6 +64,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.job_id = None
         self.azure_synapse_conn_id = azure_synapse_conn_id
         self.wait_for_termination = wait_for_termination
         self.spark_pool = spark_pool
