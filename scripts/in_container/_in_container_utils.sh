@@ -69,9 +69,7 @@ function in_container_cleanup_pyc() {
     fi
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
         -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -90,9 +88,7 @@ function in_container_cleanup_pycache() {
     fi
     find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
         -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
