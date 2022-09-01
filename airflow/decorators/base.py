@@ -361,6 +361,8 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
         partial_kwargs.update(task_kwargs)
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
+        if task_group:
+            task_id = task_group.child_id(task_id)
         params = partial_kwargs.pop("params", None) or default_params
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
