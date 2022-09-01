@@ -125,7 +125,7 @@ def delete_ingestion(aws_account_id: str, dataset_name: str, ingestion_name: str
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=["example"],
     catchup=False,

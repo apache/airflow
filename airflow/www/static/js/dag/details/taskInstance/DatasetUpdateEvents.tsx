@@ -22,7 +22,7 @@ import {
 } from '@chakra-ui/react';
 
 import {
-  DatasetLink, Table, TimeCell,
+  DatasetLink, Table, TimeCell, TriggeredRuns,
 } from 'src/components/Table';
 import { useDatasetEvents } from 'src/api';
 import type { DagRun as DagRunType } from 'src/types';
@@ -55,6 +55,11 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
         Header: 'When',
         accessor: 'timestamp',
         Cell: TimeCell,
+      },
+      {
+        Header: 'Triggered Runs',
+        accessor: 'createdDagruns',
+        Cell: TriggeredRuns,
       },
     ],
     [],

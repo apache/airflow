@@ -312,7 +312,7 @@ HOOKS = [
         'airflow.contrib.hooks.jenkins_hook.JenkinsHook',
     ),
     (
-        'airflow.providers.jira.hooks.jira.JiraHook',
+        'airflow.providers.atlassian.jira.hooks.jira.JiraHook',
         'airflow.contrib.hooks.jira_hook.JiraHook',
     ),
     (
@@ -390,6 +390,10 @@ HOOKS = [
     (
         'airflow.providers.sftp.hooks.sftp.SFTPHook',
         'airflow.contrib.hooks.sftp_hook.SFTPHook',
+    ),
+    (
+        "airflow.providers.atlassian.jira.hooks.jira.JiraHook",
+        "airflow.providers.jira.hooks.jira.JiraHook",
     ),
 ]
 
@@ -1252,7 +1256,7 @@ OPERATORS = [
         'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator',
     ),
     (
-        'airflow.providers.jira.operators.jira.JiraOperator',
+        'airflow.providers.atlassian.jira.operators.jira.JiraOperator',
         'airflow.contrib.operators.jira_operator.JiraOperator',
     ),
     (
@@ -1286,6 +1290,10 @@ OPERATORS = [
     (
         "airflow.operators.empty.EmptyOperator",
         "airflow.operators.dummy.DummyOperator",
+    ),
+    (
+        "airflow.providers.atlassian.jira.operators.jira.JiraOperator",
+        "airflow.providers.jira.operators.jira.JiraOperator",
     ),
 ]
 
@@ -1503,11 +1511,11 @@ SENSORS = [
         'airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor',
     ),
     (
-        'airflow.providers.jira.sensors.jira.JiraSensor',
+        'airflow.providers.atlassian.jira.sensors.jira.JiraSensor',
         'airflow.contrib.sensors.jira_sensor.JiraSensor',
     ),
     (
-        'airflow.providers.jira.sensors.jira.JiraTicketSensor',
+        'airflow.providers.atlassian.jira.sensors.jira.JiraTicketSensor',
         'airflow.contrib.sensors.jira_sensor.JiraTicketSensor',
     ),
     (
@@ -1517,6 +1525,14 @@ SENSORS = [
     (
         'airflow.providers.sftp.sensors.sftp.SFTPSensor',
         'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
+    ),
+    (
+        "airflow.providers.atlassian.jira.sensors.jira.JiraSensor",
+        "airflow.providers.jira.sensors.jira.JiraSensor",
+    ),
+    (
+        "airflow.providers.atlassian.jira.sensors.jira.JiraTicketSensor",
+        "airflow.providers.jira.sensors.jira.JiraTicketSensor",
     ),
 ]
 
