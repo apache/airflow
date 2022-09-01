@@ -39,7 +39,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -457,14 +457,14 @@ def dag_test(args, session=None):
             run_conf = json.loads(args.conf)
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
-
+    execution_date = args.execution_date or timezone.utcnow()
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=False)
+    dag.clear(start_date=execution_date, end_date=execution_date, dag_run_state=False)
     try:
         dag.run(
             executor=DebugExecutor(),
-            start_date=args.execution_date,
-            end_date=args.execution_date,
+            start_date=execution_date,
+            end_date=execution_date,
             conf=run_conf,
             # Always run the DAG at least once even if no logical runs are
             # available. This does not make a lot of sense, but Airflow has
@@ -482,7 +482,7 @@ def dag_test(args, session=None):
             session.query(TaskInstance)
             .filter(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.execution_date == args.execution_date,
+                TaskInstance.execution_date == execution_date,
             )
             .all()
         )
