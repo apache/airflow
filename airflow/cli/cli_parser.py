@@ -176,7 +176,7 @@ def string_lower_type(val):
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
-ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
+ARG_EXECUTION_DATE = Arg(("execution_date",), nargs='?', help="The execution date of the DAG", type=parsedate)
 ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
     ('execution_date_or_run_id',), help="The execution_date of the DAG or run_id of the DAGRun"
 )
