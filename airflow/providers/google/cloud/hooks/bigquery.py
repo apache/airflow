@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union, cast
 
 from aiohttp import ClientSession as ClientSession
-from gcloud.aio.bigquery import Job, Table
+from gcloud.aio.bigquery import Job
 from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -2322,7 +2322,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.labels = labels
         self.hook = hook
 
-    def create_empty_table(self, *args, **kwargs) -> None:
+    def create_empty_table(self, *args, **kwargs):
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`
@@ -2374,7 +2374,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.delete_dataset(*args, **kwargs)
 
-    def create_external_table(self, *args, **kwargs) -> None:
+    def create_external_table(self, *args, **kwargs):
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`

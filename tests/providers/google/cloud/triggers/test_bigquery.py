@@ -17,6 +17,7 @@
 
 import asyncio
 import logging
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -44,13 +45,13 @@ TEST_PASS_VALUE = 2
 TEST_TOLERANCE = 1
 TEST_FIRST_JOB_ID = "5678"
 TEST_SECOND_JOB_ID = "6789"
-TEST_METRIC_THRESHOLDS = {}
+TEST_METRIC_THRESHOLDS: Dict[Any, Any] = {}
 TEST_DATE_FILTER_COLUMN = "ds"
 TEST_DAYS_BACK = -7
 TEST_RATIO_FORMULA = "max_over_min"
 TEST_IGNORE_ZERO = True
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
-TEST_HOOK_PARAMS = {}
+TEST_HOOK_PARAMS: Dict[Any, Any] = {}
 
 
 def test_bigquery_insert_job_op_trigger_serialization():
