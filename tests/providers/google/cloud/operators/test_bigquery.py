@@ -23,7 +23,6 @@ import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.exceptions import AirflowException, AirflowTaskTimeout, TaskDeferred
 from airflow.models import DAG
 from airflow.models.dagrun import DagRun
