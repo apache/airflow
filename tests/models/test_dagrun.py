@@ -1824,21 +1824,48 @@ def test_schedule_tis_map_index(dag_maker, session):
 
 
 def test_mapped_expand_kwargs(dag_maker):
-    with dag_maker() as dag:
+    with dag_maker():
 
         @task
-        def task_1():
-            return [{"arg1": "a", "arg2": "b"}, {"arg1": "y"}, {"arg2": "z"}]
+        def task_0():
+            return {"arg1": "a", "arg2": "b"}
 
-        MockOperator.partial(task_id="task_2").expand_kwargs(task_1())
+        @task
+        def task_1(args_0):
+            return [args_0, {"arg1": "y"}, {"arg2": "z"}]
+
+        args_0 = task_0()
+        args_list = task_1(args_0=args_0)
+
+        MockOperator.partial(task_id="task_2").expand_kwargs(args_list)
+        MockOperator.partial(task_id="task_3").expand_kwargs(
+            [{"arg1": "a", "arg2": "b"}, {"arg1": "y"}, {"arg2": "z"}],
+        )
+        MockOperator.partial(task_id="task_4").expand_kwargs([args_0, {"arg1": "y"}, {"arg2": "z"}])
 
     dr: DagRun = dag_maker.create_dagrun()
-    assert len([ti for ti in dr.get_task_instances() if ti.task_id == "task_2"]) == 1
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
 
-    ti1 = dr.get_task_instance("task_1")
-    ti1.refresh_from_task(dag.get_task("task_1"))
-    ti1.run()
+    # task_2 is not expanded yet since it relies on one single XCom input.
+    # task_3 and task_4 received a pure literal and can expanded right away.
+    # task_4 relies on an XCom input in the list, but can also be expanded.
+    assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_2") == [-1]
+    assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_3") == [0, 1, 2]
+    assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_4") == [0, 1, 2]
 
-    dr.task_instance_scheduling_decisions()
-    ti_states = {ti.map_index: ti.state for ti in dr.get_task_instances() if ti.task_id == "task_2"}
-    assert ti_states == {0: None, 1: None, 2: None}
+    tis[("task_0", -1)].run()
+    tis[("task_1", -1)].run()
+
+    # With the upstreams available, everything should get expanded now.
+    decision = dr.task_instance_scheduling_decisions()
+    assert {(ti.task_id, ti.map_index): ti.state for ti in decision.schedulable_tis} == {
+        ("task_2", 0): None,
+        ("task_2", 1): None,
+        ("task_2", 2): None,
+        ("task_3", 0): None,
+        ("task_3", 1): None,
+        ("task_3", 2): None,
+        ("task_4", 0): None,
+        ("task_4", 1): None,
+        ("task_4", 2): None,
+    }
