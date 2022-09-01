@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
+from typing import Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
 from sqlalchemy import or_
@@ -58,9 +58,6 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
-
-if TYPE_CHECKING:
-    pass
 
 
 class DagParsingStat(NamedTuple):
