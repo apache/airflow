@@ -137,9 +137,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [
-            r"^airflow/ui/.*\.[tj]sx?$",
-            r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
             r"^airflow/www/.*\.[tj]sx?$",
             r"^airflow/www/[^/]+\.json$",
             r"^airflow/www/.*\.lock$",
@@ -187,7 +184,7 @@ TEST_TYPE_MATCHES = HashableDict(
             "^tests/providers/",
             "^tests/system/",
         ],
-        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www", "^airflow/ui"],
+        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www"],
     }
 )
 
