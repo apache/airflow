@@ -1547,3 +1547,4 @@ class SchedulerJob(BaseJob):
         for dag in stale_dags:
             dag.is_active = False
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
+        session.flush()
