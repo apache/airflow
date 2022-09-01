@@ -58,7 +58,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1716,10 +1716,19 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == TaskInstanceState.SUCCESS
 
+        # check that no other dataset events recorded
+        event = (
+            session.query(DatasetEvent)
+            .join(DatasetEvent.dataset)
+            .filter(DatasetEvent.source_task_instance == ti)
+            .one()
+        )
+        assert event
+        assert event.dataset
+
         # check that one queue record created for each dag that depends on dataset 1
-        assert session.query(DatasetDagRunQueue.target_dag_id).filter(
-            TaskOutletDatasetReference.dag_id == dag1.dag_id,
-            TaskOutletDatasetReference.task_id == 'producing_task_1',
+        assert session.query(DatasetDagRunQueue.target_dag_id).filter_by(
+            dataset_id=event.dataset.id
         ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
             ('dataset_consumes_1',),
             ('dataset_consumes_1_and_2',),
@@ -1730,14 +1739,6 @@ class TestTaskInstance:
         assert session.query(DatasetModel.uri).join(DatasetEvent.dataset).filter(
             DatasetEvent.source_task_instance == ti
         ).one() == ('s3://dag1/output_1.txt',)
-
-        # check that no other dataset events recorded
-        assert (
-            session.query(DatasetModel.uri)
-            .join(DatasetEvent.dataset)
-            .filter(DatasetEvent.source_task_instance == ti)
-            .count()
-        ) == 1
 
     def test_outlet_datasets_failed(self, create_task_instance, clear_datasets):
         """

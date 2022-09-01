@@ -17,6 +17,7 @@
 # under the License.
 from typing import TYPE_CHECKING
 
+from sqlalchemy import exc
 from sqlalchemy.orm.session import Session
 
 from airflow.configuration import conf
@@ -63,13 +64,47 @@ class DatasetManager(LoggingMixin):
         self._queue_dagruns(dataset_model, session)
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+        # Possible race condition: if multiple dags or multiple (usually
+        # mapped) tasks update the same dataset, this can fail with a unique
+        # constraint violation.
+        #
+        # If we support it, use ON CONFLICT to do nothing, otherwise
+        # "fallback" to running this in a nested transaction. This is needed
+        # so that the adding of these rows happens in the same transaction
+        # where `ti.state` is changed.
+
+        if session.bind.dialect.name == "postgresql":
+            return self._postgres_queue_dagruns(dataset, session)
+        return self._slow_path_queue_dagruns(dataset, session)
+
+    def _slow_path_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
         self.log.debug("consuming dag ids %s", consuming_dag_ids)
+
+        # Don't error whole transaction when a single RunQueue item conflicts.
+        # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
         for dag_id in consuming_dag_ids:
-            session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
+            item = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset.id)
+            try:
+                with session.begin_nested():
+                    session.merge(item)
+            except exc.IntegrityError:
+                self.log.debug("Skipping record %s", item, exc_info=True)
+
+        session.flush()
+
+    def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+        from sqlalchemy.dialects.postgresql import insert
+
+        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
+        session.execute(
+            stmt,
+            [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
+        )
+        session.flush()
 
 
-def resolve_dataset_manager():
+def resolve_dataset_manager() -> "DatasetManager":
     _dataset_manager_class = conf.getimport(
         section='core',
         key='dataset_manager_class',

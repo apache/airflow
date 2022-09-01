@@ -117,6 +117,11 @@ class DagScheduleDatasetReference(Base):
             DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
         )""",
     )
+    dag = relationship(
+        "DagModel",
+        primaryjoin="foreign(DagModel.dag_id) == DagScheduleDatasetReference.dag_id",
+        uselist=False,
+    )
 
     __tablename__ = "dag_schedule_dataset_reference"
     __table_args__ = (
