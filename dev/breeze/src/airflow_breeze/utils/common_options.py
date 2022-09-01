@@ -185,25 +185,32 @@ option_image_tag_for_pulling = click.option(
     '-t',
     '--image-tag',
     help='Tag of the image which is used to pull the image',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
-    required=True,
 )
 option_image_tag_for_building = click.option(
     '-t',
     '--image-tag',
     help='Tag the image after building it',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
 )
 option_image_tag_for_running = click.option(
     '-t',
     '--image-tag',
     help='Tag of the image which is used to run the image (implies --mount-sources=skip)',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
 )
 option_image_tag_for_verifying = click.option(
     '-t',
     '--image-tag',
     help='Tag of the image when verifying it',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
 )
 option_image_name = click.option(
