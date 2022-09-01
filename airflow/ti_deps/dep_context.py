@@ -73,6 +73,9 @@ class DepContext:
     ignore_unmapped_tasks: bool = False
     finished_tis: Optional[List["TaskInstance"]] = None
 
+    have_changed_ti_states: bool = False
+    """Have any of the TIs state's been changed as a result of evaluating dependencies"""
+
     def ensure_finished_tis(self, dag_run: "DagRun", session: Session) -> List["TaskInstance"]:
         """
         This method makes sure finished_tis is populated if it's currently None.

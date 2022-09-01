@@ -72,6 +72,7 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.stats import Stats
+from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
@@ -1152,6 +1153,7 @@ class TestTaskInstance:
             failed=failed,
             upstream_failed=upstream_failed,
             done=done,
+            dep_context=DepContext(),
             flag_upstream_failed=flag_upstream_failed,
         )
         completed = all(dep.passed for dep in dep_results)

@@ -521,6 +521,25 @@ class DagRun(Base, LoggingMixin):
         # Callback to execute in case of Task Failures
         callback: Optional[DagCallbackRequest] = None
 
+        class _UnfinishedStates(NamedTuple):
+            tis: Sequence[TI]
+
+            @classmethod
+            def calculate(cls, unfinished_tis: Sequence[TI]) -> "_UnfinishedStates":
+                return cls(tis=unfinished_tis)
+
+            @property
+            def should_schedule(self) -> bool:
+                return (
+                    bool(self.tis)
+                    and all(not t.task.depends_on_past for t in self.tis)
+                    and all(t.task.max_active_tis_per_dag is None for t in self.tis)
+                    and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
+                )
+
+            def recalculate(self) -> "_UnfinishedStates":
+                return self._replace(tis=[t for t in self.tis if t.state in State.unfinished])
+
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
         with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"):
@@ -531,25 +550,23 @@ class DagRun(Base, LoggingMixin):
             schedulable_tis = info.schedulable_tis
             changed_tis = info.changed_tis
             finished_tis = info.finished_tis
-            unfinished_tis = info.unfinished_tis
+            unfinished = _UnfinishedStates.calculate(info.unfinished_tis)
 
-            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tis)
-            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tis)
-            none_deferred = all(t.state != State.DEFERRED for t in unfinished_tis)
-
-            if unfinished_tis and none_depends_on_past and none_task_concurrency and none_deferred:
+            if unfinished.should_schedule:
+                are_runnable_tasks = schedulable_tis or changed_tis
                 # small speed up
-                are_runnable_tasks = (
-                    schedulable_tis
-                    or self._are_premature_tis(unfinished_tis, finished_tis, session)
-                    or changed_tis
-                )
+                if not are_runnable_tasks:
+                    are_runnable_tasks, changed_by_upstream = self._are_premature_tis(
+                        unfinished.tis, finished_tis, session
+                    )
+                    if changed_by_upstream:  # Something changed, we need to recalculate!
+                        unfinished = unfinished.recalculate()
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
 
         # if all roots finished and at least one failed, the run failed
-        if not unfinished_tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
+        if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error('Marking run %s failed', self)
             self.set_state(DagRunState.FAILED)
             if execute_callbacks:
@@ -564,7 +581,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
+        elif not unfinished.tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(DagRunState.SUCCESS)
             if execute_callbacks:
@@ -579,13 +596,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if *all tasks* are deadlocked, the run failed
-        elif (
-            unfinished_tis
-            and none_depends_on_past
-            and none_task_concurrency
-            and none_deferred
-            and not are_runnable_tasks
-        ):
+        elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error('Deadlock; marking run %s failed', self)
             self.set_state(DagRunState.FAILED)
             if execute_callbacks:
@@ -744,24 +755,22 @@ class DagRun(Base, LoggingMixin):
 
     def _are_premature_tis(
         self,
-        unfinished_tis: List[TI],
+        unfinished_tis: Sequence[TI],
         finished_tis: List[TI],
         session: Session,
-    ) -> bool:
+    ) -> Tuple[bool, bool]:
+        dep_context = DepContext(
+            flag_upstream_failed=True,
+            ignore_in_retry_period=True,
+            ignore_in_reschedule_period=True,
+            finished_tis=finished_tis,
+        )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
         # not ready yet so we set the flags to count them in
-        for ut in unfinished_tis:
-            if ut.are_dependencies_met(
-                dep_context=DepContext(
-                    flag_upstream_failed=True,
-                    ignore_in_retry_period=True,
-                    ignore_in_reschedule_period=True,
-                    finished_tis=finished_tis,
-                ),
-                session=session,
-            ):
-                return True
-        return False
+        return (
+            any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
+            dep_context.have_changed_ti_states,
+        )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: List[TI]) -> None:
         """

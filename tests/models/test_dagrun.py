@@ -289,19 +289,20 @@ class TestDagRun:
             execution_date=now,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
             start_date=now,
+            session=session,
         )
 
-        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
         ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
-        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
         ti_op2.set_state(state=None, session=session)
 
-        dr.update_state()
+        dr.update_state(session=session)
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        op2.trigger_rule = 'invalid'
-        dr.update_state()
+        op2.trigger_rule = 'invalid'  # type: ignore
+        dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
     def test_dagrun_no_deadlock_with_shutdown(self, session):
@@ -1868,3 +1869,32 @@ def test_mapped_expand_kwargs(dag_maker):
         ("task_4", 1): None,
         ("task_4", 2): None,
     }
+
+
+def test_mapped_skip_upstream_not_deadlock(dag_maker):
+    with dag_maker() as dag:
+
+        @dag.task
+        def add_one(x: int):
+            return x + 1
+
+        @dag.task
+        def say_hi():
+            print("Hi")
+
+        added_values = add_one.expand(x=[])
+        added_more_values = add_one.expand(x=[])
+        say_hi() >> added_values
+        added_values >> added_more_values
+
+    dr = dag_maker.create_dagrun()
+
+    session = dag_maker.session
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+
+    tis['say_hi'].state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+    assert tis['add_one__1'].state == TaskInstanceState.SKIPPED
