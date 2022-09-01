@@ -238,6 +238,74 @@ jobs:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
+  # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
+  # tests to complete - it is run very early in the build process for "main" merges in order to refresh
+  # cache using the current constraints. This will speed up cache refresh in cases when setup.py
+  # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
+  # delay cache refresh. It does not attempt to upgrade to newer dependencies.
+  # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
+  # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
+  push-early-buildx-cache-to-github-registry:
+    permissions:
+      packages: write
+    timeout-minutes: 50
+    name: "Push Early Image Cache"
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
+    needs:
+      - build-info
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["linux/amd64", "linux/arm64"]
+    env:
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: false
+    continue-on-error: true
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+        if: needs.build-info.outputs.merge-run == 'true'
+      - run: ./scripts/ci/install_breeze.sh
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Free space"
+        run: breeze ci free-space
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: matrix.platform == 'linux/arm64' && needs.build-info.outputs.merge-run == 'true'
+      - name: "Push CI cache ${{ matrix.platform }}"
+        run: >
+          breeze ci-image build
+          --builder airflow_cache
+          --prepare-buildx-cache
+          --run-in-parallel
+          --force-build
+          --platform ${{ matrix.platform }}
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Push CI latest image ${{ matrix.platform }}"
+        run: >
+          breeze ci-image build
+          --tag-as-latest --push --run-in-parallel --platform ${{ matrix.platform }}
+        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
+      - name: "Stop ARM instance"
+        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.merge-run == 'true'
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always() && needs.build-info.outputs.merge-run == 'true'
+
   build-ci-images:
     permissions:
       packages: write
@@ -1532,6 +1600,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mysql
       - tests-mssql
       - tests-postgres
+      - push-early-buildx-cache-to-github-registry
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
     if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
@@ -1630,7 +1699,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze ci free-space
       - name: >
-          Pull CI image for PROD build
+          Pull CI image ${{ needs.build-info.outputs.default-python-version }} for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
         run: breeze ci-image pull --tag-as-latest
         env:
