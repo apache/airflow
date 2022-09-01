@@ -468,7 +468,6 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
-          ^airflow/ui/yarn.lock$|
           ^airflow/config_templates/default_airflow.cfg$|
           ^airflow/config_templates/config.yml$|
           ^docs/*.*$|
@@ -482,7 +481,13 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
         pass_filenames: false
-        files: ^airflow/models/(?:base|mapped)operator.py$
+        files: ^airflow/models/(?:base|mapped)operator\.py$
+      - id: check-dag-init-decorator-arguments
+        name: Check DAG and @dag arguments
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_dag_init_decorator.py
+        pass_filenames: false
+        files: ^airflow/models/dag\.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -845,14 +850,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: lint-javascript
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
       - id: ts-compile-and-lint-javascript
         name: TS types generation and ESLint against current UI files
         language: node
@@ -897,7 +894,7 @@ repos:
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: run-flake8

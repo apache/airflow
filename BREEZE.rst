@@ -1520,7 +1520,7 @@ Managing Dependencies
 
 If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
 for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
-or ``airflow/ui``, you need to compile them in the host with ``breeze compile-www-assets`` command.
+, you need to compile them in the host with ``breeze compile-www-assets`` command.
 
 Adding Dependencies Permanently
 ...............................

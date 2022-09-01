@@ -157,6 +157,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-dag-init-decorator-arguments                     | Check DAG and @dag arguments                                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |
@@ -259,8 +261,6 @@ require Breeze Docker image to be build locally.
 | lint-dockerfile                                        | Lint dockerfile                                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                        | Lint Helm Chart                                                  |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-javascript                                        | ESLint against airflow/ui                                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |
 |                                                        | * Lint NodePort Service with JSON Schema                         |         |
