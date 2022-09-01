@@ -936,8 +936,8 @@ class DagFileProcessorManager(LoggingMixin):
         Returns the dag_director as a string.
         :rtype: str
         """
-        if self._dag_directory is Path:
-            return str(Path(self._dag_directory).resolve())
+        if isinstance(self._dag_directory, Path):
+            return str(self._dag_directory.resolve())
         else:
             return str(self._dag_directory)
 
