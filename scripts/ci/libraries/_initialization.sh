@@ -19,13 +19,9 @@
 # Needs to be declared outside function in MacOS
 # shellcheck disable=SC2034
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=()
-CURRENT_KUBERNETES_VERSIONS=()
-CURRENT_KUBERNETES_MODES=()
 CURRENT_POSTGRES_VERSIONS=()
 CURRENT_MYSQL_VERSIONS=()
 CURRENT_MSSQL_VERSIONS=()
-CURRENT_KIND_VERSIONS=()
-CURRENT_HELM_VERSIONS=()
 CURRENT_EXECUTOR=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 INSTALLED_PROVIDERS=()
@@ -43,10 +39,6 @@ function initialization::create_directories() {
     export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     readonly BUILD_CACHE_DIR
 
-    # Directory where Kind credential information is kept
-    export KUBE_CACHE_DIR="${AIRFLOW_SOURCES}/.kube"
-    readonly KUBE_CACHE_DIR
-
     # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
     # O_DIRECT parameter for direct writing to the filesystem
     # https://github.com/microsoft/mssql-docker/issues/13
@@ -59,7 +51,6 @@ function initialization::create_directories() {
     mkdir -p "${BUILD_CACHE_DIR}" >/dev/null
     mkdir -p "${FILES_DIR}" >/dev/null
     mkdir -p "${MSSQL_DATA_VOLUME}" >/dev/null
-    mkdir -p "${KUBE_CACHE_DIR}" >/dev/null
     # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
     # This is a bit scary and we could get by making it group-writeable but the group would have
     # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
@@ -324,7 +315,7 @@ function initialization::initialize_host_variables() {
     # Set host OS. This is used to set the ownership properly when exiting
     # The container on Linux - all files created inside docker are created with root user
     # but they should be restored back to the host user
-    HOST_OS="$(uname -s)"
+    HOST_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
     export HOST_OS
 
     # In case of MacOS we need to use gstat - gnu version of the stats
@@ -458,62 +449,6 @@ function initialization::initialize_image_build_variables() {
     export PREPARE_BUILDX_CACHE=${PREPARE_BUILDX_CACHE:="false"}
 }
 
-# Determine versions of kubernetes cluster and tools used
-function initialization::initialize_kubernetes_variables() {
-    # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.25.0" "v1.24.4" "v1.23.10" "v1.22.13" "v1.21.14")
-    export CURRENT_KUBERNETES_VERSIONS
-    # Currently supported modes of Kubernetes
-    CURRENT_KUBERNETES_MODES+=("image")
-    export CURRENT_KUBERNETES_MODES
-    # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.15.0")
-    export CURRENT_KIND_VERSIONS
-    # Currently supported versions of Helm
-    CURRENT_HELM_VERSIONS+=("v3.9.2")
-    export CURRENT_HELM_VERSIONS
-    # Current executor in chart
-    CURRENT_EXECUTOR+=("KubernetesExecutor")
-    export CURRENT_EXECUTOR
-    # Default Kubernetes version
-    export DEFAULT_KUBERNETES_VERSION="${CURRENT_KUBERNETES_VERSIONS[0]}"
-    # Default Kubernetes mode
-    export DEFAULT_KUBERNETES_MODE="${CURRENT_KUBERNETES_MODES[0]}"
-    # Default KinD version
-    export DEFAULT_KIND_VERSION="${CURRENT_KIND_VERSIONS[0]}"
-    # Default Helm version
-    export DEFAULT_HELM_VERSION="${CURRENT_HELM_VERSIONS[0]}"
-    # Default airflow executor used in cluster
-    export DEFAULT_EXECUTOR="${CURRENT_EXECUTOR[0]}"
-    # Namespace where airflow is installed via helm
-    export HELM_AIRFLOW_NAMESPACE="airflow"
-    # Kubernetes version
-    export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
-    # Kubernetes mode
-    export KUBERNETES_MODE=${KUBERNETES_MODE:=${DEFAULT_KUBERNETES_MODE}}
-    # Kind version
-    export KIND_VERSION=${KIND_VERSION:=${DEFAULT_KIND_VERSION}}
-    # Helm version
-    export HELM_VERSION=${HELM_VERSION:=${DEFAULT_HELM_VERSION}}
-    # Airflow Executor
-    export EXECUTOR=${EXECUTOR:=${DEFAULT_EXECUTOR}}
-    # Kubectl version
-    export KUBECTL_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
-    # Local Kind path
-    export KIND_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/kind"
-    readonly KIND_BINARY_PATH
-    # Local Helm path
-    export HELM_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/helm"
-    readonly HELM_BINARY_PATH
-    # local Kubectl path
-    export KUBECTL_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/kubectl"
-    readonly KUBECTL_BINARY_PATH
-    FORWARDED_PORT_NUMBER="${FORWARDED_PORT_NUMBER:="8080"}"
-    readonly FORWARDED_PORT_NUMBER
-    API_SERVER_PORT="${API_SERVER_PORT:="19090"}"
-    readonly API_SERVER_PORT
-}
-
 function initialization::initialize_virtualenv_variables() {
     # The extras to install when initializing a virtual env with breeze
     export VIRTUALENV_EXTRAS=${VIRTUALENV_EXTRAS:="devel"}
@@ -584,7 +519,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
-    initialization::initialize_kubernetes_variables
     initialization::initialize_virtualenv_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
@@ -631,10 +565,6 @@ function initialization::get_docker_cache_image_names() {
     # Example:
     #  ghcr.io/apache/airflow/main/prod/python3.8
     export AIRFLOW_PROD_IMAGE="${image_name}/${BRANCH_NAME}/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
-
-    # Kubernetes image to build
-    #  ghcr.io/apache/airflow/main/kubernetes/python3.8
-    export AIRFLOW_IMAGE_KUBERNETES="${image_name}/${BRANCH_NAME}/kubernetes/python${PYTHON_MAJOR_MINOR_VERSION}"
 }
 
 function initialization::summarize_build_environment() {
@@ -785,11 +715,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_GROUP_ID
     readonly HOST_OS
 
-    readonly KUBERNETES_MODE
-    readonly KUBERNETES_VERSION
-    readonly KIND_VERSION
-    readonly HELM_VERSION
-    readonly KUBECTL_VERSION
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -856,7 +781,6 @@ function initialization::make_constants_read_only() {
     readonly FORWARD_CREDENTIALS
 
     readonly PYTHON_BASE_IMAGE
-    readonly AIRFLOW_IMAGE_KUBERNETES
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
@@ -864,13 +788,9 @@ function initialization::make_constants_read_only() {
     readonly INSTALLED_PROVIDERS
 
     readonly CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-    readonly CURRENT_KUBERNETES_VERSIONS
-    readonly CURRENT_KUBERNETES_MODES
     readonly CURRENT_POSTGRES_VERSIONS
     readonly CURRENT_MYSQL_VERSIONS
     readonly CURRENT_MSSQL_VERSIONS
-    readonly CURRENT_KIND_VERSIONS
-    readonly CURRENT_HELM_VERSIONS
     readonly CURRENT_EXECUTOR
     readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }

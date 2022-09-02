@@ -135,10 +135,6 @@ def is_core_commit(files: List[str]) -> bool:
         "STATIC_CODE_CHECKS.rst",
         "images/",
         "TESTING.rst",
-        # dev/release/testing
-        "breeze",
-        "breeze-legacy",
-        "breeze-complete",
         "codecov.yml",
         "pytest.ini",
         "kubernetes_tests/",

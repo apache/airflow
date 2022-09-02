@@ -84,7 +84,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/|^dev/breeze/autocomplete/.*$
-        files: ^breeze-legacy$|^breeze-complete$|\.bash$|\.sh$
+        files: \.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -301,7 +301,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
+        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$|^.*package-lock.json$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/tutorial/pipeline_example.csv,airflow/www/*.log
@@ -556,12 +556,6 @@ repos:
         files: \.*example_dags.*\.py$
         exclude: ^airflow/_vendor/
         pass_filenames: true
-      - id: check-integrations-are-consistent
-        name: Check if integration list is consistent in various places
-        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
-        language: system
-        pass_filenames: false
-        files: ^common/_common_values\.sh$|^breeze-complete$
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/pre_commit/pre_commit_check_license.py
@@ -597,16 +591,17 @@ repos:
         require_serial: true
       - id: lint-helm-chart
         name: Lint Helm Chart
-        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
+        language: python
         pass_filenames: false
         files: ^chart
         require_serial: true
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: run-shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.8.0 -x -a
-        files: ^breeze-legacy$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        files: ^.*\.sh$|^hooks/build$|^hooks/push$|\.bash$
         exclude: ^dev/breeze/autocomplete/.*$
       - id: lint-css
         name: stylelint

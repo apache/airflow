@@ -718,6 +718,282 @@ through ``breeze testing docker-compose-tests`` command.
 
 The docker-compose tests are in ``docker-tests/`` folder in the main repo.
 
+Running Kubernetes tests
+------------------------
+
+Breeze helps with running Kubernetes tests in the same environment/way as CI tests are run.
+Breeze helps to setup KinD cluster for testing, setting up virtualenv and downloads the right tools
+automatically to run the tests.
+
+You can:
+
+* Setup environment for k8s tests with ``breeze k8s setup-env``
+* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze k8s create-cluster``,
+  ``breeze k8s deploy-airflow``, ``breeze k8s status``, ``breeze k8s delete-cluster`` commands
+* Run Kubernetes tests  specified with ``breeze k8s tests`` command
+* Enter the interactive kubernetes test environment with ``breeze k8s shell`` and ``breeze k8s k9s`` command
+* Run multi-cluster-operations ``breeze k8s list-all-clusters`` and
+  ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
+  via ``breeze k8s run-complete-tests`` and export logs from all clusters to a temp directory
+  via ``breeze k8s dump-logs`` command
+
+This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
+
+You can read more about KinD that we use in `The documentation <https://kind.sigs.k8s.io/>`_
+
+Here is the detailed set of options for the ``breeze k8s`` command.
+
+.. image:: ./images/breeze/output_k8s.svg
+  :width: 100%
+  :alt: Breeze k8s
+
+
+Setting up K8S environment
+..........................
+
+Kubernetes environment can be set with the ``breeze k8s setup-env`` command.
+It will create appropriate virtualenv to run tests and download the right set of tools to run
+the tests: ``kind``, ``kubectl`` and ``helm`` in the right versions. You can re-run the command
+when you want to make sure the expected versions of the tools are installed properly in the
+virtualenv. The Virtualenv is available in ``.build/.k8s-env/bin`` subdirectory of your Airflow
+installation.
+
+.. image:: ./images/breeze/output_k8s_setup-env.svg
+  :width: 100%
+  :alt: Breeze k8s setup-env
+
+Creating K8S cluster
+....................
+
+You can create kubernetes cluster (separate cluster for each python/kubernetes version) via
+``breeze k8s create-cluster`` command. With ``--force`` flag the cluster will be
+deleted if exists. You can also use it to create multiple clusters in parallel with
+``--run-in-parallel`` flag - this is what happens in our CI.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_create-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s create-cluster
+
+Deleting K8S cluster
+....................
+
+You can delete current kubernetes cluster via ``breeze k8s delete-cluster`` command. You can also add
+``--run-in-parallel`` flag to delete all clusters.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_delete-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s delete-cluster
+
+Building Airflow K8s images
+...........................
+
+Before deploying Airflow Helm Chart, you need to make sure the appropriate Airflow image is build (it has
+embedded test dags, pod templates and webserver is configured to refresh immediately. This can
+be done via ``breeze k8s build-k8s-image`` command. It can also be done in parallel for all images via
+``--run-in-parallel`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_build-k8s-image.svg
+  :width: 100%
+  :alt: Breeze k8s build-k8s-image
+
+Uploading Airflow K8s images
+............................
+
+The K8S airflow images need to be uploaded to the KinD cluster. This can be done via
+``breeze k8s upload-k8s-image`` command. It can also be done in parallel for all images via
+``--run-in-parallel`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_upload-k8s-image.svg
+  :width: 100%
+  :alt: Breeze k8s upload-k8s-image
+
+Configuring K8S cluster
+.......................
+
+In order to deploy Airflow, the cluster needs to be configured. Airflow namespace needs to be created
+and test resources should be deployed. By passing ``--run-in-parallel`` the configuration can be run
+for all clusters in parallel.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_configure-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s configure-cluster
+
+Deploying Airflow to the Cluster
+................................
+
+Airflow can be deployed to the Cluster with ``breeze k8s deploy-airflow``. This step will automatically
+(unless disabled by switches) will rebuild the image to be deployed. It also uses the latest version
+of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing airflow deployment
+and pass extra arguments to ``helm install`` or ``helm upgrade`` commands that are used to
+deploy airflow. By passing ``--run-in-parallel`` the deployment can be run
+for all clusters in parallel.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_deploy-airflow.svg
+  :width: 100%
+  :alt: Breeze k8s deploy-airflow
+
+Checking status of the K8S cluster
+..................................
+
+You can delete kubernetes cluster and airflow deployed in the current cluster
+via ``breeze k8s status`` command. It can be also checked fora all clusters created so far by passing
+``--all`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_status.svg
+  :width: 100%
+  :alt: Breeze k8s status
+
+Running k8s tests
+.................
+
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
+you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
+for all clusters in parallel.
+
+Run all tests:
+
+.. code-block::bash
+
+    breeze k8s tests
+
+Run selected tests:
+
+.. code-block::bash
+
+    breeze k8s tests kubernetes_tests/test_kubernetes_executor.py
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_tests.svg
+  :width: 100%
+  :alt: Breeze k8s tests
+
+You can also specify any pytest flags as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s tests -- --help
+
+The options that are not overlapping with the ``tests`` command options can be passed directly and mixed
+with the specifications of tests you want to run. For example the command below will only run
+``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
+output during test execution.
+
+.. code-block::bash
+
+    breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+
+Entering k8s shell
+..................
+
+You can have multiple clusters created - with different versions of Kubernetes and Python at the same time.
+Breeze enables you to interact with the chosen cluster by entering dedicated shell session that has the
+cluster pre-configured. This is done via ``breeze k8s shell`` command.
+
+Once you are in the shell, the prompt will indicate which cluster you are interacting with as well
+as executor you use, similar to:
+
+.. code-block::bash
+
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+
+
+The shell automatically activates the virtual environment that has all appropriate dependencies
+installed and you can interactively run all k8s tests with pytest command (of course the cluster need to
+be created and airflow deployed to it before running the tests):
+
+.. code-block::bash
+
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest kubernetes_tests/test_kubernetes_executor.py
+    ================================================= test session starts =================================================
+    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
+    cachedir: .pytest_cache
+    rootdir: /home/jarek/code/airflow, configfile: pytest.ini
+    plugins: anyio-3.6.1
+    collected 2 items
+
+    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
+    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
+
+    ================================================== warnings summary ===================================================
+    .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/.build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+
+        self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+    -- Docs: https://docs.pytest.org/en/stable/warnings.html
+    ============================================ 2 passed, 1 warning in 38.62s ============================================
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_shell.svg
+  :width: 100%
+  :alt: Breeze k8s shell
+
+You can also specify any shell flags and commands as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s shell -- --help
+
+Running k9s tool
+................
+
+The ``k9s`` is a fantastic tool that allows you to interact with running k8s cluster. Since we can have
+multiple clusters capability, ``breeze k8s k9s`` allows you to start k9s without setting it up or
+downloading - it uses k9s docker image to run it and connect it to the right cluster.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_k9s.svg
+  :width: 100%
+  :alt: Breeze k8s k9s
+
+You can also specify any ``k9s`` flags and commands as extra parameters - they will be passed to the
+``k9s`` command directly. In case the ``k9s`` parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the
+``k9s`` you have:
+
+.. code-block::bash
+
+    breeze k8s k9s -- --help
+
+Dumping logs from all k8s clusters
+..................................
+
+KinD allows to export logs from the running cluster so that you can troubleshoot your deployment.
+This can be done with ``breeze k8s logs`` command. Logs can be also dumped fora all clusters created
+so far by passing ``--all`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_logs.svg
+  :width: 100%
+  :alt: Breeze k8s logs
+
 
 CI Image tasks
 --------------
@@ -1412,17 +1688,6 @@ Note that when running in your local environment, the ``/root/airflow/logs`` fol
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
 visible in the host as well. Every time you enter the container, the ``logs`` directory is
 cleaned so that logs do not accumulate.
-
-Running "Docker Compose" commands
----------------------------------
-
-To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
-``docker-compose`` command. To add extra arguments, specify them
-after ``--`` as extra arguments.
-
-.. code-block:: bash
-
-     ./breeze-legacy docker-compose pull -- --ignore-pull-failures
 
 Setting default answers for user interaction
 --------------------------------------------

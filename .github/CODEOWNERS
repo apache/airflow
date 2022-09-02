@@ -70,8 +70,6 @@
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
-breeze @potiuk
-breeze-complete @potiuk
 Dockerfile @potiuk @ashb @mik-laj
 Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham
