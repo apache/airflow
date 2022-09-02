@@ -637,8 +637,8 @@ repos:
         name: Provider init file is missing
         pass_filenames: false
         always_run: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.py
+        language: python
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
