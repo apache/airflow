@@ -110,7 +110,8 @@ def _get_dag_run(
         except NoResultFound:
             if not create_if_necessary:
                 raise DagRunNotFound(
-                    f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
+                    f"DagRun for {dag.dag_id} with run_id or execution_date "
+                    f"of {exec_date_or_run_id!r} not found"
                 ) from None
         else:
             return dag_run, False
