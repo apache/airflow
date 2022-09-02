@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import copy
+import logging
 import logging.config
 import pathlib
+import shutil
 import sys
 import tempfile
 import unittest.mock
@@ -32,6 +34,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.models import DagBag, DagRun
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -56,7 +59,12 @@ def backup_modules():
 
 
 @pytest.fixture(scope="module")
-def log_app(backup_modules):
+def log_path(tmp_path_factory):
+    return tmp_path_factory.mktemp("logs")
+
+
+@pytest.fixture(scope="module")
+def log_app(backup_modules, log_path):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",
@@ -84,12 +92,7 @@ def log_app(backup_modules):
 
     # Create a custom logging configuration
     logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-    logging_config['handlers']['task']['base_log_folder'] = str(
-        pathlib.Path(__file__, "..", "..", "test_logs").resolve(),
-    )
-    logging_config['handlers']['task']['class'] = (
-        "airflow.utils.log.file_task_handler.FileTaskHandlerWinCompat"
-    )
+    logging_config['handlers']['task']['base_log_folder'] = str(log_path)
 
     with tempfile.TemporaryDirectory() as settings_dir:
         local_settings = pathlib.Path(settings_dir, "airflow_local_settings.py")
@@ -168,6 +171,22 @@ def tis(dags, session):
     clear_db_runs()
 
 
+@pytest.fixture
+def create_expected_log_file(log_path, tis):
+    ti, _ = tis
+    handler = FileTaskHandler(log_path)
+
+    def create_expected_log_file(try_number):
+        ti.try_number = try_number - 1
+        handler.set_context(ti)
+        handler.emit(logging.makeLogRecord({"msg": "Log for testing."}))
+        handler.flush()
+
+    yield create_expected_log_file
+    # delete logs to minimize tests interference
+    shutil.rmtree(log_path)
+
+
 @pytest.fixture()
 def log_admin_client(log_app):
     return client_with_login(log_app, username="test", password="test")
@@ -216,13 +235,14 @@ def test_get_file_task_log(log_admin_client, tis, state, try_number, num_logs):
     assert f'log-group-{num_logs + 1}' not in data
 
 
-def test_get_logs_with_metadata_as_download_file(log_admin_client):
+def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expected_log_file):
     url_template = (
         "get_logs_with_metadata?dag_id={}&"
         "task_id={}&execution_date={}&"
         "try_number={}&metadata={}&format=file"
     )
     try_number = 1
+    create_expected_log_file(try_number)
     date = DEFAULT_DATE.isoformat()
     url = url_template.format(
         DAG_ID,
@@ -264,8 +284,13 @@ def dag_run_with_log_filename():
         session.query(LogTemplate).filter(LogTemplate.id == log_template.id).delete()
 
 
-def test_get_logs_for_changed_filename_format_db(log_admin_client, dag_run_with_log_filename):
+def test_get_logs_for_changed_filename_format_db(
+    log_admin_client,
+    dag_run_with_log_filename,
+    create_expected_log_file
+):
     try_number = 1
+    create_expected_log_file(try_number)
     url = (
         f"get_logs_with_metadata?dag_id={dag_run_with_log_filename.dag_id}&"
         f"task_id={TASK_ID}&"
@@ -318,14 +343,16 @@ def test_get_logs_with_metadata_as_download_large_file(_, log_admin_client):
 
 
 @pytest.mark.parametrize("metadata", ["null", "{}"])
-def test_get_logs_with_metadata(log_admin_client, metadata):
+def test_get_logs_with_metadata(log_admin_client, metadata, create_expected_log_file):
     url_template = "get_logs_with_metadata?dag_id={}&task_id={}&execution_date={}&try_number={}&metadata={}"
+    try_number = 1
+    create_expected_log_file(try_number)
     response = log_admin_client.get(
         url_template.format(
             DAG_ID,
             TASK_ID,
             urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
-            1,
+            try_number,
             metadata,
         ),
         data={"username": "test", "password": "test"},
@@ -406,13 +433,14 @@ def test_get_logs_response_with_ti_equal_to_none(log_admin_client):
     assert "*** Task instance did not exist in the DB\n" == data['message']
 
 
-def test_get_logs_with_json_response_format(log_admin_client):
+def test_get_logs_with_json_response_format(log_admin_client, create_expected_log_file):
     url_template = (
         "get_logs_with_metadata?dag_id={}&"
         "task_id={}&execution_date={}&"
         "try_number={}&metadata={}&format=json"
     )
     try_number = 1
+    create_expected_log_file(try_number)
     url = url_template.format(
         DAG_ID,
         TASK_ID,
