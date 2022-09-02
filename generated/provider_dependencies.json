@@ -575,7 +575,7 @@
   },
   "presto": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.1.1",
+      "apache-airflow-providers-common-sql>=1.2.0",
       "apache-airflow>=2.2.0",
       "pandas>=0.17.1",
       "presto-python-client>=0.8.2"
@@ -673,7 +673,7 @@
   },
   "sqlite": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.1.1"
+      "apache-airflow-providers-common-sql>=1.2.0"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -709,7 +709,7 @@
   },
   "trino": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.1.1",
+      "apache-airflow-providers-common-sql>=1.2.0",
       "apache-airflow>=2.2.0",
       "pandas>=0.17.1",
       "trino>=0.301.0"
