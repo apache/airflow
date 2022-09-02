@@ -45,7 +45,9 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "example_gcp_video_intelligence"
 
+# Public bucket holding the sample data
 BUCKET_NAME_SRC = "cloud-samples-data"
+# Path to the data inside the public bucket
 PATH_SRC = "video/cat.mp4"
 
 # [START howto_operator_video_intelligence_os_args]
