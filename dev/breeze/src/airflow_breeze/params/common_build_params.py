@@ -65,6 +65,7 @@ class CommonBuildParams:
     python: str = "3.7"
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
+    upgrade_on_failure: bool = False
 
     @property
     def airflow_version(self):

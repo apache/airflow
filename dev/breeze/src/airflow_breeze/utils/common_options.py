@@ -235,6 +235,13 @@ option_upgrade_to_newer_dependencies = click.option(
     help='When set, upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
 )
+option_upgrade_on_failure = click.option(
+    "-u",
+    '--upgrade-on-failure',
+    is_flag=True,
+    help='When set, attempt to run upgrade to newer dependencies when regular build fails.',
+    envvar='UPGRADE_ON_FAILURE',
+)
 option_additional_extras = click.option(
     '--additional-extras',
     help='Additional extra package while installing Airflow in the image.',

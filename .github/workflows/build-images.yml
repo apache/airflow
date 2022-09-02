@@ -234,7 +234,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: >-
           Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-        run: breeze ci-image build --push --tag-as-latest --run-in-parallel
+        run: breeze ci-image build --push --tag-as-latest --run-in-parallel --upgrade-on-failure
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -352,6 +352,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --tag-as-latest
           --push
           --install-packages-from-context
+          --upgrade-on-failure
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
