@@ -333,8 +333,8 @@ repos:
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint dockerfile
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.py
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
