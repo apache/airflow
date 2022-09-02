@@ -299,6 +299,8 @@ class BackfillJob(BaseJob):
                 respect_dag_max_active_limit = False
             # Fixes --conf overwrite for backfills with already existing DagRuns
             run.conf = self.conf or {}
+            # start_date is cleared for existing DagRuns
+            run.start_date = timezone.utcnow()
         else:
             run = None
 

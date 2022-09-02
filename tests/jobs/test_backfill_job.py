@@ -1761,3 +1761,25 @@ class TestBackfillJob:
         tis[("get_things", -1)].state == TaskInstanceState.SUCCESS
         tis[("this_fails", -1)].state == TaskInstanceState.FAILED
         tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
+
+    def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog):
+
+        with dag_maker() as dag:
+            EmptyOperator(task_id='task1')
+
+        dr = dag_maker.create_dagrun()
+        dr.state = State.SUCCESS
+        session.merge(dr)
+        session.flush()
+        dag.clear()
+        BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            executor=MockExecutor(),
+            donot_pickle=True,
+        ).run()
+
+        (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE, session=session)
+        assert dr.start_date
+        assert f'Failed to record duration of {dr}' not in caplog.text
