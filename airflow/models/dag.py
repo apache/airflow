@@ -2578,18 +2578,15 @@ class DAG(LoggingMixin):
 
         dag_ids = set(dag_by_ids.keys())
         query = (
-            (
-                session.query(DagModel)
-                .options(joinedload(DagModel.tags, innerjoin=False))
-                .filter(DagModel.dag_id.in_(dag_ids))
-            )
+            session.query(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .filter(DagModel.dag_id.in_(dag_ids))
             .options(joinedload(DagModel.schedule_dataset_references))
             .options(joinedload(DagModel.task_outlet_dataset_references))
         )
         orm_dags: List[DagModel] = with_row_locks(query, of=DagModel, session=session).all()
-        existing_dag_dict = {x.dag_id: x for x in orm_dags}
-        existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
-        missing_dag_ids = dag_ids.difference(existing_dag_ids)
+        existing_dags = {orm_dag.dag_id: orm_dag for orm_dag in orm_dags}
+        missing_dag_ids = dag_ids.difference(existing_dags)
 
         for missing_dag_id in missing_dag_ids:
             orm_dag = DagModel(dag_id=missing_dag_id)
@@ -2605,7 +2602,7 @@ class DAG(LoggingMixin):
         most_recent_subq = (
             session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
             .filter(
-                DagRun.dag_id.in_(existing_dag_ids),
+                DagRun.dag_id.in_(existing_dags),
                 or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
             )
             .group_by(DagRun.dag_id)
@@ -2619,7 +2616,7 @@ class DAG(LoggingMixin):
 
         # Get number of active dagruns for all dags we are processing as a single query.
 
-        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dag_ids, session=session)
+        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
 
         filelocs = []
 
@@ -2698,7 +2695,7 @@ class DAG(LoggingMixin):
         # if there are now *any*, we add them to the above data structures and
         # later we'll persist them to the database.
         for dag in dags:
-            curr_orm_dag = existing_dag_dict.get(dag.dag_id)
+            curr_orm_dag = existing_dags.get(dag.dag_id)
             if not dag.dataset_triggers:
                 if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
                     curr_orm_dag.schedule_dataset_references = []
@@ -2744,8 +2741,8 @@ class DAG(LoggingMixin):
                 for uri in uri_list
             }
             dag_refs_stored = set(
-                existing_dag_dict.get(dag_id)
-                and existing_dag_dict.get(dag_id).schedule_dataset_references  # type: ignore
+                existing_dags.get(dag_id)
+                and existing_dags.get(dag_id).schedule_dataset_references  # type: ignore
                 or []
             )
             dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
@@ -2754,7 +2751,7 @@ class DAG(LoggingMixin):
                 session.delete(obj)
 
         existing_task_outlet_refs_dict = collections.defaultdict(set)
-        for dag_id, orm_dag in existing_dag_dict.items():
+        for dag_id, orm_dag in existing_dags.items():
             for todr in orm_dag.task_outlet_dataset_references:
                 existing_task_outlet_refs_dict[(dag_id, todr.task_id)].add(todr)
 
