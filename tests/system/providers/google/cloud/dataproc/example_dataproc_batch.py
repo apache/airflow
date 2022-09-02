@@ -62,9 +62,7 @@ with models.DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
     )
-    # [END how_to_cloud_dataproc_create_batch_operator]
 
-    # [START how_to_cloud_dataproc_create_batch_operator]
     create_batch_2 = DataprocCreateBatchOperator(
         task_id="create_batch_2",
         project_id=PROJECT_ID,
@@ -79,9 +77,7 @@ with models.DAG(
     get_batch = DataprocGetBatchOperator(
         task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
     )
-    # [END how_to_cloud_dataproc_get_batch_operator]
 
-    # [START how_to_cloud_dataproc_get_batch_operator]
     get_batch_2 = DataprocGetBatchOperator(
         task_id="get_batch_2", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_2
     )
@@ -99,10 +95,8 @@ with models.DAG(
     delete_batch = DataprocDeleteBatchOperator(
         task_id="delete_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
     )
-    # [END how_to_cloud_dataproc_delete_batch_operator]
     delete_batch.trigger_rule = TriggerRule.ALL_DONE
 
-    # [START how_to_cloud_dataproc_delete_batch_operator]
     delete_batch_2 = DataprocDeleteBatchOperator(
         task_id="delete_batch_2", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_2
     )
