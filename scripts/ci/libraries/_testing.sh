@@ -133,7 +133,7 @@ function testing::setup_docker_compose_backend() {
     local TEST_TYPE
     TEST_TYPE="${1}"
     if [[ ${BACKEND} == "mssql" ]]; then
-        local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-${DEBIAN_VERSION}.yml")
+        local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
         local docker_filesystem
         docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")
         if [[ ${docker_filesystem} == "tmpfs" ]]; then
@@ -143,7 +143,7 @@ function testing::setup_docker_compose_backend() {
             # so we need to mount an external volume for its db location
             # the external db must allow for parallel testing so TEST_TYPE
             # is added to the volume name
-            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}-${MSSQL_VERSION}"
+            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE/\[*\]/}-${MSSQL_VERSION}"
             mkdir -p "${MSSQL_DATA_VOLUME}"
             # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
             # This is a bit scary and we could get by making it group-writeable but the group would have

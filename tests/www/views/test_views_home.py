@@ -55,7 +55,7 @@ def test_home(capture_templates, admin_client):
             '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", "sensing": "mediumpurple", '
+            '"scheduled": "tan", '
             '"shutdown": "blue", "skipped": "hotpink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'
@@ -248,8 +248,7 @@ def test_dashboard_flash_messages_type(user_client):
 
 
 def test_audit_log_view(user_client, working_dags):
-    url = 'audit_log?dag_id=filter_test_1'
-    resp = user_client.get(url, follow_redirects=True)
+    resp = user_client.get('/dags/filter_test_1/audit_log')
     check_content_in_response('Dag Audit Log', resp)
 
 

@@ -24,6 +24,31 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Deprecated ``hql`` parameter has been removed in ``get_records``, ``get_first``, ``get_pandas_df`` and ``run``
+methods of the ``PrestoHook``.
+
+Remove ``PrestoToSlackOperator`` in favor of Slack provider ``SqlToSlackOperator``.
+
+* ``Remove 'PrestoToSlackOperator' (#25425)``
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+
+Features
+~~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
 3.1.0
 .....
 

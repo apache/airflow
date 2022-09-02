@@ -124,28 +124,26 @@ Bad example:
   import pendulum
 
   from airflow import DAG
-  from airflow.operators.python import PythonOperator
+  from airflow.decorators import task
 
   import numpy as np  # <-- THIS IS A VERY BAD IDEA! DON'T DO THAT!
 
   with DAG(
       dag_id="example_python_operator",
-      schedule_interval=None,
+      schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
   ) as dag:
 
+      @task()
       def print_array():
           """Print Numpy array."""
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
-      run_this = PythonOperator(
-          task_id="print_the_context",
-          python_callable=print_array,
-      )
+      print_array()
 
 Good example:
 
@@ -154,16 +152,17 @@ Good example:
   import pendulum
 
   from airflow import DAG
-  from airflow.operators.python import PythonOperator
+  from airflow.decorators import task
 
   with DAG(
       dag_id="example_python_operator",
-      schedule_interval=None,
+      schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
   ) as dag:
 
+      @task()
       def print_array():
           """Print Numpy array."""
           import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
@@ -172,12 +171,7 @@ Good example:
           print(a)
           return a
 
-      run_this = PythonOperator(
-          task_id="print_the_context",
-          python_callable=print_array,
-      )
-
-
+      print_array()
 
 Dynamic DAG Generation
 ----------------------
@@ -273,11 +267,11 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 .. code-block:: python
 
     from datetime import datetime
+
     from airflow import DAG
     from airflow.decorators import task
     from airflow.exceptions import AirflowException
     from airflow.operators.bash import BashOperator
-    from airflow.operators.python import PythonOperator
     from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -288,7 +282,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 
     with DAG(
         dag_id="watcher_example",
-        schedule_interval="@once",
+        schedule="@once",
         start_date=datetime(2021, 1, 1),
         catchup=False,
     ) as dag:
@@ -479,10 +473,11 @@ This is an example test want to verify the structure of a code-generated DAG aga
 .. code-block:: python
 
     import datetime
-    import pendulum
 
+    import pendulum
     import pytest
 
+    from airflow import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunType
 
@@ -497,7 +492,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
     def dag():
         with DAG(
             dag_id=TEST_DAG_ID,
-            schedule_interval="@daily",
+            schedule="@daily",
             start_date=DATA_INTERVAL_START,
         ) as dag:
             MyCustomOperator(

@@ -31,6 +31,10 @@ tasks. The steps to create and register ``@task.foo`` are:
     ``airflow.decorators.base.DecoratedOperator``, Airflow will supply much of the needed functionality required
     to treat your new class as a taskflow native class.
 
+    You should also override the ``custom_operator_name`` attribute to provide a custom name for the task. For
+    example, ``_DockerDecoratedOperator`` in the ``apache-airflow-providers-docker`` provider sets this to
+    ``@task.docker`` to indicate the decorator name it implements.
+
 2. Create a ``foo_task`` function
 
     Once you have your decorated class, create a function like this, to convert

@@ -17,7 +17,7 @@
 # under the License.
 import sys
 from collections import namedtuple
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
@@ -32,7 +32,7 @@ from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.models.xcom_arg import XComArg
+from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -649,13 +649,16 @@ def test_partial_mapped_decorator() -> None:
 
         product.partial(multiple=2)  # No operator is actually created.
 
+    assert isinstance(doubled, PlainXComArg)
+    assert isinstance(trippled, PlainXComArg)
+    assert isinstance(quadrupled, PlainXComArg)
+
     assert dag.task_dict == {
         "product": quadrupled.operator,
         "product__1": doubled.operator,
         "product__2": trippled.operator,
     }
 
-    assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
     assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput({"number": literal})
     assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
@@ -666,12 +669,12 @@ def test_partial_mapped_decorator() -> None:
     assert doubled.operator is not trippled.operator
 
 
-def test_mapped_decorator_unmap_merge_op_kwargs():
-    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
+    with dag_maker(session=session):
 
         @task_decorator
         def task1():
-            ...
+            return ["x"]
 
         @task_decorator
         def task2(arg1, arg2):
@@ -679,16 +682,27 @@ def test_mapped_decorator_unmap_merge_op_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    unmapped = dag.get_task("task2").unmap(None)
+    run = dag_maker.create_dagrun()
+
+    # Run task1.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
+    dec.schedulable_tis[0].run(session=session)
+
+    # Expand task2.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
+    ti = dec.schedulable_tis[0]
+    unmapped = ti.task.unmap((ti.get_template_context(session), session))
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
-def test_mapped_decorator_converts_partial_kwargs():
-    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
+    with dag_maker(session=session):
 
         @task_decorator
         def task1(arg):
-            ...
+            return ["x" * arg]
 
         @task_decorator(retry_delay=30)
         def task2(arg1, arg2):
@@ -696,13 +710,22 @@ def test_mapped_decorator_converts_partial_kwargs():
 
         task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
-    mapped_task2 = dag.get_task("task2")
-    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
-    assert mapped_task2.unmap(None).retry_delay == timedelta(seconds=30)
+    run = dag_maker.create_dagrun()
 
-    mapped_task1 = dag.get_task("task1")
-    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
-    mapped_task1.unmap(None).retry_delay == timedelta(seconds=300)  # Operator default.
+    # Expand and run task1.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1", "task1"]
+    for ti in dec.schedulable_tis:
+        ti.run(session=session)
+        assert not ti.task.is_mapped
+        assert ti.task.retry_delay == timedelta(seconds=300)  # Operator default.
+
+    # Expand task2.
+    dec = run.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2", "task2"]
+    for ti in dec.schedulable_tis:
+        unmapped = ti.task.unmap((ti.get_template_context(session), session))
+        assert unmapped.retry_delay == timedelta(seconds=30)
 
 
 def test_mapped_render_template_fields(dag_maker, session):
@@ -712,8 +735,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcom_arg = XComArg(task1)
-        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=xcom_arg)
+        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=task1.output)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -756,3 +778,40 @@ def test_task_decorator_has_wrapped_attr():
         decorated_test_func, '__wrapped__'
     ), "decorated function does not have __wrapped__ attribute"
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
+
+
+def test_upstream_exception_produces_none_xcom(dag_maker, session):
+    from airflow.exceptions import AirflowSkipException
+    from airflow.models.dagrun import DagRun
+    from airflow.utils.trigger_rule import TriggerRule
+
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> str:
+            return "example"
+
+        @dag.task()
+        def up2() -> None:
+            raise AirflowSkipException()
+
+        @dag.task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        def down(a, b):
+            nonlocal result
+            result = f"{a!r} {b!r}"
+
+        down(up1(), up2())
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    decision.schedulable_tis[0].run(session=session)
+    assert result == "'example' None"

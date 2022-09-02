@@ -23,15 +23,26 @@ from unittest import mock
 
 import pytest
 
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+
+
+class DbApiHookInProvider(DbApiHook):
+    conn_name_attr = 'test_conn_id'
+
+
+class NonDbApiHook(BaseHook):
+    pass
 
 
 class TestDbApiHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock(rowcount=0)
+        self.cur = mock.MagicMock(
+            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "close"]
+        )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
@@ -390,3 +401,32 @@ class TestDbApiHook(unittest.TestCase):
         with pytest.raises(ValueError) as err:
             self.db_hook.run(sql=[])
         assert err.value.args[0] == "List of SQL statements is empty"
+
+    def test_instance_check_works_for_provider_derived_hook(self):
+        assert isinstance(DbApiHookInProvider(), DbApiHook)
+
+    def test_instance_check_works_for_non_db_api_hook(self):
+        assert not isinstance(NonDbApiHook(), DbApiHook)
+
+    def test_instance_check_works_for_legacy_db_api_hook(self):
+        from airflow.hooks.dbapi import DbApiHook as LegacyDbApiHook
+
+        assert isinstance(DbApiHookInProvider(), LegacyDbApiHook)
+
+    def test_run_fetch_all_handler_select_1(self):
+        self.cur.rowcount = -1  # can be -1 according to pep249
+        self.cur.description = (tuple([None] * 7),)
+        query = "SELECT 1"
+        rows = [[1]]
+
+        self.cur.fetchall.return_value = rows
+        assert rows == self.db_hook.run(sql=query, handler=fetch_all_handler)
+
+    def test_run_fetch_all_handler_print(self):
+        self.cur.rowcount = -1
+        self.cur.description = None
+        query = "PRINT('Hello World !')"
+        rows = None
+
+        self.cur.fetchall.side_effect = Exception("Should not get called !")
+        assert rows == self.db_hook.run(sql=query, handler=fetch_all_handler)

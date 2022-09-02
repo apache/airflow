@@ -27,7 +27,6 @@ S3_KEY = os.environ.get("S3_KEY", "key")
 
 with models.DAG(
     "example_s3_to_ftp",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

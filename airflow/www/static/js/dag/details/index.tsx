@@ -32,7 +32,7 @@ import DagRunContent from './dagRun';
 import DagContent from './Dag';
 
 const Details = () => {
-  const { selected: { runId, taskId } } = useSelection();
+  const { selected: { runId, taskId, mapIndex }, onSelect } = useSelection();
   return (
     <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
       <Header />
@@ -46,6 +46,8 @@ const Details = () => {
         <TaskInstanceContent
           runId={runId}
           taskId={taskId}
+          mapIndex={mapIndex === null ? undefined : mapIndex}
+          onSelect={onSelect}
         />
         )}
       </Box>

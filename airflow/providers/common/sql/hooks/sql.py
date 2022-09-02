@@ -17,9 +17,10 @@
 import warnings
 from contextlib import closing
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Tuple, Type, Union
 
 import sqlparse
+from packaging.version import Version
 from sqlalchemy import create_engine
 from typing_extensions import Protocol
 
@@ -27,14 +28,12 @@ from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.module_loading import import_string
-
-if TYPE_CHECKING:
-    from sqlalchemy.engine import CursorResult
+from airflow.version import version
 
 
-def fetch_all_handler(cursor: 'CursorResult') -> Optional[List[Tuple]]:
+def fetch_all_handler(cursor) -> Optional[List[Tuple]]:
     """Handler for DbApiHook.run() to return results"""
-    if cursor.returns_rows:
+    if cursor.description is not None:
         return cursor.fetchall()
     else:
         return None
@@ -76,7 +75,21 @@ class ConnectorProtocol(Protocol):
         """
 
 
-class DbApiHook(BaseHook):
+# In case we are running it on Airflow 2.4+, we should use BaseHook, but on Airflow 2.3 and below
+# We want the DbApiHook to derive from the original DbApiHook from airflow, because otherwise
+# SqlSensor and BaseSqlOperator from "airflow.operators" and "airflow.sensors" will refuse to
+# accept the new Hooks as not derived from the original DbApiHook
+if Version(version) < Version('2.4'):
+    try:
+        from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
+    except ImportError:
+        # just in case we have a problem with circular import
+        BaseForDbApiHook: Type[BaseHook] = BaseHook  # type: ignore[no-redef]
+else:
+    BaseForDbApiHook: Type[BaseHook] = BaseHook  # type: ignore[no-redef]
+
+
+class DbApiHook(BaseForDbApiHook):
     """
     Abstract base class for sql hooks.
 
@@ -96,6 +109,8 @@ class DbApiHook(BaseHook):
     connector = None  # type: Optional[ConnectorProtocol]
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
+    # Override with the db-specific value used for placeholders
+    placeholder: str = "%s"
 
     def __init__(self, *args, schema: Optional[str] = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -181,7 +196,12 @@ class DbApiHook(BaseHook):
         with closing(self.get_conn()) as conn:
             yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
 
-    def get_records(self, sql, parameters=None):
+    def get_records(
+        self,
+        sql: Union[str, List[str]],
+        parameters: Optional[Union[Iterable, Mapping]] = None,
+        **kwargs: dict,
+    ):
         """
         Executes the sql and returns a set of records.
 
@@ -197,7 +217,7 @@ class DbApiHook(BaseHook):
                     cur.execute(sql)
                 return cur.fetchall()
 
-    def get_first(self, sql, parameters=None):
+    def get_first(self, sql: Union[str, List[str]], parameters=None):
         """
         Executes the sql and returns the first resulting row.
 
@@ -226,7 +246,7 @@ class DbApiHook(BaseHook):
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements = [s.rstrip(';') for s in splits if s.endswith(';')]
+        statements: List[str] = list(filter(None, splits))
         return statements
 
     def run(
@@ -258,7 +278,7 @@ class DbApiHook(BaseHook):
             if split_statements:
                 sql = self.split_sql_string(sql)
             else:
-                sql = [self.strip_sql_string(sql)]
+                sql = [sql]
 
         if sql:
             self.log.debug("Executing following statements against DB: %s", list(sql))
@@ -329,10 +349,10 @@ class DbApiHook(BaseHook):
         """Returns a cursor"""
         return self.get_conn().cursor()
 
-    @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+    @classmethod
+    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs):
         """
-        Static helper method that generates the INSERT SQL statement.
+        Helper class method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
@@ -343,7 +363,7 @@ class DbApiHook(BaseHook):
         :rtype: str
         """
         placeholders = [
-            "%s",
+            cls.placeholder,
         ] * len(values)
 
         if target_fields:

@@ -39,6 +39,11 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
+  provider:Common-sql:
+    - airflow/providers/common/sql/**/*
+    - docs/apache-airflow-providers-common-sql/**/*
+    - tests/providers/common/sql/**/*
+
   provider:Databricks:
     - airflow/providers/databricks/**/*
     - docs/apache-airflow-providers-databricks/**/*
@@ -82,10 +87,8 @@ labelPRBasedOnFilePath:
     - scripts/**/*
     - dev/**/*
     - .github/**/*
-    - breeze
     - Dockerfile.ci
     - BREEZE.rst
-    - breeze-complete
     - CONTRIBUTING.*
     - LOCAL_VIRTUALENV.rst
     - STATIC_CODE_CHECKS.rst
@@ -128,7 +131,6 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
-    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py
@@ -252,7 +254,4 @@ firstIssueWelcomeComment: >
 
 checkUpToDate:
   targetBranch: main
-  files:
-    - airflow/migrations/*
-    - airflow/migrations/**/*
-    - airflow/alembic.ini
+  files: []

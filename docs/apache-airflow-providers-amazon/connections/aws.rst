@@ -28,8 +28,8 @@ Authenticating to AWS
 
 Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
-To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified, or
-``aws://``).
+To use IAM instance profile, create an "empty" connection (i.e. one with no AWS Access Key ID or AWS Secret Access Key
+specified, or ``aws://``).
 
 
 Default Connection IDs
@@ -44,18 +44,19 @@ automatically the credentials from there.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
 
+.. _howto/connection:aws:configuring-the-connection:
 
 Configuring the Connection
 --------------------------
 
 
-Login (optional)
+AWS Access Key ID (optional)
     Specify the AWS access key ID used for the initial connection.
     If you do an `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__
     by specifying a ``role_arn`` in the **Extra** field,
     then temporary credentials will be used for subsequent calls to AWS.
 
-Password (optional)
+AWS Secret Access Key (optional)
     Specify the AWS secret access key used for the initial connection.
     If you do an `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__
     by specifying a ``role_arn`` in the **Extra** field,
@@ -63,19 +64,21 @@ Password (optional)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
-    connection. The following parameters are all optional:
+    connection. All parameters are optional.
+
+    The following extra parameters used to create an initial
+    `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
     * ``aws_secret_access_key``: AWS secret access key used for the initial connection
     * ``aws_session_token``: AWS session token used for the initial connection if you use external credentials.
       You are responsible for renewing these.
     * ``region_name``: AWS Region for the connection.
-    * ``session_kwargs``: Additional **kwargs** passed to
-      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
-    * ``config_kwargs``: Additional **kwargs** used to construct a
-      `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
-      passed to `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
-      and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__.
+    * ``profile_name``: The name of a profile to use listed in
+      `configuration and credential file settings <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`__.
+
+    The following extra parameters used for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__:
+
     * ``role_arn``: If specified, then assume this role, obtaining a set of temporary security credentials using the ``assume_role_method``.
     * ``assume_role_method``: AWS STS client method, one of
       `assume_role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__,
@@ -83,7 +86,15 @@ Extra (optional)
       `assume_role_with_web_identity <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html>`__
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
-    * ``host``: Endpoint URL for the connection.
+
+    The following extra parameters used for
+    `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
+    and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__:
+
+    * ``config_kwargs``: Additional **kwargs** used to construct a
+      `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
+    * ``endpoint_url``: Endpoint URL for the connection.
+    * ``verify``: Whether or not to verify SSL certificates.
 
 .. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
 
@@ -98,11 +109,42 @@ Extra (optional)
       `s3cmd <https://s3tools.org/kb/item14.htm>`_ if not specified then **boto** is used.
     * ``profile``: If you are getting your credentials from the ``s3_config_file``
       you can specify the profile with this parameter.
+    * ``host``: Used as connection's URL. Use ``endpoint_url`` instead.
+    * ``session_kwargs``: Additional **kwargs** passed to
+      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
 Examples
 --------
+
+**Snippet for create Connection as URI**:
+  .. code-block:: python
+
+    import os
+    from airflow.models.connection import Connection
+
+
+    conn = Connection(
+        conn_id="sample_aws_connection",
+        conn_type="aws",
+        login="AKIAIOSFODNN7EXAMPLE",  # Reference to AWS Access Key ID
+        password="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",  # Reference to AWS Secret Access Key
+        extra={
+            # Specify extra parameters here
+            "region_name": "eu-central-1",
+        },
+    )
+
+    # Generate Environment Variable Name and Connection URI
+    env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+    conn_uri = conn.get_uri()
+    print(f"{env_key}={conn_uri}")
+    # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?region_name=eu-central-1
+
+    # Test connection
+    os.environ[env_key] = conn_uri
+    print(conn.test_connection())
 
 **Using instance profile**:
   .. code-block:: bash
@@ -125,14 +167,12 @@ Examples for the **Extra** field
 
 1. Using *~/.aws/credentials* and *~/.aws/config* file, with a profile.
 
-This assumes all other Connection fields eg **Login** are empty.
+This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secret Access Key**  are empty.
 
 .. code-block:: json
 
     {
-      "session_kwargs": {
-        "profile_name": "my_profile"
-      }
+      "profile_name": "my_profile"
     }
 
 
@@ -256,7 +296,7 @@ Set in AWS Config File
 **~/.aws/config**:
   .. code-block:: ini
 
-    [awesome_aws_profile]
+    [profile awesome_aws_profile]
     retry_mode = standard
     max_attempts = 10
 
@@ -264,9 +304,7 @@ Set in AWS Config File
   .. code-block:: json
 
     {
-      "session_kwargs": {
-        "profile_name": "awesome_aws_profile"
-      }
+      "profile_name": "awesome_aws_profile"
     }
 
 Set by Environment Variables

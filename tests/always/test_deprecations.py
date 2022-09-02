@@ -17,7 +17,6 @@
 # under the License.
 
 import importlib
-import sys
 import warnings
 from inspect import isabstract
 from unittest import mock
@@ -45,12 +44,6 @@ class TestDeprecations:
             importlib.reload(importlib.import_module(old_path))
             self.assert_warning(new_path, warnings)
 
-    def skip_test_with_mssql_in_py38(self, path_a="", path_b=""):
-        py_38 = sys.version_info >= (3, 8)
-        if py_38:
-            if "mssql" in path_a or "mssql" in path_b:
-                raise pytest.skip("Mssql package not available when Python >= 3.8.")
-
     @staticmethod
     def get_class_from_path(path_to_class, parent=False):
         """
@@ -73,7 +66,6 @@ class TestDeprecations:
 
     @pytest.mark.parametrize("new_module, old_module", RENAMED_ALL)
     def test_is_class_deprecated(self, new_module, old_module):
-        self.skip_test_with_mssql_in_py38(new_module, old_module)
         deprecation_warning_msg = "This class is deprecated."
         with pytest.warns(DeprecationWarning, match=deprecation_warning_msg) as warnings:
             old_module_class = self.get_class_from_path(old_module)
@@ -93,7 +85,6 @@ class TestDeprecations:
 
     @pytest.mark.parametrize("parent_class_path, sub_class_path", ALL)
     def test_is_subclass(self, parent_class_path, sub_class_path):
-        self.skip_test_with_mssql_in_py38(parent_class_path, sub_class_path)
         with mock.patch(f"{parent_class_path}.__init__"), warnings.catch_warnings(record=True):
             parent_class_path = self.get_class_from_path(parent_class_path, parent=True)
             sub_class_path = self.get_class_from_path(sub_class_path)
@@ -101,7 +92,6 @@ class TestDeprecations:
 
     @pytest.mark.parametrize("new_path, old_path", ALL)
     def test_warning_on_import(self, new_path, old_path):
-        self.skip_test_with_mssql_in_py38(new_path, old_path)
         self.assert_proper_import(old_path, new_path)
 
     def test_no_redirect_to_deprecated_classes(self):

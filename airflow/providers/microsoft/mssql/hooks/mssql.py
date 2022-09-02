@@ -18,6 +18,8 @@
 
 """Microsoft SQLServer hook module"""
 
+from typing import Any, Optional
+
 import pymssql
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -31,10 +33,62 @@ class MsSqlHook(DbApiHook):
     conn_type = 'mssql'
     hook_name = 'Microsoft SQL Server'
     supports_autocommit = True
+    DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pymssql'
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        sqlalchemy_scheme: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        """
+        :param args: passed to DBApiHook
+        :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pymssql`` Only used for
+          ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
+        :param kwargs: passed to DbApiHook
+        """
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self._sqlalchemy_scheme = sqlalchemy_scheme
+
+    @property
+    def connection_extra_lower(self) -> dict:
+        """
+        ``connection.extra_dejson`` but where keys are converted to lower case.
+        This is used internally for case-insensitive access of mssql params.
+        """
+        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
+        return {k.lower(): v for k, v in conn.extra_dejson.items()}
+
+    @property
+    def sqlalchemy_scheme(self) -> str:
+        """Sqlalchemy scheme either from constructor, connection extras or default."""
+        return (
+            self._sqlalchemy_scheme
+            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.DEFAULT_SQLALCHEMY_SCHEME
+        )
+
+    def get_uri(self) -> str:
+        from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+
+        r = list(urlsplit(super().get_uri()))
+        # change pymssql driver:
+        r[0] = self.sqlalchemy_scheme
+        # remove query string 'sqlalchemy_scheme' like parameters:
+        qs = parse_qs(r[3], keep_blank_values=True)
+        for k in list(qs.keys()):
+            if k.lower() == 'sqlalchemy_scheme':
+                qs.pop(k, None)
+        r[3] = urlencode(qs, doseq=True)
+        return urlunsplit(r)
+
+    def get_sqlalchemy_connection(
+        self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
+    ) -> Any:
+        """Sqlalchemy connection object"""
+        engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
+        return engine.connect(**(connect_kwargs or {}))
 
     def get_conn(
         self,

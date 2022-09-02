@@ -63,7 +63,7 @@ class TestCloudBuildHook(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_credentials")
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_credentials")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
     def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

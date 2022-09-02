@@ -32,7 +32,11 @@ from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, Q
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
-from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
+from airflow.providers.common.sql.operators.sql import (
+    SQLCheckOperator,
+    SQLIntervalCheckOperator,
+    SQLValueCheckOperator,
+)
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
@@ -357,6 +361,7 @@ class BigQueryGetDataOperator(BaseOperator):
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
             table_id='Transaction_partitions',
+            project_id='internal-gcp-project',
             max_results=100,
             selected_fields='DATE',
             gcp_conn_id='airflow-conn-id'
@@ -364,6 +369,8 @@ class BigQueryGetDataOperator(BaseOperator):
 
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
+    :param project_id: (Optional) The name of the project where the data
+        will be returned from. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -386,6 +393,7 @@ class BigQueryGetDataOperator(BaseOperator):
     template_fields: Sequence[str] = (
         'dataset_id',
         'table_id',
+        'project_id',
         'max_results',
         'selected_fields',
         'impersonation_chain',
@@ -397,6 +405,7 @@ class BigQueryGetDataOperator(BaseOperator):
         *,
         dataset_id: str,
         table_id: str,
+        project_id: Optional[str] = None,
         max_results: int = 100,
         selected_fields: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
@@ -415,6 +424,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.project_id = project_id
 
     def execute(self, context: 'Context') -> list:
         self.log.info(
@@ -441,6 +451,7 @@ class BigQueryGetDataOperator(BaseOperator):
             max_results=self.max_results,
             selected_fields=self.selected_fields,
             location=self.location,
+            project_id=self.project_id,
         )
 
         self.log.info('Total extracted rows: %s', len(rows))
@@ -2139,7 +2150,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        # Submit a new job and wait for it to complete and get the result.
+        # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,
             project_id=self.project_id,
@@ -2147,6 +2158,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
+            nowait=True,
         )
 
     @staticmethod
@@ -2174,7 +2186,6 @@ class BigQueryInsertJobOperator(BaseOperator):
         try:
             self.log.info("Executing: %s'", self.configuration)
             job = self._submit_job(hook, job_id)
-            self._handle_job_error(job)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
@@ -2182,11 +2193,7 @@ class BigQueryInsertJobOperator(BaseOperator):
                 location=self.location,
                 job_id=job_id,
             )
-            if job.state in self.reattach_states:
-                # We are reattaching to a job
-                job.result(timeout=self.result_timeout, retry=self.result_retry)
-                self._handle_job_error(job)
-            else:
+            if job.state not in self.reattach_states:
                 # Same job configuration so we need force_rerun
                 raise AirflowException(
                     f"Job with id: {job_id} already exists and is in {job.state} state. If you "
@@ -2221,10 +2228,16 @@ class BigQueryInsertJobOperator(BaseOperator):
                             BigQueryTableLink.persist(**persist_kwargs)
 
         self.job_id = job.job_id
-        return job.job_id
+        # Wait for the job to complete
+        job.result(timeout=self.result_timeout, retry=self.result_retry)
+        self._handle_job_error(job)
+
+        return self.job_id
 
     def on_kill(self) -> None:
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(  # type: ignore[union-attr]
                 job_id=self.job_id, project_id=self.project_id, location=self.location
             )
+        else:
+            self.log.info('Skipping to cancel job: %s:%s.%s', self.project_id, self.location, self.job_id)

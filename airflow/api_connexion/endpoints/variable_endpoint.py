@@ -42,13 +42,13 @@ def delete_variable(*, variable_key: str) -> Response:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
-def get_variable(*, variable_key: str) -> Response:
-    """Get a variables by key"""
-    try:
-        var = Variable.get(variable_key)
-    except KeyError:
+@provide_session
+def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
+    """Get a variable by key"""
+    var = session.query(Variable).filter(Variable.key == variable_key)
+    if not var.count():
         raise NotFound("Variable not found")
-    return variable_schema.dump({"key": variable_key, "val": var})
+    return variable_schema.dump(var.first())
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])

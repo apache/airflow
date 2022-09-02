@@ -77,7 +77,7 @@ class DaskExecutor(BaseExecutor):
         executor_config: Optional[Any] = None,
     ) -> None:
 
-        self.validate_command(command)
+        self.validate_airflow_tasks_run_command(command)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)

@@ -141,6 +141,11 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
         "snowflake",
     ),
+    (
+        "You have an incompatible version of 'pyarrow' installed (6.0.1), please install a version that "
+        "adheres to: 'pyarrow<8.1.0,>=8.0.0; extra == \"pandas\"'",
+        "snowflake",
+    ),
     ("dns.hash module will be removed in future versions. Please use hashlib instead.", "dns"),
     ("PKCS#7 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
     ("PKCS#12 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
@@ -182,6 +187,23 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "scrapbook",
     ),
     ("SelectableGroups dict interface is deprecated. Use select.", "markdown"),
+    ("'_app_ctx_stack' is deprecated and will be removed in Flask 2.3.", "flask_sqlalchemy"),
+    ("'_app_ctx_stack' is deprecated and will be removed in Flask 2.3.", "flask_appbuilder"),
+    # Currently (2.2) Flask app builder has the `remoevd` typo in the messages,
+    # and they might want to fix it, so adding both
+    ("'_request_ctx_stack' is deprecated and will be remoevd in Flask 2.3.", 'flask_appbuilder'),
+    ("'_request_ctx_stack' is deprecated and will be removed in Flask 2.3.", 'flask_appbuilder'),
+    ("'_request_ctx_stack' is deprecated and will be removed in Flask 2.3.", 'flask_jwt_extended'),
+    (
+        "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
+        "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
+        'botocore',
+    ),
+    (
+        "'urllib3.contrib.pyopenssl' module is deprecated and will be removed in a future release of "
+        "urllib3 2.x. Read more in this issue: https://github.com/urllib3/urllib3/issues/2680",
+        'requests_toolbelt',
+    ),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
@@ -208,7 +230,6 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau`.",
     "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
@@ -220,34 +241,20 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
     'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
     ' got 216 from PyObject',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.step_function`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.dms`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.dms`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
-    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
-    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.emr`.',
     'This module is deprecated. Please use `airflow.providers.opsgenie.hooks.opsgenie`.',
     'This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie`.',
-    'This module is deprecated. Please use `airflow.hooks.redshift_sql` '
-    'or `airflow.hooks.redshift_cluster` as appropriate.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` or '
-    '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
-    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
     "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.lambda_function`.",
+    (
+        """
+        S3ToSnowflakeOperator is deprecated.
+        Please use
+        `airflow.providers.snowflake.transfers.copy_into_snowflake.CopyFromExternalStageToSnowflakeOperator`.
+        """
+    ),
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.hooks.jira`.",
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.operators.jira`.",
+    "This module is deprecated. Please use `airflow.providers.atlassian.jira.sensors.jira`.",
 }
 
 

@@ -26,6 +26,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.timezone import datetime
@@ -55,15 +56,18 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
-    @mock_s3
     def test_use_threads_default_value(self):
         hook = S3Hook()
         assert hook.transfer_config.use_threads is True
 
-    @mock_s3
     def test_use_threads_set_value(self):
         hook = S3Hook(transfer_config_args={"use_threads": False})
         assert hook.transfer_config.use_threads is False
+
+    @pytest.mark.parametrize("transfer_config_args", [1, True, '{"use_threads": false}'])
+    def test_transfer_config_args_invalid(self, transfer_config_args):
+        with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
+            S3Hook(transfer_config_args=transfer_config_args)
 
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
@@ -124,6 +128,43 @@ class TestAwsS3Hook:
         assert bucket is not None
         region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         assert region == 'us-east-2'
+
+    @mock_s3
+    @pytest.mark.parametrize("region_name", ["eu-west-1", "us-east-1"])
+    def test_create_bucket_regional_endpoint(self, region_name, monkeypatch):
+        conn = Connection(
+            conn_id="regional-endpoint",
+            conn_type="aws",
+            extra={
+                "config_kwargs": {"s3": {"us_east_1_regional_endpoint": "regional"}},
+            },
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            monkeypatch.delenv('AWS_DEFAULT_REGION', raising=False)
+            hook = S3Hook(aws_conn_id=conn.conn_id)
+            bucket_name = f"regional-{region_name}"
+            hook.create_bucket(bucket_name, region_name=region_name)
+            bucket = hook.get_bucket(bucket_name)
+            assert bucket is not None
+            assert bucket.name == bucket_name
+            region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
+            assert region == (region_name if region_name != "us-east-1" else None)
+
+    def test_create_bucket_no_region_regional_endpoint(self, monkeypatch):
+        conn = Connection(
+            conn_id="no-region-regional-endpoint",
+            conn_type="aws",
+            extra={"config_kwargs": {"s3": {"us_east_1_regional_endpoint": "regional"}}},
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            monkeypatch.delenv('AWS_DEFAULT_REGION', raising=False)
+            hook = S3Hook(aws_conn_id=conn.conn_id)
+            error_message = (
+                "Unable to create bucket if `region_name` not set and boto3 "
+                r"configured to use s3 regional endpoints\."
+            )
+            with pytest.raises(AirflowException, match=error_message):
+                hook.create_bucket("unable-to-create")
 
     def test_check_for_prefix(self, s3_bucket):
         hook = S3Hook()
@@ -509,7 +550,7 @@ class TestAwsS3Hook:
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError, match="extra_args expected dict, got .*"):
             S3Hook(extra_args=1)
 
     def test_should_throw_error_if_extra_args_contains_unknown_arg(self, s3_bucket):

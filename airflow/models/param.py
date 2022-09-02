@@ -20,7 +20,7 @@ import json
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -59,7 +59,7 @@ class Param:
             warnings.warn(
                 "The use of non-json-serializable params is deprecated and will be removed in "
                 "a future release",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
             )
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
@@ -146,6 +146,9 @@ class ParamsDict(MutableMapping[str, Any]):
 
     def __iter__(self):
         return iter(self.__dict)
+
+    def __repr__(self):
+        return repr(self.dump())
 
     def __setitem__(self, key: str, value: Any) -> None:
         """

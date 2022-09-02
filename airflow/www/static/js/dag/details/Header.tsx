@@ -24,25 +24,22 @@ import {
   BreadcrumbLink,
   Text,
 } from '@chakra-ui/react';
-import { MdPlayArrow, MdOutlineSchedule } from 'react-icons/md';
-import { RiArrowGoBackFill } from 'react-icons/ri';
 
-import { getMetaValue } from 'src/utils';
+import { getDagRunLabel, getMetaValue, getTask } from 'src/utils';
 import useSelection from 'src/dag/useSelection';
 import Time from 'src/components/Time';
-import { useTasks, useGridData } from 'src/api';
+import { useGridData } from 'src/api';
+import RunTypeIcon from 'src/components/RunTypeIcon';
 
 import BreadcrumbText from './BreadcrumbText';
 
 const dagId = getMetaValue('dag_id');
 
 const Header = () => {
-  const { data: { dagRuns } } = useGridData();
-  const { data: { tasks } } = useTasks();
+  const { data: { dagRuns, groups, ordering } } = useGridData();
 
-  const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();
+  const { selected: { taskId, runId, mapIndex }, onSelect, clearSelection } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
-  const task = tasks.find((t) => t.taskId === taskId);
 
   // clearSelection if the current selected dagRun is
   // filtered out.
@@ -54,42 +51,32 @@ const Header = () => {
 
   let runLabel;
   if (dagRun && runId) {
-    if (runId.includes('manual__') || runId.includes('scheduled__') || runId.includes('backfill__')) {
-      runLabel = (<Time dateTime={dagRun.dataIntervalStart || dagRun.executionDate} />);
-    } else {
-      runLabel = runId;
-    }
-    if (dagRun.runType === 'manual') {
-      runLabel = (
-        <>
-          <MdPlayArrow style={{ display: 'inline' }} />
-          {runLabel}
-        </>
-      );
-    } else if (dagRun.runType === 'backfill') {
-      runLabel = (
-        <>
-          <RiArrowGoBackFill style={{ display: 'inline' }} />
-          {runLabel}
-        </>
-      );
-    } else if (dagRun.runType === 'scheduled') {
-      runLabel = (
-        <>
-          <MdOutlineSchedule style={{ display: 'inline' }} />
-          {runLabel}
-        </>
-      );
-    }
+    // If a runId includes the runtype then parse the time, otherwise use the custom run id
+    const runName = (
+      runId.includes('manual__')
+      || runId.includes('scheduled__')
+      || runId.includes('backfill__')
+      || runId.includes('dataset_triggered__')
+    )
+      ? <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
+      : runId;
+    runLabel = (
+      <>
+        <RunTypeIcon runType={dagRun.runType} />
+        {runName}
+      </>
+    );
   }
 
-  const isMapped = task && task.isMapped;
+  const group = getTask({ taskId, task: groups });
+
   const lastIndex = taskId ? taskId.lastIndexOf('.') : null;
   const taskName = taskId && lastIndex ? taskId.substring(lastIndex + 1) : taskId;
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
-  const isTaskDetails = runId && taskId;
+  const isTaskDetails = runId && taskId && mapIndex === null;
+  const isMappedTaskDetails = runId && taskId && mapIndex !== null;
 
   return (
     <Breadcrumb separator={<Text color="gray.300">/</Text>}>
@@ -107,8 +94,15 @@ const Header = () => {
       )}
       {taskId && (
         <BreadcrumbItem isCurrentPage mt={4}>
-          <BreadcrumbLink _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
-            <BreadcrumbText label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
+          <BreadcrumbLink onClick={() => onSelect({ runId, taskId })} _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
+            <BreadcrumbText label="Task" value={`${taskName}${group?.isMapped ? ' []' : ''}`} />
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+      )}
+      {mapIndex !== null && (
+        <BreadcrumbItem isCurrentPage mt={4}>
+          <BreadcrumbLink _hover={isMappedTaskDetails ? { cursor: 'default' } : undefined}>
+            <BreadcrumbText label="Map Index" value={mapIndex} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}

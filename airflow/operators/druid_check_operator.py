@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.apache.druid.operators.druid_check`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.common.sql.operators.sql`."""
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.apache.druid.operators.druid_check import DruidCheckOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.sql.SQLCheckOperator`.",
-    DeprecationWarning,
+    "This module is deprecated. Please use `airflow.providers.common.sql.operators.sql` module.",
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )

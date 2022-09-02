@@ -135,10 +135,6 @@ def is_core_commit(files: List[str]) -> bool:
         "STATIC_CODE_CHECKS.rst",
         "images/",
         "TESTING.rst",
-        # dev/release/testing
-        "breeze",
-        "breeze-legacy",
-        "breeze-complete",
         "codecov.yml",
         "pytest.ini",
         "kubernetes_tests/",
@@ -157,7 +153,6 @@ def is_core_commit(files: List[str]) -> bool:
         ".devcontainer/",
         "docker-context-files/",
         # Misc
-        "airflow/ui",
         ".dockerignore",
         "docs/spelling_wordlist.txt",
         "docs/integration-logos/*",
@@ -173,6 +168,11 @@ def is_core_commit(files: List[str]) -> bool:
         for ignore in non_core_files:
             if file.startswith(ignore):
                 break
+            # Handle renaming. Form: {old_name => new_name}somename.py
+            elif file.startswith("{"):
+                new_files = file[1:].split(" => ")
+                if any(n.strip().startswith(ignore) for n in new_files):
+                    break
         else:
             return True
     return False

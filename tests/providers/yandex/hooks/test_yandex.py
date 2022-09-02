@@ -43,7 +43,11 @@ class TestYandexHook(unittest.TestCase):
         )
         get_credentials_mock.return_value = {"token": 122323}
 
-        hook = YandexCloudBaseHook(None, default_folder_id, default_public_ssh_key)
+        hook = YandexCloudBaseHook(
+            yandex_conn_id=None,
+            default_folder_id=default_folder_id,
+            default_public_ssh_key=default_public_ssh_key,
+        )
         assert hook.client is not None
 
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
@@ -63,7 +67,11 @@ class TestYandexHook(unittest.TestCase):
         )
 
         with pytest.raises(AirflowException):
-            YandexCloudBaseHook(None, default_folder_id, default_public_ssh_key)
+            YandexCloudBaseHook(
+                yandex_conn_id=None,
+                default_folder_id=default_folder_id,
+                default_public_ssh_key=default_public_ssh_key,
+            )
 
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
@@ -80,6 +88,10 @@ class TestYandexHook(unittest.TestCase):
         )
         get_credentials_mock.return_value = {"token": 122323}
 
-        hook = YandexCloudBaseHook(None, default_folder_id, default_public_ssh_key)
+        hook = YandexCloudBaseHook(
+            yandex_conn_id=None,
+            default_folder_id=default_folder_id,
+            default_public_ssh_key=default_public_ssh_key,
+        )
 
         assert hook._get_field('one') == 'value_one'

@@ -51,7 +51,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         self.dag = DAG(
             "branch_day_of_week_operator_test",
             start_date=DEFAULT_DATE,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)

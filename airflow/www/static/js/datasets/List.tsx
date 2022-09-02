@@ -20,23 +20,22 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
-  Code,
   Heading,
+  Flex,
+  Text,
+  Link,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import Table from 'src/components/Table';
-import Time from 'src/components/Time';
+import { Table } from 'src/components/Table';
 import type { API } from 'src/types';
+import { getMetaValue } from 'src/utils';
 
 interface Props {
   onSelect: (datasetId: string) => void;
 }
-
-const TimeCell = ({ cell: { value } }: any) => <Time dateTime={value} />;
-const CodeCell = ({ cell: { value } }: any) => <Code>{value}</Code>;
 
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
@@ -54,22 +53,6 @@ const DatasetsList = ({ onSelect }: Props) => {
         Header: 'URI',
         accessor: 'uri',
       },
-      {
-        Header: 'Extra',
-        accessor: 'extra',
-        disableSortBy: true,
-        Cell: CodeCell,
-      },
-      {
-        Header: 'Created At',
-        accessor: 'createdAt',
-        Cell: TimeCell,
-      },
-      {
-        Header: 'Updated At',
-        accessor: 'updatedAt',
-        Cell: TimeCell,
-      },
     ],
     [],
   );
@@ -80,14 +63,27 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    onSelect(row.id);
+    if (row.original.uri) onSelect(row.original.uri);
   };
 
+  const docsUrl = getMetaValue('datasets_docs');
+
   return (
-    <Box maxWidth="1500px">
-      <Heading mt={3} mb={2} fontWeight="normal">
-        Datasets
-      </Heading>
+    <Box>
+      <Flex justifyContent="space-between" alignItems="center">
+        <Heading mt={3} mb={2} fontWeight="normal" size="lg">
+          Datasets
+        </Heading>
+      </Flex>
+      {!datasets.length && !isLoading && (
+        <Text>
+          Looks like you do not have any datasets yet. Check out the
+          {' '}
+          <Link color="blue" href={docsUrl} isExternal>docs</Link>
+          {' '}
+          to learn how to create a dataset.
+        </Text>
+      )}
       <Box borderWidth={1}>
         <Table
           data={data}

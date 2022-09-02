@@ -41,7 +41,7 @@ DAG_ID = "example_qubole_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=START_DATE,
     tags=['example'],
 ) as dag:

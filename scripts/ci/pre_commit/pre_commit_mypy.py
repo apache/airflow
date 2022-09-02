@@ -31,22 +31,23 @@ GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
 # allow "False", "false", "True", "true", "f", "F", "t", "T" and the like
 VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
 DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
+os.environ['SKIP_GROUP_OUTPUT'] = "true"
 
 if __name__ == '__main__':
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
     from airflow_breeze.global_constants import MOUNT_SELECTED
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-    from airflow_breeze.utils.path_utils import create_static_check_volumes
-    from airflow_breeze.utils.run_utils import get_runnable_ci_image, run_command
+    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed
+    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
 
-    airflow_image = get_runnable_ci_image(verbose=VERBOSE, dry_run=DRY_RUN)
-    create_static_check_volumes()
+    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
+    create_mypy_volume_if_needed()
     cmd_result = run_command(
         [
             "docker",
             "run",
             "-t",
-            *get_extra_docker_flags(MOUNT_SELECTED),
+            *get_extra_docker_flags(MOUNT_SELECTED, include_mypy_volume=True),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
             "-e",

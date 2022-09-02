@@ -15,11 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
-
-from pendulum import DateTime
+import operator
+from typing import TYPE_CHECKING, Any, Collection, Dict, Optional
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+    from sqlalchemy import Session
+
+    from airflow.models.dataset import DatasetEvent
+    from airflow.utils.types import DagRunType
 
 
 class _TrivialTimetable(Timetable):
@@ -27,6 +33,7 @@ class _TrivialTimetable(Timetable):
 
     periodic = False
     can_run = False
+    run_ordering = ("execution_date",)
 
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
@@ -44,14 +51,14 @@ class _TrivialTimetable(Timetable):
     def serialize(self) -> Dict[str, Any]:
         return {}
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: "DateTime") -> DataInterval:
         return DataInterval.exact(run_after)
 
 
 class NullTimetable(_TrivialTimetable):
     """Timetable that never schedules anything.
 
-    This corresponds to ``schedule_interval=None``.
+    This corresponds to ``schedule=None``.
     """
 
     description: str = "Never, external triggers only"
@@ -72,7 +79,7 @@ class NullTimetable(_TrivialTimetable):
 class OnceTimetable(_TrivialTimetable):
     """Timetable that schedules the execution once as soon as possible.
 
-    This corresponds to ``schedule_interval="@once"``.
+    This corresponds to ``schedule="@once"``.
     """
 
     description: str = "Once, as soon as possible"
@@ -103,8 +110,7 @@ class OnceTimetable(_TrivialTimetable):
 class DatasetTriggeredTimetable(NullTimetable):
     """Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG specifies
-    ``schedule_on`` and is triggered by a dataset.
+    This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
 
     :meta private:
     """
@@ -114,3 +120,34 @@ class DatasetTriggeredTimetable(NullTimetable):
     @property
     def summary(self) -> str:
         return "Dataset"
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: "DagRunType",
+        logical_date: "DateTime",
+        data_interval: Optional[DataInterval],
+        session: Optional["Session"] = None,
+        events: Optional[Collection["DatasetEvent"]] = None,
+        **extra,
+    ) -> str:
+        from airflow.models.dagrun import DagRun
+
+        return DagRun.generate_run_id(run_type, logical_date)
+
+    def data_interval_for_events(
+        self,
+        logical_date: "DateTime",
+        events: Collection["DatasetEvent"],
+    ) -> DataInterval:
+
+        if not events:
+            return DataInterval(logical_date, logical_date)
+
+        start = min(
+            events, key=operator.attrgetter('source_dag_run.data_interval_start')
+        ).source_dag_run.data_interval_start
+        end = max(
+            events, key=operator.attrgetter('source_dag_run.data_interval_end')
+        ).source_dag_run.data_interval_end
+        return DataInterval(start, end)

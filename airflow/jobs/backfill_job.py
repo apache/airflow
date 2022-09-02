@@ -299,6 +299,8 @@ class BackfillJob(BaseJob):
                 respect_dag_max_active_limit = False
             # Fixes --conf overwrite for backfills with already existing DagRuns
             run.conf = self.conf or {}
+            # start_date is cleared for existing DagRuns
+            run.start_date = timezone.utcnow()
         else:
             run = None
 
@@ -876,7 +878,7 @@ class BackfillJob(BaseJob):
             session.commit()
             executor.end()
 
-        self.log.info("Backfill done. Exiting.")
+        self.log.info("Backfill done for DAG %s. Exiting.", self.dag)
 
     @provide_session
     def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):

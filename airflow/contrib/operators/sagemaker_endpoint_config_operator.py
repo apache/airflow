@@ -17,18 +17,20 @@
 # under the License.
 """
 This module is deprecated.
-Please use `airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`.
+Please use `airflow.providers.amazon.aws.operators.sagemaker`.
 """
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.sagemaker_endpoint_config import (  # noqa
-    SageMakerEndpointConfigOperator,
-)
+try:
+    from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.sagemaker_endpoint_config import (  # type: ignore[no-redef]  # noqa
+        SageMakerEndpointConfigOperator,
+    )
 
 warnings.warn(
-    "This module is deprecated. "
-    "Please use `airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.",
     DeprecationWarning,
     stacklevel=2,
 )

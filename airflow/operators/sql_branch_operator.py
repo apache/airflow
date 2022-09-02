@@ -14,27 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.operators.sql`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.common.sql.operators.sql`."""
 import warnings
 
-from airflow.operators.sql import BranchSQLOperator
+from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.providers.common.sql.operators.sql import BranchSQLOperator
 
 warnings.warn(
-    "This module is deprecated. Please use :mod:`airflow.operators.sql`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use :mod:`airflow.providers.common.sql.operators.sql`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
 )
 
 
 class BranchSqlOperator(BranchSQLOperator):
     """
     This class is deprecated.
-    Please use `airflow.operators.sql.BranchSQLOperator`.
+    Please use `airflow.providers.common.sql.operators.sql.BranchSQLOperator`.
     """
 
     def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.operators.sql.BranchSQLOperator`.""",
-            DeprecationWarning,
+            Please use `airflow.providers.common.sql.operators.sql.BranchSQLOperator`.""",
+            RemovedInAirflow3Warning,
             stacklevel=2,
         )
         super().__init__(**kwargs)

@@ -67,14 +67,6 @@ class AirflowRescheduleException(AirflowException):
         self.reschedule_date = reschedule_date
 
 
-class AirflowSmartSensorException(AirflowException):
-    """
-    Raise after the task register itself in the smart sensor service.
-
-    It should exit without failing a task.
-    """
-
-
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
 
@@ -99,6 +91,19 @@ class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
 
+class XComNotFound(AirflowException):
+    """Raise when an XCom reference is being resolved against a non-existent XCom."""
+
+    def __init__(self, dag_id: str, task_id: str, key: str) -> None:
+        super().__init__()
+        self.dag_id = dag_id
+        self.task_id = task_id
+        self.key = key
+
+    def __str__(self) -> str:
+        return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
+
+
 class UnmappableOperator(AirflowException):
     """Raise when an operator is not implemented to be mappable."""
 
@@ -121,18 +126,6 @@ class UnmappableXComTypePushed(AirflowException):
         for arg in self.args[1:]:
             typename = f"{typename}[{type(arg).__qualname__}]"
         return f"unmappable return type {typename!r}"
-
-
-class UnmappableXComValuePushed(AirflowException):
-    """Raise when an invalid value is pushed as a mapped downstream's dependency."""
-
-    def __init__(self, value: Any, reason: str) -> None:
-        super().__init__(value, reason)
-        self.value = value
-        self.reason = reason
-
-    def __str__(self) -> str:
-        return f"unmappable return value {self.value!r} ({self.reason})"
 
 
 class UnmappableXComLengthPushed(AirflowException):
@@ -345,3 +338,17 @@ class TaskDeferralError(AirflowException):
 
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
+
+
+class RemovedInAirflow3Warning(DeprecationWarning):
+    """Issued for usage of deprecated features that will be removed in Airflow3."""
+
+    deprecated_since: Optional[str] = None
+    "Indicates the airflow version that started raising this deprecation warning"
+
+
+class AirflowProviderDeprecationWarning(DeprecationWarning):
+    """Issued for usage of deprecated features of Airflow provider."""
+
+    deprecated_provider_since: Optional[str] = None
+    "Indicates the provider version that started raising this deprecation warning"

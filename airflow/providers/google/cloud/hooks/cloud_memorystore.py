@@ -84,7 +84,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
     def get_conn(self) -> CloudRedisClient:
         """Retrieves client library object that allow access to Cloud Memorystore service."""
         if not self._client:
-            self._client = CloudRedisClient(credentials=self._get_credentials())
+            self._client = CloudRedisClient(credentials=self.get_credentials())
         return self._client
 
     @staticmethod
@@ -478,8 +478,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        result.result()
+        updated_instance = result.result()
         self.log.info("Instance updated: %s", instance.name)
+        return updated_instance
 
 
 class CloudMemorystoreMemcachedHook(GoogleBaseHook):
@@ -521,7 +522,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     ):
         """Retrieves client library object that allow access to Cloud Memorystore Memcached service."""
         if not self._client:
-            self._client = CloudMemcacheClient(credentials=self._get_credentials())
+            self._client = CloudMemcacheClient(credentials=self.get_credentials())
         return self._client
 
     @staticmethod
@@ -833,8 +834,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         result = client.update_instance(
             update_mask=update_mask, resource=instance, retry=retry, timeout=timeout, metadata=metadata or ()
         )
-        result.result()
+        updated_instance = result.result()
         self.log.info("Instance updated: %s", instance.name)
+        return updated_instance
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_parameters(

@@ -66,7 +66,7 @@ def use_elasticsearch_hook():
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "elasticsearch"],

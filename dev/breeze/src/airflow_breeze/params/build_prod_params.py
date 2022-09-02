@@ -16,13 +16,12 @@
 # under the License.
 
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -39,12 +38,13 @@ class BuildProdParams(CommonBuildParams):
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
+    additional_runtime_apt_command: str = ""
+    additional_runtime_apt_deps: str = ""
+    additional_runtime_apt_env: str = ""
     airflow_constraints_mode: str = "constraints"
-    default_constraints_branch: str = os.environ.get(
-        'DEFAULT_CONSTRAINTS_BRANCH', DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
     airflow_constraints_reference: str = ""
     cleanup_context: bool = False
+    airflow_extras: str = get_airflow_extras()
     disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
@@ -53,7 +53,8 @@ class BuildProdParams(CommonBuildParams):
     install_airflow_version: str = ""
     install_packages_from_context: bool = False
     installation_method: str = "."
-    airflow_extras: str = get_airflow_extras()
+    runtime_apt_command: str = ""
+    runtime_apt_deps: str = ""
 
     @property
     def airflow_version(self) -> str:
@@ -197,16 +198,12 @@ class BuildProdParams(CommonBuildParams):
         return "docker-context-files"
 
     @property
+    def airflow_image_kubernetes(self) -> str:
+        return f"{self.airflow_image_name}-kubernetes"
+
+    @property
     def required_image_args(self) -> List[str]:
         return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
             "airflow_branch",
             "airflow_constraints_mode",
             "airflow_extras",
@@ -230,6 +227,15 @@ class BuildProdParams(CommonBuildParams):
     @property
     def optional_image_args(self) -> List[str]:
         return [
+            "additional_airflow_extras",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_pip_install_flags",
+            "additional_python_deps",
+            "additional_runtime_apt_command",
+            "additional_runtime_apt_deps",
+            "additional_runtime_apt_env",
             "dev_apt_command",
             "dev_apt_deps",
             "runtime_apt_command",

@@ -84,7 +84,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$|^airflow/_vendor/|^dev/breeze/autocomplete/.*$
-        files: ^breeze-legacy$|^breeze-complete$|\.bash$|\.sh$
+        files: \.bash$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -239,6 +239,15 @@ repos:
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
+        args:
+          # These -p options are duplicated to known_first_party in setup.cfg,
+          # Please keep these in sync for now. (See comments there for details.)
+          - -p=airflow
+          - -p=airflow_breeze
+          - -p=docker_tests
+          - -p=docs
+          - -p=kubernetes_tests
+          - -p=tests
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -292,10 +301,10 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$
+        exclude: ^airflow/_vendor/|^RELEASE_NOTES\.txt$|^airflow/www/static/css/material-icons\.css$|^images/.*$|^.*package-lock.json$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv,airflow/www/*.log
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/tutorial/pipeline_example.csv,airflow/www/*.log
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
@@ -324,8 +333,8 @@ repos:
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint dockerfile
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_lint_dockerfile.py
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
@@ -352,13 +361,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-breeze-cmd-output
-        name: Update output of breeze commands in BREEZE.rst
-        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
-        language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
@@ -376,7 +378,7 @@ repos:
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
         language: python
-        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|$airflow/providers/.*/provider.yaml$
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|^airflow/providers/.*/provider.yaml$
         pass_filenames: false
         additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
       - id: update-extras
@@ -466,7 +468,6 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^tests/cli/commands/test_webserver_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
-          ^airflow/ui/yarn.lock$|
           ^airflow/config_templates/default_airflow.cfg$|
           ^airflow/config_templates/config.yml$|
           ^docs/*.*$|
@@ -480,7 +481,13 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
         pass_filenames: false
-        files: ^airflow/models/(?:base|mapped)operator.py$
+        files: ^airflow/models/(?:base|mapped)operator\.py$
+      - id: check-dag-init-decorator-arguments
+        name: Check DAG and @dag arguments
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_dag_init_decorator.py
+        pass_filenames: false
+        files: ^airflow/models/dag\.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -506,6 +513,19 @@ repos:
           (?x)
           ^airflow/providers/.*\.py$
         exclude: ^airflow/_vendor/
+      - id: check-decorated-operator-implements-custom-name
+        name: Check @task decorator implements custom_operator_name
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_decorator_operator_implements_custom_name.py
+        pass_filenames: true
+        files: ^airflow/.*\.py$
+      - id: check-core-deprecation-classes
+        language: pygrep
+        name: Verify using of dedicated Airflow deprecation classes in core
+        entry: category=DeprecationWarning|category=PendingDeprecationWarning
+        files: \.py$
+        exclude: ^airflow/configuration.py|^airflow/providers|^scripts/in_container/verify_providers.py
+        pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
         name: Check provide_session and create_session imports
@@ -536,16 +556,10 @@ repos:
         files: \.*example_dags.*\.py$
         exclude: ^airflow/_vendor/
         pass_filenames: true
-      - id: check-integrations-are-consistent
-        name: Check if integration list is consistent in various places
-        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
-        language: system
-        pass_filenames: false
-        files: ^common/_common_values\.sh$|^breeze-complete$
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
-        entry: ./scripts/ci/pre_commit/pre_commit_check_license.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_check_license.py
+        language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
       - id: check-airflow-config-yaml-consistent
@@ -577,16 +591,17 @@ repos:
         require_serial: true
       - id: lint-helm-chart
         name: Lint Helm Chart
-        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
+        language: python
         pass_filenames: false
         files: ^chart
         require_serial: true
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: run-shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:v0.8.0 -x -a
-        files: ^breeze-legacy$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$
+        files: ^.*\.sh$|^hooks/build$|^hooks/push$|\.bash$
         exclude: ^dev/breeze/autocomplete/.*$
       - id: lint-css
         name: stylelint
@@ -604,12 +619,21 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets.py
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.19']
+      - id: compile-www-assets-dev
+        name: Compile www assets in dev mode
+        language: node
+        stages: ['manual']
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/www/
+        entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets_dev.py
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.19']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
         pass_filenames: false
         always_run: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.py
+        language: python
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
@@ -821,14 +845,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: lint-javascript
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
       - id: ts-compile-and-lint-javascript
         name: TS types generation and ESLint against current UI files
         language: node
@@ -869,6 +885,13 @@ repos:
         exclude: ^docs/rtd-deprecation
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+      - id: update-breeze-cmd-output
+        name: Update output of breeze commands in BREEZE.rst
+        entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
+        language: python
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
+        pass_filenames: false
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: run-flake8
         name: Run flake8
         language: python

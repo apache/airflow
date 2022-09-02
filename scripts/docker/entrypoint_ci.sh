@@ -20,7 +20,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
 fi
 
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
-. /opt/airflow/scripts/in_container/_in_container_script_init.sh
+. "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
 # This one is to workaround https://github.com/apache/airflow/issues/17546
 # issue with /usr/lib/<MACHINE>-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
@@ -65,6 +65,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    TEST_TIMEOUT=${TEST_TIMEOUT:="60"}
 
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
@@ -193,7 +194,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
-    # Create symbolic link to fix possible issues with kubectl config cmd-path
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
@@ -244,7 +244,7 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -256,9 +256,9 @@ EXTRA_PYTEST_ARGS=(
     # timeouts in seconds for individual tests
     "--timeouts-order"
     "moi"
-    "--setup-timeout=60"
-    "--execution-timeout=60"
-    "--teardown-timeout=60"
+    "--setup-timeout=${TEST_TIMEOUT}"
+    "--execution-timeout=${TEST_TIMEOUT}"
+    "--teardown-timeout=${TEST_TIMEOUT}"
     # Only display summary for non-expected case
     # f - failed
     # E - error
@@ -272,9 +272,11 @@ EXTRA_PYTEST_ARGS=(
 )
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
+    echo "Running tests with ${_cpus} CPUs in parallel"
     # Enable parallelism
     EXTRA_PYTEST_ARGS+=(
-        "-n" "auto"
+        "-n" "${_cpus}"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -286,7 +288,7 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
 fi
 

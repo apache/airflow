@@ -33,7 +33,7 @@ api_client = ApiClient()
 
 CHART_DIR = str((Path(__file__).parent / ".." / ".." / "chart").resolve())
 
-DEFAULT_KUBERNETES_VERSION = "1.22.0"
+DEFAULT_KUBERNETES_VERSION = "1.24.4"
 BASE_URL_SPEC = (
     f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
@@ -102,7 +102,7 @@ def validate_k8s_object(instance, kubernetes_version):
 
 
 def render_chart(
-    name="RELEASE-NAME",
+    name="release-name",
     values=None,
     show_only=None,
     chart_dir=None,

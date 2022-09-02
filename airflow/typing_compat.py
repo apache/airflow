@@ -21,10 +21,28 @@ This module provides helper code to make type annotation within Airflow
 codebase easier.
 """
 
-try:
-    # Literal, Protocol and TypedDict are only added to typing module starting from
-    # python 3.8 we can safely remove this shim import after Airflow drops
-    # support for <3.8
-    from typing import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore
-except ImportError:
-    from typing_extensions import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore # noqa
+__all__ = [
+    "Literal",
+    "ParamSpec",
+    "Protocol",
+    "TypedDict",
+    "runtime_checkable",
+]
+
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import Protocol, TypedDict, runtime_checkable
+else:
+    from typing_extensions import Protocol, TypedDict, runtime_checkable
+
+# Literal in 3.8 is limited to one single argument, not e.g. "Literal[1, 2]".
+if sys.version_info >= (3, 9):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec

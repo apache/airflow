@@ -21,9 +21,11 @@ import pathlib
 import shutil
 import sys
 import textwrap
+import zipfile
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
+from typing import Iterator
 from unittest import mock
 from unittest.mock import patch
 
@@ -56,14 +58,12 @@ def db_clean_up():
 
 
 class TestDagBag:
-    @classmethod
-    def setup_class(cls):
-        cls.empty_dir = mkdtemp()
+    def setup_class(self):
+        self.empty_dir = mkdtemp()
         db_clean_up()
 
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls.empty_dir)
+    def teardown_class(self):
+        shutil.rmtree(self.empty_dir)
         db_clean_up()
 
     def test_get_existing_dag(self):
@@ -257,18 +257,25 @@ class TestDagBag:
         ):
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, 'test_default_views.py'))
 
-    def test_process_file_cron_validity_check(self):
-        """
-        test if an invalid cron expression
-        as schedule interval can be identified
-        """
-        invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+    @pytest.fixture()
+    def invalid_cron_dag(self) -> str:
+        return os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
 
+    @pytest.fixture()
+    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> Iterator[str]:
+        zipped = os.path.join(tmp_path, "test_zip_invalid_cron.zip")
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.write(invalid_cron_dag, os.path.basename(invalid_cron_dag))
+        yield zipped
+        os.unlink(zipped)
+
+    @pytest.mark.parametrize("invalid_dag_name", ["invalid_cron_dag", "invalid_cron_zipped_dag"])
+    def test_process_file_cron_validity_check(self, request: pytest.FixtureRequest, invalid_dag_name: str):
+        """test if an invalid cron expression as schedule interval can be identified"""
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         assert len(dagbag.import_errors) == 0
-        for file in invalid_dag_files:
-            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
-        assert len(dagbag.import_errors) == len(invalid_dag_files)
+        dagbag.process_file(request.getfixturevalue(invalid_dag_name))
+        assert len(dagbag.import_errors) == 1
         assert len(dagbag.dags) == 0
 
     def test_process_file_invalid_param_check(self):
@@ -398,7 +405,7 @@ class TestDagBag:
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
-            schedule_interval=None,
+            schedule=None,
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
@@ -436,7 +443,7 @@ class TestDagBag:
         actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
 
         for dag_id in expected_dag_ids:
-            actual_dagbag.log.info(f'validating {dag_id}')
+            actual_dagbag.log.info('validating %s', dag_id)
             assert (dag_id in actual_found_dag_ids) == should_be_found, (
                 f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
                 f"have been found after processing dag \"{expected_parent_dag.dag_id}\""
@@ -963,7 +970,7 @@ class TestDagBag:
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -983,7 +990,7 @@ class TestDagBag:
         TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name('dags_corrupted')
         dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -1002,7 +1009,7 @@ class TestDagBag:
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_with_non_default_owner.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert {"test_with_non_default_owner"} == set(dagbag.dag_ids)
 
         assert {} == dagbag.import_errors
@@ -1011,6 +1018,6 @@ class TestDagBag:
     def test_dag_cluster_policy_obeyed(self):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_with_no_tags.py")
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, include_smart_sensor=False)
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert len(dagbag.dag_ids) == 0
         assert "has no tags" in dagbag.import_errors[dag_file]

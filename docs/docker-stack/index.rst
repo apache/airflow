@@ -88,7 +88,7 @@ Usage
 =====
 
 The :envvar:`AIRFLOW_HOME` is set by default to ``/opt/airflow/`` - this means that DAGs
-are in default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
+are by default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
 
 The working directory is ``/opt/airflow`` by default.
 
@@ -98,6 +98,6 @@ If no :envvar:`AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` variable is set then SQLite 
 For example commands that start Airflow see: :ref:`entrypoint:commands`.
 
 Airflow requires many components to function as it is a distributed application. You may therefore also be interested
-in launching Airflow in the Docker Compose environment, see: :doc:`apache-airflow:start/index`.
+in launching Airflow in the Docker Compose environment, see: :doc:`apache-airflow:howto/docker-compose/index`.
 
 You can use this image in :doc:`Helm Chart <helm-chart:index>` as well.

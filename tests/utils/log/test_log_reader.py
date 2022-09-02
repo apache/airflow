@@ -267,7 +267,7 @@ class TestLogView:
         def echo_run_type(dag_run: DagRun, **kwargs):
             print(dag_run.run_type)
 
-        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule_interval="@daily") as dag:
+        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily") as dag:
             PythonOperator(task_id=task_id, python_callable=echo_run_type)
 
         start = pendulum.datetime(2021, 1, 1)

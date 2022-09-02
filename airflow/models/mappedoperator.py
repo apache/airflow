@@ -23,7 +23,6 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Collection,
     Dict,
@@ -31,6 +30,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Set,
@@ -64,8 +64,9 @@ from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ExpandInput,
     ListOfDictsExpandInput,
-    Mappable,
     NotFullyPopulated,
+    OperatorExpandArgument,
+    OperatorExpandKwargsArgument,
     get_mappable_types,
 )
 from airflow.models.pool import Pool
@@ -124,7 +125,7 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
     raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
-def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> None:
+def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
     duplicated_keys = set(kwargs1).intersection(kwargs2)
     if not duplicated_keys:
         return
@@ -138,8 +139,9 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
     from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
 
     if isinstance(arg, XComArg):
-        if arg.key != XCOM_RETURN_KEY:
-            raise ValueError(f"cannot map over XCom with custom key {arg.key!r} from {arg.operator}")
+        for operator, key in arg.iter_references():
+            if key != XCOM_RETURN_KEY:
+                raise ValueError(f"cannot map over XCom with custom key {key!r} from {operator}")
     elif not is_container(arg):
         return
     elif isinstance(arg, collections.abc.Mapping):
@@ -183,7 +185,7 @@ class OperatorPartial:
                 task_id = f"at {hex(id(self))}"
             warnings.warn(f"Task {task_id} was never mapped!")
 
-    def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+    def expand(self, **mapped_kwargs: OperatorExpandArgument) -> "MappedOperator":
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
@@ -192,11 +194,15 @@ class OperatorPartial:
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> "MappedOperator":
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> "MappedOperator":
         from airflow.models.xcom_arg import XComArg
 
-        if not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+        if isinstance(kwargs, collections.abc.Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, collections.abc.Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> "MappedOperator":
@@ -212,6 +218,11 @@ class OperatorPartial:
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
+
+        try:
+            operator_name = self.operator_class.custom_operator_name  # type: ignore
+        except AttributeError:
+            operator_name = self.operator_class.__name__
 
         op = MappedOperator(
             operator_class=self.operator_class,
@@ -229,6 +240,7 @@ class OperatorPartial:
             is_empty=issubclass(self.operator_class, EmptyOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
+            operator_name=operator_name,
             dag=dag,
             task_group=task_group,
             start_date=start_date,
@@ -278,6 +290,7 @@ class MappedOperator(AbstractOperator):
     _is_empty: bool
     _task_module: str
     _task_type: str
+    _operator_name: str
 
     dag: Optional["DAG"]
     task_group: Optional["TaskGroup"]
@@ -318,7 +331,6 @@ class MappedOperator(AbstractOperator):
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
 
-        self._validate_argument_count()
         if self.task_group:
             self.task_group.add(self)
         if self.dag:
@@ -358,24 +370,14 @@ class MappedOperator(AbstractOperator):
             )
         return operator_deps | {MappedTaskIsExpanded()}
 
-    def _validate_argument_count(self) -> None:
-        """Validate mapping arguments by unmapping with mocked values.
-
-        This ensures the user passed enough arguments in the DAG definition for
-        the operator to work in the task runner. This does not guarantee the
-        arguments are *valid* (that depends on the actual mapping values), but
-        makes sure there are *enough* of them.
-        """
-        if not isinstance(self.operator_class, type):
-            return  # No need to validate deserialized operator.
-        kwargs = self._expand_mapped_kwargs(None)
-        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
-        self.operator_class.validate_mapped_arguments(**kwargs)
-
     @property
     def task_type(self) -> str:
         """Implementing Operator."""
         return self._task_type
+
+    @property
+    def operator_name(self) -> str:
+        return self._operator_name
 
     @property
     def inherits_from_empty_operator(self) -> bool:
@@ -493,13 +495,21 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
-    @property
-    def inlets(self) -> Optional[Any]:
+    @property  # type: ignore[override]
+    def inlets(self) -> Optional[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("inlets", None)
 
-    @property
-    def outlets(self) -> Optional[Any]:
+    @inlets.setter
+    def inlets(self, value):  # type: ignore[override]
+        self.partial_kwargs["inlets"] = value
+
+    @property  # type: ignore[override]
+    def outlets(self) -> Optional[Any]:  # type: ignore[override]
         return self.partial_kwargs.get("outlets", None)
+
+    @outlets.setter
+    def outlets(self, value):  # type: ignore[override]
+        self.partial_kwargs["outlets"] = value
 
     @property
     def doc(self) -> Optional[str]:
@@ -525,29 +535,26 @@ class MappedOperator(AbstractOperator):
         """Implementing Operator."""
         return self.dag
 
+    @property
+    def output(self) -> "XComArg":
+        """Returns reference to XCom pushed by current operator"""
+        from airflow.models.xcom_arg import XComArg
+
+        return XComArg(operator=self)
+
     def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Tuple[Mapping[str, Any], Set[int]]:
         """Get the kwargs to create the unmapped operator.
 
-        If *resolve* is not *None*, it must be a two-tuple to provide context to
-        resolve XComArgs (a templating context, and a database session).
-
-        When resolving is not possible (e.g. to perform parse-time validation),
-        *resolve* can be set to *None*. This will cause the dict-of-lists
-        variant to simply return a dict of XComArgs corresponding to each kwargs
-        to pass to the unmapped operator. Since it is impossible to perform any
-        operation on the list-of-dicts variant before execution time, an empty
-        dict will be returned for this case.
+        This exists because taskflow operators expand against op_kwargs, not the
+        entire operator kwargs dict.
         """
-        expand_input = self._get_specified_expand_input()
-        if resolve is not None:
-            return expand_input.resolve(*resolve)
-        return expand_input.get_unresolved_kwargs()
+        return self._get_specified_expand_input().resolve(context, session)
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
         """Get init kwargs to unmap the underlying operator class.
 
         :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
@@ -570,26 +577,28 @@ class MappedOperator(AbstractOperator):
             **mapped_kwargs,
         }
 
-    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
+    def unmap(self, resolve: Union[None, Mapping[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """Get the "normal" Operator after applying the current mapping.
 
-        If ``operator_class`` is not a class (i.e. this DAG has been
-        deserialized), this returns a SerializedBaseOperator that aims to
-        "look like" the actual unmapping result.
+        The *resolve* argument is only used if ``operator_class`` is a real
+        class, i.e. if this operator is not serialized. If ``operator_class`` is
+        not a class (i.e. this DAG has been deserialized), this returns a
+        SerializedBaseOperator that "looks like" the actual unmapping result.
 
-        :param resolve: Only used if ``operator_class`` is a real class. If this
-            is a two-tuple (context, session), the information is used to
-            resolve the mapped arguments into init arguments. If this is a
-            mapping, no resolving happens, the mapping directly provides those
-            init arguments resolved from mapped kwargs.
+        If *resolve* is a two-tuple (context, session), the information is used
+        to resolve the mapped arguments into init arguments. If it is a mapping,
+        no resolving happens, the mapping directly provides those init arguments
+        resolved from mapped kwargs.
 
         :meta private:
         """
         if isinstance(self.operator_class, type):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
+            elif resolve is not None:
+                kwargs, _ = self._expand_mapped_kwargs(*resolve)
             else:
-                kwargs = self._expand_mapped_kwargs(resolve)
+                raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
@@ -613,20 +622,6 @@ class MappedOperator(AbstractOperator):
         """Input received from the expand call on the operator."""
         return getattr(self, self._expand_input_attr)
 
-    @property
-    def validate_upstream_return_value(self) -> Callable[[Any], None]:
-        """Validate an upstream's return value satisfies this task's needs.
-
-        This is implemented as a property (instead of a function calling
-        ``validate_xcom``) so the call site in TaskInstance can de-duplicate
-        validation functions. If this is an instance method, each
-        ``validate_upstream_return_value`` would be a different object (due to
-        how Python handles bounded functions), and de-duplication won't work.
-
-        :meta private:
-        """
-        return self._get_specified_expand_input().validate_xcom
-
     def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.
 
@@ -636,7 +631,17 @@ class MappedOperator(AbstractOperator):
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import task_instance_mutation_hook
 
-        total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        total_length: Optional[int]
+        try:
+            total_length = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        except NotFullyPopulated as e:
+            self.log.info(
+                "Cannot expand %r for run %s; missing upstream values: %s",
+                self,
+                run_id,
+                sorted(e.missing),
+            )
+            total_length = None
 
         state: Optional[TaskInstanceState] = None
         unmapped_ti: Optional[TaskInstance] = (
@@ -656,23 +661,32 @@ class MappedOperator(AbstractOperator):
         if unmapped_ti:
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
-            if total_length < 1:
-                # If the upstream maps this to a zero-length value, simply marked the
-                # unmapped task instance as SKIPPED (if needed).
+            if total_length is None:
+                # If the map length cannot be calculated (due to unavailable
+                # upstream sources), fail the unmapped task.
+                unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+                indexes_to_map: Iterable[int] = ()
+            elif total_length < 1:
+                # If the upstream maps this to a zero-length value, simply mark
+                # the unmapped task instance as SKIPPED (if needed).
                 self.log.info(
                     "Marking %s as SKIPPED since the map has %d values to expand",
                     unmapped_ti,
                     total_length,
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
+                indexes_to_map = ()
             else:
                 # Otherwise convert this into the first mapped index, and create
                 # TaskInstance for other indexes.
                 unmapped_ti.map_index = 0
                 self.log.debug("Updated in place to become %s", unmapped_ti)
                 all_expanded_tis.append(unmapped_ti)
+                indexes_to_map = range(1, total_length)
             state = unmapped_ti.state
-            indexes_to_map = range(1, total_length)
+        elif not total_length:
+            # Nothing to fixup.
+            indexes_to_map = ()
         else:
             # Only create "missing" ones.
             current_max_mapping = (
@@ -695,17 +709,21 @@ class MappedOperator(AbstractOperator):
             ti.refresh_from_task(self)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
+        # Coerce the None case to 0 -- these two are almost treated identically,
+        # except the unmapped ti (if exists) is marked to different states.
+        total_expanded_ti_count = total_length or 0
+
         # Set to "REMOVED" any (old) TaskInstances with map indices greater
         # than the current map value
         session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == run_id,
-            TaskInstance.map_index >= total_length,
+            TaskInstance.map_index >= total_expanded_ti_count,
         ).update({TaskInstance.state: TaskInstanceState.REMOVED})
 
         session.flush()
-        return all_expanded_tis, total_length
+        return all_expanded_tis, total_expanded_ti_count - 1
 
     def prepare_for_execution(self) -> "MappedOperator":
         # Since a mapped operator cannot be used for execution, and an unmapped
@@ -718,7 +736,8 @@ class MappedOperator(AbstractOperator):
         from airflow.models.xcom_arg import XComArg
 
         for ref in XComArg.iter_xcom_args(self._get_specified_expand_input()):
-            yield ref.operator
+            for operator, _ in ref.iter_references():
+                yield operator
 
     @cached_property
     def parse_time_mapped_ti_count(self) -> Optional[int]:
@@ -741,12 +760,6 @@ class MappedOperator(AbstractOperator):
         except NotFullyPopulated:
             return None
 
-    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
-        # Since the mapped kwargs are already resolved during unmapping,
-        # they must be removed from the list of templated fields to avoid
-        # being rendered again (which breaks escaping).
-        return set(self.template_fields).difference(expanded)
-
     def render_template_fields(
         self,
         context: Context,
@@ -762,14 +775,14 @@ class MappedOperator(AbstractOperator):
         # in the weeds here. We don't close this session for the same reason.
         session = settings.Session()
 
-        mapped_kwargs = self._expand_mapped_kwargs((context, session))
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
         self._do_render_template_fields(
             parent=unmapped_task,
-            template_fields=self._get_template_fields_to_render(mapped_kwargs),
+            template_fields=self.template_fields,
             context=context,
             jinja_env=jinja_env,
-            seen_oids=set(),
+            seen_oids=seen_oids,
             session=session,
         )
         return unmapped_task

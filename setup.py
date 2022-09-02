@@ -327,7 +327,7 @@ webhdfs = [
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    'mypy==0.950',
+    'mypy==0.971',
     'types-boto',
     'types-certifi',
     'types-croniter',
@@ -519,6 +519,10 @@ EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: List[str] = [
     "webhdfs",
 ]
 
+EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS: List[str] = [
+    "jira",
+]
+
 
 def add_extras_for_all_deprecated_aliases() -> None:
     """
@@ -599,12 +603,21 @@ EXTRAS_DEPENDENCIES["all_dbs"] = all_dbs
 # to separately add providers dependencies - they have been already added as 'providers' extras above
 _all_dependencies = get_unique_dependency_list(EXTRAS_DEPENDENCIES.values())
 
+_all_dependencies_without_airflow_providers = list(
+    filter(lambda k: 'apache-airflow-' not in k, _all_dependencies)
+)
+
 # All user extras here
-EXTRAS_DEPENDENCIES["all"] = _all_dependencies
+# all is purely development extra and it should contain only direct dependencies of Airflow
+# It should contain all dependencies of airflow and dependencies of all community providers,
+# but not the providers themselves
+EXTRAS_DEPENDENCIES["all"] = _all_dependencies_without_airflow_providers
 
 # This can be simplified to devel_hadoop + _all_dependencies due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
-devel_all = get_unique_dependency_list([_all_dependencies, doc, devel, devel_hadoop])
+devel_all = get_unique_dependency_list(
+    [_all_dependencies_without_airflow_providers, doc, devel, devel_hadoop]
+)
 
 # Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []
@@ -622,12 +635,27 @@ def is_package_excluded(package: str, exclusion_list: List[str]) -> bool:
     return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
 
 
+def remove_provider_limits(package: str) -> str:
+    """
+    Removes the limit for providers in devel_all to account for pre-release and development packages.
+
+    :param package: package name (beginning of it)
+    :return: true if package should be excluded
+    """
+    return (
+        package.split(">=")[0]
+        if package.startswith("apache-airflow-providers") and ">=" in package
+        else package
+    )
+
+
+devel = [remove_provider_limits(package) for package in devel]
 devel_all = [
-    package
+    remove_provider_limits(package)
     for package in devel_all
     if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
 ]
-
+devel_hadoop = [remove_provider_limits(package) for package in devel_hadoop]
 devel_ci = devel_all
 
 
