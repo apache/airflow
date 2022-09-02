@@ -564,8 +564,8 @@ repos:
         files: ^common/_common_values\.sh$|^breeze-complete$
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
-        entry: ./scripts/ci/pre_commit/pre_commit_check_license.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_check_license.py
+        language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
       - id: check-airflow-config-yaml-consistent
