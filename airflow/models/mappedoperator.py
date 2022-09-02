@@ -760,6 +760,15 @@ class MappedOperator(AbstractOperator):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
+        """Template all attributes listed in *self.template_fields*.
+
+        This updates *context* to reference the map-expanded task and relevant
+        information, without modifying the mapped operator. The expanded task
+        in *context* is then rendered in-place.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja environment to use for rendering.
+        """
         if not jinja_env:
             jinja_env = self.get_template_env()
 

@@ -1183,12 +1183,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in template_fields.
+        """Template all attributes listed in *self.template_fields*.
 
         This mutates the attributes in-place and is irreversible.
 
-        :param context: Dict with values to apply on content
-        :param jinja_env: Jinja environment
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja environment to use for rendering.
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
