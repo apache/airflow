@@ -49,6 +49,7 @@ from urllib.parse import quote
 import attr
 import dill
 import jinja2
+import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
@@ -143,6 +144,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
 
 
@@ -2066,6 +2068,20 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return prev_ds.replace('-', '')
 
+        def get_triggering_events() -> Dict[str, List["DatasetEvent"]]:
+            nonlocal dag_run
+            # The dag_run may not be attached to the session anymore (code base is over-zealous with use of
+            # `session.expunge_all()`) so re-attach it if we get called
+            if dag_run not in session:
+                dag_run = session.merge(dag_run, load=False)
+
+            dataset_events = dag_run.consumed_dataset_events
+            triggering_events: Dict[str, List["DatasetEvent"]] = defaultdict(list)
+            for event in dataset_events:
+                triggering_events[event.dataset.uri].append(event)
+
+            return triggering_events
+
         # NOTE: If you add anything to this dict, make sure to also update the
         # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
         # airflow/utils/context.py!
@@ -2104,6 +2120,7 @@ class TaskInstance(Base, LoggingMixin):
             'ti': self,
             'tomorrow_ds': get_tomorrow_ds(),
             'tomorrow_ds_nodash': get_tomorrow_ds_nodash(),
+            'triggering_dataset_events': lazy_object_proxy.Proxy(get_triggering_events),
             'ts': ts,
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,
