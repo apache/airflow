@@ -271,9 +271,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -284,9 +284,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'also_run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -300,9 +300,9 @@ class TestCliTasks:
                         'test',
                         'example_passing_params_via_test_command',
                         'env_var_test_task',
+                        DEFAULT_DATE.isoformat(),
                         '--env-vars',
                         '{"foo":"bar"}',
-                        DEFAULT_DATE.isoformat(),
                     ]
                 )
             )
