@@ -580,7 +580,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    dag_directory=dag_model.processor_subdir,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='task_failure',
                 )
 
@@ -599,7 +599,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
-                    dag_directory=dag_model.processor_subdir,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='success',
                 )
 
@@ -618,7 +618,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    dag_directory=dag_model.processor_subdir,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='all_tasks_deadlocked',
                 )
 

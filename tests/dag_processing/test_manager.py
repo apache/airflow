@@ -825,20 +825,20 @@ class TestDagFileProcessorManager:
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            dag_directory=str(tmpdir),
+            processor_subdir=str(tmpdir),
             run_id='123',
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            dag_directory=str(tmpdir),
+            processor_subdir=str(tmpdir),
             run_id='456',
         )
         callback3 = SlaCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
-            dag_directory=str(tmpdir),
+            processor_subdir=str(tmpdir),
         )
 
         with create_session() as session:
@@ -875,14 +875,14 @@ class TestDagFileProcessorManager:
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            dag_directory=str(tmpdir),
+            processor_subdir=str(tmpdir),
             run_id='123',
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            dag_directory="/some/other/dir/",
+            processor_subdir="/some/other/dir/",
             run_id='456',
         )
 
@@ -923,7 +923,7 @@ class TestDagFileProcessorManager:
                     full_filepath=str(dag_filepath),
                     is_failure_callback=True,
                     run_id=str(i),
-                    dag_directory=str(tmpdir),
+                    processor_subdir=str(tmpdir),
                 )
                 session.add(DbCallbackRequest(callback=callback, priority_weight=i))
 
@@ -960,7 +960,7 @@ class TestDagFileProcessorManager:
                 dag_id="test_start_date_scheduling",
                 full_filepath=str(dag_filepath),
                 is_failure_callback=True,
-                dag_directory=str(tmpdir),
+                processor_subdir=str(tmpdir),
                 run_id='123',
             )
             session.add(DbCallbackRequest(callback=callback, priority_weight=10))
@@ -1001,7 +1001,7 @@ class TestDagFileProcessorManager:
             dag_id="dag1",
             run_id="run1",
             is_failure_callback=False,
-            dag_directory=tmpdir,
+            processor_subdir=tmpdir,
             msg=None,
         )
         dag1_req2 = DagCallbackRequest(
@@ -1009,18 +1009,18 @@ class TestDagFileProcessorManager:
             dag_id="dag1",
             run_id="run1",
             is_failure_callback=False,
-            dag_directory=tmpdir,
+            processor_subdir=tmpdir,
             msg=None,
         )
         dag1_sla1 = SlaCallbackRequest(
             full_filepath="/green_eggs/ham/file1.py",
             dag_id="dag1",
-            dag_directory=tmpdir,
+            processor_subdir=tmpdir,
         )
         dag1_sla2 = SlaCallbackRequest(
             full_filepath="/green_eggs/ham/file1.py",
             dag_id="dag1",
-            dag_directory=tmpdir,
+            processor_subdir=tmpdir,
         )
 
         dag2_req1 = DagCallbackRequest(
@@ -1028,7 +1028,7 @@ class TestDagFileProcessorManager:
             dag_id="dag2",
             run_id="run1",
             is_failure_callback=False,
-            dag_directory=tmpdir,
+            processor_subdir=tmpdir,
             msg=None,
         )
 

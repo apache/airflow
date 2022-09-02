@@ -687,7 +687,7 @@ class SchedulerJob(BaseJob):
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
-                        dag_directory=ti.dag_model.processor_subdir,
+                        processor_subdir=ti.dag_model.processor_subdir,
                     )
                     self.executor.send_callback(request)
                 else:
@@ -1269,7 +1269,7 @@ class SchedulerJob(BaseJob):
                 dag_id=dag.dag_id,
                 run_id=dag_run.run_id,
                 is_failure_callback=True,
-                dag_directory=dag_model.processor_subdir,
+                processor_subdir=dag_model.processor_subdir,
                 msg='timed_out',
             )
 
@@ -1336,7 +1336,7 @@ class SchedulerJob(BaseJob):
         request = SlaCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dag.dag_id,
-            dag_directory=dag_model.processor_subdir,
+            processor_subdir=dag_model.processor_subdir,
         )
         self.executor.send_callback(request)
 
@@ -1500,7 +1500,7 @@ class SchedulerJob(BaseJob):
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
-                dag_directory=ti.dag_model.processor_subdir,
+                processor_subdir=ti.dag_model.processor_subdir,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )

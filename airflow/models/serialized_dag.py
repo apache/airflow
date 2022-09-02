@@ -72,7 +72,7 @@ class SerializedDagModel(Base):
     _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
-    processor_subdir = Column(String(1000), nullable=True)
+    processor_subdir = Column(String(2000), nullable=True)
 
     __table_args__ = (Index('idx_fileloc_hash', fileloc_hash, unique=False),)
 

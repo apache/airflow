@@ -342,7 +342,7 @@ class TestSchedulerJob:
         mock_task_callback.assert_called_once_with(
             full_filepath=dag.fileloc,
             simple_task_instance=mock.ANY,
-            dag_directory=None,
+            processor_subdir=None,
             msg='Executor reports task instance '
             '<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> '
             'finished (failed) although the task says its queued. (Info: None) '
@@ -1658,7 +1658,7 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -1700,7 +1700,7 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
         )
 
@@ -1778,7 +1778,7 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=bool(state == State.FAILED),
             run_id=dr.run_id,
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
             msg=expected_callback_msg,
         )
 
@@ -1819,7 +1819,7 @@ class TestSchedulerJob:
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
-            dag_directory=TEST_DAG_FOLDER,
+            processor_subdir=TEST_DAG_FOLDER,
             msg='timed_out',
         )
 
@@ -3020,7 +3020,7 @@ class TestSchedulerJob:
             expected_callback = SlaCallbackRequest(
                 full_filepath=dag.fileloc,
                 dag_id=dag.dag_id,
-                dag_directory=TEST_DAG_FOLDER,
+                processor_subdir=TEST_DAG_FOLDER,
             )
             self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
 
@@ -4176,7 +4176,7 @@ class TestSchedulerJob:
                 TaskCallbackRequest(
                     full_filepath=dag.fileloc,
                     simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    dag_directory=TEST_DAG_FOLDER,
+                    processor_subdir=TEST_DAG_FOLDER,
                     msg="Detected <TaskInstance: test_example_bash_operator."
                     "run_this_last scheduled__2016-01-01T00:00:00+00:00 [running]> as zombie",
                 )

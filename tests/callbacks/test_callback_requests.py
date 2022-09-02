@@ -46,7 +46,7 @@ class TestCallbackRequest:
                 TaskCallbackRequest(
                     full_filepath="filepath",
                     simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                    dag_directory='/test_dir',
+                    processor_subdir='/test_dir',
                     is_failure_callback=True,
                 ),
                 TaskCallbackRequest,
@@ -56,7 +56,7 @@ class TestCallbackRequest:
                     full_filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
-                    dag_directory='/test_dir',
+                    processor_subdir='/test_dir',
                     is_failure_callback=False,
                 ),
                 DagCallbackRequest,
@@ -65,7 +65,7 @@ class TestCallbackRequest:
                 SlaCallbackRequest(
                     full_filepath="filepath",
                     dag_id="fake_dag",
-                    dag_directory='/test_dir',
+                    processor_subdir='/test_dir',
                 ),
                 SlaCallbackRequest,
             ),
@@ -85,7 +85,7 @@ class TestCallbackRequest:
         input = TaskCallbackRequest(
             full_filepath="filepath",
             simple_task_instance=SimpleTaskInstance.from_ti(ti),
-            dag_directory='/test_dir',
+            processor_subdir='/test_dir',
             is_failure_callback=True,
         )
         json_str = input.to_json()

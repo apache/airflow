@@ -671,7 +671,7 @@ class DagFileProcessorManager(LoggingMixin):
                 session.query(DbCallbackRequest)
                 .filter(
                     or_(
-                        DbCallbackRequest.dag_directory == self.get_dag_directory(),
+                        DbCallbackRequest.processor_subdir == self.get_dag_directory(),
                         not self.standalone_dag_processor,
                     )
                 )

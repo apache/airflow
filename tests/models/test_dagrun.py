@@ -451,7 +451,7 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
-            dag_directory='/tmp/test',
+            processor_subdir='/tmp/test',
             msg="success",
         )
 
@@ -489,7 +489,7 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
-            dag_directory='/tmp/test',
+            processor_subdir='/tmp/test',
             msg="task_failure",
         )
 
