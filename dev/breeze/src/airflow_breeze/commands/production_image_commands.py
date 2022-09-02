@@ -66,6 +66,7 @@ from airflow_breeze.utils.common_options import (
     option_runtime_apt_deps,
     option_skip_cleanup,
     option_tag_as_latest,
+    option_upgrade_on_failure,
     option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
@@ -155,6 +156,7 @@ def prod_image():
 @option_include_success_outputs
 @option_python_versions
 @option_upgrade_to_newer_dependencies
+@option_upgrade_on_failure
 @option_platform_multiple
 @option_github_repository
 @option_github_token
@@ -522,6 +524,27 @@ def run_build_production_image(
                 text=True,
                 output=output,
             )
+            if (
+                build_command_result.returncode != 0
+                and prod_image_params.upgrade_on_failure
+                and not prod_image_params.upgrade_to_newer_dependencies
+            ):
+                prod_image_params.upgrade_to_newer_dependencies = True
+                get_console().print(
+                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                )
+                build_command_result = run_command(
+                    prepare_docker_build_command(
+                        image_params=prod_image_params,
+                        verbose=verbose,
+                    ),
+                    verbose=verbose,
+                    dry_run=dry_run,
+                    cwd=AIRFLOW_SOURCES_ROOT,
+                    check=False,
+                    text=True,
+                    output=output,
+                )
             if build_command_result.returncode == 0:
                 if prod_image_params.tag_as_latest:
                     build_command_result = tag_image_as_latest(
