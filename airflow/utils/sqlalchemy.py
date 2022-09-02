@@ -130,7 +130,7 @@ class ExtendedJSON(TypeDecorator):
             return None
 
         # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization._serialize(value)
+        value = BaseSerialization.serialize(value)
 
         # Then, if the database does not have native JSON support, encode it again as a string
         if not self.db_supports_json():
@@ -167,7 +167,7 @@ class ExecutorConfigType(PickleType):
 
         def process(value):
             if isinstance(value, dict) and 'pod_override' in value:
-                value['pod_override'] = BaseSerialization()._serialize(value['pod_override'])
+                value['pod_override'] = BaseSerialization().serialize(value['pod_override'])
             return super_process(value)
 
         return process

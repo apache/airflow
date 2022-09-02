@@ -1394,8 +1394,10 @@ class TestDag:
         assert dag.timetable.description == interval_description
 
     def test_timetable_and_description_from_dataset(self):
-        dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri='hello')])
-        assert dag.timetable == DatasetTriggeredTimetable()
+        dataset = Dataset(uri='hello')
+        dag = DAG("test_schedule_interval_arg", schedule=[dataset])
+        assert isinstance(dag.timetable, DatasetTriggeredTimetable)
+        assert dag.timetable.datasets == [dataset]
         assert dag.schedule_interval == 'Dataset'
         assert dag.timetable.description == 'Triggered by datasets'
 

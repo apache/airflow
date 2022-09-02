@@ -15,8 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import operator
-from typing import TYPE_CHECKING, Any, Collection, Dict, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Collection, Dict, List, Optional
+
+import attr
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
@@ -24,6 +27,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
+    from airflow.datasets import Dataset
     from airflow.models.dataset import DatasetEvent
     from airflow.utils.types import DagRunType
 
@@ -107,6 +111,7 @@ class OnceTimetable(_TrivialTimetable):
         return DagRunInfo.exact(run_after)
 
 
+@attr.define
 class DatasetTriggeredTimetable(NullTimetable):
     """Timetable that never schedules anything.
 
@@ -115,7 +120,22 @@ class DatasetTriggeredTimetable(NullTimetable):
     :meta private:
     """
 
-    description: str = "Triggered by datasets"
+    datasets: List["Dataset"]
+
+    description: ClassVar[str] = "Triggered by datasets"  # type: ignore[misc]
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+        """Deserialize a timetable from data."""
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        return cls(datasets=BaseSerialization.deserialize(data["datasets"]))
+
+    def serialize(self) -> Dict[str, Any]:
+        """Serialize the timetable for JSON encoding."""
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        return {"datasets": BaseSerialization.serialize(self.datasets)}
 
     @property
     def summary(self) -> str:
