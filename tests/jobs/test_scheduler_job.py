@@ -4101,21 +4101,25 @@ class TestSchedulerJob:
             session.flush()
 
             zombie_message = self.scheduler_job._generate_zombie_message_details(ti)
-            assert zombie_message == {'DAG Id': 'example_branch_operator',
-                                      'Task Id': 'run_this_first',
-                                     'Run Id': 'scheduled__2016-01-01T00:00:00+00:00'}
+            assert zombie_message == {
+                'DAG Id': 'example_branch_operator',
+                'Task Id': 'run_this_first',
+                'Run Id': 'scheduled__2016-01-01T00:00:00+00:00',
+            }
 
             ti.hostname = "10.10.10.10"
             ti.map_index = 2
             ti.external_executor_id = "abcdefg"
 
             zombie_message = self.scheduler_job._generate_zombie_message_details(ti)
-            assert zombie_message == {'DAG Id': 'example_branch_operator',
-                                      'Task Id': 'run_this_first',
-                                      'Run Id': 'scheduled__2016-01-01T00:00:00+00:00',
-                                      "Hostname": "10.10.10.10",
-                                      "Map Index": 2,
-                                      "External Executor Id": "abcdefg"}
+            assert zombie_message == {
+                'DAG Id': 'example_branch_operator',
+                'Task Id': 'run_this_first',
+                'Run Id': 'scheduled__2016-01-01T00:00:00+00:00',
+                "Hostname": "10.10.10.10",
+                "Map Index": 2,
+                "External Executor Id": "abcdefg",
+            }
 
     def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(self):
         """
