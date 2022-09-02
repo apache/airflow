@@ -80,11 +80,6 @@ This way, the Param's type is respected when its provided to your task.
 
     # prints <class 'str'> by default
     # prints <class 'int'> if render_template_as_native_obj=True
-    @task(task_id="template_type")
-    def print_type(x):
-        print(type(x))
-
-    print_type("{{ params.int_param }}")
     PythonOperator(
         task_id="template_type",
         op_args=[
