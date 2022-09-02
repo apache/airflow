@@ -77,6 +77,7 @@ flake8_diff.sh
 coverage*.xml
 _sources/*
 
+robots.txt
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
@@ -113,11 +114,15 @@ chart/values.schema.json
 chart/Chart.lock
 chart/values_schema.schema.json
 
-# A simplistic Robots.txt
-airflow/www/static/robots.txt
-
 # Generated autocomplete files
-dev/breeze/autocomplete/*
+./dev/breeze/autocomplete/*
 
 # Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
 newsfragments/*
+
+# Dev stuff
+tests/*
+scripts/*
+images/*
+dev/*
+chart/*.iml
