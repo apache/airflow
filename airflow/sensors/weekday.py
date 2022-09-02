@@ -67,7 +67,7 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-        To use `WeekDay` enum, import it from `airflow.utils.weekday`
+        To use ``WeekDay`` enum, import it from ``airflow.utils.weekday``
 
     :param use_task_logical_date: If ``True``, uses task's logical date to compare
         with week_day. Execution Date is Useful for backfilling.
