@@ -292,7 +292,7 @@ class TestExecutorConfigType:
         if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
             # We should only deserialize a pod_override with BaseSerialization if
             # it was serialized with BaseSerialization (which is the behavior added in #24356
-            expected['pod_override'] = BaseSerialization()._deserialize(expected['pod_override'])
+            expected['pod_override'] = BaseSerialization.deserialize(expected['pod_override'])
         assert result == expected
 
     def test_compare_values(self):

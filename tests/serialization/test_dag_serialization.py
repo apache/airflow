@@ -765,7 +765,7 @@ class TestStringifiedDAGs:
         serialized = SerializedDAG.serialize(val)
         assert serialized == expected
 
-        round_tripped = SerializedDAG._deserialize(serialized)
+        round_tripped = SerializedDAG.deserialize(serialized)
         assert val == round_tripped
 
     @pytest.mark.parametrize(
