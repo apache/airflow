@@ -370,8 +370,8 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
-        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.py
+        language: python
         files: ^setup\.cfg$
         pass_filenames: false
       - id: update-providers-dependencies
