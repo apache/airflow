@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+import sys
+from pathlib import Path
 
-if [[ -f "${AIRFLOW_SOURCES}/airflow/providers/__init__.py" ]]; then
-    echo
-    echo "\e[31mThe ${AIRFLOW_SOURCES}/airflow/providers/__init__.py file should not exist. Deleting it  ${COLOR_RESET}"
-    echo
-    rm "${AIRFLOW_SOURCES}/airflow/providers/__init__.py"
-    exit 1
-fi
+AIRFLOW_SOURCES = Path(__file__).parents[3]
+PROVIDERS_INIT_FILE = AIRFLOW_SOURCES / "airflow" / "providers" / "__init__.py"
+
+print(f"Checking if {PROVIDERS_INIT_FILE} exists.")
+if PROVIDERS_INIT_FILE.exists():
+    print(f"\033[0;31mERROR: {PROVIDERS_INIT_FILE} file should not exist. Deleting it.\033[0m\n")
+    PROVIDERS_INIT_FILE.unlink()
+    sys.exit(1)
