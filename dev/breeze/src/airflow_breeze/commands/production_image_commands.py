@@ -445,10 +445,7 @@ def check_docker_context_files(install_packages_from_context: bool):
             get_console().print(
                 '[warning]\nThis might result in unnecessary cache invalidation and long build times'
             )
-            get_console().print(
-                '[warning]\nExiting now \
-                    - please restart the command with --cleanup-context switch'
-            )
+            get_console().print('[warning]Please restart the command with --cleanup-context switch\n')
             sys.exit(1)
 
 

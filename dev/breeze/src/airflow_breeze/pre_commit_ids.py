@@ -46,7 +46,6 @@ PRE_COMMIT_LIST = [
     'check-for-inclusive-language',
     'check-hooks-apply',
     'check-incorrect-use-of-LoggingMixin',
-    'check-integrations-are-consistent',
     'check-lazy-logging',
     'check-merge-conflict',
     'check-newsfragments-are-valid',

@@ -54,6 +54,8 @@ def ci_group(
         get_console().print(f"::group::[{message_type.value}]{title}[/]")
     else:
         get_console().print(f"::group::{title}")
-    yield
-    get_console().print("::endgroup::")
-    _in_ci_group = False
+    try:
+        yield
+    finally:
+        get_console().print("::endgroup::")
+        _in_ci_group = False

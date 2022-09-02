@@ -103,7 +103,7 @@ function in_container_cleanup_pycache() {
 # changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "Linux" ]]; then
+    if [[ ${HOST_OS:=} == "linux" ]]; then
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"

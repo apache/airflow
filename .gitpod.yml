@@ -20,7 +20,7 @@
 # Docs: https://www.gitpod.io/docs/config-gitpod-file/
 
 tasks:
-  - init: ./breeze-legacy -y
+  - init: ./script/ci/install_breeze.sh
   - name: Install pre-commit
     openMode: split-right
     command: |

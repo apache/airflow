@@ -70,61 +70,6 @@ function docker_v {
     return ${res}
 }
 
-HELM_BINARY_PATH="${HELM_BINARY_PATH:=$(command -v helm || echo "/bin/helm")}"
-export HELM_BINARY_PATH
-
-# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all helm commands run will be
-# printed before execution
-function helm {
-    verbosity::store_exit_on_error_status
-    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
-       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
-        >&2 echo "helm" "${@}"
-    fi
-    ${HELM_BINARY_PATH} "${@}" > >(tee -a "${OUTPUT_LOG}") 2> >(tee -a "${OUTPUT_LOG}" >&2)
-    local res="$?"
-    if [[ ${res} == "0" || ${exit_on_error} == "false" ]]; then
-        rm -f "${OUTPUT_LOG}"
-    fi
-    verbosity::restore_exit_on_error_status
-    return ${res}
-}
-
-KUBECTL_BINARY_PATH=${KUBECTL_BINARY_PATH:=$(command -v kubectl || echo "/bin/kubectl")}
-export KUBECTL_BINARY_PATH
-
-# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kubectl commands run will be
-# printed before execution
-function kubectl {
-    verbosity::store_exit_on_error_status
-    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
-       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
-        >&2 echo "kubectl" "${@}"
-    fi
-    ${KUBECTL_BINARY_PATH} "${@}" > >(tee -a "${OUTPUT_LOG}") 2> >(tee -a "${OUTPUT_LOG}" >&2)
-    local res="$?"
-    if [[ ${res} == "0" || ${exit_on_error} == "false" ]]; then
-        rm -f "${OUTPUT_LOG}"
-    fi
-    verbosity::restore_exit_on_error_status
-    return ${res}
-}
-
-KIND_BINARY_PATH="${KIND_BINARY_PATH:=$(command -v kind || echo "/bin/kind")}"
-export KIND_BINARY_PATH
-
-# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kind commands run will be
-# printed before execution
-function kind {
-    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
-       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
-        >&2 echo "kind" "${@}"
-    fi
-    # kind outputs nice output on terminal.
-    ${KIND_BINARY_PATH} "${@}"
-}
-
-
 # Prints verbose information in case VERBOSE variable is set
 function verbosity::print_info() {
     if [[ ${VERBOSE:="false"} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then

@@ -50,7 +50,7 @@ def verify_all_commands_described_in_docs():
     if errors:
         console.print("[red]Some of Breeze commands are not described in BREEZE.rst:[/]")
         for command in errors:
-            console.print(f"  * red]{command}[/]")
+            console.print(f"  * [red]{command}[/]")
         console.print()
         console.print(
             "[bright_yellow]Make sure you describe it and embed "
@@ -82,9 +82,9 @@ def run_image_regeneration_in_breeze() -> int:
     sys.path.insert(0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src"))
     from airflow_breeze.global_constants import MOUNT_SELECTED
     from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker, get_extra_docker_flags
-    from airflow_breeze.utils.run_utils import get_runnable_ci_image, run_command
+    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
 
-    airflow_image = get_runnable_ci_image(verbose=VERBOSE, dry_run=DRY_RUN)
+    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
     cmd_result = run_command(
         [
             "docker",

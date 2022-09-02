@@ -232,18 +232,6 @@ function parallel::make_sure_python_versions_are_specified() {
     echo
 }
 
-function parallel::make_sure_kubernetes_versions_are_specified() {
-    if [[ -z "${CURRENT_KUBERNETES_VERSIONS_AS_STRING=}" ]]; then
-        echo
-        echo "${COLOR_RED}The CURRENT_KUBERNETES_VERSIONS_AS_STRING variable must be set and list K8S versions to use!${COLOR_RESET}"
-        echo
-        exit 1
-    fi
-    echo
-    echo "${COLOR_BLUE}Running parallel builds for those Kubernetes versions: ${CURRENT_KUBERNETES_VERSIONS_AS_STRING}${COLOR_RESET}"
-    echo
-}
-
 function parallel::get_maximum_parallel_k8s_jobs() {
     docker_engine_resources::get_available_cpus_in_docker
     if [[ -n ${RUNS_ON=} && ${RUNS_ON} != *"self-hosted"* ]]; then
@@ -258,50 +246,4 @@ function parallel::get_maximum_parallel_k8s_jobs() {
         export MAX_PARALLEL_K8S_JOBS="3"
     fi
     export MAX_PARALLEL_K8S_JOBS
-}
-
-# Launches parallel building of images. Redirects output to log set the right directories
-function parallel::run_single_helm_test() {
-    local kubernetes_version=$1
-    local python_version=$2
-    local executor=$3
-    local single_job_filename=$4
-    local job="Cluster-${kubernetes_version}-python-${python_version}"
-
-    mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
-    export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/stdout"
-    export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status"
-    echo "Starting helm tests for kubernetes version ${kubernetes_version}, python version: ${python_version}"
-    parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
-        --jobs "${MAX_PARALLEL_K8S_JOBS}" "${single_job_filename}" \
-                "${kubernetes_version}" "${python_version}" "${executor}" >"${JOB_LOG}" 2>&1
-}
-
-function parallel::run_helm_tests_in_parallel() {
-    parallel::cleanup_runner
-    start_end::group_start "Monitoring helm tests"
-    parallel::initialize_monitoring
-    parallel::monitor_progress
-    local single_job_filename=$1
-    # In case there are more kubernetes versions than strings, we can reuse python versions so we add it twice here
-    local repeated_python_versions
-    # shellcheck disable=SC2206
-    repeated_python_versions=(${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING} ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING})
-    local index=0
-    for kubernetes_version in ${CURRENT_KUBERNETES_VERSIONS_AS_STRING}
-    do
-        index=$((index + 1))
-        python_version=${repeated_python_versions[${index}]}
-        FORWARDED_PORT_NUMBER=$((38080 + index))
-        export FORWARDED_PORT_NUMBER
-        API_SERVER_PORT=$((19090 + index))
-        export API_SERVER_PORT
-        # shellcheck disable=SC2153
-        parallel::run_single_helm_test "${kubernetes_version}" "${python_version}" "${EXECUTOR}" "${single_job_filename}" "${@}"
-    done
-    set +e
-    parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
-    parallel::kill_monitor
-    set -e
-    start_end::group_end
 }

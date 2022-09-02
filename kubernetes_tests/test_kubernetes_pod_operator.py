@@ -81,6 +81,7 @@ def get_label():
     return label[-63]
 
 
+@pytest.mark.execution_timeout(180)
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)

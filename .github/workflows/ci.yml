@@ -133,13 +133,10 @@ jobs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
-      min-max-python-versions-as-string: >-
-        ${{ steps.selective-checks.outputs.min-max-python-versions-as-string }}
       kubernetes-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
+      kubernetes-combos: ${{ steps.selective-checks.outputs.kubernetes-combos }}
       default-kubernetes-version: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
-      min-max-kubernetes-versions-as-string: >-
-        ${{ steps.selective-checks.outputs.min-max-kubernetes-versions-as-string }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       default-postgres-version: ${{ steps.selective-checks.outputs.default-postgres-version }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
@@ -1441,7 +1438,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-kubernetes:
     timeout-minutes: 240
-    name: Helm Chart; ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+    name: "Helm: ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs: [build-info, wait-for-prod-images]
     strategy:
@@ -1450,17 +1447,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       fail-fast: false
     env:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
-      BACKEND: postgres
-      RUN_TESTS: "true"
-      RUNTIME: "kubernetes"
-      KUBERNETES_MODE: "image"
-      EXECUTOR: ${{matrix.executor}}
-      KIND_VERSION: "${{ needs.build-info.outputs.default-kind-version }}"
-      HELM_VERSION: "${{ needs.build-info.outputs.default-helm-version }}"
-      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
-        ${{needs.build-info.outputs.python-versions-list-as-string}}
-      CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
-        ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true' ) &&
@@ -1489,98 +1475,63 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v3
         with:
-          path: ".build/kubernetes-bin"
-          key: "kubernetes-binaries
--${{ needs.build-info.outputs.default-kind-version }}\
--${{ needs.build-info.outputs.default-helm-version }}"
-          restore-keys: "kubernetes-binaries"
-      - name: "Kubernetes Tests"
-        run: ./scripts/ci/kubernetes/ci_setup_clusters_and_run_kubernetes_tests_in_parallel.sh
+          path: ".build/.k8s-env"
+          key: "k8s-env"
+      - name: K8s Setup env
+        run: breeze k8s setup-env
+      - name: >
+          K8S Build images Python: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+        run: breeze k8s build-k8s-image --run-in-parallel
         env:
-          PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
-      - name: "Upload KinD logs"
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: K8S Create clusters ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s create-cluster --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+      - name: K8S Upload images ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s upload-k8s-image --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+          EXECUTOR: ${{matrix.executor}}
+      - name: K8S Configure clusters ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s configure-cluster --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+      - name: K8S Deploy Airflow ${{matrix.executor}} ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s deploy-airflow --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+          EXECUTOR: ${{matrix.executor}}
+      - name: K8S Tests ${{matrix.executor}} ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s tests --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+          EXECUTOR: ${{matrix.executor}}
+      - name: K8S Upgrade ${{matrix.executor}} ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s deploy-airflow --run-in-parallel --upgrade --set config.logging.logging_level=INFO
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
+          EXECUTOR: ${{matrix.executor}}
+      - name: K8S Logs ${{needs.build-info.outputs.kubernetes-combos}}
+        run: breeze k8s logs --all
+        if: failure() || cancelled()
+      - name: Upload KinD logs ${{needs.build-info.outputs.kubernetes-combos}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
           name: kind-logs-${{matrix.executor}}
           path: /tmp/kind_logs_*
           retention-days: 7
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
+      - name: "Delete clusters"
+        run: breeze k8s delete-cluster --all
         if: always()
-
-  tests-helm-executor-upgrade:
-    timeout-minutes: 150
-    name: Helm Chart Executor Upgrade - ${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
-    runs-on: ${{ needs.build-info.outputs.runs-on }}
-    needs: [build-info, wait-for-prod-images]
-    env:
-      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
-      BACKEND: postgres
-      RUN_TESTS: "true"
-      RUNTIME: "kubernetes"
-      KUBERNETES_MODE: "image"
-      EXECUTOR: "KubernetesExecutor"
-      KIND_VERSION: "${{ needs.build-info.outputs.default-kind-version }}"
-      HELM_VERSION: "${{ needs.build-info.outputs.default-helm-version }}"
-      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >-
-        ${{needs.build-info.outputs.min-max-python-versions-as-string}}
-      CURRENT_KUBERNETES_VERSIONS_AS_STRING: >-
-        ${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
-    if: >
-      needs.build-info.outputs.run-kubernetes-tests == 'true' &&
-      needs.build-info.outputs.default-branch == 'main'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
-      - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze prod-image pull --run-in-parallel --tag-as-latest
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Cache virtualenv for kubernetes testing"
-        uses: actions/cache@v3
-        with:
-          path: ".build/.kubernetes_venv"
-          key: "kubernetes-${{ needs.build-info.outputs.default-python-version }}\
-  -${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}}
-  -${{needs.build-info.outputs.min-max-python-versions-as-string}}
-  -${{ hashFiles('setup.py','setup.cfg') }}"
-          restore-keys: "kubernetes-${{ needs.build-info.outputs.default-python-version }}-\
-  -${{needs.build-info.outputs.min-max-kubernetes-versions-as-string}} \
-  -${{needs.build-info.outputs.min-max-python-versions-as-string}}"
-      - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v3
-        with:
-          path: ".build/kubernetes-bin"
-          key: "kubernetes-binaries
-  -${{ needs.build-info.outputs.default-kind-version }}\
-  -${{ needs.build-info.outputs.default-helm-version }}"
-          restore-keys: "kubernetes-binaries"
-      - name: "Kubernetes Helm Chart Executor Upgrade Tests"
-        run: ./scripts/ci/kubernetes/ci_upgrade_cluster_with_different_executors_in_parallel.sh
-        env:
-          PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
-      - name: "Upload KinD logs"
-        uses: actions/upload-artifact@v3
-        if: failure() || cancelled()
-        with:
-          name: kind-logs-KubernetesExecutor
-          path: /tmp/kind_logs_*
-          retention-days: 7
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()

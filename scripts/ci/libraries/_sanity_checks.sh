@@ -47,7 +47,7 @@ function sanity_checks::check_if_coreutils_installed() {
     getopt -T >/dev/null
     getopt_retval=$?
 
-    if [[ $(uname -s) == 'Darwin' ]] ; then
+    if [[ $(uname -s| tr '[:upper:]' '[:lower:]') == 'darwin' ]] ; then
         command -v gstat >/dev/null
         stat_present=$?
     else
@@ -67,7 +67,7 @@ function sanity_checks::check_if_coreutils_installed() {
     ####################  Parsing options/arguments
     if [[ ${getopt_retval} != 4 || "${stat_present}" != "0" || "${md5sum_present}" != "0" ]]; then
         verbosity::print_info
-        if [[ $(uname -s) == 'Darwin' ]] ; then
+        if [[ $(uname -s| tr '[:upper:]' '[:lower:]') == 'darwin' ]] ; then
             echo """
 ${COLOR_RED}ERROR: You are running ${CMDNAME} in OSX environment and you need to install gnu commands
 

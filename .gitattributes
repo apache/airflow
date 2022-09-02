@@ -1,6 +1,3 @@
-breeze export-ignore
-breeze-legacy export-ignore
-breeze-complete export-ignore
 clients export-ignore
 clients export-ignore
 dev export-ignore

@@ -32,6 +32,12 @@ else:
         CI_IMAGE_TOOLS_PARAMETERS,
     )
     from airflow_breeze.commands.developer_commands_config import DEVELOPER_COMMANDS, DEVELOPER_PARAMETERS
+    from airflow_breeze.commands.kubernetes_commands_config import (
+        KUBERNETES_CLUSTER_COMMANDS,
+        KUBERNETES_INSPECTION_COMMANDS,
+        KUBERNETES_PARAMETERS,
+        KUBERNETES_TESTING_COMMANDS,
+    )
     from airflow_breeze.commands.production_image_commands_config import (
         PRODUCTION_IMAGE_TOOLS_COMMANDS,
         PRODUCTION_IMAGE_TOOLS_PARAMETERS,
@@ -54,6 +60,7 @@ else:
     )
     click.rich_click.OPTION_GROUPS = {
         **DEVELOPER_PARAMETERS,
+        **KUBERNETES_PARAMETERS,
         **TESTING_PARAMETERS,
         **SETUP_PARAMETERS,
         **CI_IMAGE_TOOLS_PARAMETERS,
@@ -66,10 +73,15 @@ else:
             DEVELOPER_COMMANDS,
             {
                 "name": "Advanced command groups",
-                "commands": ["testing", "ci-image", "prod-image", "setup", "release-management", "ci"],
+                "commands": ["testing", "ci-image", "k8s", "prod-image", "setup", "release-management", "ci"],
             },
         ],
         "breeze testing": [TESTING_COMMANDS],
+        "breeze k8s": [
+            KUBERNETES_CLUSTER_COMMANDS,
+            KUBERNETES_INSPECTION_COMMANDS,
+            KUBERNETES_TESTING_COMMANDS,
+        ],
         "breeze ci-image": [CI_IMAGE_TOOLS_COMMANDS],
         "breeze prod-image": [PRODUCTION_IMAGE_TOOLS_COMMANDS],
         "setup": [SETUP_COMMANDS],

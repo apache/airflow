@@ -17,7 +17,7 @@
 
 from airflow_breeze.utils import host_info_utils
 
-SUPPORTED_OS = ['Linux', 'Darwin', 'Windows']
+SUPPORTED_OS = ['linux', 'darwin', 'windows']
 
 
 def test_get_host_os():
