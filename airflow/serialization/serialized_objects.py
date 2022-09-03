@@ -102,7 +102,7 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     """
     # Use the private _expand() method to avoid the empty kwargs check.
     default = BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY, strict=False).partial_kwargs
-    return BaseSerialization._serialize(default)[Encoding.VAR]
+    return BaseSerialization.serialize(default)[Encoding.VAR]
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> Dict[str, Any]:
@@ -274,7 +274,7 @@ class BaseSerialization:
         """Deserializes a python dict stored with type decorators and
         reconstructs all DAGs and operators it contains.
         """
-        return cls._deserialize(serialized_obj)
+        return cls.deserialize(serialized_obj)
 
     @classmethod
     def validate_schema(cls, serialized_obj: Union[str, dict]) -> None:
@@ -330,20 +330,20 @@ class BaseSerialization:
                 # it to reduce the JSON payload
                 task_type = getattr(object_to_serialize, '_task_type', None)
                 if value != task_type:
-                    serialized_object[key] = cls._serialize(value)
+                    serialized_object[key] = cls.serialize(value)
             elif key in decorated_fields:
-                serialized_object[key] = cls._serialize(value)
+                serialized_object[key] = cls.serialize(value)
             elif key == "timetable" and value is not None:
                 serialized_object[key] = _encode_timetable(value)
             else:
-                value = cls._serialize(value)
+                value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
                     value = value[Encoding.VAR]
                 serialized_object[key] = value
         return serialized_object
 
     @classmethod
-    def _serialize(cls, var: Any) -> Any:  # Unfortunately there is no support for recursive types in mypy
+    def serialize(cls, var: Any) -> Any:  # Unfortunately there is no support for recursive types in mypy
         """Helper function of depth first search for serialization.
 
         The serialization protocol is:
@@ -360,9 +360,9 @@ class BaseSerialization:
                 return var.value
             return var
         elif isinstance(var, dict):
-            return cls._encode({str(k): cls._serialize(v) for k, v in var.items()}, type_=DAT.DICT)
+            return cls._encode({str(k): cls.serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
-            return [cls._serialize(v) for v in var]
+            return [cls.serialize(v) for v in var]
         elif _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
@@ -387,12 +387,12 @@ class BaseSerialization:
         elif isinstance(var, set):
             # FIXME: casts set to list in customized serialization in future.
             try:
-                return cls._encode(sorted(cls._serialize(v) for v in var), type_=DAT.SET)
+                return cls._encode(sorted(cls.serialize(v) for v in var), type_=DAT.SET)
             except TypeError:
-                return cls._encode([cls._serialize(v) for v in var], type_=DAT.SET)
+                return cls._encode([cls.serialize(v) for v in var], type_=DAT.SET)
         elif isinstance(var, tuple):
             # FIXME: casts tuple to list in customized serialization in future.
-            return cls._encode([cls._serialize(v) for v in var], type_=DAT.TUPLE)
+            return cls._encode([cls.serialize(v) for v in var], type_=DAT.TUPLE)
         elif isinstance(var, TaskGroup):
             return SerializedTaskGroup.serialize_task_group(var)
         elif isinstance(var, Param):
@@ -406,13 +406,13 @@ class BaseSerialization:
             return str(var)
 
     @classmethod
-    def _deserialize(cls, encoded_var: Any) -> Any:
+    def deserialize(cls, encoded_var: Any) -> Any:
         """Helper function of depth first search for deserialization."""
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
             return encoded_var
         elif isinstance(encoded_var, list):
-            return [cls._deserialize(v) for v in encoded_var]
+            return [cls.deserialize(v) for v in encoded_var]
 
         if not isinstance(encoded_var, dict):
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
@@ -420,7 +420,7 @@ class BaseSerialization:
         type_ = encoded_var[Encoding.TYPE]
 
         if type_ == DAT.DICT:
-            return {k: cls._deserialize(v) for k, v in var.items()}
+            return {k: cls.deserialize(v) for k, v in var.items()}
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -439,9 +439,9 @@ class BaseSerialization:
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
         elif type_ == DAT.SET:
-            return {cls._deserialize(v) for v in var}
+            return {cls.deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
-            return tuple(cls._deserialize(v) for v in var)
+            return tuple(cls.deserialize(v) for v in var)
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
@@ -490,16 +490,16 @@ class BaseSerialization:
     def _serialize_param(cls, param: Param):
         return dict(
             __class=f"{param.__module__}.{param.__class__.__name__}",
-            default=cls._serialize(param.value),
-            description=cls._serialize(param.description),
-            schema=cls._serialize(param.schema),
+            default=cls.serialize(param.value),
+            description=cls.serialize(param.description),
+            schema=cls.serialize(param.schema),
         )
 
     @classmethod
     def _deserialize_param(cls, param_dict: Dict):
         """
         In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
-        this class's ``_serialize`` method.  So before running through ``_deserialize``,
+        this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
         """
         class_name = param_dict['__class']
@@ -512,7 +512,7 @@ class BaseSerialization:
             val = param_dict[attr]
             is_serialized = isinstance(val, dict) and '__type' in val
             if is_serialized:
-                deserialized_val = cls._deserialize(param_dict[attr])
+                deserialized_val = cls.deserialize(param_dict[attr])
                 kwargs[attr] = deserialized_val
             else:
                 kwargs[attr] = val
@@ -660,7 +660,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         expansion_kwargs = op._get_specified_expand_input()
         serialized_op[op._expand_input_attr] = {
             "type": get_map_type_key(expansion_kwargs),
-            "value": cls._serialize(expansion_kwargs.value),
+            "value": cls.serialize(expansion_kwargs.value),
         }
 
         # Simplify partial_kwargs by comparing it to the most barebone object.
@@ -819,13 +819,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
             elif k == "partial_kwargs":
-                v = {arg: cls._deserialize(value) for arg, value in v.items()}
+                v = {arg: cls.deserialize(value) for arg, value in v.items()}
             elif k in {"expand_input", "op_kwargs_expand_input"}:
-                v = _ExpandInputRef(v["type"], cls._deserialize(v["value"]))
+                v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
-                v = cls._deserialize(v)
+                v = cls.deserialize(v)
             elif k in ("outlets", "inlets"):
-                v = cls._deserialize(v)
+                v = cls.deserialize(v)
 
             # else use v as it is
 
@@ -1083,7 +1083,7 @@ class SerializedDAG(DAG, BaseSerialization):
             else:
                 del serialized_dag["timetable"]
 
-            serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+            serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
             dag_deps = {
                 dep
                 for task in dag.task_dict.values()
@@ -1134,11 +1134,11 @@ class SerializedDAG(DAG, BaseSerialization):
             elif k == "timetable":
                 v = _decode_timetable(v)
             elif k in cls._decorated_fields:
-                v = cls._deserialize(v)
+                v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
             elif k == "dataset_triggers":
-                v = cls._deserialize(v)
+                v = cls.deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
@@ -1234,10 +1234,10 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "children": {
                 label: child.serialize_for_task_group() for label, child in task_group.children.items()
             },
-            "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
-            "downstream_group_ids": cls._serialize(sorted(task_group.downstream_group_ids)),
-            "upstream_task_ids": cls._serialize(sorted(task_group.upstream_task_ids)),
-            "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
+            "upstream_group_ids": cls.serialize(sorted(task_group.upstream_group_ids)),
+            "downstream_group_ids": cls.serialize(sorted(task_group.downstream_group_ids)),
+            "upstream_task_ids": cls.serialize(sorted(task_group.upstream_task_ids)),
+            "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
 
         return serialize_group
@@ -1251,9 +1251,9 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         dag: SerializedDAG,
     ) -> TaskGroup:
         """Deserializes a TaskGroup from a JSON object."""
-        group_id = cls._deserialize(encoded_group["_group_id"])
+        group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
-            key: cls._deserialize(encoded_group[key])
+            key: cls.deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
@@ -1268,10 +1268,10 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict, dag=dag)
             for label, (_type, val) in encoded_group["children"].items()
         }
-        group.upstream_group_ids.update(cls._deserialize(encoded_group["upstream_group_ids"]))
-        group.downstream_group_ids.update(cls._deserialize(encoded_group["downstream_group_ids"]))
-        group.upstream_task_ids.update(cls._deserialize(encoded_group["upstream_task_ids"]))
-        group.downstream_task_ids.update(cls._deserialize(encoded_group["downstream_task_ids"]))
+        group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
+        group.downstream_group_ids.update(cls.deserialize(encoded_group["downstream_group_ids"]))
+        group.upstream_task_ids.update(cls.deserialize(encoded_group["upstream_task_ids"]))
+        group.downstream_task_ids.update(cls.deserialize(encoded_group["downstream_task_ids"]))
         return group
 
 
