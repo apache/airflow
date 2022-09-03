@@ -124,31 +124,3 @@ class TestDockerHook(unittest.TestCase):
             reauth=False,
             email='some@example.com',
         )
-
-    def test_conn_with_broken_config_missing_username_fails(self, _):
-        db.merge_conn(
-            Connection(
-                conn_id='docker_without_username',
-                conn_type='docker',
-                host='some.docker.registry.com',
-                password='some_p4$$w0rd',
-                extra='{"email": "some@example.com"}',
-            )
-        )
-        with pytest.raises(AirflowException):
-            DockerHook(
-                docker_conn_id='docker_without_username',
-                base_url='unix://var/run/docker.sock',
-                version='auto',
-            )
-
-    def test_conn_with_broken_config_missing_host_fails(self, _):
-        db.merge_conn(
-            Connection(
-                conn_id='docker_without_host', conn_type='docker', login='some_user', password='some_p4$$w0rd'
-            )
-        )
-        with pytest.raises(AirflowException):
-            DockerHook(
-                docker_conn_id='docker_without_host', base_url='unix://var/run/docker.sock', version='auto'
-            )
