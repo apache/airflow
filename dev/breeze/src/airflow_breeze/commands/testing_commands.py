@@ -257,11 +257,10 @@ def tests(
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables['RUN_TESTS'] = "true"
-    if test_type:
-        env_variables["TEST_TYPE"] = test_type
-        if "[" in test_type and not test_type.startswith("Providers"):
-            get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
-            sys.exit(1)
+    env_variables["TEST_TYPE"] = test_type
+    if "[" in test_type and not test_type.startswith("Providers"):
+        get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
+        sys.exit(1)
     if test_timeout:
         env_variables["TEST_TIMEOUT"] = test_timeout
     if integration:
