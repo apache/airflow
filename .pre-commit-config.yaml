@@ -579,9 +579,10 @@ repos:
         additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.py
+        language: python
         files: ^\.pre-commit-config\.yaml$|^INTHEWILD\.md$
+        pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
         name: Sort alphabetically and uniquify spelling_wordlist.txt
