@@ -905,6 +905,13 @@ ARG_JOB_HOSTNAME_FILTER = Arg(
     help="The hostname of job(s) that will be checked.",
 )
 
+ARG_JOB_HOSTNAME_CALLABLE_FILTER = Arg(
+    ("--local",),
+    action='store_true',
+    help="If passed, this command will use the `hostname_callable` function"
+    "defined in Airflow configuration.",
+)
+
 ARG_JOB_LIMIT = Arg(
     ("--limit",),
     default=1,
@@ -1779,12 +1786,22 @@ JOBS_COMMANDS = (
         name='check',
         help="Checks if job(s) are still alive",
         func=lazy_load_command('airflow.cli.commands.jobs_command.check'),
-        args=(ARG_JOB_TYPE_FILTER, ARG_JOB_HOSTNAME_FILTER, ARG_JOB_LIMIT, ARG_ALLOW_MULTIPLE),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_HOSTNAME_CALLABLE_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_ALLOW_MULTIPLE,
+        ),
         epilog=(
             'examples:\n'
             'To check if the local scheduler is still working properly, run:\n'
             '\n'
             '    $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"\n'
+            '\n'
+            'To check if the local scheduler is still working properly with `hostname_callback`, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --local\n'
             '\n'
             'To check if any scheduler is running when you are using high availability, run:\n'
             '\n'
