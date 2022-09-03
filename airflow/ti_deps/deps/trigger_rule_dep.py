@@ -84,6 +84,7 @@ class TriggerRuleDep(BaseTIDep):
             upstream_failed=upstream_failed,
             done=done,
             flag_upstream_failed=dep_context.flag_upstream_failed,
+            dep_context=dep_context,
             session=session,
         )
 
@@ -115,13 +116,14 @@ class TriggerRuleDep(BaseTIDep):
     @provide_session
     def _evaluate_trigger_rule(
         self,
-        ti,
+        ti: "TaskInstance",
         successes,
         skipped,
         failed,
         upstream_failed,
         done,
         flag_upstream_failed,
+        dep_context: DepContext,
         session: "Session" = NEW_SESSION,
     ):
         """
@@ -142,7 +144,7 @@ class TriggerRuleDep(BaseTIDep):
         """
         task = ti.task
         upstream = self._count_upstreams(ti, session=session)
-        trigger_rule: TR = task.trigger_rule
+        trigger_rule = task.trigger_rule
         upstream_done = done >= upstream
         upstream_tasks_state = {
             "total": upstream,
@@ -152,43 +154,42 @@ class TriggerRuleDep(BaseTIDep):
             "upstream_failed": upstream_failed,
             "done": done,
         }
-        # TODO(aoen): Ideally each individual trigger rules would be its own class, but
-        # this isn't very feasible at the moment since the database queries need to be
-        # bundled together for efficiency.
-        # handling instant state assignment based on trigger rules
+        changed: bool = False
         if flag_upstream_failed:
             if trigger_rule == TR.ALL_SUCCESS:
                 if upstream_failed or failed:
-                    ti.set_state(State.UPSTREAM_FAILED, session)
+                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
                 elif skipped:
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.ALL_FAILED:
                 if successes or skipped:
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.ONE_SUCCESS:
                 if upstream_done and done == skipped:
                     # if upstream is done and all are skipped mark as skipped
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
                 elif upstream_done and successes <= 0:
                     # if upstream is done and there are no successes mark as upstream failed
-                    ti.set_state(State.UPSTREAM_FAILED, session)
+                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
             elif trigger_rule == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
-                    ti.set_state(State.UPSTREAM_FAILED, session)
+                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
             elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
                 if upstream_failed or failed:
-                    ti.set_state(State.UPSTREAM_FAILED, session)
+                    changed = ti.set_state(State.UPSTREAM_FAILED, session)
                 elif skipped == upstream:
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_SKIPPED:
                 if skipped:
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.ALL_SKIPPED:
                 if successes or failed:
-                    ti.set_state(State.SKIPPED, session)
+                    changed = ti.set_state(State.SKIPPED, session)
+        if changed:
+            dep_context.have_changed_ti_states = True
 
         if trigger_rule == TR.ONE_SUCCESS:
             if successes <= 0:

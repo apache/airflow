@@ -38,9 +38,9 @@ if __name__ == '__main__':
     from airflow_breeze.global_constants import MOUNT_SELECTED
     from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
     from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed
-    from airflow_breeze.utils.run_utils import get_runnable_ci_image, run_command
+    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
 
-    airflow_image = get_runnable_ci_image(verbose=VERBOSE, dry_run=DRY_RUN)
+    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
     create_mypy_volume_if_needed()
     cmd_result = run_command(
         [

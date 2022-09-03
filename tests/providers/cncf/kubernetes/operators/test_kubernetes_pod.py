@@ -69,6 +69,7 @@ def create_context(task, persist_to_db=False):
     }
 
 
+@pytest.mark.execution_timeout(300)
 class TestKubernetesPodOperator:
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker):

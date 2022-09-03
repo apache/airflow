@@ -2985,10 +2985,18 @@ class TestSchedulerJob:
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
             self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, dag_maker):
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            "@daily",
+            "0 10 * * *",
+            timedelta(hours=2),
+        ],
+    )
+    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, schedule, dag_maker):
         """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
         dag_id = 'test_send_sla_callbacks_to_processor_sla_with_task_slas'
-        with dag_maker(dag_id=dag_id, schedule='@daily') as dag:
+        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
             EmptyOperator(task_id='task1', sla=timedelta(seconds=60))
 
         with patch.object(settings, "CHECK_SLAS", True):
@@ -2999,6 +3007,26 @@ class TestSchedulerJob:
 
             expected_callback = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
             self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            None,
+            [Dataset("foo")],
+        ],
+    )
+    def test_send_sla_callbacks_to_processor_sla_dag_not_scheduled(self, schedule, dag_maker):
+        """Test SLA Callbacks are not sent when DAG isn't scheduled"""
+        dag_id = 'test_send_sla_callbacks_to_processor_sla_no_task_slas'
+        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
+            EmptyOperator(task_id='task1', sla=timedelta(seconds=5))
+
+        with patch.object(settings, "CHECK_SLAS", True):
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.executor = MockExecutor()
+
+            self.scheduler_job._send_sla_callbacks_to_processor(dag)
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -4198,13 +4226,14 @@ class TestSchedulerJob:
 
         dags = self.scheduler_job.dagbag.dags.values()
         assert ['test_only_empty_tasks'] == [dag.dag_id for dag in dags]
-        assert 5 == len(tis)
+        assert 6 == len(tis)
         assert {
             ('test_task_a', 'success'),
             ('test_task_b', None),
             ('test_task_c', 'success'),
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
+            ('test_task_outlets', 'scheduled'),
         } == {(ti.task_id, ti.state) for ti in tis}
         for state, start_date, end_date, duration in [
             (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis
@@ -4222,13 +4251,14 @@ class TestSchedulerJob:
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        assert 5 == len(tis)
+        assert 6 == len(tis)
         assert {
             ('test_task_a', 'success'),
             ('test_task_b', 'success'),
             ('test_task_c', 'success'),
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
+            ('test_task_outlets', 'scheduled'),
         } == {(ti.task_id, ti.state) for ti in tis}
         for state, start_date, end_date, duration in [
             (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis

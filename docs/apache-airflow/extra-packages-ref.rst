@@ -158,6 +158,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| atlassian.jira      | ``pip install 'apache-airflow[atlassian.jira]'``    | Jira hooks and operators                            |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
@@ -179,8 +181,6 @@ These are extras that add dependencies needed for integration with external serv
 | grafana              | ``pip install 'apache-airflow[grafana]'``          | Grafana Loki                                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                          |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| jira                | ``pip install 'apache-airflow[jira]'``              | Jira hooks and operators                            |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | opsgenie            | ``pip install 'apache-airflow[opsgenie]'``          | OpsGenie hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
