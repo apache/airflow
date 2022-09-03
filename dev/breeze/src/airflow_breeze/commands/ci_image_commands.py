@@ -260,7 +260,6 @@ def build(
 @option_verify
 @option_wait_for_image
 @option_image_tag_for_pulling
-@option_include_success_outputs
 @option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def pull(

@@ -11,9 +11,9 @@ ci:resource-check:0fb929ac3496dbbe97acfe99e35accd7
 ci:selective-check:d4e3c250cd6f2b0040fbe6557fa423f6
 ci:31566cdcdde216086f559215223b2378
 ci-image:build:d39a25675e6b74af9bbb1fc2582aacc5
-ci-image:pull:8aca8679e6030ad0d6e59216af40c0b3
+ci-image:pull:fdde25906ad4c666db606201be44c240
 ci-image:verify:a2daeaa820c0baca31da2737929b38b9
-ci-image:b1c7a3c6dfa72b127fac559dcfdbb0d3
+ci-image:310bac16f2c61789453569a4f7901595
 cleanup:9bf46a1dfd9db4fe13a1c233ad1bb96b
 compile-www-assets:23675c1862d0968cbff6ab6f1d93d488
 exec:89b81bc34d45b0fe6653a6db5482258c
@@ -53,5 +53,5 @@ static-checks:425cd78507278494e345fb7648260c24
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:docker-compose-tests:3e07be65e30219930d3c62a593dd8c6a
 testing:helm-tests:403231f0a94b261f9c7aae8aea03ec50
-testing:tests:32deda30f3899e8ae6e241238f990d68
-testing:e747ece268ba502c106924eb2f46c550
+testing:tests:418233cc2313a34da99fb41a841fe0cf
+testing:416c94fc5fce116f7f79d296484dfa1b

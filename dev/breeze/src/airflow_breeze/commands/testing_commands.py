@@ -40,12 +40,16 @@ from airflow_breeze.utils.common_options import (
     option_github_repository,
     option_image_name,
     option_image_tag_for_running,
+    option_include_success_outputs,
     option_integration,
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
+    option_parallelism,
     option_postgres_version,
     option_python,
+    option_run_parallel_test,
+    option_skip_cleanup,
     option_verbose,
 )
 from airflow_breeze.utils.console import get_console, message_type_from_return_code
@@ -55,6 +59,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_env_variables_for_docker_commands,
     perform_environment_checks,
 )
+from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 
@@ -189,6 +194,68 @@ def run_with_progress(
     return result
 
 
+def run_tests(
+    env_variables: Dict[str, str], dry_run: bool, verbose: bool, test_type: str, extra_pytest_args: Tuple
+) -> Tuple[int, str]:
+    env_variables['TEST_TYPE'] = test_type
+    perform_environment_checks(verbose=verbose)
+    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd.extend(list(extra_pytest_args))
+    test_result = run_command(
+        cmd,
+        verbose=verbose,
+        dry_run=dry_run,
+        env=env_variables,
+    )
+    return (
+        test_result.returncode,
+        f"Running tests {test_type}",
+    )
+
+
+def run_tests_in_parallel(
+    env_variables: Dict[str, str],
+    test_type_list: List[str],
+    include_success_outputs: bool,
+    skip_cleanup: bool,
+    parallelism: int,
+    dry_run: bool,
+    verbose: bool,
+    extra_pytest_args: Tuple,
+):
+    """Run tests in parallel"""
+    with ci_group(f"Running tests for the type {test_type_list}"):
+        # get_console().print(
+        #     f"\n[info]Running tests with parallelism = {parallelism} "
+        #     f"for the test type: {test_type_list}[/]"
+        # )
+        all_params = [f"Tests {test_type}" for test_type in test_type_list]
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+        ) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    run_tests,
+                    kwds={
+                        "env_variables": env_variables,
+                        "dry_run": dry_run,
+                        "verbose": verbose,
+                        "test_type": test_type,
+                        "extra_pytest_args": extra_pytest_args,
+                    },
+                )
+                for test_type in test_type_list
+            ]
+    check_async_run_results(
+        results=results,
+        success="All tests run correctly",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+    )
+
+
 @testing.command(
     name='tests',
     help="Run the specified unit test targets.",
@@ -218,6 +285,7 @@ def run_with_progress(
     "tests should be run - for example --test-type \"Providers[airbyte,http]\"",
     default="All",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
+    envvar='TEST_TYPES',
 )
 @click.option(
     "--test-timeout",
@@ -226,6 +294,10 @@ def run_with_progress(
     show_default=True,
 )
 @option_db_reset
+@option_run_parallel_test
+@option_parallelism
+@option_include_success_outputs
+@option_skip_cleanup
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def tests(
     dry_run: bool,
@@ -241,8 +313,12 @@ def tests(
     test_type: str,
     test_timeout: str,
     db_reset: bool,
-    image_tag: str | None,
+    run_parallel_test: bool,
+    parallelism: int,
+    image_tag: Optional[str],
     mount_sources: str,
+    skip_cleanup: bool,
+    include_success_outputs: bool,
 ):
     exec_shell_params = ShellParams(
         verbose=verbose,
@@ -257,10 +333,11 @@ def tests(
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables['RUN_TESTS'] = "true"
-    env_variables["TEST_TYPE"] = test_type
-    if "[" in test_type and not test_type.startswith("Providers"):
-        get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
-        sys.exit(1)
+    if test_type:
+        env_variables["TEST_TYPE"] = test_type
+        if "[" in test_type and not test_type.startswith("Providers"):
+            get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
+            sys.exit(1)
     if test_timeout:
         env_variables["TEST_TIMEOUT"] = test_timeout
     if integration:
@@ -291,6 +368,17 @@ def tests(
             version=version,
             verbose=verbose,
             dry_run=dry_run,
+        )
+    elif run_parallel_test:
+        run_tests_in_parallel(
+            env_variables=env_variables,
+            test_type_list=ALLOWED_TEST_TYPE_CHOICES,
+            include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
+            parallelism=parallelism,
+            dry_run=dry_run,
+            verbose=verbose,
+            extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
         )
     else:
         result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)

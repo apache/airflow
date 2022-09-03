@@ -428,6 +428,12 @@ option_run_in_parallel = click.option(
     is_flag=True,
     envvar='RUN_IN_PARALLEL',
 )
+option_run_parallel_test = click.option(
+    '--run-parallel-test',
+    help="Run the operation in parallel on all of Test types",
+    is_flag=True,
+    envvar='RUN_PARALLEL_TEST',
+)
 option_parallelism = click.option(
     '--parallelism',
     help="Maximum number of processes to use while running the operation in parallel.",
