@@ -253,7 +253,7 @@ class TestExecutorConfigType:
         process = config_type.bind_processor(mock_dialect)
         expected = copy(input)
         if 'pod_override' in input:
-            expected['pod_override'] = BaseSerialization()._serialize(input['pod_override'])
+            expected['pod_override'] = BaseSerialization.serialize(input['pod_override'])
         assert pickle.loads(process(input)) == expected
 
     @pytest.mark.parametrize(
@@ -264,7 +264,7 @@ class TestExecutorConfigType:
                 id='anything',
             ),
             param(
-                pickle.dumps({'pod_override': BaseSerialization()._serialize(TEST_POD)}),
+                pickle.dumps({'pod_override': BaseSerialization.serialize(TEST_POD)}),
                 id='serialized_pod',
             ),
             param(
@@ -292,7 +292,7 @@ class TestExecutorConfigType:
         if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
             # We should only deserialize a pod_override with BaseSerialization if
             # it was serialized with BaseSerialization (which is the behavior added in #24356
-            expected['pod_override'] = BaseSerialization()._deserialize(expected['pod_override'])
+            expected['pod_override'] = BaseSerialization.deserialize(expected['pod_override'])
         assert result == expected
 
     def test_compare_values(self):

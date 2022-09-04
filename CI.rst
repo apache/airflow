@@ -184,7 +184,7 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``HOST_GROUP_ID``                       |             |              |            | Group id of the host user.                      |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``HOST_OS``                             |             |    Linux     |    Linux   | OS of the Host (Darwin/Linux).                  |
+| ``HOST_OS``                             |             |    linux     |    linux   | OS of the Host (darwin/linux/windows).          |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                            |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
@@ -528,6 +528,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +===========================+==============================================+=======+=======+======+
 | Build info                | Prints detailed information about the build  | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
+| Push early cache & images | Pushes early cache/images to GitHub Registry | -     | Yes   | Yes  |
++---------------------------+----------------------------------------------+-------+-------+------+
 | Test OpenAPI client gen   | Tests if OpenAPIClient continues to generate | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | UI tests                  | React UI tests for new Airflow UI            | Yes   | Yes   | Yes  |
@@ -554,7 +556,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Constraints               | Upgrade constraints to latest ones (4)       | -     | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
-| Push images               | Pushes latest images to GitHub Registry (4)  | -     | Yes   | Yes  |
+| Push cache & images       | Pushes cache/images to GitHub Registry (4)   | -     | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 
 
@@ -564,8 +566,8 @@ Comments:
  (2) The tests are run when the Trigger Tests job determine that important files change (this allows
      for example "no-code" changes to build much faster)
  (3) The jobs wait for CI images to be available.
- (4) PROD and CI images are pushed as "latest" to GitHub Container registry and constraints are upgraded
-     only if all tests are successful. The images are rebuilt in this step using constraints pushed
+ (4) PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
+     upgrade only if all tests are successful. The images are rebuilt in this step using constraints pushed
      in the previous step.
 
 CodeQL scan
@@ -678,16 +680,12 @@ the sources are not mapped from your host machine.
 Adding new Python versions to CI
 --------------------------------
 
-In the ``main`` branch of development line we currently support Python 3.7, 3.8, 3.9.
+In the ``main`` branch of development line we currently support Python 3.7, 3.8, 3.9, 3.10
 
 In order to add a new version the following operations should be done (example uses Python 3.10)
 
 * copy the latest constraints in ``constraints-main`` branch from previous versions and name it
   using the new Python version (``constraints-3.10.txt``). Commit and push
-
-* add the new Python version to `breeze-complete <breeze-complete>`_ and
-  `_initialization.sh <scripts/ci/libraries/_initialization.sh>`_ - tests will fail if they are not
-  in sync.
 
 * build image locally for both prod and CI locally using Breeze:
 

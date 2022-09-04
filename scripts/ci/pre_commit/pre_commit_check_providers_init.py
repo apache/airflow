@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "${LIBRARIES_DIR}/_all_libs.sh"
+import sys
+from pathlib import Path
 
-export SEMAPHORE_NAME="kubernetes-tests"
+AIRFLOW_SOURCES = Path(__file__).parents[3]
+PROVIDERS_INIT_FILE = AIRFLOW_SOURCES / "airflow" / "providers" / "__init__.py"
 
-initialization::set_output_color_variables
-initialization::initialize_image_build_variables
-
-parallel::make_sure_gnu_parallel_is_installed
-parallel::make_sure_python_versions_are_specified
-parallel::make_sure_kubernetes_versions_are_specified
-
-parallel::get_maximum_parallel_k8s_jobs
-parallel::run_helm_tests_in_parallel \
-    "$(dirname "${BASH_SOURCE[0]}")/ci_setup_cluster_and_run_kubernetes_tests_single_job.sh" "${@}"
-
-
-# this will exit with error code in case some of the tests failed
-parallel::print_job_summary_and_return_status_code
+print(f"Checking if {PROVIDERS_INIT_FILE} exists.")
+if PROVIDERS_INIT_FILE.exists():
+    print(f"\033[0;31mERROR: {PROVIDERS_INIT_FILE} file should not exist. Deleting it.\033[0m\n")
+    PROVIDERS_INIT_FILE.unlink()
+    sys.exit(1)

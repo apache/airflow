@@ -1481,11 +1481,31 @@ class SchedulerJob(BaseJob):
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
         for ti, file_loc in zombies:
+
+            zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                msg=f"Detected {ti} as zombie",
+                msg=str(zombie_message_details),
             )
-            self.log.error("Detected zombie job: %s", request)
+
+            self.log.error("Detected zombie job: %s", request.msg)
             self.executor.send_callback(request)
             Stats.incr('zombies_killed')
+
+    @staticmethod
+    def _generate_zombie_message_details(ti: TaskInstance):
+        zombie_message_details = {
+            "DAG Id": ti.dag_id,
+            "Task Id": ti.task_id,
+            "Run Id": ti.run_id,
+        }
+
+        if ti.map_index != -1:
+            zombie_message_details["Map Index"] = ti.map_index
+        if ti.hostname:
+            zombie_message_details["Hostname"] = ti.hostname
+        if ti.external_executor_id:
+            zombie_message_details["External Executor Id"] = ti.external_executor_id
+
+        return zombie_message_details

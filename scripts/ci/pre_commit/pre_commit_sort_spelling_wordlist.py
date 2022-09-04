@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import subprocess
+import itertools
 from pathlib import Path
 
 if __name__ not in ("__main__", "__mp_main__"):
@@ -24,7 +24,20 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
+
+AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
+
+
+def stable_sort(x):
+    return x.casefold(), x
+
+
+def sort_uniq(sequence):
+    return (x[0] for x in itertools.groupby(sorted(sequence, key=stable_sort)))
+
+
 if __name__ == '__main__':
-    dir = Path("airflow") / "ui"
-    subprocess.check_call(['yarn', '--frozen-lockfile', '--non-interactive'], cwd=str(dir))
-    subprocess.check_call(['yarn', 'run', 'lint'], cwd=str(dir))
+    spelling_wordlist_path = Path(AIRFLOW_SOURCES) / "docs" / "spelling_wordlist.txt"
+    content = spelling_wordlist_path.read_text().splitlines(keepends=True)
+    sorted_content = sort_uniq(content)
+    spelling_wordlist_path.write_text("".join(sorted_content))
