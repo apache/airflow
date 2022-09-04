@@ -495,3 +495,9 @@ option_include_mypy_volume = click.option(
     is_flag=True,
     envvar='INCLUDE_MYPY_VOLUME',
 )
+option_max_time = click.option(
+    '--max-time',
+    help="Maximum time that the command should take - if it takes longer, the command will fail.",
+    type=click.IntRange(min=1),
+    envvar='MAX_TIME',
+)

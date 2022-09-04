@@ -18,6 +18,9 @@
 import os
 import shutil
 import sys
+import threading
+from signal import SIGTERM
+from time import sleep
 from typing import Iterable, Optional, Tuple
 
 import click
@@ -51,6 +54,7 @@ from airflow_breeze.utils.common_options import (
     option_integration,
     option_load_default_connection,
     option_load_example_dags,
+    option_max_time,
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
@@ -61,6 +65,7 @@ from airflow_breeze.utils.common_options import (
     option_use_packages_from_dist,
     option_verbose,
 )
+from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -87,6 +92,18 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, C
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
+class TimerThread(threading.Thread):
+    def __init__(self, max_time: int):
+        super().__init__(daemon=True)
+        self.max_time = max_time
+
+    def run(self):
+        get_console().print(f"[info]Setting timer to fail after {self.max_time} s.")
+        sleep(self.max_time)
+        get_console().print(f"[error]The command took longer than {self.max_time} s. Failing!")
+        os.killpg(os.getpgid(0), SIGTERM)
+
+
 @main.command()
 @option_verbose
 @option_dry_run
@@ -109,6 +126,7 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, C
 @option_db_reset
 @option_image_tag_for_running
 @option_answer
+@option_max_time
 @option_include_mypy_volume
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
@@ -132,6 +150,7 @@ def shell(
     db_reset: bool,
     include_mypy_volume: bool,
     answer: Optional[str],
+    max_time: Optional[int],
     image_tag: Optional[str],
     platform: Optional[str],
     extra_args: Tuple,
@@ -140,6 +159,9 @@ def shell(
     if verbose or dry_run:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
         get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+    if max_time:
+        TimerThread(max_time=max_time).start()
+        set_forced_answer('yes')
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -160,7 +182,7 @@ def shell(
         force_build=force_build,
         db_reset=db_reset,
         include_mypy_volume=include_mypy_volume,
-        extra_args=extra_args,
+        extra_args=extra_args if not max_time else "exit",
         answer=answer,
         image_tag=image_tag,
         platform=platform,

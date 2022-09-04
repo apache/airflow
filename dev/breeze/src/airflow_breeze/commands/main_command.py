@@ -35,6 +35,7 @@ from airflow_breeze.utils.common_options import (
     option_forward_credentials,
     option_github_repository,
     option_integration,
+    option_max_time,
     option_mssql_version,
     option_mysql_version,
     option_postgres_version,
@@ -101,6 +102,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_dry_run
 @option_github_repository
 @option_answer
+@option_max_time
 @click.pass_context
 def main(ctx: click.Context, **kwargs):
     from airflow_breeze.commands.developer_commands import shell
