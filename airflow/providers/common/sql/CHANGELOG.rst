@@ -32,17 +32,18 @@ Features
 ~~~~~~~~
 
 * ``Make placeholder style configurable (#25939)``
+* ``Better error messsage for pre-common-sql providers (#26051)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix (and test) SQLTableCheckOperator on postgresql (#25821)``
 * ``Don't use Pandas for SQLTableCheckOperator (#25822)``
+ * ``Discard semicolon stripping in SQL hook (#25855)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Better error messsage for pre-common-sql providers (#26051)``
-   * ``Discard semicolon stripping in SQL hook (#25855)``
+
 
 1.1.0
 .....

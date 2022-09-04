@@ -27,10 +27,6 @@ Changelog
 4.0.1
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
 Features
 ~~~~~~~~
 

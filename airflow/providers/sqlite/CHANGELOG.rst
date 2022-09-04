@@ -27,10 +27,6 @@ Changelog
 3.2.1
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
 Features
 ~~~~~~~~
 
