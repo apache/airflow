@@ -295,10 +295,18 @@ jobs:
         run: >
           breeze ci-image build
           --tag-as-latest --push --run-in-parallel --platform ${{ matrix.platform }}
+        # We only push "amd" image as it is really only needed for any kind of automated builds in CI
+        # and currently there is not an easy way to make multi-platform image from two separate builds
         if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && matrix.platform == 'linux/arm64' && needs.build-info.outputs.merge-run == 'true'
+      - name: "Clean docker cache for ${{ matrix.platform }}"
+        run: docker system prune --all --force
+        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
+      - name: "Check that image builds quickly ${{ matrix.platform }}"
+        run: breeze shell --max-time 120
+        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always() && needs.build-info.outputs.merge-run == 'true'
