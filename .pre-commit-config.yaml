@@ -586,10 +586,11 @@ repos:
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
         name: Sort alphabetically and uniquify spelling_wordlist.txt
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.py
+        language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
+        pass_filenames: false
       - id: lint-helm-chart
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
