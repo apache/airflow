@@ -20,7 +20,7 @@
 Defines the base entities that can be used for providing lineage
 information.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 import attr
 
@@ -28,6 +28,8 @@ import attr
 @attr.s(auto_attribs=True)
 class File:
     """File entity. Refers to a file"""
+
+    template_fields: ClassVar = ("url",)
 
     url: str = attr.ib()
     type_hint: Optional[str] = None
@@ -41,12 +43,16 @@ class User:
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
+    template_fields: ClassVar = ("email", "first_name", "last_name")
+
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Tag:
     """Tag or classification entity."""
 
     tag_name: str = attr.ib()
+
+    template_fields: ClassVar = ("tag_name",)
 
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -57,6 +63,8 @@ class Column:
     description: Optional[str] = None
     data_type: str = attr.ib()
     tags: List[Tag] = []
+
+    template_fields: ClassVar = ("name", "description", "data_type", "tags")
 
 
 # this is a temporary hack to satisfy mypy. Once
@@ -81,3 +89,14 @@ class Table:
     owners: List[User] = []
     extra: Dict[str, Any] = {}
     type_hint: Optional[str] = None
+
+    template_fields: ClassVar = (
+        "database",
+        "cluster",
+        "name",
+        "tags",
+        "description",
+        "columns",
+        "owners",
+        "extra",
+    )
