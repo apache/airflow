@@ -585,6 +585,8 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param wait_for_completion:  If True, waits for creation of the DB instance to complete. (default: True)
     """
 
+    template_fields = ("db_instance_identifier", "db_instance_class", "engine", "rds_kwargs")
+
     def __init__(
         self,
         *,
@@ -636,6 +638,8 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param wait_for_completion:  If True, waits for deletion of the DB instance to complete. (default: True)
     """
+
+    template_fields = ("db_instance_identifier", "rds_kwargs")
 
     def __init__(
         self,
