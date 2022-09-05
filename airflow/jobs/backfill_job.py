@@ -552,44 +552,47 @@ class BackfillJob(BaseJob):
                     for key, ti in list(ti_status.to_run.items()):
                         if task.task_id != ti.task_id:
                             continue
+                        try:
+                            pool = session.query(models.Pool).filter(models.Pool.pool == task.pool).first()
+                            if not pool:
+                                raise PoolNotFound(f'Unknown pool: {task.pool}')
 
-                        pool = session.query(models.Pool).filter(models.Pool.pool == task.pool).first()
-                        if not pool:
-                            raise PoolNotFound(f'Unknown pool: {task.pool}')
+                            open_slots = pool.open_slots(session=session)
+                            if open_slots <= 0:
+                                raise NoAvailablePoolSlot(
+                                    f"Not scheduling since there are {open_slots} open slots in pool "
+                                    f"{task.pool} "
+                                )
 
-                        open_slots = pool.open_slots(session=session)
-                        if open_slots <= 0:
-                            raise NoAvailablePoolSlot(
-                                f"Not scheduling since there are {open_slots} open slots in pool {task.pool}"
-                            )
-
-                        num_running_task_instances_in_dag = DAG.get_num_task_instances(
-                            self.dag_id,
-                            states=self.STATES_COUNT_AS_RUNNING,
-                            session=session,
-                        )
-
-                        if num_running_task_instances_in_dag >= self.dag.max_active_tasks:
-                            raise DagConcurrencyLimitReached(
-                                "Not scheduling since DAG max_active_tasks limit is reached."
-                            )
-
-                        if task.max_active_tis_per_dag:
-                            num_running_task_instances_in_task = DAG.get_num_task_instances(
-                                dag_id=self.dag_id,
-                                task_ids=[task.task_id],
+                            num_running_task_instances_in_dag = DAG.get_num_task_instances(
+                                self.dag_id,
                                 states=self.STATES_COUNT_AS_RUNNING,
                                 session=session,
                             )
 
-                            if num_running_task_instances_in_task >= task.max_active_tis_per_dag:
-                                raise TaskConcurrencyLimitReached(
-                                    "Not scheduling since Task concurrency limit is reached."
+                            if num_running_task_instances_in_dag >= self.dag.max_active_tasks:
+                                raise DagConcurrencyLimitReached(
+                                    "Not scheduling since DAG max_active_tasks limit is reached."
                                 )
 
-                        _per_task_process(key, ti, session)
-                        session.commit()
-            except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
+                            if task.max_active_tis_per_dag:
+                                num_running_task_instances_in_task = DAG.get_num_task_instances(
+                                    dag_id=self.dag_id,
+                                    task_ids=[task.task_id],
+                                    states=self.STATES_COUNT_AS_RUNNING,
+                                    session=session,
+                                )
+
+                                if num_running_task_instances_in_task >= task.max_active_tis_per_dag:
+                                    raise TaskConcurrencyLimitReached(
+                                        "Not scheduling since Task concurrency limit is reached."
+                                    )
+
+                            _per_task_process(key, ti, session)
+                            session.commit()
+                        except TaskConcurrencyLimitReached as e:
+                            self.log.debug(e)
+            except (NoAvailablePoolSlot, DagConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
             self.heartbeat(only_if_necessary=is_unit_test)
