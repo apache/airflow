@@ -24,6 +24,42 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Additional mask aws credentials (#26014)``
+* ``Add RedshiftDeleteClusterSnapshotOperator (#25975)``
+* ``Add redshift create cluster snapshot operator (#25857)``
+* ``Add common-sql lower bound for common-sql (#25789)``
+* ``Allow AWS Secrets Backends use AWS Connection capabilities (#25628)``
+* ``Implement 'EmrEksCreateClusterOperator' (#25816)``
+* ``Improve error handling/messaging around bucket exist check (#25805)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix display aws connection info (#26025)``
+* ``Fix 'EcsBaseOperator' and 'EcsBaseSensor' arguments (#25989)``
+* ``Fix RDS system test (#25839)``
+* ``Avoid circular import problems when instantiating AWS SM backend (#25810)``
+* ``fix bug construction of Connection object in version 5.0.0rc3 (#25716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix EMR serverless system test (#25969)``
+   * ``Add 'output' property to MappedOperator (#25604)``
+   * ``Add Airflow specific warning classes (#25799)``
+   * ``Replace SQL with Common SQL in pre commit (#26058)``
+   * ``Hook into Mypy to get rid of those cast() (#26023)``
+   * ``Raise an error on create bucket if use regional endpoint for us-east-1 and region not set (#25945)``
+   * ``Update AWS system tests to use SystemTestContextBuilder (#25748)``
+   * ``Convert Quicksight Sample DAG to System Test (#25696)``
+   * ``Consolidate to one 'schedule' param (#25410)``
+
 5.0.0
 .....
 
