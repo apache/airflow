@@ -35,7 +35,6 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
@@ -498,17 +497,13 @@ class DagFileProcessorManager(LoggingMixin):
                 fp: self.get_last_finish_time(fp) for fp in self.file_paths if self.get_last_finish_time(fp)
             }
             to_deactivate = set()
-            dags_parsed = (
-                session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time)
-                .filter(
-                    or_(
-                        DagModel.processor_subdir == self.get_dag_directory(),
-                        not self.standalone_dag_processor,
-                    ),
-                    DagModel.is_active,
-                )
-                .all()
+            query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
+                DagModel.is_active
             )
+            if self.standalone_dag_processor:
+                query = query.filter(DagModel.processor_subdir == self.get_dag_directory())
+            dags_parsed = query.all()
+
             for dag in dags_parsed:
                 # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
                 # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
@@ -667,17 +662,12 @@ class DagFileProcessorManager(LoggingMixin):
         """Fetches callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
-            query = (
-                session.query(DbCallbackRequest)
-                .filter(
-                    or_(
-                        DbCallbackRequest.processor_subdir == self.get_dag_directory(),
-                        not self.standalone_dag_processor,
-                    )
+            query = session.query(DbCallbackRequest)
+            if self.standalone_dag_processor:
+                query = query.filter(
+                    DbCallbackRequest.processor_subdir == self.get_dag_directory(),
                 )
-                .order_by(DbCallbackRequest.priority_weight.asc())
-                .limit(max_callbacks)
-            )
+            query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
             callbacks = with_row_locks(
                 query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
             ).all()
