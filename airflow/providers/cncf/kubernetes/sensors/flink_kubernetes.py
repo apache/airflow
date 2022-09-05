@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from kubernetes import client
 
@@ -29,36 +27,36 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SparkKubernetesSensor(BaseSensorOperator):
+class FlinkKubernetesSensor(BaseSensorOperator):
     """
-    Checks sparkApplication object in kubernetes cluster:
+    Checks flinkDeployment object in kubernetes cluster:
 
     .. seealso::
-        For more detail about Spark Application Object have a look at the reference:
-        https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
+        For more detail about Flink Deployment Object have a look at the reference:
+        https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/reference/#flinkdeployment
 
-    :param application_name: spark Application resource name
-    :param namespace: the kubernetes namespace where the sparkApplication reside in
+    :param application_name: flink Application resource name
+    :param namespace: the kubernetes namespace where the flinkDeployment reside in
     :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster.
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
-    :param api_group: kubernetes api group of sparkApplication
-    :param api_version: kubernetes api version of sparkApplication
+    :param api_group: kubernetes api group of flinkDeployment
+    :param api_version: kubernetes api version of flinkDeployment
     """
 
     template_fields: Sequence[str] = ("application_name", "namespace")
-    FAILURE_STATES = ("FAILED", "UNKNOWN")
-    SUCCESS_STATES = ("COMPLETED",)
+    FAILURE_STATES = ("MISSING", "ERROR")
+    SUCCESS_STATES = ("READY",)
 
     def __init__(
         self,
         *,
         application_name: str,
         attach_log: bool = False,
-        namespace: str | None = None,
+        namespace: Optional[str] = None,
         kubernetes_conn_id: str = "kubernetes_default",
-        api_group: str = 'sparkoperator.k8s.io',
-        api_version: str = 'v1beta2',
+        api_group: str = 'flink.apache.org',
+        api_version: str = 'v1beta1',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -90,33 +88,32 @@ class SparkKubernetesSensor(BaseSensorOperator):
         except client.rest.ApiException as e:
             self.log.warning(
                 "Could not read logs for pod %s. It may have been disposed.\n"
-                "Make sure timeToLiveSeconds is set on your SparkApplication spec.\n"
+                "Make sure timeToLiveSeconds is set on your flinkDeployment spec.\n"
                 "underlying exception: %s",
                 driver_pod_name,
                 e,
             )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info("Poking: %s", self.application_name)
         response = self.hook.get_custom_object(
             group=self.api_group,
             version=self.api_version,
-            plural="flinkDeployments",
+            plural="flinkdeployments",
             name=self.application_name,
             namespace=self.namespace,
         )
-        self.log.info(f"Application Response: {response}")
         try:
-            application_state = response["status"]["applicationState"]["state"]
+            application_state = response["status"]["jobManagerDeploymentStatus"]
         except KeyError:
             return False
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
-            raise AirflowException(f"Spark application failed with state: {application_state}")
+            raise AirflowException(f"flink application failed with state: {application_state}")
         elif application_state in self.SUCCESS_STATES:
-            self.log.info("Spark application ended successfully")
+            self.log.info("flink application ended successfully")
             return True
         else:
-            self.log.info("Spark application is still in state: %s", application_state)
+            self.log.info("flink application is still in state: %s", application_state)
             return False

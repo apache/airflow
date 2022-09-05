@@ -296,6 +296,10 @@ class KubernetesHook(BaseHook):
     def core_v1_client(self) -> client.CoreV1Api:
         return client.CoreV1Api(api_client=self.api_client)
 
+    @cached_property
+    def custom_object_client(self) -> client.CustomObjectsApi:
+        return client.CustomObjectsApi(api_client=self.api_client)
+
     def create_custom_object(
         self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
@@ -308,24 +312,25 @@ class KubernetesHook(BaseHook):
         :param body: crd object definition
         :param namespace: kubernetes namespace
         """
-        api = client.CustomObjectsApi(self.api_client)
+        api: client.CustomObjectsApi = self.custom_object_client
         if namespace is None:
             namespace = self.get_namespace()
         if isinstance(body, str):
             body_dict = _load_body_to_dict(body)
         else:
             body_dict = body
+        app_name = body_dict["metadata"]["name"]
         try:
             api.delete_namespaced_custom_object(
                 group=group,
                 version=version,
                 namespace=namespace,
                 plural=plural,
-                name=body_dict["metadata"]["name"],
+                name=app_name,
             )
-            self.log.warning("Deleted SparkApplication with the same name.")
+            self.log.warning(f"Deleted CustomApplication with the same name: {app_name}")
         except client.rest.ApiException:
-            self.log.info("SparkApp %s not found.", body_dict['metadata']['name'])
+            self.log.info(f"CustomApp {app_name} not found.")
 
         try:
             response = api.create_namespaced_custom_object(
