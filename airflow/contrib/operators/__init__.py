@@ -19,11 +19,12 @@
 """This package is deprecated. Please use `airflow.operators` or `airflow.providers.*.operators`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
     "This package is deprecated. Please use `airflow.operators` or `airflow.providers.*.operators`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 
