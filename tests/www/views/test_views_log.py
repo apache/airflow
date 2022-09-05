@@ -268,7 +268,7 @@ DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ tr
 
 
 @pytest.fixture()
-def dag_run_with_log_filename():
+def dag_run_with_log_filename(tis):
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
         log_template = session.merge(
@@ -278,6 +278,9 @@ def dag_run_with_log_filename():
         run_query = session.query(DagRun).filter(*run_filters)
         run_query.update({"log_template_id": log_template.id})
         dag_run = run_query.one()
+    # Dag has been updated, replace Dag in Task Instance
+    ti, _ = tis
+    ti.dag_run = dag_run
     yield dag_run
     with create_session() as session:
         session.query(DagRun).filter(*run_filters).update({"log_template_id": None})
