@@ -202,7 +202,7 @@ class BigQueryTableExistenceSensorAsync(BigQueryTableExistenceSensor):
         self.polling_interval = polling_interval
         self.gcp_conn_id = gcp_conn_id
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: 'Context') -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
         self.defer(
             timeout=timedelta(seconds=self.timeout),
