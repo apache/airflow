@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-03T23:30:20Z
+# This constraints file was automatically generated on 2022-09-05T10:39:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -341,9 +341,9 @@ jsonpickle==2.2.0
 jsonpointer==2.3
 jsonschema==4.15.0
 junit-xml==1.9
+jupyter-client==7.3.4
 jupyter-core==4.11.1
-jupyter_client==7.3.5
-keyring==23.9.0
+keyring==23.9.1
 kombu==5.2.4
 krb5==0.4.0
 kubernetes==23.6.0
@@ -430,7 +430,7 @@ prometheus-client==0.14.1
 prompt-toolkit==3.0.31
 proto-plus==1.19.6
 protobuf==3.20.0
-psutil==5.9.1
+psutil==5.9.2
 psycopg2-binary==2.9.3
 psycopg2==2.9.3
 ptyprocess==0.7.0
@@ -479,7 +479,7 @@ python-jose==3.3.0
 python-ldap==3.4.2
 python-nvd3==0.15.0
 python-slugify==6.1.2
-python-telegram-bot==13.13
+python-telegram-bot==13.14
 pytz-deprecation-shim==0.1.0.post0
 pytz==2022.1
 pytzdata==2020.1
@@ -487,7 +487,7 @@ pywinrm==0.4.3
 pyzmq==23.2.1
 qds-sdk==1.16.1
 reactivex==4.0.4
-readme-renderer==37.0
+readme-renderer==37.1
 redis==3.5.3
 redshift-connector==2.0.908
 requests-file==1.5.1
@@ -561,7 +561,7 @@ thrift==0.16.0
 toml==0.10.2
 tomli==2.0.1
 toolz==0.12.0
-tornado==6.2
+tornado==6.1
 towncrier==22.8.0
 tqdm==4.64.1
 traitlets==5.3.0
@@ -578,7 +578,7 @@ types-croniter==1.3.2
 types-cryptography==3.3.23
 types-docutils==0.19.0
 types-freezegun==1.1.10
-types-paramiko==2.11.4
+types-paramiko==2.11.5
 types-protobuf==3.20.1
 types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
@@ -607,7 +607,7 @@ volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
 webencodings==0.5.1
-websocket-client==1.4.0
+websocket-client==1.4.1
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.27.1

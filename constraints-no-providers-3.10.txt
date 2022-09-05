@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-03T23:26:54Z
+# This constraints file was automatically generated on 2022-09-05T10:36:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -120,7 +120,7 @@ plyvel==1.4.0
 prison==0.2.1
 prometheus-client==0.14.1
 prompt-toolkit==3.0.31
-psutil==5.9.1
+psutil==5.9.2
 pure-sasl==0.6.2
 pyarrow==9.0.0
 pyasn1-modules==0.2.8
@@ -166,7 +166,7 @@ urllib3==1.26.12
 vine==5.0.0
 virtualenv==20.16.4
 wcwidth==0.2.5
-websocket-client==1.4.0
+websocket-client==1.4.1
 wrapt==1.14.1
 zict==2.2.0
 zope.event==4.5.0
