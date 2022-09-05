@@ -176,7 +176,7 @@ Wait on an Amazon RDS instance or cluster status
 
 To wait for an Amazon RDS instance or cluster to reach a specific status you can use
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsDbSensor`.
-By default, the sensor waits for the database to reach the ``available`` state.
+By default, the sensor waits for a database instance to reach the ``available`` state.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
     :language: python
