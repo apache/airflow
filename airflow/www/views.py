@@ -1296,6 +1296,8 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, dag_id, session=None):
         """Get Dag details."""
+        from airflow.models.dag import DagOwnerAttributes
+
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
@@ -1319,9 +1321,8 @@ class Airflow(AirflowBaseView):
 
         tags = session.query(models.DagTag).filter(models.DagTag.dag_id == dag_id).all()
 
-        owner_links = (
-            session.query(models.DagOwnerAttributes).filter(models.DagOwnerAttributes.dag_id == dag_id).all()
-        )
+        # TODO: convert this to a relationship
+        owner_links = session.query(DagOwnerAttributes).filter_by(dag_id=dag_id).all()
 
         attrs_to_avoid = [
             "NUM_DAGS_PER_DAGRUN_QUERY",
