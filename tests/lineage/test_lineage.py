@@ -88,6 +88,7 @@ class TestLineage:
 
         op3.pre_execute(ctx3)
         assert len(op3.inlets) == 1
+        assert isinstance(op3.inlets[0], File)
         assert op3.inlets[0].url == f2s.format(DEFAULT_DATE)
         assert op3.outlets[0] == file3
         op3.post_execute(ctx3)
@@ -95,7 +96,8 @@ class TestLineage:
         # skip 4
 
         op5.pre_execute(ctx5)
-        assert len(op5.inlets) == 2
+        # Task IDs should be removed from the inlets, replaced with the outlets of those tasks
+        assert sorted(op5.inlets) == [file2, file3]
         op5.post_execute(ctx5)
 
     def test_lineage_render(self, dag_maker):
@@ -117,6 +119,37 @@ class TestLineage:
         op1.pre_execute(ctx1)
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
+
+    def test_non_attr_outlet(self, dag_maker):
+        class A:
+            pass
+
+        a = A()
+
+        f3s = "/tmp/does_not_exist_3"
+        file3 = File(f3s)
+
+        with dag_maker(dag_id='test_prepare_lineage'):
+            op1 = EmptyOperator(
+                task_id='leave1',
+                outlets=[a, file3],
+            )
+            op2 = EmptyOperator(task_id='leave2', inlets='auto')
+
+            op1 >> op2
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ctx1 = Context({"ti": TI(task=op1, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+        ctx2 = Context({"ti": TI(task=op2, run_id=dag_run.run_id), "ds": DEFAULT_DATE})
+
+        # prepare with manual inlets and outlets
+        op1.pre_execute(ctx1)
+        op1.post_execute(ctx1)
+
+        op2.pre_execute(ctx2)
+        assert op2.inlets == [file3]
+        op2.post_execute(ctx2)
 
     @mock.patch("airflow.lineage.get_backend")
     def test_lineage_is_sent_to_backend(self, mock_get_backend, dag_maker):
