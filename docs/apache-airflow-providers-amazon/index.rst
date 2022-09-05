@@ -88,7 +88,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``  ``>=1.1.0``
+``apache-airflow-providers-common-sql``  ``>=1.2.0``
 ``boto3``                                ``>=1.15.0``
 ``watchtower``                           ``~=2.0.1``
 ``jsonpath_ng``                          ``>=1.5.3``
