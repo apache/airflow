@@ -25,14 +25,14 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCheckOperatorAsync,
+    BigQueryCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryGetDataOperatorAsync,
-    BigQueryInsertJobOperatorAsync,
-    BigQueryIntervalCheckOperatorAsync,
-    BigQueryValueCheckOperatorAsync,
+    BigQueryGetDataOperator,
+    BigQueryInsertJobOperator,
+    BigQueryIntervalCheckOperator,
+    BigQueryValueCheckOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -126,7 +126,7 @@ with DAG(
     )
 
     # [START howto_operator_bigquery_insert_job_async]
-    insert_query_job = BigQueryInsertJobOperatorAsync(
+    insert_query_job = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration={
             "query": {
@@ -135,11 +135,12 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_insert_job_async]
 
     # [START howto_operator_bigquery_select_job_async]
-    select_query_job = BigQueryInsertJobOperatorAsync(
+    select_query_job = BigQueryInsertJobOperator(
         task_id="select_query_job",
         configuration={
             "query": {
@@ -148,32 +149,35 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_select_job_async]
 
     # [START howto_operator_bigquery_value_check_async]
-    check_value = BigQueryValueCheckOperatorAsync(
+    check_value = BigQueryValueCheckOperator(
         task_id="check_value",
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         pass_value=2,
         use_legacy_sql=False,
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_value_check_async]
 
     # [START howto_operator_bigquery_interval_check_async]
-    check_interval = BigQueryIntervalCheckOperatorAsync(
+    check_interval = BigQueryIntervalCheckOperator(
         task_id="check_interval",
         table=f"{DATASET}.{TABLE_1}",
         days_back=1,
         metrics_thresholds={"COUNT(*)": 1.5},
         use_legacy_sql=False,
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_interval_check_async]
 
     # [START howto_operator_bigquery_multi_query_async]
-    bigquery_execute_multi_query = BigQueryInsertJobOperatorAsync(
+    bigquery_execute_multi_query = BigQueryInsertJobOperator(
         task_id="execute_multi_query",
         configuration={
             "query": {
@@ -185,17 +189,19 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_multi_query_async]
 
     # [START howto_operator_bigquery_get_data_async]
-    get_data = BigQueryGetDataOperatorAsync(
+    get_data = BigQueryGetDataOperator(
         task_id="get_data",
         dataset_id=DATASET,
         table_id=TABLE_1,
         max_results=10,
         selected_fields="value,name",
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_get_data_async]
 
@@ -206,16 +212,17 @@ with DAG(
     )
 
     # [START howto_operator_bigquery_check_async]
-    check_count = BigQueryCheckOperatorAsync(
+    check_count = BigQueryCheckOperator(
         task_id="check_count",
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         use_legacy_sql=False,
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_check_async]
 
     # [START howto_operator_bigquery_execute_query_save_async]
-    execute_query_save = BigQueryInsertJobOperatorAsync(
+    execute_query_save = BigQueryInsertJobOperator(
         task_id="execute_query_save",
         configuration={
             "query": {
@@ -229,13 +236,15 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_execute_query_save_async]
 
-    execute_long_running_query = BigQueryInsertJobOperatorAsync(
+    execute_long_running_query = BigQueryInsertJobOperator(
         task_id="execute_long_running_query",
         configuration=CONFIGURATION,
         location=LOCATION,
+        deferrable=True,
     )
 
     create_dataset >> create_table_1 >> insert_query_job
