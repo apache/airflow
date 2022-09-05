@@ -84,7 +84,7 @@ def _create_db_cluster(hook: RdsHook):
 
 
 def _create_db_cluster_snapshot(hook: RdsHook):
-    _create_db_cluster()
+    _create_db_cluster(hook)
     hook.conn.create_db_cluster_snapshot(
         DBClusterIdentifier=DB_CLUSTER_NAME,
         DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT,
