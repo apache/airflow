@@ -41,3 +41,22 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
     [celery]
     flower_basic_auth = user1:password1,user2:password2
+
+Flower URL Prefix
+-----------------
+
+Enables deploying Celery Flower on non-root URL
+
+For example to access Flower on http://example.com/flower run it with:
+
+.. code-block:: bash
+
+  airflow celery flower --url-prefix=flower
+
+.. code-block:: ini
+
+  [celery]
+  flower_url_prefix = flower
+
+
+NOTE: The old nginx rewrite is no longer needed
