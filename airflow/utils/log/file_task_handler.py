@@ -342,7 +342,3 @@ class FileTaskHandler(logging.Handler):
                 logging.warning("OSError while change ownership of the log file")
 
         return full_path
-
-class FileTaskHandlerWinCompat(FileTaskHandler):
-    def _render_filename(self, ti, try_number):
-        return super()._render_filename(ti, try_number).replace(":", ".")
