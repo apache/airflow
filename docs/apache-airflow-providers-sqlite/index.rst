@@ -86,7 +86,7 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow-providers-common-sql``  ``>=1.1.1``
+``apache-airflow-providers-common-sql``  ``>=1.2.0``
 =======================================  ==================
 
 Cross provider package dependencies

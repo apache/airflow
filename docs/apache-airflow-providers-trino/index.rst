@@ -88,7 +88,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``  ``>=1.1.1``
+``apache-airflow-providers-common-sql``  ``>=1.2.0``
 ``pandas``                               ``>=0.17.1``
 ``trino``                                ``>=0.301.0``
 =======================================  ==================

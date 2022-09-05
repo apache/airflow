@@ -86,7 +86,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``  ``>=1.1.1``
+``apache-airflow-providers-common-sql``  ``>=1.2.0``
 ``presto-python-client``                 ``>=0.8.2``
 ``pandas``                               ``>=0.17.1``
 =======================================  ==================
