@@ -187,7 +187,6 @@ class RdsDbSensor(RdsBaseSensor):
         self.db_identifier = db_identifier
         self.target_statuses = target_statuses or ["available"]
         self.db_type = RdsDbType(db_type)
-        self.check_status_field = "DBInstanceStatus"
 
     def poke(self, context: 'Context'):
         self.log.info(
