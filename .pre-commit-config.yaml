@@ -150,7 +150,7 @@ repos:
       - id: black
         name: Run Black (the uncompromising Python code formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^airflow/contrib
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
