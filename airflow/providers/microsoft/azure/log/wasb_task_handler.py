@@ -17,7 +17,7 @@
 # under the License.
 import os
 import shutil
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 
@@ -103,7 +103,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number: int, metadata: Optional[str] = None) -> Tuple[str, Dict[str, bool]]:
+    def _read(
+        self, ti, try_number: int, metadata: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, Dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.
@@ -127,7 +129,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
-            return super()._read(ti, try_number)
+            return super()._read(ti, try_number, metadata)
 
     def wasb_log_exists(self, remote_log_location: str) -> bool:
         """
