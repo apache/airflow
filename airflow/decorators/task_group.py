@@ -29,7 +29,7 @@ from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
-    from airflow.models.mappedoperator import Mappable
+    from airflow.models.mappedoperator import OperatorExpandArgument
 
 F = TypeVar("F", bound=Callable)
 R = TypeVar("R")
@@ -100,7 +100,7 @@ class Group(Generic[F]):
     function: F
 
     # Return value should match F's return type, but that's impossible to declare.
-    def expand(self, **kwargs: "Mappable") -> Any:
+    def expand(self, **kwargs: "OperatorExpandArgument") -> Any:
         ...
 
     def partial(self, **kwargs: Any) -> "Group[F]":

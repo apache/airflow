@@ -21,8 +21,10 @@ Example Airflow DAG that uses Google AutoML services.
 """
 import os
 from datetime import datetime
+from typing import cast
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator,
@@ -71,7 +73,7 @@ with models.DAG(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
-    dataset_id = create_dataset_task.output["dataset_id"]
+    dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -84,7 +86,7 @@ with models.DAG(
 
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
 
-    model_id = create_model.output["model_id"]
+    model_id = cast(str, XComArg(create_model, key="model_id"))
 
     delete_model_task = AutoMLDeleteModelOperator(
         task_id="delete_model_task",

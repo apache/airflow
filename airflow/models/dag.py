@@ -79,7 +79,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -206,20 +206,20 @@ def get_dataset_triggered_next_run_info(dag_ids: List[str], *, session: Session)
     return {
         x.dag_id: f"{x.ready} of {x.total} datasets updated"
         for x in session.query(
-            DatasetDagRef.dag_id,
+            DagScheduleDatasetReference.dag_id,
             func.count().label("total"),
             func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
         )
         .join(
             DDRQ,
             and_(
-                DDRQ.dataset_id == DatasetDagRef.dataset_id,
-                DDRQ.target_dag_id == DatasetDagRef.dag_id,
+                DDRQ.dataset_id == DagScheduleDatasetReference.dataset_id,
+                DDRQ.target_dag_id == DagScheduleDatasetReference.dag_id,
             ),
             isouter=True,
         )
-        .group_by(DatasetDagRef.dag_id)
-        .filter(DatasetDagRef.dag_id.in_(dag_ids))
+        .group_by(DagScheduleDatasetReference.dag_id)
+        .filter(DagScheduleDatasetReference.dag_id.in_(dag_ids))
         .all()
     }
 
@@ -502,7 +502,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = list(schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        else:
+        elif schedule is not NOTSET:
             schedule_interval = schedule
 
         if self.dataset_triggers:
@@ -2659,7 +2659,11 @@ class DAG(LoggingMixin):
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
         from airflow.datasets import Dataset
-        from airflow.models.dataset import DatasetDagRef, DatasetModel, DatasetTaskRef
+        from airflow.models.dataset import (
+            DagScheduleDatasetReference,
+            DatasetModel,
+            TaskOutletDatasetReference,
+        )
 
         class OutletRef(NamedTuple):
             dag_id: str
@@ -2704,7 +2708,7 @@ class DAG(LoggingMixin):
         # store dag-schedule-on-dataset references
         for dag_ref in dag_references:
             session.merge(
-                DatasetDagRef(
+                DagScheduleDatasetReference(
                     dataset_id=stored_datasets[dag_ref.uri].id,
                     dag_id=dag_ref.dag_id,
                 )
@@ -2713,7 +2717,7 @@ class DAG(LoggingMixin):
         # store task-outlet-dataset references
         for outlet_ref in outlet_references:
             session.merge(
-                DatasetTaskRef(
+                TaskOutletDatasetReference(
                     dataset_id=stored_datasets[outlet_ref.uri].id,
                     dag_id=outlet_ref.dag_id,
                     task_id=outlet_ref.task_id,
@@ -3179,18 +3183,18 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
-        from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue as DDRQ
+        from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
 
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info_list = {
             x.dag_id: (x.first_event_time, x.last_event_time)
             for x in session.query(
-                DatasetDagRef.dag_id,
+                DagScheduleDatasetReference.dag_id,
                 func.max(DDRQ.created_at).label('last_event_time'),
                 func.max(DDRQ.created_at).label('first_event_time'),
             )
-            .join(DatasetDagRef.queue_records, isouter=True)
-            .group_by(DatasetDagRef.dag_id)
+            .join(DagScheduleDatasetReference.queue_records, isouter=True)
+            .group_by(DagScheduleDatasetReference.dag_id)
             .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
             .all()
         }
@@ -3270,6 +3274,7 @@ class DagModel(Base):
 def dag(
     dag_id: str = "",
     description: Optional[str] = None,
+    schedule: ScheduleArg = NOTSET,
     schedule_interval: ScheduleIntervalArg = NOTSET,
     timetable: Optional[Timetable] = None,
     start_date: Optional[datetime] = None,
@@ -3297,7 +3302,6 @@ def dag(
     jinja_environment_kwargs: Optional[Dict] = None,
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
-    schedule: Optional[ScheduleArg] = None,
     owner_links: Optional[Dict[str, str]] = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """

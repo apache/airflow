@@ -21,16 +21,22 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
-from airflow.models.dataset import DatasetDagRef, DatasetEvent, DatasetModel, DatasetTaskRef
+from airflow.models.dagrun import DagRun
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 
 
-class DatasetTaskRefSchema(SQLAlchemySchema):
-    """DatasetTaskRef DB schema"""
+class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
+    """TaskOutletDatasetReference DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DatasetTaskRef
+        model = TaskOutletDatasetReference
 
     dag_id = auto_field()
     task_id = auto_field()
@@ -38,13 +44,13 @@ class DatasetTaskRefSchema(SQLAlchemySchema):
     updated_at = auto_field()
 
 
-class DatasetDagRefSchema(SQLAlchemySchema):
-    """DatasetDagRef DB schema"""
+class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
+    """DagScheduleDatasetReference DB schema"""
 
     class Meta:
         """Meta"""
 
-        model = DatasetDagRef
+        model = DagScheduleDatasetReference
 
     dag_id = auto_field()
     created_at = auto_field()
@@ -64,8 +70,8 @@ class DatasetSchema(SQLAlchemySchema):
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
-    producing_tasks = fields.List(fields.Nested(DatasetTaskRefSchema))
-    consuming_dags = fields.List(fields.Nested(DatasetDagRefSchema))
+    producing_tasks = fields.List(fields.Nested(TaskOutletDatasetReferenceSchema))
+    consuming_dags = fields.List(fields.Nested(DagScheduleDatasetReferenceSchema))
 
 
 class DatasetCollection(NamedTuple):
@@ -86,6 +92,25 @@ dataset_schema = DatasetSchema()
 dataset_collection_schema = DatasetCollectionSchema()
 
 
+class BasicDAGRunSchema(SQLAlchemySchema):
+    """Basic Schema for DAGRun"""
+
+    class Meta:
+        """Meta"""
+
+        model = DagRun
+        dateformat = "iso"
+
+    run_id = auto_field(data_key='dag_run_id')
+    dag_id = auto_field(dump_only=True)
+    execution_date = auto_field(data_key="logical_date", dump_only=True)
+    start_date = auto_field(dump_only=True)
+    end_date = auto_field(dump_only=True)
+    state = auto_field(dump_only=True)
+    data_interval_start = auto_field(dump_only=True)
+    data_interval_end = auto_field(dump_only=True)
+
+
 class DatasetEventSchema(SQLAlchemySchema):
     """Dataset Event DB schema"""
 
@@ -102,6 +127,7 @@ class DatasetEventSchema(SQLAlchemySchema):
     source_dag_id = auto_field()
     source_run_id = auto_field()
     source_map_index = auto_field()
+    created_dagruns = fields.List(fields.Nested(BasicDAGRunSchema))
     timestamp = auto_field()
 
 
