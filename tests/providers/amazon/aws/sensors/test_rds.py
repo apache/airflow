@@ -22,10 +22,11 @@ from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.rds import (
     RdsBaseSensor,
+    RdsDbSensor,
     RdsExportTaskExistenceSensor,
-    RdsInstanceSensor,
     RdsSnapshotExistenceSensor,
 )
+from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.utils import timezone
 
 try:
@@ -71,7 +72,7 @@ def _create_db_instance_snapshot(hook: RdsHook):
         raise ValueError('AWS not properly mocked')
 
 
-def _create_db_cluster_snapshot(hook: RdsHook):
+def _create_db_cluster(hook: RdsHook):
     hook.conn.create_db_cluster(
         DBClusterIdentifier=DB_CLUSTER_NAME,
         Engine='mysql',
@@ -81,6 +82,9 @@ def _create_db_cluster_snapshot(hook: RdsHook):
     if not hook.conn.describe_db_clusters()['DBClusters']:
         raise ValueError('AWS not properly mocked')
 
+
+def _create_db_cluster_snapshot(hook: RdsHook):
+    _create_db_cluster()
     hook.conn.create_db_cluster_snapshot(
         DBClusterIdentifier=DB_CLUSTER_NAME,
         DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT,
@@ -232,7 +236,7 @@ class TestRdsExportTaskExistenceSensor:
 
 
 @pytest.mark.skipif(mock_rds is None, reason="mock_rds package not present")
-class TestRdsInstanceSensor:
+class TestRdsDbSensor:
     @classmethod
     def setup_class(cls):
         cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
@@ -244,26 +248,51 @@ class TestRdsInstanceSensor:
         del cls.hook
 
     @mock_rds
-    def test_poke_true(self):
+    def test_poke_true_instance(self):
         """
-        By default RdsInstanceSensor should wait for an instance to enter the 'available' state
+        By default RdsDbSensor should wait for an instance to enter the 'available' state
         """
         _create_db_instance(self.hook)
-        op = RdsInstanceSensor(
+        op = RdsDbSensor(
             task_id="instance_poke_true",
-            db_instance_identifier=DB_INSTANCE_NAME,
+            db_identifier=DB_INSTANCE_NAME,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
         assert op.poke(None)
 
     @mock_rds
-    def test_poke_false(self):
+    def test_poke_false_instance(self):
         _create_db_instance(self.hook)
-        op = RdsInstanceSensor(
+        op = RdsDbSensor(
             task_id="instance_poke_false",
-            db_instance_identifier=DB_INSTANCE_NAME,
+            db_identifier=DB_INSTANCE_NAME,
             target_statuses=["stopped"],
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        assert not op.poke(None)
+
+    @mock_rds
+    def test_poke_true_cluster(self):
+        _create_db_cluster(self.hook)
+        op = RdsDbSensor(
+            task_id="cluster_poke_true",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type=RdsDbType.CLUSTER,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        assert op.poke(None)
+
+    @mock_rds
+    def test_poke_false_cluster(self):
+        _create_db_cluster(self.hook)
+        op = RdsDbSensor(
+            task_id="cluster_poke_false",
+            db_identifier=DB_CLUSTER_NAME,
+            target_statuses=["stopped"],
+            db_type=RdsDbType.CLUSTER,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )

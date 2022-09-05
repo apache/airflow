@@ -169,14 +169,14 @@ To delete a AWS DB instance you can use
 Sensors
 -------
 
-.. _howto/sensor:RdsInstanceSensor:
+.. _howto/sensor:RdsDbSensor:
 
-Wait on an Amazon RDS instance status
-=====================================
+Wait on an Amazon RDS instance or cluster status
+================================================
 
-To wait for an Amazon RDS instance with specific statuses you can use
-:class:`~airflow.providers.amazon.aws.sensors.rds.RdsInstanceSensor`.
-By default, the sensor waits for the instance to reach the ``available`` state.
+To wait for an Amazon RDS instance or cluster to reach a specific status you can use
+:class:`~airflow.providers.amazon.aws.sensors.rds.RdsDbSensor`.
+By default, the sensor waits for the database to reach the ``available`` state.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/rds/example_rds_instance.py
     :language: python

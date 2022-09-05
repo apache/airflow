@@ -24,7 +24,7 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
     RdsDeleteDbInstanceOperator,
 )
-from airflow.providers.amazon.aws.sensors.rds import RdsInstanceSensor
+from airflow.providers.amazon.aws.sensors.rds import RdsDbSensor
 from tests.system.providers.amazon.aws.utils import set_env_id
 
 ENV_ID = set_env_id()
@@ -58,9 +58,9 @@ with DAG(
     # [END howto_operator_rds_create_db_instance]
 
     # [START howto_sensor_rds_instance]
-    db_instance_available = RdsInstanceSensor(
+    db_instance_available = RdsDbSensor(
         task_id="db_instance_available",
-        db_instance_identifier=RDS_DB_IDENTIFIER,
+        db_identifier=RDS_DB_IDENTIFIER,
     )
     # [END howto_sensor_rds_instance]
 

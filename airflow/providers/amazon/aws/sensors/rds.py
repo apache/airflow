@@ -38,7 +38,6 @@ class RdsBaseSensor(BaseSensorOperator):
         hook_params = hook_params or {}
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
         self.target_statuses: List[str] = []
-        self.check_status_field = "Status"
         super().__init__(*args, **kwargs)
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
@@ -54,6 +53,9 @@ class RdsBaseSensor(BaseSensorOperator):
         elif item_type == "db_instance":
             instances = self.hook.conn.describe_db_instances(DBInstanceIdentifier=item_name)
             return instances["DBInstances"]
+        elif item_type == "db_cluster":
+            clusters = self.hook.conn.describe_db_clusters(DBClusterIdentifier=item_name)
+            return clusters["DBClusters"]
         else:
             raise AirflowException(f"Method for {item_type} is not implemented")
 
@@ -64,9 +66,14 @@ class RdsBaseSensor(BaseSensorOperator):
         except ClientError:
             return False
         else:
+            status_field = self._check_status_field()
             return bool(items) and any(
-                map(lambda status: items[0][self.check_status_field].lower() == status, self.target_statuses)
+                map(lambda status: items[0][status_field].lower() == status, self.target_statuses)
             )
+
+    def _check_status_field(self) -> str:
+        """Return the name of the '_describe_item' response field that corresponds to the resource status."""
+        return "Status"
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):
@@ -154,40 +161,54 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         return self._check_item(item_type='export_task', item_name=self.export_task_identifier)
 
 
-class RdsInstanceSensor(RdsBaseSensor):
+class RdsDbSensor(RdsBaseSensor):
     """
-    Waits for an RDS instance to enter one of a number of states
+    Waits for an RDS instance or cluster to enter one of a number of states
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/sensor:RdsInstanceSensor`
+        :ref:`howto/sensor:RdsDbSensor`
 
-    :param db_instance_identifier: The identifier for the DB instance
-    :param target_statuses: Target status of instance
+    :param db_type: Type of the DB - either "instance" or "cluster"
+    :param db_identifier: The AWS identifier for the DB
+    :param target_statuses: Target status of DB
     """
 
     def __init__(
         self,
         *,
-        db_instance_identifier: str,
+        db_identifier: str,
+        db_type: str = RdsDbType.INSTANCE,
         target_statuses: Optional[List[str]] = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
-        self.db_instance_identifier = db_instance_identifier
+        self.db_identifier = db_identifier
         self.target_statuses = target_statuses or ["available"]
+        self.db_type = RdsDbType(db_type)
         self.check_status_field = "DBInstanceStatus"
 
     def poke(self, context: 'Context'):
         self.log.info(
-            "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_instance_identifier
+            "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_identifier
         )
-        return self._check_item(item_type="db_instance", item_name=self.db_instance_identifier)
+        item_type = self._check_item_type()
+        return self._check_item(item_type=item_type, item_name=self.db_identifier)
+
+    def _check_status_field(self) -> str:
+        if self.db_type == RdsDbType.INSTANCE:
+            return "DBInstanceStatus"
+        return "Status"
+
+    def _check_item_type(self):
+        if self.db_type == RdsDbType.CLUSTER:
+            return "db_cluster"
+        return "db_instance"
 
 
 __all__ = [
     "RdsExportTaskExistenceSensor",
-    "RdsInstanceSensor",
+    "RdsDbSensor",
     "RdsSnapshotExistenceSensor",
 ]
