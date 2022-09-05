@@ -4172,16 +4172,6 @@ class TestSchedulerJob:
             ti.job_id = local_job.id
             session.flush()
 
-            expected_failure_callback_requests = [
-                TaskCallbackRequest(
-                    full_filepath=dag.fileloc,
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    processor_subdir=TEST_DAG_FOLDER,
-                    msg="Detected <TaskInstance: test_example_bash_operator."
-                    "run_this_last scheduled__2016-01-01T00:00:00+00:00 [running]> as zombie",
-                )
-            ]
-
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock()
@@ -4189,6 +4179,15 @@ class TestSchedulerJob:
         self.scheduler_job._find_zombies(session=session)
 
         self.scheduler_job.executor.callback_sink.send.assert_called_once()
+
+        expected_failure_callback_requests = [
+            TaskCallbackRequest(
+                full_filepath=dag.fileloc,
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                processor_subdir=TEST_DAG_FOLDER,
+                msg=str(self.scheduler_job._generate_zombie_message_details(ti)),
+            )
+        ]
         callback_requests = self.scheduler_job.executor.callback_sink.send.call_args[0]
         assert len(callback_requests) == 1
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
