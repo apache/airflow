@@ -351,17 +351,9 @@ class BackfillJob(BaseJob):
         dag_run.refresh_from_db()
         make_transient(dag_run)
 
-        try:
-            for ti in dag_run.get_task_instances():
-                # all tasks part of the backfill are scheduled to run
-                if ti.state == State.NONE:
-                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
-                if ti.state != TaskInstanceState.REMOVED:
-                    tasks_to_run[ti.key] = ti
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
+        for ti in dag_run.get_task_instances(session=session):
+            if ti.state != TaskInstanceState.REMOVED:
+                tasks_to_run[ti.key] = ti
 
         return tasks_to_run
 
@@ -441,13 +433,6 @@ class BackfillJob(BaseJob):
                         ti_status.running.pop(key)
                     return
 
-                # guard against externally modified tasks instances or
-                # in case max concurrency has been reached at task runtime
-                elif ti.state == State.NONE:
-                    self.log.warning(
-                        "FIXME: Task instance %s state was set to None externally. This should not happen", ti
-                    )
-                    ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
                     if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
