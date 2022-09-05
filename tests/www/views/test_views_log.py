@@ -288,9 +288,7 @@ def dag_run_with_log_filename(tis):
 
 
 def test_get_logs_for_changed_filename_format_db(
-    log_admin_client,
-    dag_run_with_log_filename,
-    create_expected_log_file
+    log_admin_client, dag_run_with_log_filename, create_expected_log_file
 ):
     try_number = 1
     create_expected_log_file(try_number)
