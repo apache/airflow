@@ -89,7 +89,10 @@ with models.DAG(
 
     # [START howto_sensor_async_bigquery_table]
     check_table_exists_async = BigQueryTableExistenceSensorAsync(
-        task_id="check_table_exists", project_id=PROJECT_ID, dataset_id=DATASET_NAME, table_id=TABLE_NAME
+        task_id="check_table_exists_async",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
     )
     # [END howto_sensor_async_bigquery_table]
 
