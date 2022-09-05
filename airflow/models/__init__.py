@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from typing import Union
 
 # Do not add new models to this -- this is for compat only
 __all__ = [
@@ -62,10 +61,10 @@ def import_all_models():
     import airflow.jobs.local_task_job
     import airflow.jobs.scheduler_job
     import airflow.jobs.triggerer_job
-    import airflow.models.serialized_dag
-    import airflow.models.tasklog
     import airflow.models.dagwarning
     import airflow.models.dataset
+    import airflow.models.serialized_dag
+    import airflow.models.tasklog
 
 
 def __getattr__(name):
