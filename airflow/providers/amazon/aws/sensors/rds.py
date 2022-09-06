@@ -61,19 +61,18 @@ class RdsBaseSensor(BaseSensorOperator):
 
     def _check_item(self, item_type: str, item_name: str) -> bool:
         """Get certain item from `_describe_item()` and check its status"""
+        if item_type == "db_instance":
+            status_field = "DBInstanceStatus"
+        else:
+            status_field = "Status"
         try:
             items = self._describe_item(item_type, item_name)
         except ClientError:
             return False
         else:
-            status_field = self._check_status_field()
             return bool(items) and any(
                 map(lambda status: items[0][status_field].lower() == status, self.target_statuses)
             )
-
-    def _check_status_field(self) -> str:
-        """Return the name of the '_describe_item' response field that corresponds to the resource status."""
-        return "Status"
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):
@@ -194,11 +193,6 @@ class RdsDbSensor(RdsBaseSensor):
         )
         item_type = self._check_item_type()
         return self._check_item(item_type=item_type, item_name=self.db_identifier)
-
-    def _check_status_field(self) -> str:
-        if self.db_type == RdsDbType.INSTANCE:
-            return "DBInstanceStatus"
-        return "Status"
 
     def _check_item_type(self):
         if self.db_type == RdsDbType.CLUSTER:
