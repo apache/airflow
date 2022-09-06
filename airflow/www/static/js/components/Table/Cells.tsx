@@ -17,13 +17,27 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
-  Code, Link, Box, Text,
+  Flex,
+  Code,
+  Link,
+  Box,
+  Text,
+  useDisclosure,
+  ModalCloseButton,
+  Modal,
+  ModalContent,
+  ModalOverlay,
+  ModalBody,
+  ModalHeader,
 } from '@chakra-ui/react';
 
+import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
 import { getMetaValue } from 'src/utils';
+import { useContainerRef } from 'src/context/containerRef';
+import { SimpleStatus } from 'src/dag/StatusBox';
 
 interface CellProps {
   cell: {
@@ -45,6 +59,79 @@ export const DatasetLink = ({ cell: { value } }: CellProps) => {
     >
       {value}
     </Link>
+  );
+};
+
+export const DagRunLink = ({ cell: { value, row } }: CellProps) => {
+  const dagId = getMetaValue('dag_id');
+  const gridUrl = getMetaValue('grid_url');
+  const stringToReplace = dagId || '__DAG_ID__';
+  const url = `${gridUrl?.replace(stringToReplace, value)}?dag_run_id=${encodeURIComponent(row.original.dagRunId)}`;
+  return (
+    <Flex alignItems="center">
+      <SimpleStatus state={row.original.state} mr={2} />
+      <Link
+        color="blue.600"
+        href={url}
+      >
+        {value}
+      </Link>
+    </Flex>
+  );
+};
+
+export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
+  const { isOpen, onToggle, onClose } = useDisclosure();
+  const containerRef = useContainerRef();
+
+  const columns = useMemo(
+    () => [
+      {
+        Header: 'DAG Id',
+        accessor: 'dagId',
+        Cell: DagRunLink,
+      },
+      {
+        Header: 'Logical Date',
+        accessor: 'logicalDate',
+        Cell: TimeCell,
+      },
+    ],
+    [],
+  );
+
+  const data = useMemo(
+    () => value,
+    [value],
+  );
+
+  if (!value || !value.length) return null;
+
+  return (
+    <Box>
+      <Text color="blue.600" cursor="pointer" onClick={onToggle}>{value.length}</Text>
+      <Modal size="3xl" isOpen={isOpen} onClose={onClose} portalProps={{ containerRef }}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <Text as="span" color="gray.400">Dag Runs triggered by</Text>
+            <br />
+            {row.original.datasetUri}
+            <br />
+            <Text as="span" color="gray.400">at</Text>
+            <br />
+            <Time dateTime={row.original.timestamp} />
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Table
+              data={data}
+              columns={columns}
+            />
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    </Box>
   );
 };
 

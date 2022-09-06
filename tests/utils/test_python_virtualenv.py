@@ -20,7 +20,8 @@ import sys
 import unittest
 from unittest import mock
 
-from airflow.utils.python_virtualenv import prepare_virtualenv, remove_task_decorator
+from airflow.utils.decorators import remove_task_decorator
+from airflow.utils.python_virtualenv import prepare_virtualenv
 
 
 class TestPrepareVirtualenv(unittest.TestCase):

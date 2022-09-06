@@ -69,9 +69,7 @@ function in_container_cleanup_pyc() {
     fi
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
         -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -90,9 +88,7 @@ function in_container_cleanup_pycache() {
     fi
     find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
         -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -107,7 +103,7 @@ function in_container_cleanup_pycache() {
 # changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "Linux" ]]; then
+    if [[ ${HOST_OS:=} == "linux" ]]; then
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"

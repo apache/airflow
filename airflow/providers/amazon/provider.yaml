@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 5.1.0
   - 5.0.0
   - 4.1.0
   - 4.0.0
@@ -45,7 +46,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
+  - apache-airflow-providers-common-sql>=1.2.0
   - boto3>=1.15.0
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:

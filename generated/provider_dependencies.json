@@ -17,7 +17,7 @@
   },
   "amazon": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.1.0",
+      "apache-airflow-providers-common-sql>=1.2.0",
       "apache-airflow>=2.2.0",
       "boto3>=1.15.0",
       "jsonpath_ng>=1.5.3",
@@ -445,7 +445,8 @@
       "azure-servicebus>=7.6.1; platform_machine != \"aarch64\"",
       "azure-storage-blob>=12.7.0,<12.9.0",
       "azure-storage-common>=2.1.0",
-      "azure-storage-file>=2.1.0"
+      "azure-storage-file>=2.1.0",
+      "azure-synapse-spark"
     ],
     "cross-providers-deps": [
       "google",
@@ -563,7 +564,7 @@
   },
   "postgres": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.1.0",
+      "apache-airflow-providers-common-sql>=1.2.0",
       "apache-airflow>=2.2.0",
       "psycopg2>=2.8.0"
     ],

@@ -735,8 +735,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
-        xcom_arg = XComArg(task1)
-        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=xcom_arg)
+        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=task1.output)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
