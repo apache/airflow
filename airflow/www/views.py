@@ -597,11 +597,16 @@ def dag_edges(dag):
     edges = set()
 
     def get_downstream(task):
-        for child in task.downstream_list:
-            edge = (task.task_id, child.task_id)
-            if edge not in edges:
+        tasks_to_trace = task.downstream_list
+        while tasks_to_trace:
+            tasks_to_trace_next: Set[str] = set()
+            for child in tasks_to_trace:
+                edge = (task.task_id, child.task_id)
+                if edge in edges:
+                    continue
+                tasks_to_trace_next.update(child.downstream_list)
                 edges.add(edge)
-                get_downstream(child)
+            tasks_to_trace = tasks_to_trace_next
 
     for root in dag.roots:
         get_downstream(root)
