@@ -3016,7 +3016,7 @@ def _format_schema_for_description(schema: Dict) -> List:
 
 
 class BigQueryAsyncHook(GoogleBaseAsyncHook):
-    """Big query async hook inherits from GoogleBaseHookAsync class and connects to the google Big query"""
+    """Big query async hook inherits from GoogleBaseAsyncHook class and connects to the google Big query"""
 
     sync_hook_class = BigQueryHook
 

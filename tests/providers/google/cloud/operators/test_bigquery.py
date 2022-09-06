@@ -1122,11 +1122,11 @@ class TestBigQueryInsertJobOperator:
             op.execute(context=MagicMock())
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_insert_job_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryInsertJobTrigger will be fired
-    when the BigQueryInsertJobOperatorAsync is executed.
+    when the BigQueryInsertJobAsyncOperator is executed.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1225,7 +1225,7 @@ def test_bigquery_insert_job_operator_execute_complete():
     mock_log_info.assert_called_with("%s completed with response %s ", "insert_query_job", "Job completed")
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_insert_job_operator_with_job_id_generate(mock_hook):
     job_id = "123456"
     hash_ = "hash"
@@ -1269,7 +1269,7 @@ def test_bigquery_insert_job_operator_with_job_id_generate(mock_hook):
     )
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_execute_reattach(mock_hook):
     job_id = "123456"
     hash_ = "hash"
@@ -1313,7 +1313,7 @@ def test_execute_reattach(mock_hook):
     job._begin.assert_called_once_with()
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_execute_force_rerun(mock_hook):
     job_id = "123456"
     hash_ = "hash"
@@ -1363,11 +1363,11 @@ def test_execute_force_rerun(mock_hook):
     )
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_check_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryCheckTrigger will be fired
-    when the BigQueryCheckOperatorAsync is executed.
+    when the BigQueryCheckAsyncOperator is executed.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1473,11 +1473,11 @@ def test_bigquery_interval_check_operator_execute_failure():
         operator.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_interval_check_operator_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryIntervalCheckTrigger will be fired
-    when the BigQueryIntervalCheckOperatorAsync is executed.
+    when the BigQueryIntervalCheckAsyncOperator is executed.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1500,11 +1500,11 @@ def test_bigquery_interval_check_operator_async(mock_hook):
     ), "Trigger is not a BigQueryIntervalCheckTrigger"
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
     """
     Asserts that a task is deferred and a BigQuerygetDataTrigger will be fired
-    when the BigQuerygetDataOperatorAsync is executed.
+    when the BigQueryGetDataAsyncOperator is executed.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1526,11 +1526,11 @@ def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
     assert isinstance(exc.value.trigger, BigQueryGetDataTrigger), "Trigger is not a BigQueryGetDataTrigger"
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
     """
-    Asserts that a task is deferred and a BigQuerygetDataTrigger will be fired
-    when the BigQuerygetDataOperatorAsync is executed.
+    Asserts that a task is deferred and a BigQueryGetDataTrigger will be fired
+    when the BigQueryGetDataAsyncOperator is executed.
     """
     job_id = "123456"
     hash_ = "hash"
@@ -1593,7 +1593,7 @@ def _get_value_check_async_operator(use_legacy_sql: bool = False):
     )
 
 
-@mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHook")
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
 def test_bigquery_value_check_async(mock_hook):
     """
     Asserts that a task is deferred and a BigQueryValueCheckTrigger will be fired

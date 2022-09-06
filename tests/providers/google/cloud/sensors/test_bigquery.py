@@ -21,8 +21,8 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
+    BigQueryTableExistenceAsyncSensor,
     BigQueryTableExistenceSensor,
-    BigQueryTableExistenceSensorAsync,
     BigQueryTablePartitionExistenceSensor,
 )
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryTableExistenceTrigger
@@ -103,13 +103,13 @@ def context():
     yield context
 
 
-class TestBigqueryTableExistenceSensorAsync(TestCase):
+class TestBigQueryTableExistenceAsyncSensor(TestCase):
     def test_big_query_table_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a BigQueryTableExistenceTrigger will be fired
-        when the BigQueryTableExistenceSensorAsync is executed.
+        when the BigQueryTableExistenceAsyncSensor is executed.
         """
-        task = BigQueryTableExistenceSensorAsync(
+        task = BigQueryTableExistenceAsyncSensor(
             task_id="check_table_exists",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
@@ -123,7 +123,7 @@ class TestBigqueryTableExistenceSensorAsync(TestCase):
 
     def test_big_query_table_existence_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        task = BigQueryTableExistenceSensorAsync(
+        task = BigQueryTableExistenceAsyncSensor(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
@@ -134,7 +134,7 @@ class TestBigqueryTableExistenceSensorAsync(TestCase):
 
     def test_big_query_table_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        task = BigQueryTableExistenceSensorAsync(
+        task = BigQueryTableExistenceAsyncSensor(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
@@ -147,7 +147,7 @@ class TestBigqueryTableExistenceSensorAsync(TestCase):
 
     def test_big_query_sensor_async_execute_complete_event_none(self):
         """Asserts that logging occurs as expected"""
-        task = BigQueryTableExistenceSensorAsync(
+        task = BigQueryTableExistenceAsyncSensor(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
