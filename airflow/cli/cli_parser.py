@@ -1189,7 +1189,10 @@ DAGS_COMMANDS = (
             "version of Airflow that you are running."
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_reserialize'),
-        args=(ARG_CLEAR_ONLY,),
+        args=(
+            ARG_CLEAR_ONLY,
+            ARG_SUBDIR,
+        ),
     ),
 )
 TASKS_COMMANDS = (
