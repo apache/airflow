@@ -21,7 +21,7 @@ from typing import Callable, Optional, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.python_virtualenv import remove_task_decorator
+from airflow.utils.decorators import remove_task_decorator
 
 
 class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
