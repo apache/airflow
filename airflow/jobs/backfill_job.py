@@ -331,7 +331,7 @@ class BackfillJob(BaseJob):
         return run
 
     @provide_session
-    def _task_instances_for_dag_run(self, dag_run, session=None):
+    def _task_instances_for_dag_run(self, dag, dag_run, session=None):
         """
         Returns a map of task instance key to task instance object for the tasks to
         run in the given dag run.
@@ -351,10 +351,19 @@ class BackfillJob(BaseJob):
         dag_run.refresh_from_db()
         make_transient(dag_run)
 
-        for ti in dag_run.get_task_instances(session=session):
-            if ti.state != TaskInstanceState.REMOVED:
-                tasks_to_run[ti.key] = ti
-
+        dag_run.dag = dag
+        info = dag_run.task_instance_scheduling_decisions(session=session)
+        schedulable_tis = info.schedulable_tis
+        try:
+            for ti in dag_run.get_task_instances(session=session):
+                if ti in schedulable_tis:
+                    ti.set_state(TaskInstanceState.SCHEDULED)
+                if ti.state != TaskInstanceState.REMOVED:
+                    tasks_to_run[ti.key] = ti
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
         return tasks_to_run
 
     def _log_progress(self, ti_status):
@@ -714,7 +723,7 @@ class BackfillJob(BaseJob):
         for dagrun_info in dagrun_infos:
             for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
-                tis_map = self._task_instances_for_dag_run(dag_run, session=session)
+                tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
                 if dag_run is None:
                     continue
 

@@ -611,7 +611,7 @@ class TestBackfillJob:
             wraps=job._task_instances_for_dag_run,
         ) as wrapped_task_instances_for_dag_run:
             job.run()
-            dr = wrapped_task_instances_for_dag_run.call_args_list[0][0][0]
+            dr = wrapped_task_instances_for_dag_run.call_args_list[0][0][1]
             assert dr.conf == {"a": 1}
 
     def test_backfill_skip_active_scheduled_dagrun(self, dag_maker, caplog):
@@ -1808,5 +1808,7 @@ class TestBackfillJob:
             donot_pickle=True,
         )
         for dr in DagRun.find(dag_id=dag.dag_id, session=session):
-            job._task_instances_for_dag_run(dr, session=session)
-            assert [ti.state == State.NONE for ti in dr.get_task_instances()]
+            tasks_to_run = job._task_instances_for_dag_run(dag, dr, session=session)
+            states = [ti.state for _, ti in tasks_to_run.items()]
+            assert TaskInstanceState.SCHEDULED in states
+            assert State.NONE in states
