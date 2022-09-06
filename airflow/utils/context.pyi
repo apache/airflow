@@ -87,7 +87,7 @@ class Context(TypedDict, total=False):
     ti: TaskInstance
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Dict[str, List[DatasetEvent]]
+    triggering_dataset_events: Mapping[str, Collection[DatasetEvent]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
