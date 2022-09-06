@@ -22,7 +22,7 @@ from typing import Optional
 
 from sqlalchemy import Column, Index, Integer, String
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow.compat.functools import cached_property
@@ -39,6 +39,12 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+
+
+def _resolve_dagrun_model():
+    from airflow.models.dagrun import DagRun
+
+    return DagRun
 
 
 class BaseJob(Base, LoggingMixin):
@@ -74,14 +80,14 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         "TaskInstance",
-        primaryjoin="id == foreign(TaskInstance.queued_by_job_id)",
+        primaryjoin="BaseJob.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref('queued_by_job', uselist=False),
     )
 
     dag_runs = relationship(
         "DagRun",
-        primaryjoin="id == foreign(DagRun.creating_job_id)",
-        backref=backref('creating_job'),
+        primaryjoin=lambda: BaseJob.id == foreign(_resolve_dagrun_model().creating_job_id),
+        backref='creating_job',
     )
 
     """
