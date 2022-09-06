@@ -2878,10 +2878,10 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
 
         :param query_results: the results from a SQL query
         """
-    buffer = []
-    for dict_row in query_results.get("rows", {}):
-        buffer.append([vs["v"] for vs in dict_row["f"]])
-    return buffer
+        buffer = []
+        for dict_row in query_results.get("rows", {}):
+            buffer.append([vs["v"] for vs in dict_row["f"]])
+        return buffer
 
     def value_check(
         self,
@@ -2896,7 +2896,7 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         :return: Raises AirflowException if there is no match.
         """
         if not records:
-            raise AirflowException("The query returned None")
+            raise AirflowException("The query returned empty results")
         pass_value_conv = self._convert_to_float_if_possible(pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
         tolerance_pct_str = str(tolerance * 100) + "%" if tolerance else None
@@ -3021,7 +3021,7 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
             )
 
         if not all(test_results.values()):
-            failed_tests = [it[0] for it in test_results.items() if not it[1]]
+            failed_tests = [metric for metric, value in test_results.items() if not value]
             self.log.warning(
                 "The following %s tests out of %s failed:",
                 len(failed_tests),

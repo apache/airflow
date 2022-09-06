@@ -641,7 +641,7 @@ class BigQueryGetDataOperator(BaseOperator):
             query += self.selected_fields
         else:
             query += "*"
-        query += f" from {self.dataset_id}. {self.table_id} limit {self.max_results}"
+        query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
         return query
 
     def execute(self, context: 'Context'):
