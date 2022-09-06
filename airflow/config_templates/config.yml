@@ -2126,7 +2126,7 @@
         Only applicable if `[scheduler]standalone_dag_processor` is true.
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
       version_added: 2.4.0
-      type: string
+      type: integer
       example: ~
       default: "600"
     - name: use_job_schedule
