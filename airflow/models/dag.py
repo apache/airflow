@@ -2535,7 +2535,6 @@ class DAG(LoggingMixin):
     def bulk_sync_to_db(
         cls,
         dags: Collection["DAG"],
-        processor_subdir: Optional[str] = None,
         session=NEW_SESSION,
     ):
         """This method is deprecated in favor of bulk_write_to_db"""
@@ -2544,7 +2543,7 @@ class DAG(LoggingMixin):
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        return cls.bulk_write_to_db(dags, processor_subdir, session)
+        return cls.bulk_write_to_db(dags=dags, session=session)
 
     @classmethod
     @provide_session
