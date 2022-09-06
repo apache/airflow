@@ -668,7 +668,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                     'jobRunId': response['jobRunId'],
                 },
                 parse_response=['jobRun', 'state'],
-                desired_state=EmrServerlessJobSensor.TERMINAL_STATES,
+                desired_state=EmrServerlessJobSensor.SUCCESS_STATES,
                 failure_states=EmrServerlessJobSensor.FAILURE_STATES,
                 object_type='job',
                 action='run',
