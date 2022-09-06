@@ -2532,18 +2532,27 @@ class DAG(LoggingMixin):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
+    def bulk_sync_to_db(
+        cls,
+        dags: Collection["DAG"],
+        session=NEW_SESSION,
+    ):
         """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        return cls.bulk_write_to_db(dags, session)
+        return cls.bulk_write_to_db(dags=dags, session=session)
 
     @classmethod
     @provide_session
-    def bulk_write_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
+    def bulk_write_to_db(
+        cls,
+        dags: Collection["DAG"],
+        processor_subdir: Optional[str] = None,
+        session=NEW_SESSION,
+    ):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
         calculated fields.
@@ -2624,6 +2633,7 @@ class DAG(LoggingMixin):
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
+            orm_dag.processor_subdir = processor_subdir
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2729,10 +2739,10 @@ class DAG(LoggingMixin):
         session.flush()
 
         for dag in dags:
-            cls.bulk_write_to_db(dag.subdags, session=session)
+            cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @provide_session
-    def sync_to_db(self, session=NEW_SESSION):
+    def sync_to_db(self, processor_subdir: Optional[str] = None, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
@@ -2740,7 +2750,7 @@ class DAG(LoggingMixin):
 
         :return: None
         """
-        self.bulk_write_to_db([self], session)
+        self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
 
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
@@ -2977,6 +2987,8 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
+    # The base directory used by Dag Processor that parsed this dag.
+    processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Description of the dag

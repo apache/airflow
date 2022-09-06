@@ -798,7 +798,7 @@ class TestDag:
 
         session = settings.Session()
         dag.clear()
-        DAG.bulk_write_to_db([dag], session)
+        DAG.bulk_write_to_db([dag], session=session)
 
         model = session.query(DagModel).get((dag.dag_id,))
 
@@ -832,7 +832,7 @@ class TestDag:
 
         session = settings.Session()
         dag.clear()
-        DAG.bulk_write_to_db([dag], session)
+        DAG.bulk_write_to_db([dag], session=session)
 
         model = session.query(DagModel).get((dag.dag_id,))
 
@@ -871,7 +871,7 @@ class TestDag:
         EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
         session = settings.Session()
         dag1.clear()
-        DAG.bulk_write_to_db([dag1, dag2], session)
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
         d1 = stored_datasets[d1.uri]

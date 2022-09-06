@@ -572,11 +572,15 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
             elif dag.has_on_failure_callback:
+                from airflow.models.dag import DagModel
+
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='task_failure',
                 )
 
@@ -587,11 +591,15 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
             elif dag.has_on_success_callback:
+                from airflow.models.dag import DagModel
+
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='success',
                 )
 
@@ -602,11 +610,15 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
             elif dag.has_on_failure_callback:
+                from airflow.models.dag import DagModel
+
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='all_tasks_deadlocked',
                 )
 

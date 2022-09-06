@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -72,6 +72,7 @@ class SerializedDagModel(Base):
     _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)
+    processor_subdir = Column(String(2000), nullable=True)
 
     __table_args__ = (Index('idx_fileloc_hash', fileloc_hash, unique=False),)
 
@@ -92,11 +93,12 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG):
+    def __init__(self, dag: DAG, processor_subdir: Optional[str] = None):
         self.dag_id = dag.dag_id
         self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
+        self.processor_subdir = processor_subdir
 
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
@@ -119,7 +121,13 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None) -> bool:
+    def write_dag(
+        cls,
+        dag: DAG,
+        min_update_interval: Optional[int] = None,
+        processor_subdir: Optional[str] = None,
+        session: Session = None,
+    ) -> bool:
         """Serializes a DAG and writes it into database.
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
@@ -151,10 +159,16 @@ class SerializedDagModel(Base):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        new_serialized_dag = cls(dag)
-        serialized_dag_hash_from_db = session.query(cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
+        new_serialized_dag = cls(dag, processor_subdir)
+        serialized_dag_db = (
+            session.query(cls.dag_hash, cls.processor_subdir).filter(cls.dag_id == dag.dag_id).first()
+        )
 
-        if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
+        if (
+            serialized_dag_db is not None
+            and serialized_dag_db.dag_hash == new_serialized_dag.dag_hash
+            and serialized_dag_db.processor_subdir == new_serialized_dag.processor_subdir
+        ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
@@ -222,7 +236,9 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+    def remove_deleted_dags(
+        cls, alive_dag_filelocs: List[str], processor_subdir: Optional[str] = None, session=None
+    ):
         """Deletes DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
@@ -236,7 +252,14 @@ class SerializedDagModel(Base):
 
         session.execute(
             cls.__table__.delete().where(
-                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
+                and_(
+                    cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                    cls.fileloc.notin_(alive_dag_filelocs),
+                    or_(
+                        cls.processor_subdir is None,
+                        cls.processor_subdir == processor_subdir,
+                    ),
+                )
             )
         )
 
@@ -281,7 +304,7 @@ class SerializedDagModel(Base):
 
     @staticmethod
     @provide_session
-    def bulk_sync_to_db(dags: List[DAG], session: Session = None):
+    def bulk_sync_to_db(dags: List[DAG], processor_subdir: Optional[str] = None, session: Session = None):
         """
         Saves DAGs as Serialized DAG objects in the database. Each
         DAG is saved in a separate database query.
@@ -293,7 +316,10 @@ class SerializedDagModel(Base):
         for dag in dags:
             if not dag.is_subdag:
                 SerializedDagModel.write_dag(
-                    dag, min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL, session=session
+                    dag=dag,
+                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    processor_subdir=processor_subdir,
+                    session=session,
                 )
 
     @classmethod
