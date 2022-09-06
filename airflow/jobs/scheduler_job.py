@@ -1544,7 +1544,7 @@ class SchedulerJob(BaseJob):
             self.log.debug("Not stale dags found.")
             return
 
-        self.log.warning("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
+        self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
         for dag in stale_dags:
             dag.is_active = False
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
