@@ -314,6 +314,8 @@ class DataFusionHook(GoogleBaseHook):
             raise AirflowException(
                 f"Creating a pipeline failed with code {response.status} while calling {url}"
             )
+        if response.data is None:
+            raise AirflowException("Creating a pipeline failed because of empty data in received response")
 
     def delete_pipeline(
         self,
@@ -339,6 +341,8 @@ class DataFusionHook(GoogleBaseHook):
         response = self._cdap_request(url=url, method="DELETE", body=None)
         if response.status != 200:
             raise AirflowException(f"Deleting a pipeline failed with code {response.status}")
+        if response.data is None:
+            raise AirflowException("Deleting a pipeline failed because of empty data in received response")
 
     def list_pipelines(
         self,
@@ -369,6 +373,8 @@ class DataFusionHook(GoogleBaseHook):
         response = self._cdap_request(url=url, method="GET", body=None)
         if response.status != 200:
             raise AirflowException(f"Listing pipelines failed with code {response.status}")
+        if response.data is None:
+            raise AirflowException("Listing pipelines failed because of empty data in received response")
         return json.loads(response.data)
 
     def get_pipeline_workflow(
@@ -389,6 +395,10 @@ class DataFusionHook(GoogleBaseHook):
         response = self._cdap_request(url=url, method="GET")
         if response.status != 200:
             raise AirflowException(f"Retrieving a pipeline state failed with code {response.status}")
+        if response.data is None:
+            raise AirflowException(
+                "Retrieving a pipeline state failed because of empty data in received response"
+            )
         workflow = json.loads(response.data)
         return workflow
 
@@ -431,6 +441,8 @@ class DataFusionHook(GoogleBaseHook):
         response = self._cdap_request(url=url, method="POST", body=body)
         if response.status != 200:
             raise AirflowException(f"Starting a pipeline failed with code {response.status}")
+        if response.data is None:
+            raise AirflowException("Starting a pipeline failed because of empty data in received response")
 
         response_json = json.loads(response.data)
         return response_json[0]["runId"]
@@ -455,3 +467,5 @@ class DataFusionHook(GoogleBaseHook):
         response = self._cdap_request(url=url, method="POST")
         if response.status != 200:
             raise AirflowException(f"Stopping a pipeline failed with code {response.status}")
+        if response.data is None:
+            raise AirflowException("Stopping a pipeline failed because of empty data in received response")
