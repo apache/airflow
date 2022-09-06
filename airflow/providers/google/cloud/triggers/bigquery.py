@@ -21,7 +21,7 @@ from typing import Any, AsyncIterator, Dict, Optional, SupportsAbs, Tuple, Union
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHookAsync, BigQueryTableHookAsync
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -98,8 +98,8 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 self.log.exception("Exception occurred while checking for query completion")
                 yield TriggerEvent({"status": "error", "message": str(e)})
 
-    def _get_async_hook(self) -> BigQueryHookAsync:
-        return BigQueryHookAsync(gcp_conn_id=self.conn_id)
+    def _get_async_hook(self) -> BigQueryAsyncHook:
+        return BigQueryAsyncHook(gcp_conn_id=self.conn_id)
 
 
 class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
@@ -481,8 +481,8 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
             },
         )
 
-    def _get_async_hook(self) -> BigQueryTableHookAsync:
-        return BigQueryTableHookAsync(gcp_conn_id=self.gcp_conn_id)
+    def _get_async_hook(self) -> BigQueryTableAsyncHook:
+        return BigQueryTableAsyncHook(gcp_conn_id=self.gcp_conn_id)
 
     async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
@@ -502,13 +502,13 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
                 return
 
     async def _table_exists(
-        self, hook: BigQueryTableHookAsync, dataset: str, table_id: str, project_id: str
+        self, hook: BigQueryTableAsyncHook, dataset: str, table_id: str, project_id: str
     ) -> bool:
         """
-        Create client session and make call to BigQueryTableHookAsync and check for the table in
+        Create client session and make call to BigQueryTableAsyncHook and check for the table in
         Google Big Query.
 
-        :param hook: BigQueryTableHookAsync Hook class
+        :param hook: BigQueryTableAsyncHook Hook class
         :param dataset:  The name of the dataset in which to look for the table storage bucket.
         :param table_id: The name of the table to check the existence of.
         :param project_id: The Google cloud project in which to look for the table.
