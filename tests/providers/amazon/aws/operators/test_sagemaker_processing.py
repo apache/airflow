@@ -23,6 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerProcessingOperator
 
 CREATE_PROCESSING_PARAMS: Dict = {
@@ -99,7 +100,10 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         'create_processing_job',
         return_value={'ProcessingJobArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}},
     )
-    def test_integer_fields_without_stopping_condition(self, mock_processing, mock_hook, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields_without_stopping_condition(
+        self, serialize, mock_processing, mock_hook, mock_client
+    ):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
@@ -115,7 +119,8 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         'create_processing_job',
         return_value={'ProcessingJobArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}},
     )
-    def test_integer_fields_with_stopping_condition(self, mock_processing, mock_hook, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields_with_stopping_condition(self, serialize, mock_processing, mock_hook, mock_client):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION
         )
@@ -137,7 +142,8 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         'create_processing_job',
         return_value={'ProcessingJobArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}},
     )
-    def test_execute(self, mock_processing, mock_hook, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute(self, serialize, mock_processing, mock_hook, mock_client):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
@@ -153,7 +159,8 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         'create_processing_job',
         return_value={'ProcessingJobArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}},
     )
-    def test_execute_with_stopping_condition(self, mock_processing, mock_hook, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_with_stopping_condition(self, serialize, mock_processing, mock_hook, mock_client):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION
         )
