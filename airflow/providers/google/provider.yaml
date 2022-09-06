@@ -817,7 +817,7 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/trino_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.trino_to_gcs
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.sql_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
@@ -896,7 +896,7 @@ transfers:
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.sql_to_sheets

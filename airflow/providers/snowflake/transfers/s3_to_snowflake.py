@@ -88,7 +88,7 @@ class S3ToSnowflakeOperator(BaseOperator):
     ) -> None:
         warnings.warn(
             """
-            SnowflakeToSlackOperator is deprecated.
+            S3ToSnowflakeOperator is deprecated.
             Please use
             `airflow.providers.snowflake.transfers.copy_into_snowflake.CopyFromExternalStageToSnowflakeOperator`.
             """,

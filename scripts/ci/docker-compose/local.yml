@@ -52,8 +52,8 @@ services:
         source: ../../../.rat-excludes
         target: /opt/airflow/.rat-excludes
       - type: bind
-        source: ../../../RELEASE_NOTES.rst
-        target: /opt/airflow/RELEASE_NOTES.rst
+        source: ../../../BREEZE.rst
+        target: /opt/airflow/BREEZE.rst
       - type: bind
         source: ../../../LICENSE
         target: /opt/airflow/LICENSE
@@ -63,6 +63,9 @@ services:
       - type: bind
         source: ../../../NOTICE
         target: /opt/airflow/NOTICE
+      - type: bind
+        source: ../../../RELEASE_NOTES.rst
+        target: /opt/airflow/RELEASE_NOTES.rst
       - type: bind
         source: ../../../airflow
         target: /opt/airflow/airflow
@@ -79,8 +82,14 @@ services:
         source: ../../../docs
         target: /opt/airflow/docs
       - type: bind
+        source: ../../../generated
+        target: /opt/airflow/generated
+      - type: bind
         source: ../../../hooks
         target: /opt/airflow/hooks
+      - type: bind
+        source: ../../../images
+        target: /opt/airflow/images
       - type: bind
         source: ../../../logs
         target: /root/airflow/logs

@@ -23,7 +23,7 @@ import type { SortingRule } from 'react-table';
 
 import { useDatasetEvents } from 'src/api';
 import {
-  Table, TimeCell, TaskInstanceLink,
+  Table, TimeCell, TaskInstanceLink, TriggeredRuns,
 } from 'src/components/Table';
 
 const Events = ({
@@ -34,13 +34,13 @@ const Events = ({
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
 
   const sort = sortBy[0];
-  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  const orderBy = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
 
   const {
-    data: { datasetEvents, totalEntries },
+    data: { datasetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
   } = useDatasetEvents({
-    datasetId, limit, offset, order,
+    datasetId, limit, offset, orderBy,
   });
 
   const columns = useMemo(
@@ -54,6 +54,11 @@ const Events = ({
         Header: 'When',
         accessor: 'timestamp',
         Cell: TimeCell,
+      },
+      {
+        Header: 'Triggered Runs',
+        accessor: 'createdDagruns',
+        Cell: TriggeredRuns,
       },
     ],
     [],

@@ -19,11 +19,12 @@
 """Utilities for creating a virtual environment"""
 import os
 import sys
-from collections import deque
+import warnings
 from typing import List, Optional
 
 import jinja2
 
+from airflow.utils.decorators import remove_task_decorator as _remove_task_decorator
 from airflow.utils.process_utils import execute_in_subprocess
 
 
@@ -50,34 +51,13 @@ def _generate_pip_install_cmd_from_list(
     return cmd + requirements
 
 
-def _balance_parens(after_decorator):
-    num_paren = 1
-    after_decorator = deque(after_decorator)
-    after_decorator.popleft()
-    while num_paren:
-        current = after_decorator.popleft()
-        if current == "(":
-            num_paren = num_paren + 1
-        elif current == ")":
-            num_paren = num_paren - 1
-    return ''.join(after_decorator)
-
-
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
-    """
-    Removed @task.virtualenv
-
-    :param python_source:
-    """
-    if task_decorator_name not in python_source:
-        return python_source
-    split = python_source.split(task_decorator_name)
-    before_decorator, after_decorator = split[0], split[1]
-    if after_decorator[0] == "(":
-        after_decorator = _balance_parens(after_decorator)
-    if after_decorator[0] == "\n":
-        after_decorator = after_decorator[1:]
-    return before_decorator + after_decorator
+    warnings.warn(
+        "Import remove_task_decorator from airflow.utils.decorators instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _remove_task_decorator(python_source, task_decorator_name)
 
 
 def prepare_virtualenv(

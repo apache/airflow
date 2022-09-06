@@ -81,7 +81,7 @@ from airflow import settings
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.datasets.manager import dataset_event_manager
+from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -947,13 +947,17 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @provide_session
-    def set_state(self, state: Optional[str], session: Session = NEW_SESSION) -> None:
+    def set_state(self, state: Optional[str], session: Session = NEW_SESSION) -> bool:
         """
         Set TaskInstance state.
 
         :param state: State to set for the TI
         :param session: SQLAlchemy ORM Session
+        :return: Was the state changed
         """
+        if self.state == state:
+            return False
+
         current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
@@ -962,6 +966,7 @@ class TaskInstance(Base, LoggingMixin):
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
         session.merge(self)
+        return True
 
     @property
     def is_premature(self) -> bool:
@@ -1535,7 +1540,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                dataset_event_manager.register_dataset_change(
+                dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
                     session=session,

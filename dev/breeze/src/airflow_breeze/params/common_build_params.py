@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, DOCKER_DEFAULT_PLATFORM
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -47,13 +47,13 @@ class CommonBuildParams:
     answer: Optional[str] = None
     build_id: int = 0
     builder: str = "default"
-    constraints_github_repository: str = "apache/airflow"
+    constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
     empty_image: bool = False
     github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
-    github_repository: str = "apache/airflow"
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     github_username: str = ""
     image_tag: Optional[str] = None
@@ -65,6 +65,7 @@ class CommonBuildParams:
     python: str = "3.7"
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
+    upgrade_on_failure: bool = False
 
     @property
     def airflow_version(self):
@@ -150,7 +151,11 @@ class CommonBuildParams:
         return "," in self.platform
 
     def preparing_latest_image(self) -> bool:
-        return self.tag_as_latest or self.airflow_image_name == self.airflow_image_name_with_tag
+        return (
+            self.tag_as_latest
+            or self.airflow_image_name == self.airflow_image_name_with_tag
+            or self.airflow_image_name_with_tag.endswith("latest")
+        )
 
     @property
     def platforms(self) -> List[str]:

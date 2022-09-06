@@ -23,6 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator
 
 EXPECTED_INTEGER_FIELDS: List[List[str]] = [
@@ -67,7 +68,8 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
-    def test_integer_fields(self, mock_training, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields(self, serialize, mock_training, mock_client):
         mock_training.return_value = {
             'TrainingJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -80,7 +82,8 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
-    def test_execute_with_check_if_job_exists(self, mock_training, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_with_check_if_job_exists(self, serialize, mock_training, mock_client):
         mock_training.return_value = {
             'TrainingJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -98,7 +101,8 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
-    def test_execute_without_check_if_job_exists(self, mock_training, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_without_check_if_job_exists(self, serialize, mock_training, mock_client):
         mock_training.return_value = {
             'TrainingJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},

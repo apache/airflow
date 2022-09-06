@@ -31,6 +31,7 @@ CI_IMAGE_TOOLS_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "options": [
                 "--python",
                 "--upgrade-to-newer-dependencies",
+                "--upgrade-on-failure",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",

@@ -180,17 +180,19 @@ It is possible to use ``partial`` and ``expand`` with classic style operators as
 Mapping over result of classic operators
 ----------------------------------------
 
-If you want to map over the result of a classic operator you will need to create an ``XComArg`` object manually.
+If you want to map over the result of a classic operator, you should explicitly reference the *output*, instead of the operator itself.
 
 .. code-block:: python
 
-    from airflow import XComArg
+    # Create a list of data inputs.
+    extract = ExtractOperator(task_id="extract")
 
-    task = MyOperator(task_id="source")
+    # Expand the operator to transform each input.
+    transform = TransformOperator.partial(task_id="transform").expand(input=extract.output)
 
-    downstream = MyOperator2.partial(task_id="consumer").expand(input=XComArg(task))
+    # Collect the transformed inputs, expand the operator to load each one of them to the target.
+    load = LoadOperator.partial(task_id="load").expand(input=transform.output)
 
-.. note:: Only a return value can be mapped against. Therefore, it is not allowed to set the ``XComArg``'s ``key`` property manually.
 
 Mixing TaskFlow and classic operators
 =====================================
@@ -201,7 +203,7 @@ In this example you have a regular data delivery to an S3 bucket and want to app
 
     from datetime import datetime
 
-    from airflow import DAG, XComArg
+    from airflow import DAG
     from airflow.decorators import task
     from airflow.providers.amazon.aws.hooks.s3 import S3Hook
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
@@ -225,7 +227,7 @@ In this example you have a regular data delivery to an S3 bucket and want to app
             return sum(lines)
 
         counts = count_lines.partial(aws_conn_id="aws_default", bucket=list_filenames.bucket).expand(
-            filename=XComArg(list_filenames)
+            filename=list_filenames.output
         )
 
         total(lines=counts)
@@ -266,7 +268,7 @@ Similar to ``expand``, you can also map against a XCom that returns a list of di
         }
 
 
-    copy_kwargs = create_copy_kwargs.expand(filename=XComArg(list_filenames))
+    copy_kwargs = create_copy_kwargs.expand(filename=list_filenames.output)
 
     # Copy files to another bucket, based on the file's extension.
     copy_filenames = S3CopyObjectOperator.partial(
@@ -318,7 +320,7 @@ Since it is common to want to transform the output data format for task mapping,
         }
 
 
-    copy_kwargs = XComArg(list_filenames).map(create_copy_kwargs)
+    copy_kwargs = list_filenames.output.map(create_copy_kwargs)
 
     # Unchanged.
     copy_filenames = S3CopyObjectOperator.partial(...).expand_kwargs(copy_kwargs)
@@ -345,7 +347,7 @@ This is especially useful for conditional logic in task mapping. For example, if
     )
     list_filenames_b = ["rename_1", "rename_2", "rename_3", ...]
 
-    filenames_a_b = XComArg(list_filenames_a).zip(list_filenames_b)
+    filenames_a_b = list_filenames_a.output.zip(list_filenames_b)
 
 
     @task

@@ -194,7 +194,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
-    # Create symbolic link to fix possible issues with kubectl config cmd-path
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
