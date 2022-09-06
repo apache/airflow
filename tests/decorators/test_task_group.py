@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import pendulum
 
-from airflow.decorators import task_group
+from airflow.decorators import dag, task_group
 
 
 def test_task_group_with_overridden_kwargs():
@@ -50,3 +51,38 @@ def test_task_group_with_overridden_kwargs():
         },
         'add_suffix_on_collision': True,
     }
+
+
+def test_tooltip_derived_from_function_docstring():
+    """Test that the tooltip for TaskGroup is the decorated-function's docstring."""
+
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group()
+        def tg():
+            """Function docstring."""
+
+        tg()
+
+    _ = pipeline()
+
+    assert _.task_group_dict["tg"].tooltip == "Function docstring."
+
+
+def test_tooltip_not_overriden_by_function_docstring():
+    """
+    Test that the tooltip for TaskGroup is the explicitly set value even if the decorated function has a
+    docstring.
+    """
+
+    @dag(start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(tooltip="tooltip for the TaskGroup")
+        def tg():
+            """Function docstring."""
+
+        tg()
+
+    _ = pipeline()
+
+    assert _.task_group_dict["tg"].tooltip == "tooltip for the TaskGroup"
