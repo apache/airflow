@@ -16,3 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.task.task_runner`."""
+import warnings
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+warnings.warn(
+    "This module is deprecated. Please use airflow.task.task_runner.", DeprecationWarning, stacklevel=2
+)
+
+__deprecated_classes = {
+    'cgroup_task_runner': {
+        'CgroupTaskRunner': 'airflow.task.task_runner.cgroup_task_runner.CgroupTaskRunner',
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)
