@@ -523,7 +523,7 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 
 .. note::
 
-    When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``toolip`` value is explicitly supplied.
+    When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``tooltip`` value is explicitly supplied.
 
 .. _concepts:edge-labels:
 
