@@ -518,11 +518,13 @@ def dag_maker(request):
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(self.session)
+            dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
             self.dag_model = self.session.query(DagModel).get(dag.dag_id)
 
             if self.want_serialized:
-                self.serialized_model = SerializedDagModel(dag)
+                self.serialized_model = SerializedDagModel(
+                    dag, processor_subdir=self.dag_model.processor_subdir
+                )
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
@@ -578,7 +580,13 @@ def dag_maker(request):
             )
 
         def __call__(
-            self, dag_id='test_dag', serialized=want_serialized, fileloc=None, session=None, **kwargs
+            self,
+            dag_id='test_dag',
+            serialized=want_serialized,
+            fileloc=None,
+            processor_subdir=None,
+            session=None,
+            **kwargs,
         ):
             from airflow import settings
             from airflow.models import DAG
@@ -606,6 +614,7 @@ def dag_maker(request):
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
+            self.processor_subdir = processor_subdir
 
             return self
 
