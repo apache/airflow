@@ -37,8 +37,7 @@ Use the ``@task`` decorator to execute Python callables.
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
-Pass extra arguments to the ``@task`` decorated function as you would with
-a normal Python function.
+Pass extra arguments to the ``@task`` decorated function as you would with a normal Python function.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
@@ -96,6 +95,36 @@ If additional parameters for package installation are needed pass them in ``requ
 
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
 
+
+.. _howto/operator:ExternalPythonOperator:
+
+ExternalPythonOperator
+======================
+
+The ``ExternalPythonOperator`` can help you to run some of your tasks with a different set of Python
+libraries than other tasks (and than the main Airflow environment).
+
+Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
+pre-defined virtual environment. The virtualenv should be preinstalled in the environment where
+Python is run and in case ``dill`` is used, it has to be preinstalled in the virtualenv (the same
+version that is installed in main Airflow environment).
+
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_external_python]
+    :end-before: [END howto_operator_external_python]
+
+Passing in arguments
+^^^^^^^^^^^^^^^^^^^^
+
+Pass extra arguments to the ``@task.external_python`` decorated function as you would with a normal Python function.
+Unfortunately Airflow does not support serializing ``var`` and ``ti`` / ``task_instance`` due to incompatibilities
+with the underlying library. For Airflow context variables make sure that Airflow is also installed as part
+of the virtualenv environment in the same version as the Airflow version the task is run on.
+Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
+If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
+``lazy_object_proxy`` to your virtualenv.
 
 .. _howto/operator:ShortCircuitOperator:
 
