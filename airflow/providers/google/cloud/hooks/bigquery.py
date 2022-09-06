@@ -2878,12 +2878,10 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
 
         :param query_results: the results from a SQL query
         """
-        buffer = []
-        if query_results.get("rows", None):
-            rows = query_results["rows"]
-            for dict_row in rows:
-                buffer.append([vs["v"] for vs in dict_row["f"]])
-        return buffer
+    buffer = []
+    for dict_row in query_results.get("rows", {}):
+        buffer.append([vs["v"] for vs in dict_row["f"]])
+    return buffer
 
     def value_check(
         self,
