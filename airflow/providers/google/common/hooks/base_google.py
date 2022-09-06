@@ -604,8 +604,8 @@ class GoogleBaseHook(BaseHook):
         return status, message
 
 
-class GoogleBaseHookAsync(BaseHook):
-    """GoogleBaseHookAsync inherits from BaseHook class, run on the trigger worker"""
+class GoogleBaseAsyncHook(BaseHook):
+    """GoogleBaseAsyncHook inherits from BaseHook class, run on the trigger worker"""
 
     sync_hook_class: Any = None
 

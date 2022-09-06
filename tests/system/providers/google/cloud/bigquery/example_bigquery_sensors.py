@@ -31,8 +31,8 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
+    BigQueryTableExistenceAsyncSensor,
     BigQueryTableExistenceSensor,
-    BigQueryTableExistenceSensorAsync,
     BigQueryTablePartitionExistenceSensor,
 )
 from airflow.sensors.base import BaseSensorOperator
@@ -88,7 +88,7 @@ with models.DAG(
     # [END howto_sensor_bigquery_table]
 
     # [START howto_sensor_async_bigquery_table]
-    check_table_exists_async = BigQueryTableExistenceSensorAsync(
+    check_table_exists_async = BigQueryTableExistenceAsyncSensor(
         task_id="check_table_exists_async",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,

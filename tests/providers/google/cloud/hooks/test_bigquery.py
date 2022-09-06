@@ -31,10 +31,10 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import (
+    BigQueryAsyncHook,
     BigQueryCursor,
     BigQueryHook,
-    BigQueryHookAsync,
-    BigQueryTableHookAsync,
+    BigQueryTableAsyncHook,
     _api_resource_configs_duplication_check,
     _cleanse_time_partitioning,
     _format_schema_for_description,
@@ -2074,7 +2074,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
 
 class _BigQueryBaseAsyncTestClass:
     def setup_method(self) -> None:
-        class MockedBigQueryAsyncHook(BigQueryHookAsync):
+        class MockedBigQueryAsyncHook(BigQueryAsyncHook):
             def get_credentials_and_project_id(self):
                 return CREDENTIALS, PROJECT_ID
 
@@ -2085,14 +2085,14 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     async def test_get_job_instance(self, mock_session):
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHookAsync.get_job_instance")
     async def test_get_job_status_success(self, mock_job_instance):
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         response = "success"
@@ -2105,7 +2105,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     async def test_get_job_status_oserror(self, mock_job_instance):
         """Assets that the BigQueryHookAsync returns a pending response when OSError is raised"""
         mock_job_instance.return_value.result.side_effect = OSError()
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         job_status = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
         assert job_status == "pending"
 
@@ -2114,14 +2114,14 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     async def test_get_job_status_exception(self, mock_job_instance, caplog):
         """Assets that the logging is done correctly when BigQueryHookAsync raises Exception"""
         mock_job_instance.return_value.result.side_effect = Exception()
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
         assert "Query execution finished with errors..." in caplog.text
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHookAsync.get_job_instance")
     async def test_get_job_output_assert_once_with(self, mock_job_instance):
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         response = "success"
@@ -2133,7 +2133,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         """
         Assert that check return AirflowException
         """
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
 
         row1, row2, metrics_thresholds, ignore_zero, ratio_formula = (
             None,
@@ -2169,7 +2169,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         """
         Assert that check return None
         """
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
 
         row1, row2, metrics_thresholds, ignore_zero, ratio_formula = (
             "0",
@@ -2203,7 +2203,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
             "jobComplete": True,
             "cacheHit": False,
         }
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         mock_job_client.get_query_results.return_value = response
@@ -2217,7 +2217,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         """
         Assert that value_check method execution succeed
         """
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         query = "SELECT COUNT(*) from Any"
         response = hook.value_check(query, pass_value, records, tolerance)
         assert response is None
@@ -2228,7 +2228,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     )
     def test_value_check_fail(self, records, pass_value, tolerance):
         """Assert that check raise AirflowException"""
-        hook = BigQueryHookAsync()
+        hook = BigQueryAsyncHook()
         query = "SELECT COUNT(*) from Any"
 
         with pytest.raises(AirflowException) as ex:
@@ -2250,7 +2250,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     def test_get_numeric_matches(self, records, pass_value, tolerance, expected):
         """Assert the if response list have all element match with pass_value with tolerance"""
 
-        assert BigQueryHookAsync._get_numeric_matches(records, pass_value, tolerance) == expected
+        assert BigQueryAsyncHook._get_numeric_matches(records, pass_value, tolerance) == expected
 
     @pytest.mark.parametrize("test_input,expected", [(5.0, 5.0), (5, 5.0), ("5", 5), ("str", "str")])
     def test_convert_to_float_if_possible(self, test_input, expected):
@@ -2259,14 +2259,14 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         Otherwise return the same value
         """
 
-        assert BigQueryHookAsync._convert_to_float_if_possible(test_input) == expected
+        assert BigQueryAsyncHook._convert_to_float_if_possible(test_input) == expected
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.client.ClientSession")
     async def test_get_table_client(self, mock_session):
         """Test get_table_client async function and check whether the return value is a
         Table instance object"""
-        hook = BigQueryTableHookAsync()
+        hook = BigQueryTableAsyncHook()
         result = await hook.get_table_client(
             dataset=DATASET_ID, project_id=PROJECT_ID, table_id=TABLE_ID, session=mock_session
         )

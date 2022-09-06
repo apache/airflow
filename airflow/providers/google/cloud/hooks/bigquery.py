@@ -57,7 +57,7 @@ from sqlalchemy import create_engine
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, GoogleBaseHookAsync
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -3015,71 +3015,10 @@ def _format_schema_for_description(schema: Dict) -> List:
     return description
 
 
-class _BigQueryHook(BigQueryHook):
-    @GoogleBaseHook.fallback_to_default_project_id
-    def insert_job(
-        self,
-        configuration: Dict[str, Any],
-        job_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        location: Optional[str] = None,
-        nowait: bool = False,
-    ) -> BigQueryJob:
-        """
-        Executes a BigQuery job. Initiates the job and returns job id.
-
-        See here: https://cloud.google.com/bigquery/docs/reference/v2/jobs
-
-        :param configuration: The configuration parameter maps directly to
-            BigQuery's configuration field in the job object. See
-            https://cloud.google.com/bigquery/docs/reference/v2/jobs for
-            details.
-        :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
-            numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
-            characters. If not provided then uuid will be generated.
-        :param project_id: Google Cloud Project where the job is running
-        :param location: location the job is running
-        :param nowait: specify whether to insert job without waiting for the result
-        """
-        location = location or self.location
-        job_id = job_id or self._custom_job_id(configuration)
-
-        client = self.get_client(project_id=project_id, location=location)
-        job_data = {
-            "configuration": configuration,
-            "jobReference": {"jobId": job_id, "projectId": project_id, "location": location},
-        }
-
-        supported_jobs = {
-            LoadJob._JOB_TYPE: LoadJob,
-            CopyJob._JOB_TYPE: CopyJob,
-            ExtractJob._JOB_TYPE: ExtractJob,
-            QueryJob._JOB_TYPE: QueryJob,
-        }
-
-        job = None
-        for job_type, job_object in supported_jobs.items():
-            if job_type in configuration:
-                job = job_object
-                break
-
-        if not job:
-            raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
-        job = job.from_api_repr(job_data, client)
-        self.log.info("Inserting job %s", job.job_id)
-        if nowait:
-            # Initiate the job and don't wait for it to complete.
-            job._begin()
-        else:
-            # Start the job and wait for it to complete and get the result.
-            job.result()
-        return job
-
-
-class BigQueryHookAsync(GoogleBaseHookAsync):
+class BigQueryAsyncHook(GoogleBaseAsyncHook):
     """Big query async hook inherits from GoogleBaseHookAsync class and connects to the google Big query"""
 
-    sync_hook_class = _BigQueryHook
+    sync_hook_class = BigQueryHook
 
     async def get_job_instance(
         self, project_id: Optional[str], job_id: Optional[str], session: ClientSession
@@ -3299,7 +3238,7 @@ class BigQueryHookAsync(GoogleBaseHookAsync):
         self.log.info("All tests have passed")
 
 
-class BigQueryTableHookAsync(GoogleBaseHookAsync):
+class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
     """Class to get async hook for Bigquery Table Async"""
 
     sync_hook_class = BigQueryHook

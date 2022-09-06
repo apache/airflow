@@ -37,7 +37,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob, _BigQueryHook
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import (
@@ -2250,7 +2250,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             self.log.info('Skipping to cancel job: %s:%s.%s', self.project_id, self.location, self.job_id)
 
 
-class BigQueryInsertJobOperatorAsync(BigQueryInsertJobOperator, BaseOperator):
+class BigQueryInsertJobAsyncOperator(BigQueryInsertJobOperator, BaseOperator):
     """
     Starts a BigQuery job asynchronously, and returns job id.
     This operator works in the following way:
@@ -2296,7 +2296,7 @@ class BigQueryInsertJobOperatorAsync(BigQueryInsertJobOperator, BaseOperator):
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     """
 
-    def _submit_job(self, hook: _BigQueryHook, job_id: str) -> BigQueryJob:  # type: ignore[override]
+    def _submit_job(self, hook: BigQueryHook, job_id: str) -> BigQueryJob:  # type: ignore[override]
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
             configuration=self.configuration,
@@ -2307,7 +2307,7 @@ class BigQueryInsertJobOperatorAsync(BigQueryInsertJobOperator, BaseOperator):
         )
 
     def execute(self, context: Any) -> None:
-        hook = _BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
 
         self.hook = hook
         job_id = self.hook.generate_job_id(
@@ -2368,15 +2368,15 @@ class BigQueryInsertJobOperatorAsync(BigQueryInsertJobOperator, BaseOperator):
         )
 
 
-class BigQueryCheckOperatorAsync(BigQueryCheckOperator):
+class BigQueryCheckAsyncOperator(BigQueryCheckOperator):
     """
-    BigQueryCheckOperatorAsync is asynchronous operator, submit the job and check
+    BigQueryCheckAsyncOperator is asynchronous operator, submit the job and check
     for the status in async mode by using the job id
     """
 
     def _submit_job(
         self,
-        hook: _BigQueryHook,
+        hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
@@ -2391,7 +2391,7 @@ class BigQueryCheckOperatorAsync(BigQueryCheckOperator):
         )
 
     def execute(self, context: Any) -> None:
-        hook = _BigQueryHook(
+        hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
         )
         job = self._submit_job(hook, job_id="")
@@ -2424,7 +2424,7 @@ class BigQueryCheckOperatorAsync(BigQueryCheckOperator):
         self.log.info("Success.")
 
 
-class BigQueryGetDataOperatorAsync(BigQueryGetDataOperator):
+class BigQueryGetDataAsyncOperator(BigQueryGetDataOperator):
     """
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and returns data in a python list. The number of elements in the returned list will
@@ -2474,7 +2474,7 @@ class BigQueryGetDataOperatorAsync(BigQueryGetDataOperator):
 
     def _submit_job(
         self,
-        hook: _BigQueryHook,
+        hook: BigQueryHook,
         job_id: str,
         configuration: Dict[str, Any],
     ) -> BigQueryJob:
@@ -2504,7 +2504,7 @@ class BigQueryGetDataOperatorAsync(BigQueryGetDataOperator):
         get_query = self.generate_query()
         configuration = {"query": {"query": get_query}}
 
-        hook = _BigQueryHook(
+        hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
@@ -2540,7 +2540,7 @@ class BigQueryGetDataOperatorAsync(BigQueryGetDataOperator):
         return event["records"]
 
 
-class BigQueryIntervalCheckOperatorAsync(BigQueryIntervalCheckOperator):
+class BigQueryIntervalCheckAsyncOperator(BigQueryIntervalCheckOperator):
     """
     Checks asynchronously that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.
@@ -2573,7 +2573,7 @@ class BigQueryIntervalCheckOperatorAsync(BigQueryIntervalCheckOperator):
 
     def _submit_job(
         self,
-        hook: _BigQueryHook,
+        hook: BigQueryHook,
         sql: str,
         job_id: str,
     ) -> BigQueryJob:
@@ -2589,7 +2589,7 @@ class BigQueryIntervalCheckOperatorAsync(BigQueryIntervalCheckOperator):
 
     def execute(self, context: Any) -> None:
         """Execute the job in sync mode and defers the trigger with job id to poll for the status"""
-        hook = _BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
         self.log.info("Using ratio formula: %s", self.ratio_formula)
 
         self.log.info("Executing SQL check: %s", self.sql1)
@@ -2631,7 +2631,7 @@ class BigQueryIntervalCheckOperatorAsync(BigQueryIntervalCheckOperator):
         )
 
 
-class BigQueryValueCheckOperatorAsync(BigQueryValueCheckOperator):
+class BigQueryValueCheckAsyncOperator(BigQueryValueCheckOperator):
     """
     Performs a simple value check using sql code.
 
@@ -2658,7 +2658,7 @@ class BigQueryValueCheckOperatorAsync(BigQueryValueCheckOperator):
 
     def _submit_job(
         self,
-        hook: _BigQueryHook,
+        hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Triggerer."""
@@ -2680,7 +2680,7 @@ class BigQueryValueCheckOperatorAsync(BigQueryValueCheckOperator):
         )
 
     def execute(self, context: Any) -> None:
-        hook = _BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
 
         job = self._submit_job(hook, job_id="")
         context["ti"].xcom_push(key="job_id", value=job.job_id)

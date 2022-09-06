@@ -27,14 +27,14 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCheckOperatorAsync,
+    BigQueryCheckAsyncOperator,
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryGetDataOperatorAsync,
-    BigQueryInsertJobOperatorAsync,
-    BigQueryIntervalCheckOperatorAsync,
-    BigQueryValueCheckOperatorAsync,
+    BigQueryGetDataAsyncOperator,
+    BigQueryInsertJobAsyncOperator,
+    BigQueryIntervalCheckAsyncOperator,
+    BigQueryValueCheckAsyncOperator,
 )
 
 PROJECT_ID = os.getenv("SYSTEM_TESTS_GCP_PROJECT", "")
@@ -102,7 +102,7 @@ with DAG(
     )
 
     # [START howto_operator_bigquery_insert_job_async]
-    insert_query_job = BigQueryInsertJobOperatorAsync(
+    insert_query_job = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration={
             "query": {
@@ -116,7 +116,7 @@ with DAG(
     # [END howto_operator_bigquery_insert_job_async]
 
     # [START howto_operator_bigquery_select_job_async]
-    select_query_job = BigQueryInsertJobOperatorAsync(
+    select_query_job = BigQueryInsertJobAsyncOperator(
         task_id="select_query_job",
         configuration={
             "query": {
@@ -130,7 +130,7 @@ with DAG(
     # [END howto_operator_bigquery_select_job_async]
 
     # [START howto_operator_bigquery_value_check_async]
-    check_value = BigQueryValueCheckOperatorAsync(
+    check_value = BigQueryValueCheckAsyncOperator(
         task_id="check_value",
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         pass_value=2,
@@ -141,7 +141,7 @@ with DAG(
     # [END howto_operator_bigquery_value_check_async]
 
     # [START howto_operator_bigquery_interval_check_async]
-    check_interval = BigQueryIntervalCheckOperatorAsync(
+    check_interval = BigQueryIntervalCheckAsyncOperator(
         task_id="check_interval",
         table=f"{DATASET}.{TABLE_1}",
         days_back=1,
@@ -153,7 +153,7 @@ with DAG(
     # [END howto_operator_bigquery_interval_check_async]
 
     # [START howto_operator_bigquery_multi_query_async]
-    bigquery_execute_multi_query = BigQueryInsertJobOperatorAsync(
+    bigquery_execute_multi_query = BigQueryInsertJobAsyncOperator(
         task_id="execute_multi_query",
         configuration={
             "query": {
@@ -170,7 +170,7 @@ with DAG(
     # [END howto_operator_bigquery_multi_query_async]
 
     # [START howto_operator_bigquery_get_data_async]
-    get_data = BigQueryGetDataOperatorAsync(
+    get_data = BigQueryGetDataAsyncOperator(
         task_id="get_data",
         dataset_id=DATASET,
         table_id=TABLE_1,
@@ -188,7 +188,7 @@ with DAG(
     )
 
     # [START howto_operator_bigquery_check_async]
-    check_count = BigQueryCheckOperatorAsync(
+    check_count = BigQueryCheckAsyncOperator(
         task_id="check_count",
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         use_legacy_sql=False,
@@ -198,7 +198,7 @@ with DAG(
     # [END howto_operator_bigquery_check_async]
 
     # [START howto_operator_bigquery_execute_query_save_async]
-    execute_query_save = BigQueryInsertJobOperatorAsync(
+    execute_query_save = BigQueryInsertJobAsyncOperator(
         task_id="execute_query_save",
         configuration={
             "query": {
@@ -216,7 +216,7 @@ with DAG(
     )
     # [END howto_operator_bigquery_execute_query_save_async]
 
-    execute_long_running_query = BigQueryInsertJobOperatorAsync(
+    execute_long_running_query = BigQueryInsertJobAsyncOperator(
         task_id="execute_long_running_query",
         configuration={
             "query": {

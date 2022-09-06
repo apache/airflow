@@ -28,8 +28,8 @@ from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.operators.bigquery import (
+    BigQueryCheckAsyncOperator,
     BigQueryCheckOperator,
-    BigQueryCheckOperatorAsync,
     BigQueryConsoleIndexableLink,
     BigQueryConsoleLink,
     BigQueryCreateEmptyDatasetOperator,
@@ -38,21 +38,21 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryDeleteTableOperator,
     BigQueryExecuteQueryOperator,
+    BigQueryGetDataAsyncOperator,
     BigQueryGetDataOperator,
-    BigQueryGetDataOperatorAsync,
     BigQueryGetDatasetOperator,
     BigQueryGetDatasetTablesOperator,
+    BigQueryInsertJobAsyncOperator,
     BigQueryInsertJobOperator,
-    BigQueryInsertJobOperatorAsync,
+    BigQueryIntervalCheckAsyncOperator,
     BigQueryIntervalCheckOperator,
-    BigQueryIntervalCheckOperatorAsync,
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
+    BigQueryValueCheckAsyncOperator,
     BigQueryValueCheckOperator,
-    BigQueryValueCheckOperatorAsync,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -1140,7 +1140,7 @@ def test_bigquery_insert_job_operator_async(mock_hook):
     }
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryInsertJobOperatorAsync(
+    op = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
@@ -1166,7 +1166,7 @@ def test_bigquery_insert_job_operator_execute_failure():
     }
     job_id = "123456"
 
-    operator = BigQueryInsertJobOperatorAsync(
+    operator = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
@@ -1210,7 +1210,7 @@ def test_bigquery_insert_job_operator_execute_complete():
     }
     job_id = "123456"
 
-    operator = BigQueryInsertJobOperatorAsync(
+    operator = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
@@ -1247,7 +1247,7 @@ def test_bigquery_insert_job_operator_with_job_id_generate(mock_hook):
     )
     mock_hook.return_value.get_job.return_value = job
 
-    op = BigQueryInsertJobOperatorAsync(
+    op = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
@@ -1292,7 +1292,7 @@ def test_execute_reattach(mock_hook):
     )
     mock_hook.return_value.get_job.return_value = job
 
-    op = BigQueryInsertJobOperatorAsync(
+    op = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
@@ -1336,7 +1336,7 @@ def test_execute_force_rerun(mock_hook):
     )
     mock_hook.return_value.get_job.return_value = job
 
-    op = BigQueryInsertJobOperatorAsync(
+    op = BigQueryInsertJobAsyncOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
@@ -1375,7 +1375,7 @@ def test_bigquery_check_operator_async(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryCheckOperatorAsync(
+    op = BigQueryCheckAsyncOperator(
         task_id="bq_check_operator_job",
         sql="SELECT * FROM any",
         location=TEST_DATASET_LOCATION,
@@ -1390,7 +1390,7 @@ def test_bigquery_check_operator_async(mock_hook):
 def test_bigquery_check_operator_execute_failure():
     """Tests that an AirflowException is raised in case of error event"""
 
-    operator = BigQueryCheckOperatorAsync(
+    operator = BigQueryCheckAsyncOperator(
         task_id="bq_check_operator_execute_failure", sql="SELECT * FROM any", location=TEST_DATASET_LOCATION
     )
 
@@ -1401,7 +1401,7 @@ def test_bigquery_check_operator_execute_failure():
 def test_bigquery_check_op_execute_complete_with_no_records():
     """Asserts that exception is raised with correct expected exception message"""
 
-    operator = BigQueryCheckOperatorAsync(
+    operator = BigQueryCheckAsyncOperator(
         task_id="bq_check_operator_execute_complete", sql="SELECT * FROM any", location=TEST_DATASET_LOCATION
     )
 
@@ -1418,7 +1418,7 @@ def test_bigquery_check_op_execute_complete_with_non_boolean_records():
 
     test_sql = "SELECT * FROM any"
 
-    operator = BigQueryCheckOperatorAsync(
+    operator = BigQueryCheckAsyncOperator(
         task_id="bq_check_operator_execute_complete", sql=test_sql, location=TEST_DATASET_LOCATION
     )
 
@@ -1433,7 +1433,7 @@ def test_bigquery_check_op_execute_complete_with_non_boolean_records():
 def test_bigquery_check_operator_execute_complete():
     """Asserts that logging occurs as expected"""
 
-    operator = BigQueryCheckOperatorAsync(
+    operator = BigQueryCheckAsyncOperator(
         task_id="bq_check_operator_execute_complete", sql="SELECT * FROM any", location=TEST_DATASET_LOCATION
     )
 
@@ -1445,7 +1445,7 @@ def test_bigquery_check_operator_execute_complete():
 def test_bigquery_interval_check_operator_execute_complete():
     """Asserts that logging occurs as expected"""
 
-    operator = BigQueryIntervalCheckOperatorAsync(
+    operator = BigQueryIntervalCheckAsyncOperator(
         task_id="bq_interval_check_operator_execute_complete",
         table="test_table",
         metrics_thresholds={"COUNT(*)": 1.5},
@@ -1462,7 +1462,7 @@ def test_bigquery_interval_check_operator_execute_complete():
 def test_bigquery_interval_check_operator_execute_failure():
     """Tests that an AirflowException is raised in case of error event"""
 
-    operator = BigQueryIntervalCheckOperatorAsync(
+    operator = BigQueryIntervalCheckAsyncOperator(
         task_id="bq_interval_check_operator_execute_complete",
         table="test_table",
         metrics_thresholds={"COUNT(*)": 1.5},
@@ -1485,7 +1485,7 @@ def test_bigquery_interval_check_operator_async(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryIntervalCheckOperatorAsync(
+    op = BigQueryIntervalCheckAsyncOperator(
         task_id="bq_interval_check_operator_execute_complete",
         table="test_table",
         metrics_thresholds={"COUNT(*)": 1.5},
@@ -1512,7 +1512,7 @@ def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryGetDataOperatorAsync(
+    op = BigQueryGetDataAsyncOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
         table_id=TEST_TABLE,
@@ -1538,7 +1538,7 @@ def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryGetDataOperatorAsync(
+    op = BigQueryGetDataAsyncOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
         table_id=TEST_TABLE,
@@ -1554,7 +1554,7 @@ def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
 def test_bigquery_get_data_operator_execute_failure():
     """Tests that an AirflowException is raised in case of error event"""
 
-    operator = BigQueryGetDataOperatorAsync(
+    operator = BigQueryGetDataAsyncOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
         table_id="any",
@@ -1568,7 +1568,7 @@ def test_bigquery_get_data_operator_execute_failure():
 def test_bigquery_get_data_op_execute_complete_with_records():
     """Asserts that exception is raised with correct expected exception message"""
 
-    operator = BigQueryGetDataOperatorAsync(
+    operator = BigQueryGetDataAsyncOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
         table_id="any",
@@ -1585,7 +1585,7 @@ def _get_value_check_async_operator(use_legacy_sql: bool = False):
     query = "SELECT COUNT(*) FROM Any"
     pass_val = 2
 
-    return BigQueryValueCheckOperatorAsync(
+    return BigQueryValueCheckAsyncOperator(
         task_id="check_value",
         sql=query,
         pass_value=pass_val,
@@ -1640,7 +1640,7 @@ def test_bigquery_value_check_operator_execute_complete_failure():
 def test_bigquery_value_check_missing_param(kwargs, expected):
     """Assert the exception if require param not pass to BigQueryValueCheckOperatorAsync operator"""
     with pytest.raises(AirflowException) as missing_param:
-        BigQueryValueCheckOperatorAsync(**kwargs)
+        BigQueryValueCheckAsyncOperator(**kwargs)
     assert missing_param.value.args[0] == expected
 
 
@@ -1651,5 +1651,5 @@ def test_bigquery_value_check_empty():
         "missing keyword arguments 'pass_value', 'sql'",
     )
     with pytest.raises(AirflowException) as missing_param:
-        BigQueryValueCheckOperatorAsync(kwargs={})
+        BigQueryValueCheckAsyncOperator(kwargs={})
     assert (missing_param.value.args[0] == expected) or (missing_param.value.args[0] == expected1)

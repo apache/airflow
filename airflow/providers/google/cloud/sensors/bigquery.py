@@ -165,7 +165,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         )
 
 
-class BigQueryTableExistenceSensorAsync(BigQueryTableExistenceSensor):
+class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     """
     Checks for the existence of a table in Google Big Query.
 
