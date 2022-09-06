@@ -258,7 +258,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
 
         records = event["records"]
         if not records:
-            raise AirflowException("The query returned None")
+            raise AirflowException("The query returned empty results")
         elif not all(bool(r) for r in records):
             raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
         self.log.info("Record: %s", event["records"])
