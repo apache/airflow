@@ -292,11 +292,11 @@ class FileTaskHandler(logging.Handler):
         logs = [''] * len(try_numbers)
         metadata_array = [{}] * len(try_numbers)
         for i, try_number_element in enumerate(try_numbers):
-            log, metadata = self._read(task_instance, try_number_element, metadata)
+            log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
-            metadata_array[i] = metadata
+            metadata_array[i] = out_metadata
 
         return logs, metadata_array
 

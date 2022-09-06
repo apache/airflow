@@ -76,6 +76,7 @@ class TaskLogReader:
             metadata.pop('end_of_log', None)
             metadata.pop('max_offset', None)
             metadata.pop('offset', None)
+            metadata.pop('log_pos', None)
             while 'end_of_log' not in metadata or not metadata['end_of_log']:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
