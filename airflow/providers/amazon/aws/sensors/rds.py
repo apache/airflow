@@ -177,7 +177,7 @@ class RdsDbSensor(RdsBaseSensor):
         self,
         *,
         db_identifier: str,
-        db_type: str = RdsDbType.INSTANCE,
+        db_type: str = "instance",
         target_statuses: Optional[List[str]] = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
