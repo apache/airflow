@@ -23,7 +23,7 @@ import jinja2
 import pytest
 
 from airflow import settings
-from airflow.models import DagBag, import_all_models
+from airflow.models import DagBag
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -32,7 +32,6 @@ from tests.test_utils.www import client_with_login
 
 @pytest.fixture(autouse=True, scope="module")
 def session():
-    import_all_models()
     settings.configure_orm()
     yield settings.Session
 
