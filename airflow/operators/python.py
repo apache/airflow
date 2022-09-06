@@ -316,7 +316,15 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         'prev_execution_date_success',
         'prev_start_date_success',
     }
-    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task', 'params'}
+    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
+        'macros',
+        'conf',
+        'dag',
+        'dag_run',
+        'task',
+        'params',
+        'triggering_dataset_events',
+    }
 
     def __init__(
         self,
