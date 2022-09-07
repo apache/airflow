@@ -146,7 +146,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         def _handle_dag_file_processing():
             # Re-configure the ORM engine as there are issues with multiple processes
-            # settings.configure_orm()
+            settings.configure_orm()
 
             # Change the thread name to differentiate log lines. This is
             # really a separate process, but changing the name of the
