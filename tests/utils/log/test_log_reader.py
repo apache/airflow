@@ -35,7 +35,7 @@ from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
@@ -199,7 +199,7 @@ class TestLogView:
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
-        self.ti.state = State.SUCCESS
+        self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"] == list(log_stream)
 
