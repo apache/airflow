@@ -23,7 +23,7 @@ import type { SortingRule } from 'react-table';
 
 import { useDatasetEvents } from 'src/api';
 import {
-  Table, TimeCell, TaskInstanceLink,
+  Table, TimeCell, TaskInstanceLink, TriggeredRuns,
 } from 'src/components/Table';
 
 const Events = ({
@@ -54,6 +54,11 @@ const Events = ({
         Header: 'When',
         accessor: 'timestamp',
         Cell: TimeCell,
+      },
+      {
+        Header: 'Triggered Runs',
+        accessor: 'createdDagruns',
+        Cell: TriggeredRuns,
       },
     ],
     [],

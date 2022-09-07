@@ -18,11 +18,23 @@
 set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 
+# Check common named remotes for the upstream repo
+for remote in origin apache; do
+   git remote get-url --push "$remote" 2>/dev/null | grep -q git@github.com:apache/airflow && break
+   unset remote
+done
+
+: "${remote?Could not find remote configured to push to apache/airflow}"
+
+tags=()
 for file in "${AIRFLOW_SOURCES}/dist/"*.whl
 do
    if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
         provider="providers-${BASH_REMATCH[1]}"
         tag="${provider//_/-}/${BASH_REMATCH[2]}"
-        (git tag "${tag}" && git push apache "${tag}") || true
+        { git tag "${tag}" && tags+=("$tag") ; } || true
    fi
 done
+if [[ -n "${tags:-}" && "${#tags}" -gt 0 ]]; then
+   git push $remote "${tags[@]}"
+fi

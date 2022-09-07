@@ -735,7 +735,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
-    # Create symbolic link to fix possible issues with kubectl config cmd-path
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
@@ -1047,7 +1046,7 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && chmod 0440 /etc/sudoers.d/airflow
 
 # Install Helm
-ARG HELM_VERSION="v3.9.2"
+ARG HELM_VERSION="v3.9.4"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \

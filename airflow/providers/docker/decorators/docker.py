@@ -27,7 +27,15 @@ import dill
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.python_virtualenv import remove_task_decorator, write_python_script
+
+try:
+    from airflow.utils.decorators import remove_task_decorator
+
+    # This can be removed after we move to Airflow 2.4+
+except ImportError:
+    from airflow.utils.python_virtualenv import remove_task_decorator
+
+from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
@@ -53,6 +61,10 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     Wraps a Python callable and captures args/kwargs when called for execution.
 
     :param python_callable: A reference to an object that is callable
+    :param python: Python binary name to use
+    :param use_dill: Whether dill should be used to serialize the callable
+    :param expect_airflow: whether to expect airflow to be installed in the docker environment. if this
+          one is specified, the script to run callable will attempt to load Airflow macros.
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
     :param op_args: a list of positional arguments that will get unpacked when
@@ -74,10 +86,12 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         self,
         use_dill=False,
         python_command='python3',
+        expect_airflow: bool = True,
         **kwargs,
     ) -> None:
         command = "dummy command"
         self.python_command = python_command
+        self.expect_airflow = expect_airflow
         self.pickling_library = dill if use_dill else pickle
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
@@ -107,6 +121,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                     pickling_library=self.pickling_library.__name__,
                     python_callable=self.python_callable.__name__,
                     python_callable_source=py_source,
+                    expect_airflow=self.expect_airflow,
                     string_args_global=False,
                 ),
                 filename=script_filename,

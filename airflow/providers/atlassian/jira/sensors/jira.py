@@ -1,0 +1,137 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+
+from jira.resources import Issue, Resource
+
+from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+from airflow.providers.atlassian.jira.operators.jira import JIRAError
+from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+
+class JiraSensor(BaseSensorOperator):
+    """
+    Monitors a jira ticket for any change.
+
+    :param jira_conn_id: reference to a pre-defined Jira Connection
+    :param method_name: method name from jira-python-sdk to be execute
+    :param method_params: parameters for the method method_name
+    :param result_processor: function that return boolean and act as a sensor response
+    """
+
+    def __init__(
+        self,
+        *,
+        method_name: str,
+        jira_conn_id: str = 'jira_default',
+        method_params: Optional[dict] = None,
+        result_processor: Optional[Callable] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.jira_conn_id = jira_conn_id
+        self.result_processor = None
+        if result_processor is not None:
+            self.result_processor = result_processor
+        self.method_name = method_name
+        self.method_params = method_params
+
+    def poke(self, context: 'Context') -> Any:
+        hook = JiraHook(jira_conn_id=self.jira_conn_id)
+        resource = hook.get_conn()
+        jira_result = getattr(resource, self.method_name)(**self.method_params)
+        if self.result_processor is None:
+            return jira_result
+        return self.result_processor(jira_result)
+
+
+class JiraTicketSensor(JiraSensor):
+    """
+    Monitors a jira ticket for given change in terms of function.
+
+    :param jira_conn_id: reference to a pre-defined Jira Connection
+    :param ticket_id: id of the ticket to be monitored
+    :param field: field of the ticket to be monitored
+    :param expected_value: expected value of the field
+    :param result_processor: function that return boolean and act as a sensor response
+    """
+
+    template_fields: Sequence[str] = ("ticket_id",)
+
+    def __init__(
+        self,
+        *,
+        jira_conn_id: str = 'jira_default',
+        ticket_id: Optional[str] = None,
+        field: Optional[str] = None,
+        expected_value: Optional[str] = None,
+        field_checker_func: Optional[Callable] = None,
+        **kwargs,
+    ) -> None:
+
+        self.jira_conn_id = jira_conn_id
+        self.ticket_id = ticket_id
+        self.field = field
+        self.expected_value = expected_value
+        if field_checker_func is None:
+            field_checker_func = self.issue_field_checker
+
+        super().__init__(jira_conn_id=jira_conn_id, result_processor=field_checker_func, **kwargs)
+
+    def poke(self, context: 'Context') -> Any:
+        self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
+
+        self.method_name = "issue"
+        self.method_params = {'id': self.ticket_id, 'fields': self.field}
+        return JiraSensor.poke(self, context=context)
+
+    def issue_field_checker(self, issue: Issue) -> Optional[bool]:
+        """Check issue using different conditions to prepare to evaluate sensor."""
+        result = None
+        try:
+            if issue is not None and self.field is not None and self.expected_value is not None:
+
+                field_val = getattr(issue.fields, self.field)
+                if field_val is not None:
+                    if isinstance(field_val, list):
+                        result = self.expected_value in field_val
+                    elif isinstance(field_val, str):
+                        result = self.expected_value.lower() == field_val.lower()
+                    elif isinstance(field_val, Resource) and getattr(field_val, 'name'):
+                        result = self.expected_value.lower() == field_val.name.lower()
+                    else:
+                        self.log.warning(
+                            "Not implemented checker for issue field %s which "
+                            "is neither string nor list nor Jira Resource",
+                            self.field,
+                        )
+
+        except JIRAError as jira_error:
+            self.log.error("Jira error while checking with expected value: %s", jira_error)
+        except Exception:
+            self.log.exception("Error while checking with expected value %s:", self.expected_value)
+        if result is True:
+            self.log.info(
+                "Issue field %s has expected value %s, returning success", self.field, self.expected_value
+            )
+        else:
+            self.log.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
+        return result

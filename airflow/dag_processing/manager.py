@@ -31,7 +31,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
+from pathlib import Path
+from typing import Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
 from sqlalchemy.orm import Session
@@ -56,9 +57,6 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 class DagParsingStat(NamedTuple):
@@ -107,7 +105,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def __init__(
         self,
-        dag_directory: str,
+        dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
@@ -116,7 +114,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     ):
         super().__init__()
         self._file_path_queue: List[str] = []
-        self._dag_directory: str = dag_directory
+        self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
@@ -205,7 +203,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     @staticmethod
     def _run_processor_manager(
-        dag_directory: str,
+        dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
@@ -368,7 +366,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def __init__(
         self,
-        dag_directory: Union[str, "pathlib.Path"],
+        dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
@@ -379,7 +377,6 @@ class DagFileProcessorManager(LoggingMixin):
         super().__init__()
         self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
-        self._dag_directory = dag_directory
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
@@ -387,6 +384,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: Optional[int] = None
+        self._dag_directory = dag_directory
 
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
@@ -397,6 +395,7 @@ class DagFileProcessorManager(LoggingMixin):
         if self._async_mode and self._direct_scheduler_conn is not None:
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
+        self.standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if (
             conf.get_mandatory_value('database', 'sql_alchemy_conn').startswith('sqlite')
@@ -498,11 +497,13 @@ class DagFileProcessorManager(LoggingMixin):
                 fp: self.get_last_finish_time(fp) for fp in self.file_paths if self.get_last_finish_time(fp)
             }
             to_deactivate = set()
-            dags_parsed = (
-                session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time)
-                .filter(DagModel.is_active)
-                .all()
+            query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
+                DagModel.is_active
             )
+            if self.standalone_dag_processor:
+                query = query.filter(DagModel.processor_subdir == self.get_dag_directory())
+            dags_parsed = query.all()
+
             for dag in dags_parsed:
                 # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
                 # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
@@ -540,7 +541,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
         max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+
         if self._async_mode:
             # If we're in async mode, we can start up straight away. If we're
             # in sync mode we need to be told to start a "loop"
@@ -591,7 +592,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
-            if standalone_dag_processor:
+            if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
@@ -661,11 +662,12 @@ class DagFileProcessorManager(LoggingMixin):
         """Fetches callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
-            query = (
-                session.query(DbCallbackRequest)
-                .order_by(DbCallbackRequest.priority_weight.asc())
-                .limit(max_callbacks)
-            )
+            query = session.query(DbCallbackRequest)
+            if self.standalone_dag_processor:
+                query = query.filter(
+                    DbCallbackRequest.processor_subdir == self.get_dag_directory(),
+                )
+            query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
             callbacks = with_row_locks(
                 query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
             ).all()
@@ -743,7 +745,10 @@ class DagFileProcessorManager(LoggingMixin):
                 else:
                     dag_filelocs.append(fileloc)
 
-            SerializedDagModel.remove_deleted_dags(dag_filelocs)
+            SerializedDagModel.remove_deleted_dags(
+                alive_dag_filelocs=dag_filelocs,
+                processor_subdir=self.get_dag_directory(),
+            )
             DagModel.deactivate_deleted_dags(self._file_paths)
 
             from airflow.models.dagcode import DagCode
@@ -913,6 +918,16 @@ class DagFileProcessorManager(LoggingMixin):
         stat = self._file_stats.get(file_path)
         return stat.run_count if stat else 0
 
+    def get_dag_directory(self) -> str:
+        """
+        Returns the dag_director as a string.
+        :rtype: str
+        """
+        if isinstance(self._dag_directory, Path):
+            return str(self._dag_directory.resolve())
+        else:
+            return str(self._dag_directory)
+
     def set_file_paths(self, new_file_paths):
         """
         Update this with a new set of paths to DAG definition files.
@@ -986,10 +1001,14 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
     @staticmethod
-    def _create_process(file_path, pickle_dags, dag_ids, callback_requests):
+    def _create_process(file_path, pickle_dags, dag_ids, dag_directory, callback_requests):
         """Creates DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
-            file_path=file_path, pickle_dags=pickle_dags, dag_ids=dag_ids, callback_requests=callback_requests
+            file_path=file_path,
+            pickle_dags=pickle_dags,
+            dag_ids=dag_ids,
+            dag_directory=dag_directory,
+            callback_requests=callback_requests,
         )
 
     def start_new_processes(self):
@@ -1002,7 +1021,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._create_process(
-                file_path, self._pickle_dags, self._dag_ids, callback_to_execute_for_file
+                file_path,
+                self._pickle_dags,
+                self._dag_ids,
+                self.get_dag_directory(),
+                callback_to_execute_for_file,
             )
 
             del self._callback_to_execute[file_path]

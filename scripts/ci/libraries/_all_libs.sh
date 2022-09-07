@@ -32,20 +32,12 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_parallel.sh
 # shellcheck source=scripts/ci/libraries/_docker_engine_resources.sh
 . "${LIBRARIES_DIR}"/_docker_engine_resources.sh
-# shellcheck source=scripts/ci/libraries/_repeats.sh
-. "${LIBRARIES_DIR}"/_repeats.sh
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
 . "${LIBRARIES_DIR}"/_sanity_checks.sh
-# shellcheck source=scripts/ci/libraries/_kind.sh
-. "${LIBRARIES_DIR}"/_kind.sh
 # shellcheck source=scripts/ci/libraries/_local_mounts.sh
 . "${LIBRARIES_DIR}"/_local_mounts.sh
 # shellcheck source=scripts/ci/libraries/_md5sum.sh
 . "${LIBRARIES_DIR}"/_md5sum.sh
-# shellcheck source=scripts/ci/libraries/_parameters.sh
-. "${LIBRARIES_DIR}"/_parameters.sh
-# shellcheck source=scripts/ci/libraries/_push_pull_remove_images.sh
-. "${LIBRARIES_DIR}"/_push_pull_remove_images.sh
 # shellcheck source=scripts/ci/libraries/_start_end.sh
 . "${LIBRARIES_DIR}"/_start_end.sh
 # shellcheck source=scripts/ci/libraries/_testing.sh
