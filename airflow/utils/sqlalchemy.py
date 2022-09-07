@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import copy
 import datetime
 import json
 import logging
@@ -166,9 +166,10 @@ class ExecutorConfigType(PickleType):
         super_process = super().bind_processor(dialect)
 
         def process(value):
-            if isinstance(value, dict) and 'pod_override' in value:
-                value['pod_override'] = BaseSerialization.serialize(value['pod_override'])
-            return super_process(value)
+            val_copy = copy.copy(value)
+            if isinstance(val_copy, dict) and 'pod_override' in val_copy:
+                val_copy['pod_override'] = BaseSerialization.serialize(val_copy['pod_override'])
+            return super_process(val_copy)
 
         return process
 
