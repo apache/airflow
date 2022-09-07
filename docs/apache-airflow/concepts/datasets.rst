@@ -58,9 +58,9 @@ A dataset is a construct around a Uniform Resource Identifier (URI) that you cre
 
     example_dataset = Dataset('s3://dataset-bucket/example.csv')
 
-Airflow treats the dataset URI identifiers as opaque values intended to be human-readable, and makes no assumptions about the content or location of the data represented by the identifier. They are treated as strings, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
+Airflow treats the dataset URI as an opaque value intended to be human-readable, and makes no assumptions about the content or location of the data represented by the identifier. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
 
-There are three restrictions on the dataset identifier:
+There are three restrictions on the dataset URI:
 
 1. It must be a valid URI, which means it must only be composed of only ASCII characters.
 2. The URI scheme cannot be ``airflow`` (this is reserved for future use).
@@ -93,7 +93,7 @@ If required, an extra dictionary can be included in a Dataset:
 
 ..note::
 
-    Security Note: Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially URL server credentials, in dataset URIs or extra key values!
+    Security Note: Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
 
 How to use datasets in your DAGs
 --------------------------------
