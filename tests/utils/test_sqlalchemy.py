@@ -19,7 +19,6 @@
 import datetime
 import pickle
 import unittest
-from copy import copy
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -31,7 +30,7 @@ from sqlalchemy.exc import StatementError
 
 from airflow import settings
 from airflow.models import DAG
-from airflow.serialization.enums import Encoding
+from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
 from airflow.utils.sqlalchemy import ExecutorConfigType, nowait, prohibit_commit, skip_locked, with_row_locks
@@ -239,10 +238,21 @@ class TestSqlAlchemyUtils(unittest.TestCase):
 
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
-        'input',
-        ['anything', {'pod_override': TEST_POD}],
+        'input, expected',
+        [
+            ('anything', 'anything'),
+            (
+                {'pod_override': TEST_POD},
+                {
+                    "pod_override": {
+                        "__var": {"spec": {"containers": [{"name": "base"}]}},
+                        "__type": DagAttributeTypes.POD,
+                    }
+                },
+            ),
+        ],
     )
-    def test_bind_processor(self, input):
+    def test_bind_processor(self, input, expected):
         """
         The returned bind processor should pickle the object as is, unless it is a dictionary with
         a pod_override node, in which case it should run it through BaseSerialization.
@@ -251,10 +261,8 @@ class TestExecutorConfigType:
         mock_dialect = MagicMock()
         mock_dialect.dbapi = None
         process = config_type.bind_processor(mock_dialect)
-        expected = copy(input)
-        if 'pod_override' in input:
-            expected['pod_override'] = BaseSerialization.serialize(input['pod_override'])
         assert pickle.loads(process(input)) == expected
+        assert pickle.loads(process(input)) == expected, "should should not mutate variable"
 
     @pytest.mark.parametrize(
         'input',
