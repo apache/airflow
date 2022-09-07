@@ -255,7 +255,7 @@ class EmrContainerOperator(BaseOperator):
             if max_polling_attempts and max_polling_attempts != max_tries:
                 raise Exception("max_polling_attempts must be the same value as max_tries")
             else:
-                max_polling_attempts = max_tries
+                self.max_polling_attempts = max_tries
 
     @cached_property
     def hook(self) -> EmrContainerHook:
