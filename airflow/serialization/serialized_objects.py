@@ -352,6 +352,8 @@ class BaseSerialization:
             step decode VAR according to TYPE;
         (3) Operator has a special field CLASS to record the original class
             name for displaying in UI.
+
+        :meta private:
         """
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
@@ -406,7 +408,10 @@ class BaseSerialization:
 
     @classmethod
     def deserialize(cls, encoded_var: Any) -> Any:
-        """Helper function of depth first search for deserialization."""
+        """Helper function of depth first search for deserialization.
+
+        :meta private:
+        """
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
             return encoded_var
