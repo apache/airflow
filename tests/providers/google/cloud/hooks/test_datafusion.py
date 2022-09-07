@@ -165,7 +165,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
         with pytest.raises(
-            AirflowException, match=r"Creating a pipeline failed because of empty data in received response"
+            AirflowException,
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud Datafusion side",
         ):
             hook.create_pipeline(pipeline_name=PIPELINE_NAME, pipeline=PIPELINE, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -200,7 +202,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
         with pytest.raises(
-            AirflowException, match=r"Deleting a pipeline failed because of empty data in received response"
+            AirflowException,
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud Datafusion side",
         ):
             hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -236,7 +240,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
         with pytest.raises(
-            AirflowException, match=r"Listing pipelines failed because of empty data in received response"
+            AirflowException,
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud Datafusion side",
         ):
             hook.list_pipelines(instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -275,7 +281,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
         with pytest.raises(
-            AirflowException, match=r"Starting a pipeline failed because of empty data in received response"
+            AirflowException,
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud Datafusion side",
         ):
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
@@ -326,7 +334,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
         with pytest.raises(
-            AirflowException, match=r"Stopping a pipeline failed because of empty data in received response"
+            AirflowException,
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud Datafusion side",
         ):
             hook.stop_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -365,7 +375,8 @@ class TestDataFusionHook:
         mock_request.return_value.data = None
         with pytest.raises(
             AirflowException,
-            match=r"Retrieving a pipeline state failed because of empty data in received response",
+            match=r"Empty response received. Please, check for possible root causes "
+            r"of this behavior either in DAG code or on Cloud Datafusion side",
         ):
             hook.get_pipeline_workflow(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, pipeline_id=PIPELINE_ID
