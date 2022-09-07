@@ -24,8 +24,9 @@ warnings.warn("This module is deprecated. Please use `airflow.utils.log`.", Depr
 
 __deprecated_classes = {
     'task_handler_with_custom_formatter': {
-        'TaskHandlerWithCustomFormatter':
-            'airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter',
+        'TaskHandlerWithCustomFormatter': (
+            'airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter'
+        ),
     },
 }
 

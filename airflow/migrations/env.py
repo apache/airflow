@@ -33,6 +33,9 @@ def include_object(_, name, type_, *args):
         return True
 
 
+# Make sure everything is imported so that alembic can find it all
+models.import_all_models()
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

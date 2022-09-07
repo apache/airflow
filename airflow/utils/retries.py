@@ -20,7 +20,6 @@ import logging
 from inspect import signature
 from typing import Any, Optional
 
-import tenacity
 from sqlalchemy.exc import DBAPIError, OperationalError
 
 from airflow.configuration import conf
@@ -30,6 +29,8 @@ MAX_DB_RETRIES = conf.getint('database', 'max_db_retries', fallback=3)
 
 def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: Optional[logging.Logger] = None, **kwargs):
     """Return Tenacity Retrying object with project specific default"""
+    import tenacity
+
     # Default kwargs
     retry_kwargs = dict(
         retry=tenacity.retry_if_exception_type(exception_types=(OperationalError, DBAPIError)),

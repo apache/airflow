@@ -31,6 +31,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
+from airflow.models import import_all_models
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
@@ -131,6 +132,8 @@ def create_app(config=None, testing=False):
 
     configure_logging()
     configure_manifest_files(flask_app)
+
+    import_all_models()
 
     with flask_app.app_context():
         init_appbuilder(flask_app)
