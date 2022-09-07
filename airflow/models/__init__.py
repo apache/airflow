@@ -52,6 +52,9 @@ __all__ = [
 ]
 
 
+from typing import TYPE_CHECKING
+
+
 def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
@@ -113,9 +116,7 @@ __lazy_imports = {
     'clear_task_instances': 'airflow.models.taskinstance',
 }
 
-STATICA_HACK = True
-globals()['kcah_acitats'[::-1].upper()] = False
-if STATICA_HACK:  # pragma: no cover
+if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
     from airflow.models.base import ID_LEN, Base
