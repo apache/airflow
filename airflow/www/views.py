@@ -515,7 +515,7 @@ def get_value_from_path(key_path, content):
     return elem
 
 
-def dag_edges(dag):
+def dag_edges(dag: DAG):
     """
     Create the list of edges needed to construct the Graph view.
 
@@ -596,21 +596,17 @@ def dag_edges(dag):
     # Collect all the edges between individual tasks
     edges = set()
 
-    def get_downstream(task):
-        tasks_to_trace = {(task, frozenset(task.downstream_list))}
-        while tasks_to_trace:
-            tasks_to_trace_next: Set[tuple] = set()
-            for task, children in tasks_to_trace:
-                for child in children:
-                    edge = (task.task_id, child.task_id)
-                    if edge in edges:
-                        continue
-                    edges.add(edge)
-                    tasks_to_trace_next.add((child, frozenset(child.downstream_list)))
-            tasks_to_trace = tasks_to_trace_next
-
-    for root in dag.roots:
-        get_downstream(root)
+    tasks_to_trace: List[Operator] = dag.roots
+    while tasks_to_trace:
+        tasks_to_trace_next: List[Operator] = []
+        for task in tasks_to_trace:
+            for child in task.downstream_list:
+                edge = (task.task_id, child.task_id)
+                if edge in edges:
+                    continue
+                edges.add(edge)
+                tasks_to_trace_next.append(child)
+        tasks_to_trace = tasks_to_trace_next
 
     result = []
     # Build result dicts with the two ends of the edge, plus any extra metadata
