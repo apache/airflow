@@ -44,6 +44,7 @@ __all__ = [
     "virtualenv_task",
     "external_python_task",
     "branch_task",
+    "short_circuit_task",
 ]
 
 class TaskDecoratorCollection:
@@ -171,6 +172,25 @@ class TaskDecoratorCollection:
         """
     @overload
     def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def short_circuit(
+        self,
+        *,
+        multiple_outputs: Optional[bool] = None,
+        ignore_downstream_trigger_rules: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a ShortCircuitOperator.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task
+            will be skipped. This is the default behavior. If set to False, the direct, downstream task(s)
+            will be skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+            Defaults to True.
+        """
+    @overload
+    def short_circuit(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     # [START decorator_signature]
     def docker(
         self,

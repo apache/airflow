@@ -22,6 +22,7 @@ from airflow.decorators.branch_python import branch_task
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers_manager import ProvidersManager
@@ -37,6 +38,7 @@ __all__ = [
     "virtualenv_task",
     "external_python_task",
     "branch_task",
+    "short_circuit_task",
 ]
 
 
@@ -47,6 +49,7 @@ class TaskDecoratorCollection:
     virtualenv = staticmethod(virtualenv_task)
     external_python = staticmethod(external_python_task)
     branch = staticmethod(branch_task)
+    short_circuit = staticmethod(short_circuit_task)
 
     __call__: Any = python  # Alias '@task' to '@task.python'.
 
