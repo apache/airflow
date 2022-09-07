@@ -1144,6 +1144,8 @@ class Airflow(AirflowBaseView):
         owner_links = session.query(DagOwnerAttributes).filter_by(dag_id=dag_id).all()
 
         attrs_to_avoid = [
+            "schedule_dataset_references",
+            "task_outlet_dataset_references",
             "NUM_DAGS_PER_DAGRUN_QUERY",
             "serialized_dag",
             "tags",

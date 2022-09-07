@@ -496,19 +496,19 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("executor_config", {})
 
     @property  # type: ignore[override]
-    def inlets(self) -> Optional[Any]:  # type: ignore[override]
-        return self.partial_kwargs.get("inlets", None)
+    def inlets(self) -> List[Any]:  # type: ignore[override]
+        return self.partial_kwargs.get("inlets", [])
 
     @inlets.setter
-    def inlets(self, value):  # type: ignore[override]
+    def inlets(self, value: List[Any]) -> None:  # type: ignore[override]
         self.partial_kwargs["inlets"] = value
 
     @property  # type: ignore[override]
-    def outlets(self) -> Optional[Any]:  # type: ignore[override]
-        return self.partial_kwargs.get("outlets", None)
+    def outlets(self) -> List[Any]:  # type: ignore[override]
+        return self.partial_kwargs.get("outlets", [])
 
     @outlets.setter
-    def outlets(self, value):  # type: ignore[override]
+    def outlets(self, value: List[Any]) -> None:  # type: ignore[override]
         self.partial_kwargs["outlets"] = value
 
     @property

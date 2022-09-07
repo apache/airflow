@@ -1339,6 +1339,22 @@ class TestStringifiedDAGs:
             '<TIDep(Trigger Rule)>',
         ]
 
+    def test_serialize_mapped_outlets(self):
+        with DAG(dag_id="d", start_date=datetime.now()):
+            op = MockOperator.partial(task_id="x").expand(arg1=[1, 2])
+
+        assert op.inlets == []
+        assert op.outlets == []
+
+        serialized = SerializedBaseOperator.serialize_mapped_operator(op)
+        assert "inlets" not in serialized
+        assert "outlets" not in serialized
+
+        round_tripped = SerializedBaseOperator.deserialize_operator(serialized)
+        assert isinstance(round_tripped, MappedOperator)
+        assert round_tripped.inlets == []
+        assert round_tripped.outlets == []
+
     def test_derived_dag_deps_sensor(self):
         """
         Tests DAG dependency detection for sensors, including derived classes
