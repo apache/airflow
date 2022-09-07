@@ -110,8 +110,8 @@ the meta-data file in your DAG easily. The location of the file to read can be f
 Registering dynamic DAGs
 ........................
 
-You can dynamically generate DAGs by working with ``globals()``.
-As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
+You can dynamically generate DAGs when using the ``@dag`` decorator or the ``with DAG(..)`` context manager
+and Airflow will automatically register them.
 
 .. code-block:: python
 
@@ -137,7 +137,9 @@ As long as a ``DAG`` object in ``globals()`` is created, Airflow will load it.
         dynamic_generated_dag()
 
 The code below will generate a DAG for each config: ``dynamic_generated_dag_config1`` and ``dynamic_generated_dag_config2``.
-Each of them can run separately with related configuration
+Each of them can run separately with related configuration.
+
+If you do not wish to have DAGs auto-registered, you can disable the behavior by setting ``auto_register=False`` on your DAG.
 
 .. versionchanged:: 2.4
 
