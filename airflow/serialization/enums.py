@@ -50,3 +50,4 @@ class DagAttributeTypes(str, Enum):
     PARAM = 'param'
     XCOM_REF = 'xcomref'
     DATASET = 'dataset'
+    ENCODING_ENUM = '__encoding_enum__'

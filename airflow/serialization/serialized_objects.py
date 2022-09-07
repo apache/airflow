@@ -360,7 +360,14 @@ class BaseSerialization:
                 return var.value
             return var
         elif isinstance(var, dict):
-            return cls._encode({str(k): cls._serialize(v) for k, v in var.items()}, type_=DAT.DICT)
+
+            def enc_dict_key(val):
+                if isinstance(val, Encoding):
+                    return f"{DAT.ENCODING_ENUM.value}-{val.value}"
+                else:
+                    return val
+
+            return cls._encode({enc_dict_key(k): cls._serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
             return [cls._serialize(v) for v in var]
         elif _has_kubernetes() and isinstance(var, k8s.V1Pod):
@@ -401,6 +408,8 @@ class BaseSerialization:
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
+        elif isinstance(var, Encoding):
+            return cls._encode(var.value, type_=DAT.ENCODING_ENUM)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -420,7 +429,16 @@ class BaseSerialization:
         type_ = encoded_var[Encoding.TYPE]
 
         if type_ == DAT.DICT:
-            return {k: cls._deserialize(v) for k, v in var.items()}
+
+            def decode_dict_key(val):
+                try:
+                    if val.startswith(DAT.ENCODING_ENUM.value):
+                        return Encoding(val[len(DAT.ENCODING_ENUM.value) + 1 :])
+                except:
+                    pass
+                return val
+
+            return {decode_dict_key(k): cls._deserialize(v) for k, v in var.items()}
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -448,6 +466,8 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
+        elif type_ == DAT.ENCODING_ENUM:
+            return Encoding(var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
