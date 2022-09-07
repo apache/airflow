@@ -17,14 +17,17 @@
 # under the License.
 
 import os.path
+import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+# from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
 
 
 class GlueJobOperator(BaseOperator):
@@ -50,29 +53,26 @@ class GlueJobOperator(BaseOperator):
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
     :param wait_for_completion: Whether or not wait for job run completion. (default: True)
-    :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     """
 
-    template_fields: Sequence[str] = (
-        'job_name',
-        'script_location',
-        'script_args',
-        's3_bucket',
-        'iam_role_name',
-    )
+
+    template_fields: Sequence[str] = ('script_args',)
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "script_args": "json",
         "create_job_kwargs": "json",
+
     }
+
     ui_color = '#ededed'
+
 
     def __init__(
         self,
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: Optional[str] = None,
+        script_location: str,
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
         retry_limit: int = 0,
@@ -83,8 +83,9 @@ class GlueJobOperator(BaseOperator):
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         run_job_kwargs: Optional[dict] = None,
+        verbose:bool = False,
+        continuous_logging:bool = False,
         wait_for_completion: bool = True,
-        verbose: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -103,8 +104,10 @@ class GlueJobOperator(BaseOperator):
         self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
         self.create_job_kwargs = create_job_kwargs
         self.run_job_kwargs = run_job_kwargs or {}
-        self.wait_for_completion = wait_for_completion
         self.verbose = verbose
+        self.continuous_logging = continuous_logging
+        self.wait_for_completion = wait_for_completion
+
 
     def execute(self, context: 'Context'):
         """
@@ -143,7 +146,12 @@ class GlueJobOperator(BaseOperator):
         )
         glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
         if self.wait_for_completion:
-            glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'], self.verbose)
+            glue_job_run = glue_job.job_completion(self.job_name,
+                                                   glue_job_run['JobRunId'],
+                                                   verbose=self.verbose,
+                                                   continuous_logging=self.continuous_logging)
+            # glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
+
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,
@@ -153,3 +161,18 @@ class GlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']
+
+class GlueJobOperator(GlueJobOperator):
+    """
+    This operator is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This operator is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
