@@ -76,12 +76,14 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         file_path: str,
         pickle_dags: bool,
         dag_ids: Optional[List[str]],
+        dag_directory: str,
         callback_requests: List[CallbackRequest],
     ):
         super().__init__()
         self._file_path = file_path
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
+        self._dag_directory = dag_directory
         self._callback_requests = callback_requests
 
         # The process that was launched to process the given .
@@ -111,6 +113,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         pickle_dags: bool,
         dag_ids: Optional[List[str]],
         thread_name: str,
+        dag_directory: str,
         callback_requests: List[CallbackRequest],
     ) -> None:
         """
@@ -154,7 +157,11 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 threading.current_thread().name = thread_name
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
-                dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
+                dag_file_processor = DagFileProcessor(
+                    dag_ids=dag_ids,
+                    dag_directory=dag_directory,
+                    log=log,
+                )
                 result: Tuple[int, int] = dag_file_processor.process_file(
                     file_path=file_path,
                     pickle_dags=pickle_dags,
@@ -188,6 +195,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._pickle_dags,
                 self._dag_ids,
                 f"DagFileProcessor{self._instance_id}",
+                self._dag_directory,
                 self._callback_requests,
             ),
             name=f"DagFileProcessor{self._instance_id}-Process",
@@ -356,10 +364,11 @@ class DagFileProcessor(LoggingMixin):
 
     UNIT_TEST_MODE: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
 
-    def __init__(self, dag_ids: Optional[List[str]], log: logging.Logger):
+    def __init__(self, dag_ids: Optional[List[str]], dag_directory: str, log: logging.Logger):
         super().__init__()
         self.dag_ids = dag_ids
         self._log = log
+        self._dag_directory = dag_directory
         self.dag_warnings: Set[Tuple[str, str]] = set()
 
     @provide_session
@@ -766,7 +775,7 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
         # Save individual DAGs in the ORM
-        dagbag.sync_to_db(session)
+        dagbag.sync_to_db(processor_subdir=self._dag_directory, session=session)
         session.commit()
 
         if pickle_dags:

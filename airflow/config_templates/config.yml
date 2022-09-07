@@ -2121,6 +2121,14 @@
       type: integer
       example: ~
       default: "20"
+    - name: dag_stale_not_seen_duration
+      description: |
+        Only applicable if `[scheduler]standalone_dag_processor` is true.
+        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
+      version_added: 2.4.0
+      type: integer
+      example: ~
+      default: "600"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
