@@ -77,7 +77,7 @@ def _get_dag_run(
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: Optional[str] = None,
-    session: Session = NEW_SESSION,
+    session: Session,
 ) -> Tuple[DagRun, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
