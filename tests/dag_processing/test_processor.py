@@ -792,7 +792,13 @@ class TestDagFileProcessor:
     @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
     @mock.patch('airflow.dag_processing.processor.redirect_stdout')
     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess('abc.txt', False, [], [])
+        processor = DagFileProcessorProcess(
+            file_path='abc.txt',
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
         processor._run_file_processor(
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
@@ -801,6 +807,7 @@ class TestDagFileProcessor:
             dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
+            dag_directory=[],
         )
         mock_redirect_stdout_for_file.assert_not_called()
 
@@ -808,7 +815,13 @@ class TestDagFileProcessor:
     @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
     @mock.patch('airflow.dag_processing.processor.redirect_stdout')
     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
-        processor = DagFileProcessorProcess('abc.txt', False, [], [])
+        processor = DagFileProcessorProcess(
+            file_path='abc.txt',
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
         processor._run_file_processor(
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
@@ -817,6 +830,7 @@ class TestDagFileProcessor:
             dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
+            dag_directory=[],
         )
         mock_redirect_stdout_for_file.assert_called_once()
 
