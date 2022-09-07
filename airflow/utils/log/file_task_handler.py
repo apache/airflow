@@ -26,7 +26,6 @@ from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 
@@ -138,6 +137,8 @@ class FileTaskHandler(logging.Handler):
                          can be used for steaming log reading and auto-tailing.
         :return: log message as a string and metadata.
         """
+        from airflow.utils.jwt_signer import JWTSigner
+
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.

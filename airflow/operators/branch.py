@@ -19,7 +19,7 @@
 
 from typing import Iterable, Union
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.utils.context import Context
 

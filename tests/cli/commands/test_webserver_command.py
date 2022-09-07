@@ -347,11 +347,9 @@ class TestCliWebServer:
         assert ctx.value.code == 1
 
     def test_cli_webserver_debug(self, app):
-        with mock.patch.object(webserver_command, 'create_app') as create_app, mock.patch.object(
+        with mock.patch('airflow.www.app.create_app', return_value=app), mock.patch.object(
             app, 'run'
         ) as app_run:
-            create_app.return_value = app
-
             args = self.parser.parse_args(
                 [
                     "webserver",

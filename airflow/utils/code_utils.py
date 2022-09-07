@@ -20,9 +20,6 @@ import inspect
 import os
 from typing import Any, Optional
 
-from pygments.formatters.terminal import TerminalFormatter
-from pygments.formatters.terminal256 import Terminal256Formatter
-
 
 def get_python_source(x: Any) -> Optional[str]:
     """Helper function to get Python source (or not), preventing exceptions"""
@@ -84,7 +81,11 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
 def get_terminal_formatter(**opts):
     """Returns the best formatter available in the current terminal."""
     if '256' in os.environ.get('TERM', ''):
+        from pygments.formatters.terminal256 import Terminal256Formatter
+
         formatter = Terminal256Formatter(**opts)
     else:
+        from pygments.formatters.terminal import TerminalFormatter
+
         formatter = TerminalFormatter(**opts)
     return formatter

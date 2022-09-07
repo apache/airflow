@@ -43,11 +43,7 @@ from typing import (
     cast,
 )
 
-import jsonschema
-from packaging import version as packaging_version
-
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.hooks.base import BaseHook
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -67,6 +63,7 @@ MIN_PROVIDER_VERSIONS = {
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
+    from airflow.hooks.base import BaseHook
 
 
 class LazyDictWithCache(MutableMapping):
@@ -114,6 +111,8 @@ class LazyDictWithCache(MutableMapping):
 
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json"""
+    import jsonschema
+
     with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
         schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
@@ -123,6 +122,8 @@ def _create_provider_info_schema_validator():
 
 def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json"""
+    import jsonschema
+
     with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
         schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
@@ -241,7 +242,7 @@ KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "
 
 def _sanity_check(
     provider_package: str, class_name: str, provider_info: ProviderInfo
-) -> Optional[Type[BaseHook]]:
+) -> Optional[Type["BaseHook"]]:
     """
     Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
@@ -376,6 +377,8 @@ class ProvidersManager(LoggingMixin):
         self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
 
     def _verify_all_providers_all_compatible(self):
+        from packaging import version as packaging_version
+
         for provider_id, info in self._provider_dict.items():
             min_version = MIN_PROVIDER_VERSIONS.get(provider_id)
             if min_version:

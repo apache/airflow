@@ -40,7 +40,6 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
-from airflow.www.app import create_app
 
 log = logging.getLogger(__name__)
 
@@ -342,6 +341,8 @@ def webserver(args):
         raise AirflowException('An SSL certificate must also be provided for use with ' + ssl_key)
     if ssl_cert and not ssl_key:
         raise AirflowException('An SSL key must also be provided for use with ' + ssl_cert)
+
+    from airflow.www.app import create_app
 
     if args.debug:
         print(f"Starting the web server on port {args.port} and host {args.hostname}.")

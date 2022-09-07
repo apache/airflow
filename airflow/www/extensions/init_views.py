@@ -26,7 +26,6 @@ from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
-from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
 log = logging.getLogger(__name__)
 
@@ -43,8 +42,13 @@ def init_flash_views(app):
 
 def init_appbuilder_views(app):
     """Initialize Web UI views"""
-    appbuilder = app.appbuilder
+    from airflow.models import import_all_models
+
+    import_all_models()
+
     from airflow.www import views
+
+    appbuilder = app.appbuilder
 
     # Remove the session from scoped_session registry to avoid
     # reusing a session with a disconnected connection
@@ -144,6 +148,8 @@ def init_plugins(app):
 
 def init_connection_form():
     """Initializes connection form"""
+    from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
+
     lazy_add_provider_discovered_options_to_connection_form()
 
 

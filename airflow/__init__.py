@@ -34,9 +34,6 @@ import sys
 from typing import Callable, Optional
 
 from airflow import settings
-from airflow import version
-
-__version__ = version.version
 
 __all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39', 'PY310', 'XComArg']
 
@@ -64,12 +61,19 @@ __lazy_imports = {
     'Dataset': 'airflow.datasets',
     'XComArg': 'airflow.models.xcom_arg',
     'AirflowException': 'airflow.exceptions',
+    'version': 'airflow.version',
 }
 
 
-def __getattr__(name):
+def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
-    path = __lazy_imports.get(name)
+    module_attr = name.rsplit('.', 1)[-1]
+    path: Optional[str]
+    if name == '__version__':
+        module_attr = 'version'
+        path = 'airflow.version'
+    else:
+        path = __lazy_imports.get(name)
     if not path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
@@ -79,7 +83,7 @@ def __getattr__(name):
     # module)
     without_prefix = path.split('.', 1)[-1]
 
-    getter = operator.attrgetter(f'{without_prefix}.{name}')
+    getter = operator.attrgetter(f'{without_prefix}.{module_attr}')
     val = getter(__import__(path))
     # Store for next time
     globals()[name] = val

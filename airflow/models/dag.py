@@ -77,7 +77,6 @@ from airflow.exceptions import (
 )
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
-from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -107,6 +106,7 @@ if TYPE_CHECKING:
 
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
+    from airflow.models.dagbag import DagBag
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -1719,6 +1719,8 @@ class DAG(LoggingMixin):
 
                 for tii in external_tis:
                     if not dag_bag:
+                        from airflow.models.dagbag import DagBag
+
                         dag_bag = DagBag(read_dags_from_db=True)
                     external_dag = dag_bag.get_dag(tii.dag_id, session=session)
                     if not external_dag:

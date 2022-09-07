@@ -18,7 +18,6 @@
 #
 """Utilities module for cli"""
 import functools
-import json
 import logging
 import os
 import re
@@ -122,8 +121,6 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    from airflow.models import Log
-
     sub_commands_to_check = {'users', 'connections'}
     sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
@@ -156,17 +153,6 @@ def _build_metrics(func_name, namespace):
     metrics['execution_date'] = tmp_dic.get('execution_date')
     metrics['host_name'] = socket.gethostname()
 
-    extra = json.dumps({k: metrics[k] for k in ('host_name', 'full_command')})
-    log = Log(
-        event=f'cli_{func_name}',
-        task_instance=None,
-        owner=metrics['user'],
-        extra=extra,
-        task_id=metrics.get('task_id'),
-        dag_id=metrics.get('dag_id'),
-        execution_date=metrics.get('execution_date'),
-    )
-    metrics['log'] = log
     return metrics
 
 
