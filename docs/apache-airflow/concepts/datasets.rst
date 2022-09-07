@@ -23,14 +23,14 @@ Data-aware scheduling
 Quickstart
 ----------
 
-In addition to scheduling DAGs based upon time, they can also be scheduled based upon another DAG updating a dataset.
+In addition to scheduling DAGs based upon time, they can also be scheduled based upon a task updating a dataset.
 
 .. code-block:: python
 
     from airflow import Dataset
 
     with DAG(...):
-        task1 = MyOperator(
+        MyOperator(
             # this task updates example.csv
             outlets=[Dataset("s3://dataset-bucket/example.csv")],
             ...,
@@ -41,8 +41,7 @@ In addition to scheduling DAGs based upon time, they can also be scheduled based
         # this DAG should be run when example.csv is updated (by dag1)
         schedule=[Dataset("s3://dataset-bucket/example.csv")],
         ...,
-    ) as dag2:
-        Task2 = OtherOperator(...)
+    ):
         ...
 
 What is a "dataset"?
@@ -60,27 +59,26 @@ A dataset is a construct around a Uniform Resource Identifier (URI) that you cre
 
 Airflow treats the dataset URI as an opaque value intended to be human-readable, and makes no assumptions about the content or location of the data represented by the identifier. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
 
-There are three restrictions on the dataset URI:
+There are two restrictions on the dataset URI:
 
 1. It must be a valid URI, which means it must only be composed of only ASCII characters.
 2. The URI scheme cannot be ``airflow`` (this is reserved for future use).
-3. It must be unique (although it is case is sensitive throughout, so "s3://example_dataset" and "s3://Example_Dataset" are considered different, and "s3://example_dataset" and "S3://example_dataset" are considered different).
 
 If you try to use either of the examples below, your code will cause a ValueError to be raised, and Airflow will not import it.
 
 .. code-block:: python
 
     # invalid datasets:
-    reserved = Dataset(uri="airflow://example_dataset")
-    not_ascii = Dataset(uri="èxample_datašet")
+    reserved = Dataset("airflow://example_dataset")
+    not_ascii = Dataset("èxample_datašet")
 
 The identifier does not have to be an absolute URI, it can be a scheme-less, relative URI, or even just a simple path or string:
 
 .. code-block:: python
 
     # valid datasets:
-    schemeless = Dataset(uri="//example/dataset")
-    csv_file = Dataset(uri="example.csv")
+    schemeless = Dataset("//example/dataset")
+    csv_file = Dataset("example.csv")
 
 If required, an extra dictionary can be included in a Dataset:
 
@@ -95,6 +93,8 @@ If required, an extra dictionary can be included in a Dataset:
 
     Security Note: Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
 
+The URI is also case sensitive throughout, so ``s3://example_dataset`` and ``s3://Example_Dataset`` are considered different, as is ``s3://example_dataset`` and ``S3://example_dataset``.
+
 How to use datasets in your DAGs
 --------------------------------
 
@@ -104,13 +104,13 @@ You can use datasets to specify data dependencies in your DAGs. Take the followi
 
     example_dataset = Dataset("s3://dataset/example.csv")
 
-    with DAG(dag_id='update_example_dataset', ...) as update_example_dataset:
-        BashOperator(task_id='example_producer', outlets=[example_dataset], ...)
+    with DAG(dag_id='producer', ...):
+        BashOperator(task_id='producer', outlets=[example_dataset], ...)
 
-    with DAG(dag_id='example_consumer', schedule=[example_dataset], ...):
-        BashOperator(...)
+    with DAG(dag_id='consumer', schedule=[example_dataset], ...):
+        ...
 
-Once the ``example_producer`` task of the first ``update_example_dataset`` DAG has completed successfully, Airflow schedules ``requires_example_dataset``. Only a task's success triggers dataset updates — if the task fails or if it raises an :class:`~airflow.exceptions.AirflowSkipException`, no update occurs, and the ``requires_example_dataset`` DAG will not be scheduled.
+Once the ``producer`` task in the ``producer`` DAG has completed successfully, Airflow schedules the ``consumer`` DAG. Only a task's success triggers dataset updates — if the task fails or if it raises an :class:`~airflow.exceptions.AirflowSkipException`, no update occurs, and the ``consumer`` DAG will not be scheduled.
 
 Multiple Datasets
 -----------------
