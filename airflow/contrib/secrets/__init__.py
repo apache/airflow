@@ -18,10 +18,13 @@
 """This package is deprecated. Please use `airflow.secrets` or `airflow.providers.*.secrets`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
-    "This module is deprecated. Please use airflow.providers.*.secrets.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use airflow.providers.*.secrets.",
+    RemovedInAirflow3Warning,
+    stacklevel=2
 )
 
 __deprecated_classes = {

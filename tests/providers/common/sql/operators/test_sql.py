@@ -639,7 +639,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -679,7 +679,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_true_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -720,7 +720,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_false_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -760,7 +760,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_list_with_dag_run(self, mock_get_db_hook):
         """Checks if the BranchSQLOperator supports branching off to a list of tasks."""
         branch_op = BranchSQLOperator(
@@ -803,7 +803,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_invalid_query_result_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -833,7 +833,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         with pytest.raises(AirflowException):
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook):
         """Test SQL Branch with skipping all downstream dependencies"""
         branch_op = BranchSQLOperator(
@@ -874,7 +874,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies2(self, mock_get_db_hook):
         """Test skipping downstream dependency for false condition"""
         branch_op = BranchSQLOperator(
