@@ -899,7 +899,9 @@ class TestDag:
         # so let's remove some references and see what happens
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2])
-        DAG.bulk_write_to_db([dag1], session)
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        EmptyOperator(task_id=task_id, dag=dag2)
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         session.expunge_all()
         stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
@@ -914,10 +916,7 @@ class TestDag:
             )
             .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
-        ) == {
-            (task_id, dag_id1, d2_orm.id),
-            (task_id, dag_id2, d1_orm.id),
-        }
+        ) == {(task_id, dag_id1, d2_orm.id)}
 
     def test_sync_to_db(self):
         dag = DAG(
