@@ -28,6 +28,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.0
+.....
+
+Latest change: 2022-08-31
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`6c57acc654 <https://github.com/apache/airflow/commit/6c57acc6545e467c27913d54239cab2de47daae1>`_  2022-08-31   ``Additional mask aws credentials (#26014)``
+`6d703dd9e1 <https://github.com/apache/airflow/commit/6d703dd9e13a68863faa211cbfdc24ddfb3bdcf0>`_  2022-08-31   ``Fix display aws connection info (#26025)``
+`8acdc2a834 <https://github.com/apache/airflow/commit/8acdc2a834b9c4e287fe612ed56ab8908d777609>`_  2022-08-30   ``Replace SQL with Common SQL in pre commit (#26058)``
+`1d06374194 <https://github.com/apache/airflow/commit/1d06374194586d6dd857e95c866925e9034d9a48>`_  2022-08-30   ``Hook into Mypy to get rid of those cast() (#26023)``
+`1ed014647e <https://github.com/apache/airflow/commit/1ed014647e7293d342d9d1c2706343a68f003655>`_  2022-08-29   ``Add 'output' property to MappedOperator (#25604)``
+`dbfa6487b8 <https://github.com/apache/airflow/commit/dbfa6487b820e6c94770404b3ba29ab11ae2a05e>`_  2022-08-27   ``Fix 'EcsBaseOperator' and 'EcsBaseSensor' arguments (#25989)``
+`c9c89e5c3b <https://github.com/apache/airflow/commit/c9c89e5c3be37dd2475abf4214d5efdd2ad48c2a>`_  2022-08-27   ``Add RedshiftDeleteClusterSnapshotOperator (#25975)``
+`695e1a53f8 <https://github.com/apache/airflow/commit/695e1a53f88c78c5c624f9478a73963062f42a8b>`_  2022-08-27   ``Raise an error on create bucket if use regional endpoint for us-east-1 and region not set (#25945)``
+`b75797e809 <https://github.com/apache/airflow/commit/b75797e80954df1e67dbc63dec874db0457244e7>`_  2022-08-27   ``Fix EMR serverless system test (#25969)``
+`810f3847c2 <https://github.com/apache/airflow/commit/810f3847c241453195fa2c27f447ecf7fe06bbfc>`_  2022-08-27   ``Update AWS system tests to use SystemTestContextBuilder (#25748)``
+`626a54904a <https://github.com/apache/airflow/commit/626a54904ad1b7042f44a31bb1bbae13ad385c1e>`_  2022-08-26   ``Convert Quicksight Sample DAG to System Test (#25696)``
+`994f18872a <https://github.com/apache/airflow/commit/994f18872af8d2977d78e6d1a27314efbeedb886>`_  2022-08-25   ``Add redshift create cluster snapshot operator (#25857)``
+`1a1f352479 <https://github.com/apache/airflow/commit/1a1f352479d6dbff21d73d3c51b1e5d5188e00e3>`_  2022-08-23   ``Add Airflow specific warning classes (#25799)``
+`6b7a343b25 <https://github.com/apache/airflow/commit/6b7a343b25b06ab592f19b7e70843dda2d7e0fdb>`_  2022-08-22   ``Implement 'EmrEksCreateClusterOperator' (#25816)``
+`e1ace8d018 <https://github.com/apache/airflow/commit/e1ace8d018e94a13e258a9fbde3544440660f8c0>`_  2022-08-21   ``Fix RDS system test (#25839)``
+`f1e0a48500 <https://github.com/apache/airflow/commit/f1e0a485005ed41c7c40096983daaa2d98609069>`_  2022-08-19   ``Avoid circular import problems when instantiating AWS SM backend (#25810)``
+`92fce4fe87 <https://github.com/apache/airflow/commit/92fce4fe8786ae66ba60df94949dc41cbb3526ce>`_  2022-08-19   ``Improve error handling/messaging around bucket exist check (#25805)``
+`ca9229b6fe <https://github.com/apache/airflow/commit/ca9229b6fe7eda198c7ce32da13afb97ab9f3e28>`_  2022-08-18   ``Add common-sql lower bound for common-sql (#25789)``
+`b9b8841ef3 <https://github.com/apache/airflow/commit/b9b8841ef38d94edcb05f75d5883e5b37ac07c54>`_  2022-08-16   ``Allow AWS Secrets Backends use AWS Connection capabilities (#25628)``
+`762588dcf4 <https://github.com/apache/airflow/commit/762588dcf4a05c47aa253b864bda00726a5569dc>`_  2022-08-15   ``fix bug construction of Connection object in version 5.0.0rc3 (#25716)``
+`1b412c9cbe <https://github.com/apache/airflow/commit/1b412c9cbe48235cf02bb57a94c0d47d3f86df20>`_  2022-08-10   ``Consolidate to one 'schedule' param (#25410)``
+=================================================================================================  ===========  ======================================================================================================
+
 5.0.0
 .....
 
@@ -36,6 +67,7 @@ Latest change: 2022-08-10
 =================================================================================================  ===========  ==========================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================================================================
+`5923788143 <https://github.com/apache/airflow/commit/5923788143e7871b56de5164b96a407b2fba75b8>`_  2022-08-10   ``Fix CHANGELOG for common.sql provider and add amazon commit (#25636)``
 `358593c6b6 <https://github.com/apache/airflow/commit/358593c6b65620807103ae16946825e0bfad974f>`_  2022-08-10   ``Enable multiple query execution in RedshiftDataOperator (#25619)``
 `e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
 `8a1b7d43e0 <https://github.com/apache/airflow/commit/8a1b7d43e05e38576a728f2c49e75a63093f9103>`_  2022-08-10   ``Refactor monolithic ECS Operator into Operators, Sensors, and a Hook (#25413)``

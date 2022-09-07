@@ -235,6 +235,13 @@ option_upgrade_to_newer_dependencies = click.option(
     help='When set, upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
 )
+option_upgrade_on_failure = click.option(
+    "-u",
+    '--upgrade-on-failure',
+    is_flag=True,
+    help='When set, attempt to run upgrade to newer dependencies when regular build fails.',
+    envvar='UPGRADE_ON_FAILURE',
+)
 option_additional_extras = click.option(
     '--additional-extras',
     help='Additional extra package while installing Airflow in the image.',
@@ -487,4 +494,10 @@ option_include_mypy_volume = click.option(
     help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
     is_flag=True,
     envvar='INCLUDE_MYPY_VOLUME',
+)
+option_max_time = click.option(
+    '--max-time',
+    help="Maximum time that the command should take - if it takes longer, the command will fail.",
+    type=click.IntRange(min=1),
+    envvar='MAX_TIME',
 )

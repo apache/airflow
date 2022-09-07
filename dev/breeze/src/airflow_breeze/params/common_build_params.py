@@ -65,6 +65,7 @@ class CommonBuildParams:
     python: str = "3.7"
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
+    upgrade_on_failure: bool = False
 
     @property
     def airflow_version(self):
@@ -150,7 +151,11 @@ class CommonBuildParams:
         return "," in self.platform
 
     def preparing_latest_image(self) -> bool:
-        return self.tag_as_latest or self.airflow_image_name == self.airflow_image_name_with_tag
+        return (
+            self.tag_as_latest
+            or self.airflow_image_name == self.airflow_image_name_with_tag
+            or self.airflow_image_name_with_tag.endswith("latest")
+        )
 
     @property
     def platforms(self) -> List[str]:

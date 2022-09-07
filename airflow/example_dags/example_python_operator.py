@@ -21,7 +21,10 @@ Example DAG demonstrating the usage of the TaskFlow API to execute Python functi
 virtual environment.
 """
 import logging
+import os
 import shutil
+import sys
+import tempfile
 import time
 from pprint import pprint
 
@@ -31,6 +34,10 @@ from airflow import DAG
 from airflow.decorators import task
 
 log = logging.getLogger(__name__)
+
+PYTHON = sys.executable
+
+BASE_DIR = tempfile.gettempdir()
 
 with DAG(
     dag_id='example_python_operator',
@@ -86,10 +93,36 @@ with DAG(
             print(Back.GREEN + 'and with a green background')
             print(Style.DIM + 'and in dim text')
             print(Style.RESET_ALL)
-            for _ in range(10):
+            for _ in range(4):
                 print(Style.DIM + 'Please wait...', flush=True)
-                sleep(10)
+                sleep(1)
             print('Finished')
 
         virtualenv_task = callable_virtualenv()
         # [END howto_operator_python_venv]
+
+        sleeping_task >> virtualenv_task
+
+        # [START howto_operator_external_python]
+        @task.external_python(task_id="external_python", python=os.fspath(sys.executable))
+        def callable_external_python():
+            """
+            Example function that will be performed in a virtual environment.
+
+            Importing at the module level ensures that it will not attempt to import the
+            library before it is installed.
+            """
+            import sys
+            from time import sleep
+
+            print(f"Running task via {sys.executable}")
+            print("Sleeping")
+            for _ in range(4):
+                print('Please wait...', flush=True)
+                sleep(1)
+            print('Finished')
+
+        external_python_task = callable_external_python()
+        # [END howto_operator_external_python]
+
+        run_this >> external_python_task

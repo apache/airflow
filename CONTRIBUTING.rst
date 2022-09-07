@@ -545,13 +545,6 @@ All details about using and running Airflow Breeze can be found in
 The Airflow Breeze solution is intended to ease your local development as "*It's
 a Breeze to develop Airflow*".
 
-.. note::
-
-   We are in a process of switching to the new Python-based Breeze from a legacy Bash
-   Breeze. Not all functionality has been ported yet and the old Breeze is still available
-   until then as ``./breeze-legacy`` script. The documentation mentions when the old ./breeze-legacy
-   should be still used.
-
 Benefits:
 
 -   Breeze is a complete environment that includes external components, such as

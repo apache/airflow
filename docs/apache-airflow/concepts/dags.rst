@@ -481,17 +481,22 @@ Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tas
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``::
 
-    with TaskGroup("group1") as group1:
+    from airflow.decorators import task_group
+
+    @task_group()
+    def group1():
         task1 = EmptyOperator(task_id="task1")
         task2 = EmptyOperator(task_id="task2")
 
     task3 = EmptyOperator(task_id="task3")
 
-    group1 >> task3
+    group1() >> task3
 
 TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
     import pendulum
+
+    from airflow.decorators import task_group
 
     with DAG(
         dag_id='dag1',
@@ -500,13 +505,15 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
         catchup=False,
         default_args={'retries': 1},
     ):
-        with TaskGroup('group1', default_args={'retries': 3}):
+        @task_group(default_args={'retries': 3}):
+        def group1():
+            """This docstring will become the tooltip for the TaskGroup."
             task1 = EmptyOperator(task_id='task1')
             task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
             print(task1.retries) # 3
             print(task2.retries) # 2
 
-If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group.py`` example DAG that comes with Airflow.
+If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group_decorator.py`` example DAG that comes with Airflow.
 
 .. note::
 
@@ -514,6 +521,9 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 
     To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup, but note that you will now be responsible for ensuring every single task and group has a unique ID of its own.
 
+.. note::
+
+    When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``tooltip`` value is explicitly supplied.
 
 .. _concepts:edge-labels:
 
