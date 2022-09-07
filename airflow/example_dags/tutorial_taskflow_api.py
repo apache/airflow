@@ -100,7 +100,7 @@ def tutorial_taskflow_api():
 
 
 # [START dag_invocation]
-tutorial_dag = tutorial_taskflow_api()
+tutorial_taskflow_api()
 # [END dag_invocation]
 
 # [END tutorial]

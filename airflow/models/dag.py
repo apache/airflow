@@ -28,6 +28,7 @@ import sys
 import traceback
 import warnings
 import weakref
+from collections import deque
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -35,6 +36,7 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Deque,
     Dict,
     FrozenSet,
     Iterable,
@@ -101,6 +103,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.slamiss import SlaMiss
@@ -329,6 +333,7 @@ class DAG(LoggingMixin):
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
+    :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     """
 
     _comps = {
@@ -390,6 +395,7 @@ class DAG(LoggingMixin):
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
         owner_links: Optional[Dict[str, str]] = None,
+        auto_register: bool = True,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -565,6 +571,7 @@ class DAG(LoggingMixin):
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
+        self.auto_register = auto_register
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
@@ -2860,6 +2867,7 @@ class DAG(LoggingMixin):
                 # has_on_*_callback are only stored if the value is True, as the default is False
                 'has_on_success_callback',
                 'has_on_failure_callback',
+                'auto_register',
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - exclusion_list
         return cls.__serialized_fields
@@ -3315,6 +3323,7 @@ def dag(
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
     owner_links: Optional[Dict[str, str]] = None,
+    auto_register: bool = True,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3367,6 +3376,7 @@ def dag(
                 tags=tags,
                 schedule=schedule,
                 owner_links=owner_links,
+                auto_register=auto_register,
             ) as dag_obj:
                 # Set DAG documentation from function documentation.
                 if f.__doc__:
@@ -3424,24 +3434,28 @@ class DagContext:
 
     """
 
-    _context_managed_dag: Optional[DAG] = None
-    _previous_context_managed_dags: List[DAG] = []
+    _context_managed_dags: Deque[DAG] = deque()
+    autoregistered_dags: Set[Tuple[DAG, "ModuleType"]] = set()
+    current_autoregister_module_name: Optional[str] = None
 
     @classmethod
     def push_context_managed_dag(cls, dag: DAG):
-        if cls._context_managed_dag:
-            cls._previous_context_managed_dags.append(cls._context_managed_dag)
-        cls._context_managed_dag = dag
+        cls._context_managed_dags.appendleft(dag)
 
     @classmethod
     def pop_context_managed_dag(cls) -> Optional[DAG]:
-        old_dag = cls._context_managed_dag
-        if cls._previous_context_managed_dags:
-            cls._context_managed_dag = cls._previous_context_managed_dags.pop()
-        else:
-            cls._context_managed_dag = None
-        return old_dag
+        dag = cls._context_managed_dags.popleft()
+
+        # In a few cases around serialization we explicitly push None in to the stack
+        if cls.current_autoregister_module_name is not None and dag and dag.auto_register:
+            mod = sys.modules[cls.current_autoregister_module_name]
+            cls.autoregistered_dags.add((dag, mod))
+
+        return dag
 
     @classmethod
     def get_current_dag(cls) -> Optional[DAG]:
-        return cls._context_managed_dag
+        try:
+            return cls._context_managed_dags[0]
+        except IndexError:
+            return None
