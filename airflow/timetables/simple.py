@@ -17,9 +17,7 @@
 
 
 import operator
-from typing import TYPE_CHECKING, Any, ClassVar, Collection, Dict, List, Optional
-
-import attr
+from typing import TYPE_CHECKING, Any, Collection, Dict, Optional, Sequence
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
@@ -111,18 +109,20 @@ class OnceTimetable(_TrivialTimetable):
         return DagRunInfo.exact(run_after)
 
 
-@attr.define
 class DatasetTriggeredTimetable(NullTimetable):
     """Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
+    This should not be directly used anywhere, but only set if a DAG is
+    triggered by datasets.
 
     :meta private:
     """
 
-    datasets: List["Dataset"]
+    description = "Triggered by datasets"
 
-    description: ClassVar[str] = "Triggered by datasets"  # type: ignore[misc]
+    def __init__(self, datasets: Sequence["Dataset"]) -> None:
+        super().__init__()
+        self.datasets = datasets
 
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":

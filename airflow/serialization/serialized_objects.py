@@ -595,9 +595,7 @@ class DependencyDetector:
     @staticmethod
     def detect_dag_dependencies(dag: Optional[DAG]) -> Iterable["DagDependency"]:
         """Detects dependencies set directly on the DAG object."""
-        from airflow.timetables.simple import DatasetTriggeredTimetable
-
-        if not dag or not isinstance(dag.timetable, DatasetTriggeredTimetable):
+        if not dag:
             return
         for x in dag.timetable.datasets:
             yield DagDependency(

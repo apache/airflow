@@ -2690,8 +2690,6 @@ class DAG(LoggingMixin):
         outlet_datasets: Dict[Dataset, None] = {}
         input_datasets: Dict[Dataset, None] = {}
         for dag in dags:
-            if not isinstance(dag.timetable, DatasetTriggeredTimetable):
-                continue
             for dataset in dag.timetable.datasets:
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
                 input_datasets[DatasetModel.from_public(dataset)] = None

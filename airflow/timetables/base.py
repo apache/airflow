@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Dict, NamedTuple, Optional, Sequence
 
 from pendulum import DateTime
 
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from airflow.datasets import Dataset
     from airflow.utils.types import DagRunType
 
 
@@ -132,6 +133,13 @@ class Timetable(Protocol):
     """How runs triggered from this timetable should be ordered in UI.
 
     This should be a list of field names on the DAG run object.
+    """
+
+    datasets: Collection["Dataset"] = ()
+    """Datasets used to trigger DAG runs.
+
+    This is only meaningful for timetables that implement dataset-triggering
+    logic. Currently it is reserved for internal uses.
     """
 
     @classmethod
