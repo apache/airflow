@@ -757,6 +757,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.state = state
 
+        dag_maker.session.flush()
         return ti
 
     return maker
