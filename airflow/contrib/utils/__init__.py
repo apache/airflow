@@ -19,9 +19,14 @@
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
-warnings.warn("This module is deprecated. Please use `airflow.utils`.", DeprecationWarning, stacklevel=2)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.utils`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2
+)
 
 __deprecated_classes = {
     'gcp_field_sanitizer': {
