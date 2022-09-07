@@ -131,12 +131,60 @@ As the ``schedule`` parameter is a list, DAGs can require multiple datasets, and
         ...
 
 
-If one dataset is updated multiple times before all consumed datasets have been updated, the downstream DAG will still only be run once, as shown in this illustration::
+If one dataset is updated multiple times before all consumed datasets have been updated, the downstream DAG will still only be run once, as shown in this illustration:
+
+.. ::
+    Asci art reprepsentation of this diagram
 
     example_dataset_1   x----x---x---x----------------------x-
     example_dataset_2   -------x---x-------x------x----x------
     example_dataset_3   ---------------x-----x------x---------
     DAG runs created                   *                    *
+
+.. graphviz::
+
+    graph dataset_event_timeline {
+      graph [layout=neato]
+      {
+        node [margin=0 fontcolor=blue width=0.1 shape=point label=""]
+        e1 [pos="1,2.5!"]
+        e2 [pos="2,2.5!"]
+        e3 [pos="2.5,2!"]
+        e4 [pos="4,2.5!"]
+        e5 [pos="5,2!"]
+        e6 [pos="6,2.5!"]
+        e7 [pos="7,1.5!"]
+        r7 [pos="7,1!" shape=star width=0.25 height=0.25 fixedsize=shape]
+        e8 [pos="8,2!"]
+        e9 [pos="9,1.5!"]
+        e10 [pos="10,2!"]
+        e11 [pos="11,1.5!"]
+        e12 [pos="12,2!"]
+        e13 [pos="13,2.5!"]
+        r13 [pos="13,1!" shape=star width=0.25 height=0.25 fixedsize=shape]
+      }
+      {
+        node [shape=none label="" width=0]
+        end_ds1 [pos="14,2.5!"]
+        end_ds2 [pos="14,2!"]
+        end_ds3 [pos="14,1.5!"]
+      }
+
+      {
+        node [shape=none margin=0.25  fontname="roboto,sans-serif"]
+        example_dataset_1 [ pos="-0.5,2.5!"]
+        example_dataset_2 [ pos="-0.5,2!"]
+        example_dataset_3 [ pos="-0.5,1.5!"]
+        dag_runs [label="DagRuns created" pos="-0.5,1!"]
+      }
+
+      edge [color=lightgrey]
+
+      example_dataset_1 -- e1 -- e2       -- e4       -- e6                                        -- e13 -- end_ds1
+      example_dataset_2             -- e3       -- e5             -- e8       -- e10        -- e12        -- end_ds2
+      example_dataset_3                                     -- e7       -- e9        -- e11               -- end_ds3
+
+    }
 
 Notes on schedules
 ------------------
