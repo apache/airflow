@@ -36,12 +36,14 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryIntervalCheckAsyncOperator,
     BigQueryValueCheckAsyncOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.getenv("SYSTEM_TESTS_GCP_PROJECT", "")
-DATASET_NAME = os.getenv("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
-GCP_CONN_ID = os.getenv("GCP_CONN_ID", "google_cloud_default")
-LOCATION = os.getenv("GCP_LOCATION", "us")
-EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.getenv("SYSTEM_TESTS_GCP_PROJECT")
+DAG_ID = "bigquery_queries_async"
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+LOCATION = "us"
+EXECUTION_TIMEOUT = 6
 
 TABLE_1 = "table1"
 TABLE_2 = "table2"
@@ -68,7 +70,7 @@ default_args = {
 
 with DAG(
     dag_id="example_async_bigquery_queries_async",
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2022, 1, 1),
     catchup=False,
     default_args=default_args,
@@ -79,7 +81,6 @@ with DAG(
         task_id="create_dataset",
         dataset_id=DATASET,
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
 
     create_table_1 = BigQueryCreateEmptyTableOperator(
@@ -88,17 +89,12 @@ with DAG(
         table_id=TABLE_1,
         schema_fields=SCHEMA,
         location=LOCATION,
-        bigquery_conn_id=GCP_CONN_ID,
     )
 
     create_dataset >> create_table_1
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset",
-        dataset_id=DATASET,
-        delete_contents=True,
-        gcp_conn_id=GCP_CONN_ID,
-        trigger_rule="all_done",
+        task_id="delete_dataset", dataset_id=DATASET, delete_contents=True, trigger_rule=TriggerRule.ALL_DONE
     )
 
     # [START howto_operator_bigquery_insert_job_async]
@@ -111,7 +107,6 @@ with DAG(
             }
         },
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_insert_job_async]
 
@@ -125,7 +120,6 @@ with DAG(
             }
         },
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_select_job_async]
 
@@ -136,7 +130,6 @@ with DAG(
         pass_value=2,
         use_legacy_sql=False,
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_value_check_async]
 
@@ -148,7 +141,6 @@ with DAG(
         metrics_thresholds={"COUNT(*)": 1.5},
         use_legacy_sql=False,
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_interval_check_async]
 
@@ -165,7 +157,6 @@ with DAG(
             }
         },
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_multi_query_async]
 
@@ -177,14 +168,13 @@ with DAG(
         max_results=10,
         selected_fields="value,name",
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_get_data_async]
 
     get_data_result = BashOperator(
         task_id="get_data_result",
         bash_command=f"echo {get_data.output}",
-        trigger_rule="all_done",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_bigquery_check_async]
@@ -193,7 +183,6 @@ with DAG(
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         use_legacy_sql=False,
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_check_async]
 
@@ -212,7 +201,6 @@ with DAG(
             }
         },
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
     # [END howto_operator_bigquery_execute_query_save_async]
 
@@ -245,7 +233,6 @@ with DAG(
             }
         },
         location=LOCATION,
-        gcp_conn_id=GCP_CONN_ID,
     )
 
     end = EmptyOperator(task_id="end")

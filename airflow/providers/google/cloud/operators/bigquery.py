@@ -2492,13 +2492,8 @@ class BigQueryGetDataAsyncOperator(BigQueryGetDataOperator):
         Generate a select query if selected fields are given or with *
         for the given dataset and table id
         """
-        query = "select "
-        if self.selected_fields:
-            query += self.selected_fields
-        else:
-            query += "*"
-        query += " from " + self.dataset_id + "." + self.table_id + " limit " + str(self.max_results)
-        return query
+        selected_fields = self.selected_fields if self.selected_fields else "*"
+        return f"select {selected_fields} from {self.dataset_id}.{self.table_id} limit {self.max_results}"
 
     def execute(self, context: Any) -> None:  # type: ignore[override]
         get_query = self.generate_query()

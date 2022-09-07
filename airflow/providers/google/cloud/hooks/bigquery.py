@@ -2308,7 +2308,6 @@ class BigQueryBaseCursor(LoggingMixin):
         num_retries: int = 5,
         labels: Optional[Dict] = None,
     ) -> None:
-
         super().__init__()
         self.service = service
         self.project_id = project_id
@@ -2873,7 +2872,6 @@ def _bq_cast(string_field: str, bq_type: str) -> Union[None, int, float, bool, s
 def split_tablename(
     table_input: str, default_project_id: str, var_name: Optional[str] = None
 ) -> Tuple[str, str, str]:
-
     if '.' not in table_input:
         raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
 
@@ -3016,7 +3014,7 @@ def _format_schema_for_description(schema: Dict) -> List:
 
 
 class BigQueryAsyncHook(GoogleBaseAsyncHook):
-    """Big query async hook inherits from GoogleBaseAsyncHook class and connects to the google Big query"""
+    """Uses gcloud-aio library to retrieve Job details"""
 
     sync_hook_class = BigQueryHook
 
@@ -3070,13 +3068,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
         :param query_results: the results from a SQL query
         """
-        buffer = []
-        if "rows" in query_results and query_results["rows"]:
-            rows = query_results["rows"]
-            for dict_row in rows:
-                typed_row = [vs["v"] for vs in dict_row["f"]]
-                buffer.append(typed_row)
-        return buffer
+        rows = query_results.get("rows", {})
+        return [vs["v"] for dict_row in rows for vs in dict_row]
 
     def value_check(
         self,
@@ -3145,10 +3138,9 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         :param s: the string to be converted
         """
         try:
-            ret = float(s)
+            return float(s)
         except (ValueError, TypeError):
-            ret = s
-        return ret
+            return s
 
     def interval_check(
         self,
@@ -3220,7 +3212,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             )
 
         if not all(test_results.values()):
-            failed_tests = [it[0] for it in test_results.items() if not it[1]]
+            failed_tests = [metric for metric, value in test_results.items() if not value]
             self.log.warning(
                 "The following %s tests out of %s failed:",
                 len(failed_tests),
