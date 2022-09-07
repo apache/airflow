@@ -134,7 +134,7 @@ As the ``schedule`` parameter is a list, DAGs can require multiple datasets, and
 If one dataset is updated multiple times before all consumed datasets have been updated, the downstream DAG will still only be run once, as shown in this illustration:
 
 .. ::
-    Asci art reprepsentation of this diagram
+    ACII art representation of this diagram
 
     example_dataset_1   x----x---x---x----------------------x-
     example_dataset_2   -------x---x-------x------x----x------
