@@ -1269,6 +1269,17 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         assert bq_cursor.description == [("ts", "TIMESTAMP", None, None, None, None, True)]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    def test_description_no_schema(self, mock_insert, mock_get_service):
+        mock_get_query_results = mock_get_service.return_value.jobs.return_value.getQueryResults
+        mock_execute = mock_get_query_results.return_value.execute
+        mock_execute.return_value = {}
+
+        bq_cursor = self.hook.get_cursor()
+        bq_cursor.execute("UPDATE airflow.test_table SET foo = 'bar'")
+        assert bq_cursor.description == []
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_close(self, mock_get_service):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.close()

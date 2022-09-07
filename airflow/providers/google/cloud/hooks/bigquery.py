@@ -2695,8 +2695,10 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.job_id = self.hook.run_query(sql)
 
         query_results = self._get_query_result()
-        description = _format_schema_for_description(query_results["schema"])
-        self.description = description
+        if "schema" in query_results:
+            self.description = _format_schema_for_description(query_results["schema"])
+        else:
+            self.description = []
 
     def executemany(self, operation: str, seq_of_parameters: list) -> None:
         """
