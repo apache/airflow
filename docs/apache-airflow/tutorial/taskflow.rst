@@ -62,6 +62,18 @@ as shown below, with the Python function name acting as the DAG identifier.
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
 
+Now to actually enable this to be run as a DAG, we invoke the Python function
+``tutorial_taskflow_api`` set up using the ``@dag`` decorator earlier, as shown below.
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
+    :language: python
+    :start-after: [START dag_invocation]
+    :end-before: [END dag_invocation]
+
+.. versionchanged:: 2.4
+
+      It's no longer required to "register" the DAG into a global variable for Airflow to be able to detect the dag if that DAG is used inside a ``with`` block, or if it is the result of a ``@dag`` decorated function.
+
 Tasks
 -----
 In this data pipeline, tasks are created based on Python functions using the ``@task`` decorator
