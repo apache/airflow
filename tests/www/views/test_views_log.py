@@ -183,10 +183,10 @@ def create_expected_log_file(log_path, tis):
         handler.flush()
 
     yield create_expected_log_file
-    # log_path fixture has scope "module" because it is used in log_app which has module scope, so
+    # log_path fixture is used in log_app, so both have "module" scope. Because of that
     # log_path isn't deleted automatically by pytest between tests
-    # we delete created log files manually to make sure tests do not reuse logs created by other tests
-    for sub_path in log_path.glob("*"):
+    # We delete created log files manually to make sure tests do not reuse logs created by other tests
+    for sub_path in log_path.iterdir():
         shutil.rmtree(sub_path)
 
 
