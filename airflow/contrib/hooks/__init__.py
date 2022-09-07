@@ -47,6 +47,7 @@ __deprecated_classes = {
         'AwsBaseHook': 'airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook',
         '_parse_s3_config': 'airflow.providers.amazon.aws.hooks.base_aws._parse_s3_config',
         'boto3': 'airflow.providers.amazon.aws.hooks.base_aws.boto3',
+        'AwsHook': 'airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook',
     },
     'aws_lambda_hook': {
         'AwsLambdaHook': 'airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook',
@@ -59,18 +60,22 @@ __deprecated_classes = {
     },
     'aws_sqs_hook': {
         'SqsHook': 'airflow.providers.amazon.aws.hooks.sqs.SqsHook',
+        'SQSHook': 'airflow.providers.amazon.aws.hooks.sqs.SqsHook',
     },
     'azure_container_instance_hook': {
-        'AzureContainerInstanceHook':
-            'airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook',
+        'AzureContainerInstanceHook': (
+            'airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook'
+        ),
     },
     'azure_container_registry_hook': {
-        'AzureContainerRegistryHook':
-            'airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook',
+        'AzureContainerRegistryHook': (
+            'airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook'
+        ),
     },
     'azure_container_volume_hook': {
-        'AzureContainerVolumeHook':
-            'airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook',
+        'AzureContainerVolumeHook': (
+            'airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook'
+        ),
     },
     'azure_cosmos_hook': {
         'AzureCosmosDBHook': 'airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook',
@@ -102,8 +107,9 @@ __deprecated_classes = {
         'RUN_NOW_ENDPOINT': 'airflow.providers.databricks.hooks.databricks.RUN_NOW_ENDPOINT',
         'START_CLUSTER_ENDPOINT': 'airflow.providers.databricks.hooks.databricks.START_CLUSTER_ENDPOINT',
         'SUBMIT_RUN_ENDPOINT': 'airflow.providers.databricks.hooks.databricks.SUBMIT_RUN_ENDPOINT',
-        'TERMINATE_CLUSTER_ENDPOINT':
-            'airflow.providers.databricks.hooks.databricks.TERMINATE_CLUSTER_ENDPOINT',
+        'TERMINATE_CLUSTER_ENDPOINT': (
+            'airflow.providers.databricks.hooks.databricks.TERMINATE_CLUSTER_ENDPOINT'
+        ),
         'DatabricksHook': 'airflow.providers.databricks.hooks.databricks.DatabricksHook',
         'RunState': 'airflow.providers.databricks.hooks.databricks.RunState',
     },
@@ -132,6 +138,7 @@ __deprecated_classes = {
     },
     'gcp_api_base_hook': {
         'GoogleBaseHook': 'airflow.providers.google.common.hooks.base_google.GoogleBaseHook',
+        'GoogleCloudBaseHook': 'airflow.providers.google.common.hooks.base_google.GoogleBaseHook',
     },
     'gcp_bigtable_hook': {
         'BigtableHook': 'airflow.providers.google.cloud.hooks.bigtable.BigtableHook',
@@ -141,15 +148,19 @@ __deprecated_classes = {
     },
     'gcp_compute_hook': {
         'ComputeEngineHook': 'airflow.providers.google.cloud.hooks.compute.ComputeEngineHook',
+        'GceHook': 'airflow.providers.google.cloud.hooks.compute.ComputeEngineHook',
     },
     'gcp_container_hook': {
         'GKEHook': 'airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook',
+        'GKEClusterHook': 'airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook',
     },
     'gcp_dataflow_hook': {
         'DataflowHook': 'airflow.providers.google.cloud.hooks.dataflow.DataflowHook',
+        'DataFlowHook': 'airflow.providers.google.cloud.hooks.dataflow.DataflowHook',
     },
     'gcp_dataproc_hook': {
         'DataprocHook': 'airflow.providers.google.cloud.hooks.dataproc.DataprocHook',
+        'DataProcHook': 'airflow.providers.google.cloud.hooks.dataproc.DataprocHook',
     },
     'gcp_dlp_hook': {
         'CloudDLPHook': 'airflow.providers.google.cloud.hooks.dlp.CloudDLPHook',
@@ -157,16 +168,19 @@ __deprecated_classes = {
     },
     'gcp_function_hook': {
         'CloudFunctionsHook': 'airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook',
+        'GcfHook': 'airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook',
     },
     'gcp_kms_hook': {
         'CloudKMSHook': 'airflow.providers.google.cloud.hooks.kms.CloudKMSHook',
+        'GoogleCloudKMSHook': 'airflow.providers.google.cloud.hooks.kms.CloudKMSHook',
     },
     'gcp_mlengine_hook': {
         'MLEngineHook': 'airflow.providers.google.cloud.hooks.mlengine.MLEngineHook',
     },
     'gcp_natural_language_hook': {
-        'CloudNaturalLanguageHook':
-            'airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook',
+        'CloudNaturalLanguageHook': (
+            'airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook'
+        ),
     },
     'gcp_pubsub_hook': {
         'PubSubException': 'airflow.providers.google.cloud.hooks.pubsub.PubSubException',
@@ -174,37 +188,47 @@ __deprecated_classes = {
     },
     'gcp_spanner_hook': {
         'SpannerHook': 'airflow.providers.google.cloud.hooks.spanner.SpannerHook',
+        'CloudSpannerHook': 'airflow.providers.google.cloud.hooks.spanner.SpannerHook',
     },
     'gcp_speech_to_text_hook': {
         'CloudSpeechToTextHook': 'airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook',
+        'GCPSpeechToTextHook': 'airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook',
     },
     'gcp_sql_hook': {
         'CloudSQLDatabaseHook': 'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook',
         'CloudSQLHook': 'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook',
+        'CloudSqlDatabaseHook': 'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook',
+        'CloudSqlHook': 'airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook',
     },
     'gcp_tasks_hook': {
         'CloudTasksHook': 'airflow.providers.google.cloud.hooks.tasks.CloudTasksHook',
     },
     'gcp_text_to_speech_hook': {
         'CloudTextToSpeechHook': 'airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook',
+        'GCPTextToSpeechHook': 'airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook',
     },
     'gcp_transfer_hook': {
-        'CloudDataTransferServiceHook':
-            'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.'
-            'CloudDataTransferServiceHook',
+        'CloudDataTransferServiceHook': (
+            'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+        ),
+        'GCPTransferServiceHook': (
+            'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+        ),
     },
     'gcp_translate_hook': {
         'CloudTranslateHook': 'airflow.providers.google.cloud.hooks.translate.CloudTranslateHook',
     },
     'gcp_video_intelligence_hook': {
-        'CloudVideoIntelligenceHook':
-            'airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook',
+        'CloudVideoIntelligenceHook': (
+            'airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook'
+        ),
     },
     'gcp_vision_hook': {
         'CloudVisionHook': 'airflow.providers.google.cloud.hooks.vision.CloudVisionHook',
     },
     'gcs_hook': {
         'GCSHook': 'airflow.providers.google.cloud.hooks.gcs.GCSHook',
+        'GoogleCloudStorageHook': 'airflow.providers.google.cloud.hooks.gcs.GCSHook',
     },
     'gdrive_hook': {
         'GoogleDriveHook': 'airflow.providers.google.suite.hooks.drive.GoogleDriveHook',
@@ -258,10 +282,12 @@ __deprecated_classes = {
         'Position': 'airflow.providers.amazon.aws.hooks.sagemaker.Position',
         'SageMakerHook': 'airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook',
         'argmin': 'airflow.providers.amazon.aws.hooks.sagemaker.argmin',
-        'secondary_training_status_changed':
-            'airflow.providers.amazon.aws.hooks.sagemaker.secondary_training_status_changed',
-        'secondary_training_status_message':
-            'airflow.providers.amazon.aws.hooks.sagemaker.secondary_training_status_message',
+        'secondary_training_status_changed': (
+            'airflow.providers.amazon.aws.hooks.sagemaker.secondary_training_status_changed'
+        ),
+        'secondary_training_status_message': (
+            'airflow.providers.amazon.aws.hooks.sagemaker.secondary_training_status_message'
+        ),
     },
     'salesforce_hook': {
         'SalesforceHook': 'airflow.providers.salesforce.hooks.salesforce.SalesforceHook',
