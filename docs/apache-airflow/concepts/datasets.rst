@@ -57,7 +57,7 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
     example_dataset = Dataset('s3://dataset-bucket/example.csv')
 
-Airflow treats the dataset URI as an opaque value intended to be human-readable, and makes no assumptions about the content or location of the data represented by the identifier. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
+Airflow makes no assumptions about the content or location of the data represented by the identifier. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
 
 There are two restrictions on the dataset URI:
 
