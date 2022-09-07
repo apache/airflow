@@ -47,9 +47,9 @@ In addition to scheduling DAGs based upon time, they can also be scheduled based
 What is a "dataset"?
 --------------------
 
-An Airflow dataset is a stand-in for a logical grouping of data that flows through multiple DAGs, possibly being changed or updated by each one. Datasets are updated by upstream "producer" tasks, and dataset updates contribute to scheduling downstream "consumer" DAGs.
+An Airflow dataset is a stand-in for a logical grouping of data. Datasets may be updated by upstream "producer" tasks, and dataset updates contribute to scheduling downstream "consumer" DAGs.
 
-A dataset is a construct around a Uniform Resource Identifier (URI) that you create in your code:
+A dataset is defined by a Uniform Resource Identifier (URI):
 
 .. code-block:: python
 
