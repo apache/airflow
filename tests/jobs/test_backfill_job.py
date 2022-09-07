@@ -1306,7 +1306,7 @@ class TestBackfillJob:
         subdag.clear()
         dag.clear()
 
-    def test_update_counters(self, dag_maker, session):
+    def test_update_counters(self, dag_maker, session, caplog):
         with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE, session=session) as dag:
             task1 = EmptyOperator(task_id='dummy', owner='airflow')
         dr = dag_maker.create_dagrun(state=None)
@@ -1414,6 +1414,25 @@ class TestBackfillJob:
         assert len(ti_status.to_run) == 1
 
         ti_status.to_run.clear()
+
+        # test for scheduled
+        ti.set_state(State.SCHEDULED)
+        # Deferred tasks are put into scheduled by the triggerer
+        # Check that they are put into to_run
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status, session=session)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 1
+
+        ti_status.to_run.clear()
+        # test for deferred
+        ti.set_state(State.DEFERRED)
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status, session=session)
+        assert "The triggerer is not running. Please start the triggerer" in caplog.text
 
         session.close()
 

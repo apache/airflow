@@ -218,6 +218,16 @@ class BackfillJob(BaseJob):
                 ti_status.running.pop(reduced_key)
                 ti_status.to_run[ti.key] = ti
 
+            elif ti.state == TaskInstanceState.SCHEDULED:
+                # Deferrable task can go from DEFERRED to SCHEDULED,
+                # when that happens, we need to remove it from running
+                # and add it to to_run
+                ti_status.running.pop(ti.key)
+                ti_status.to_run[ti.key] = ti
+
+            elif ti.state == TaskInstanceState.DEFERRED:
+                self.log.warning("The triggerer is not running. Please start the triggerer")
+
         # Batch schedule of task instances
         if tis_to_be_scheduled:
             filter_for_tis = TI.filter_for_tis(tis_to_be_scheduled)
