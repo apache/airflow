@@ -218,20 +218,83 @@ Suppose the ``add_task`` code lives in a file called ``common.py``. You can do t
     created_dag = use_add_task()
 
 
-Using the TaskFlow API with Docker or Virtual Environments
-----------------------------------------------------------
+Using the TaskFlow API with complex/conflicting Python dependencies
+-------------------------------------------------------------------
 
 If you have tasks that require complex or conflicting requirements then you will have the ability to use the
-TaskFlow API with either a Docker container (since version 2.2.0) or Python virtual environment (since 2.0.2).
-This added functionality will allow a much more
-comprehensive range of use-cases for the TaskFlow API, as you will not be limited to the
-packages and system libraries of the Airflow worker.
+TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since version 2.2.0) or
+or ExternalPythonOperator or KubernetesPodOperator (since 2.4.0).
 
-To use a docker image with the TaskFlow API, change the decorator to ``@task.docker``
+This functionality allows a much more comprehensive range of use-cases for the TaskFlow API,
+as you are not limited to the packages and system libraries of the Airflow worker. For all cases of
+the decorated functions described below, you have to make sure the functions are serializable and that
+they only use local imports for additional dependencies you use. Those imported additional libraries must
+be available in the target environment - they do not need to be available in the main Airflow environment.
+
+Which of the operators you should use, depend on several factors:
+
+* whether you are running Airflow with access to Docker engine or Kubernetes
+* whether you can afford an overhead to dynamically create a virtual environment with the new dependencies
+* whether you can deploy a pre-existing, immutable Python environment for all Airflow components.
+
+These options should allow for far greater flexibility for users who wish to keep their workflows simpler
+and more Pythonic - and allow you to keep complete logic of your DAG in the DAG itself.
+
+You can also get more context about the approach of managing conflicting dependencies, including more detailed
+explanation on boundaries and consequences of each of the options in
+:ref:`Best practices for handling conflicting/complex Python dependencies <best_practices/handling_conflicting_complex_python_dependencies>`
+
+
+Virtualenv created dynamically for each task
+............................................
+
+The simplest approach is to create dynamically (every time a task is run) a separate virtual environment on the
+same machine, you can use the ``@task.virtualenv`` decorator. The decorator allows
+you to create dynamically a new virtualenv with custom libraries and even a different Python version to
+run your function.
+
+.. _taskflow/virtualenv_example:
+
+Example (dynamically created virtualenv):
+
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_python_venv]
+    :end-before: [END howto_operator_python_venv]
+
+Using Python environment with pre-installed dependencies
+........................................................
+
+A bit more involved ``@task.external_python`` decorator allows you to run an Airflow task in pre-defined,
+immutable virtualenv (or Python binary installed at system level without virtualenv).
+This virtualenv or system python can also have different set of custom libraries installed and must be
+made available in all workers that can execute the tasks in the same location.
+
+.. _taskflow/external_python_example:
+
+Example with ``@task.external_python`` (using immutable, pre-existing virtualenv):
+
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_external_python]
+    :end-before: [END howto_operator_external_python]
+
+Dependency separation using Docker Operator
+...........................................
+
+If your Airflow workers have access to a docker engine, you can instead use a ``DockerOperator``
 and add any needed arguments to correctly run the task. Please note that the docker
 image must have a working Python installed and take in a bash command as the ``command`` argument.
 
+It is worth noting that the Python source code (extracted from the decorated function) and any
+callable args are sent to the container via (encoded and pickled) environment variables so the
+length of these is not boundless (the exact limit depends on system settings).
+
 Below is an example of using the ``@task.docker`` decorator to run a Python task.
+
+.. _taskflow/docker_example:
 
 .. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
@@ -239,7 +302,8 @@ Below is an example of using the ``@task.docker`` decorator to run a Python task
     :start-after: [START transform_docker]
     :end-before: [END transform_docker]
 
-It is worth noting that the Python source code (extracted from the decorated function) and any callable args are sent to the container via (encoded and pickled) environment variables so the length of these is not boundless (the exact limit depends on system settings).
+
+Notes on using the operator:
 
 .. note:: Using ``@task.docker`` decorator in one of the earlier Airflow versions
 
@@ -252,19 +316,36 @@ It is worth noting that the Python source code (extracted from the decorated fun
 
     You should upgrade to Airflow 2.2 or above in order to use it.
 
-If you don't want to run your image on a Docker environment, and instead want to create a separate virtual
-environment on the same machine, you can use the ``@task.virtualenv`` decorator instead. The ``@task.virtualenv``
-decorator will allow you to create a new virtualenv with custom libraries and even a different
-Python version to run your function.
+Dependency separation using Kubernetes Pod Operator
+...................................................
 
-.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
+
+If your Airflow workers have access to Kubernetes, you can instead use a ``KubernetesPodOperator``
+and add any needed arguments to correctly run the task.
+
+Below is an example of using the ``@task.kubernetes`` decorator to run a Python task.
+
+.. _taskflow/kubernetes_example:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_decorator.py
     :language: python
     :dedent: 4
-    :start-after: [START extract_virtualenv]
-    :end-before: [END extract_virtualenv]
+    :start-after: [START howto_operator_kubernetes]
+    :end-before: [END howto_operator_kubernetes]
 
-These two options should allow for far greater flexibility for users who wish to keep their workflows more simple
-and Pythonic.
+Notes on using the operator:
+
+.. note:: Using ``@task.kubernetes`` decorator in one of the earlier Airflow versions
+
+    Since ``@task.kubernetes`` decorator is available in the docker provider, you might be tempted to use it in
+    Airflow version before 2.4, but this is not going to work. You will get this error if you try:
+
+    .. code-block:: text
+
+        AttributeError: '_TaskDecorator' object has no attribute 'kubernetes'
+
+    You should upgrade to Airflow 2.4 or above in order to use it.
+
 
 Multiple outputs inference
 --------------------------

@@ -24,6 +24,22 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix placeholders in 'TrinoHook', 'PrestoHook', 'SqliteHook' (#25939)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.0.0
 .....
 

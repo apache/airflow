@@ -503,6 +503,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION):
     session.query(SerializedDagModel).delete(synchronize_session=False)
 
     if not args.clear_only:
-        dagbag = DagBag()
-        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag = DagBag(process_subdir(args.subdir))
         dagbag.sync_to_db(session=session)

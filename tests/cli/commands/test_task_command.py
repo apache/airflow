@@ -73,6 +73,7 @@ class TestCliTasks:
         clear_db_runs()
 
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dagbag.sync_to_db()
         cls.dag_run = cls.dag.create_dagrun(
             state=State.NONE, run_id=cls.run_id, run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE
         )

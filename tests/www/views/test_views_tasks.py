@@ -970,3 +970,24 @@ def test_task_fail_duration(app, admin_client, dag_maker, session):
         assert resp.status_code == 200
         assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
         assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
+
+
+def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
+    """Test that the graph view doesn't fail on a recursion error."""
+    from airflow.utils.helpers import chain
+
+    with dag_maker('test_fails_with_recursion') as dag:
+
+        tasks = [
+            BashOperator(
+                task_id=f"task_{i}",
+                bash_command="echo test",
+            )
+            for i in range(1, 1000 + 1)
+        ]
+        chain(*tasks)
+    with unittest.mock.patch.object(app, 'dag_bag') as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        url = f'/dags/{dag.dag_id}/graph'
+        resp = admin_client.get(url, follow_redirects=True)
+        assert resp.status_code == 200

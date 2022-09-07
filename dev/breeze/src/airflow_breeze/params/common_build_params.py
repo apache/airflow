@@ -151,7 +151,11 @@ class CommonBuildParams:
         return "," in self.platform
 
     def preparing_latest_image(self) -> bool:
-        return self.tag_as_latest or self.airflow_image_name == self.airflow_image_name_with_tag
+        return (
+            self.tag_as_latest
+            or self.airflow_image_name == self.airflow_image_name_with_tag
+            or self.airflow_image_name_with_tag.endswith("latest")
+        )
 
     @property
     def platforms(self) -> List[str]:

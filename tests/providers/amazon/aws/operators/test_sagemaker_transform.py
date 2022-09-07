@@ -24,6 +24,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 
 EXPECTED_INTEGER_FIELDS: List[List[str]] = [
@@ -65,7 +66,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_integer_fields(self, mock_transform, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields(self, serialize, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -82,7 +84,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute(self, mock_transform, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute(self, serialize, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -106,7 +109,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute_with_check_if_job_exists(self, mock_transform, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_with_check_if_job_exists(self, serialize, mock_transform, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -123,7 +127,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute_without_check_if_job_exists(self, mock_transform, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_without_check_if_job_exists(self, serialize, mock_transform, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},

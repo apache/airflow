@@ -150,7 +150,7 @@ repos:
       - id: black
         name: Run Black (the uncompromising Python code formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^airflow/contrib
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
@@ -370,8 +370,8 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
-        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.py
+        language: python
         files: ^setup\.cfg$
         pass_filenames: false
       - id: update-providers-dependencies
@@ -579,16 +579,18 @@ repos:
         additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.py
+        language: python
         files: ^\.pre-commit-config\.yaml$|^INTHEWILD\.md$
+        pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
         name: Sort alphabetically and uniquify spelling_wordlist.txt
-        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.sh
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.py
+        language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
+        pass_filenames: false
       - id: lint-helm-chart
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
