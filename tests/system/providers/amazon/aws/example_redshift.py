@@ -29,7 +29,9 @@ from airflow.operators.python import get_current_context
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
+    RedshiftCreateClusterSnapshotOperator,
     RedshiftDeleteClusterOperator,
+    RedshiftDeleteClusterSnapshotOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -97,14 +99,6 @@ def delete_security_group(sg_id: str, sg_name: str):
 
 
 @task
-def create_cluster_snapshot(cluster_identifier, snapshot_identifier):
-    boto3.client('redshift').create_cluster_snapshot(
-        ClusterIdentifier=cluster_identifier,
-        SnapshotIdentifier=snapshot_identifier,
-    )
-
-
-@task
 def await_cluster_snapshot(cluster_identifier):
     waiter = boto3.client('redshift').get_waiter('snapshot_available')
     waiter.wait(
@@ -112,13 +106,6 @@ def await_cluster_snapshot(cluster_identifier):
         WaiterConfig={
             'MaxAttempts': 100,
         },
-    )
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_cluster_snapshot(snapshot_identifier):
-    boto3.client('redshift').delete_cluster_snapshot(
-        SnapshotIdentifier=snapshot_identifier,
     )
 
 
@@ -160,6 +147,16 @@ with DAG(
         timeout=60 * 30,
     )
     # [END howto_sensor_redshift_cluster]
+
+    # [START howto_operator_redshift_create_cluster_snapshot]
+    create_cluster_snapshot = RedshiftCreateClusterSnapshotOperator(
+        task_id='create_cluster_snapshot',
+        cluster_identifier=redshift_cluster_identifier,
+        snapshot_identifier=redshift_cluster_snapshot_identifier,
+        retention_period=1,
+        wait_for_completion=True,
+    )
+    # [END howto_operator_redshift_create_cluster_snapshot]
 
     # [START howto_operator_redshift_pause_cluster]
     pause_cluster = RedshiftPauseClusterOperator(
@@ -260,6 +257,14 @@ with DAG(
     )
     # [START howto_operator_redshift_delete_cluster]
 
+    # [START howto_operator_redshift_delete_cluster_snapshot]
+    delete_cluster_snapshot = RedshiftDeleteClusterSnapshotOperator(
+        task_id='delete_cluster_snapshot',
+        cluster_identifier=redshift_cluster_identifier,
+        snapshot_identifier=redshift_cluster_snapshot_identifier,
+    )
+    # [END howto_operator_redshift_delete_cluster_snapshot]
+
     delete_sg = delete_security_group(
         sg_id=set_up_sg['security_group_id'],
         sg_name=sg_name,
@@ -271,7 +276,7 @@ with DAG(
         # TEST BODY
         create_cluster,
         wait_cluster_available,
-        create_cluster_snapshot(redshift_cluster_identifier, redshift_cluster_snapshot_identifier),
+        create_cluster_snapshot,
         await_cluster_snapshot(redshift_cluster_identifier),
         pause_cluster,
         wait_cluster_paused,
@@ -282,7 +287,7 @@ with DAG(
         insert_data,
         [select_data, select_filtered_data],
         drop_table,
-        delete_cluster_snapshot(redshift_cluster_snapshot_identifier),
+        delete_cluster_snapshot,
         delete_cluster,
         # TEST TEARDOWN
         delete_sg,
