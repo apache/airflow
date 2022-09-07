@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from logging import Logger
 
     from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
 
@@ -236,14 +237,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
-    def downstream_list(self) -> Iterable["DAGNode"]:
+    def downstream_list(self) -> Iterable["Operator"]:
         """List of nodes directly downstream"""
         if not self.dag:
             raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
-    def upstream_list(self) -> Iterable["DAGNode"]:
+    def upstream_list(self) -> Iterable["Operator"]:
         """List of nodes directly upstream"""
         if not self.dag:
             raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
