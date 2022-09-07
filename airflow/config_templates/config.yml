@@ -659,6 +659,21 @@
       type: string
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
+    - name: dag_processor_log_target
+      description: Where to send dag parser logs. If "file",
+        logs are sent to log files defined by child_process_log_directory.
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "file"
+    - name: dag_processor_log_format
+      description: |
+        Format of Dag Processor Log line
+      version_added: 2.3.4
+      type: string
+      example: ~
+      default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
+        {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     - name: log_formatter_class
       description: ~
       version_added: 2.3.4

@@ -28,7 +28,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.dag_processing.processor import DagFileProcessor
+from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
@@ -787,6 +787,52 @@ class TestDagFileProcessor:
             )
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
+
+    @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
+    @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
+    @mock.patch('airflow.dag_processing.processor.redirect_stdout')
+    def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
+        processor = DagFileProcessorProcess(
+            file_path='abc.txt',
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor._run_file_processor(
+            result_channel=MagicMock(),
+            parent_channel=MagicMock(),
+            file_path="fake_file_path",
+            pickle_dags=False,
+            dag_ids=[],
+            thread_name="fake_thread_name",
+            callback_requests=[],
+            dag_directory=[],
+        )
+        mock_redirect_stdout_for_file.assert_not_called()
+
+    @conf_vars({("logging", "dag_processor_log_target"): "file"})
+    @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
+    @mock.patch('airflow.dag_processing.processor.redirect_stdout')
+    def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
+        processor = DagFileProcessorProcess(
+            file_path='abc.txt',
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor._run_file_processor(
+            result_channel=MagicMock(),
+            parent_channel=MagicMock(),
+            file_path="fake_file_path",
+            pickle_dags=False,
+            dag_ids=[],
+            thread_name="fake_thread_name",
+            callback_requests=[],
+            dag_directory=[],
+        )
+        mock_redirect_stdout_for_file.assert_called_once()
 
 
 class TestProcessorAgent:
