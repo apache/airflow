@@ -63,9 +63,9 @@ as shown below, with the Python function name acting as the DAG identifier.
     :end-before: [END instantiate_dag]
 
 Now to actually enable this to be run as a DAG, we invoke the Python function
-``tutorial_taskflow_api_etl`` set up using the ``@dag`` decorator earlier, as shown below.
+``tutorial_taskflow_api`` set up using the ``@dag`` decorator earlier, as shown below.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START dag_invocation]
     :end-before: [END dag_invocation]
