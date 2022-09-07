@@ -20,7 +20,6 @@ import json
 import logging
 from typing import Any, Optional
 
-from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.ext.declarative import declared_attr
@@ -69,6 +68,8 @@ class Variable(Base, LoggingMixin):
 
     def get_val(self):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
+        from cryptography.fernet import InvalidToken as InvalidFernetToken
+
         if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()

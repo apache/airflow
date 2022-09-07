@@ -31,7 +31,7 @@ from setproctitle import setproctitle
 from sqlalchemy import exc, func, or_
 from sqlalchemy.orm.session import Session
 
-from airflow import models, settings
+from airflow import settings
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -43,7 +43,9 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -54,9 +56,6 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
-
-DR = models.DagRun
-TI = models.TaskInstance
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
