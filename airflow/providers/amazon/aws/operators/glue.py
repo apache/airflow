@@ -150,8 +150,6 @@ class GlueJobOperator(BaseOperator):
                                                    glue_job_run['JobRunId'],
                                                    verbose=self.verbose,
                                                    continuous_logging=self.continuous_logging)
-            # glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
-
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,

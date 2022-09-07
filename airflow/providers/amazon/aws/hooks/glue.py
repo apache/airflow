@@ -35,6 +35,21 @@ DEFAULT_LOG_FILTER = ' '
 FAILURE_LOG_FILTER = '?ERROR ?Exception'
 
 class GlueJobHook(AwsBaseHook):
+
+    """
+    Interact with AWS Glue - create job, trigger, crawler
+    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
+    :param job_name: unique job name per AWS account
+    :param desc: job description
+    :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
+    :param script_location: path to etl script on s3
+    :param retry_limit: Maximum number of times to retry this job if it fails
+    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
+    :param region_name: aws region name (example: us-east-1)
+    :param iam_role_name: AWS IAM Role for Glue Job Execution
+    :param create_job_kwargs: Extra arguments for Glue Job Creation
+    """
+
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
     def __init__(
         self,
@@ -163,6 +178,7 @@ class GlueJobHook(AwsBaseHook):
                     logStreamName=run_id,
                     nextToken=next_token
                 )
+                return None
         except log_client.exceptions.ResourceNotFoundException:
             self.log.warning(
                 'No new Glue driver logs found. This might be because there are no new logs, '
@@ -171,8 +187,8 @@ class GlueJobHook(AwsBaseHook):
             )
 
         # If no new log events are available, filter_log_events will return None.
-        # In that case, check the same token again next pass.
-        return response.get('nextToken') or next_token
+        # In tha
+        return None
 
 
     def print_output_logs(
