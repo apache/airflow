@@ -255,7 +255,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [START howto_operator_redshift_delete_cluster]
+    # [END howto_operator_redshift_delete_cluster]
 
     # [START howto_operator_redshift_delete_cluster_snapshot]
     delete_cluster_snapshot = RedshiftDeleteClusterSnapshotOperator(
