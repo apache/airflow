@@ -183,6 +183,11 @@ ARG_EXECUTION_DATE_OPTIONAL = Arg(
 ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
     ('execution_date_or_run_id',), help="The execution_date of the DAG or run_id of the DAGRun"
 )
+ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
+    ('execution_date_or_run_id',),
+    nargs='?',
+    help="The execution_date of the DAG or run_id of the DAGRun (optional)",
+)
 ARG_TASK_REGEX = Arg(
     ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
 )
@@ -1296,7 +1301,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
