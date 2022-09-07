@@ -4148,6 +4148,12 @@
                     "x-docsSection": "Common",
                     "default": false
                 },
+                "replicas": {
+                    "description": "Number of pgbouncer pods to deploy",
+                    "type": "integer",
+                    "x-docsSection": "PgBouncer",
+                    "default": 1,
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
                     "type": [

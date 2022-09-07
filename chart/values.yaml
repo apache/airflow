@@ -1372,6 +1372,8 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Number of pgbouncer pods to deploy
+  replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
   # Command to use for PgBouncer(templated).
