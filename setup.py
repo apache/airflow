@@ -252,11 +252,13 @@ doc = [
     # Astroid 2.12.* breaks documentation building
     # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
     'astroid<2.12.0',
+    'checksumdir',
     'click>=8.0',
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
     'docutils<0.17.0',
+    'eralchemy2',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
     'importlib-metadata>=4.4; python_version < "3.8"',
