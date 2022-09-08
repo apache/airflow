@@ -396,7 +396,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                 return True
             else:
                 get_console().print(
-                    "\n[warning]This might take a lot of time (more than 10 minutes) even if you have"
+                    "\n[warning]This might take a lot of time (more than 10 minutes) even if you have "
                     "a good network connection. We think you should attempt to rebase first.[/]\n"
                 )
                 answer = user_confirm(
