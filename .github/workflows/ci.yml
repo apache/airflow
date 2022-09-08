@@ -1705,7 +1705,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --install-packages-from-context
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
-        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Push PROD latest image ${{ matrix.platform }}"
         run: >
           breeze prod-image build --tag-as-latest --install-packages-from-context
