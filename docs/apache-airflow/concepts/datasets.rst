@@ -65,7 +65,7 @@ Airflow makes no assumptions about the content or location of the data represent
 
 There are two restrictions on the dataset URI:
 
-1. It must be a valid URI, which means it must only be composed of only ASCII characters.
+1. It must be a valid URI, which means it must be composed of only ASCII characters.
 2. The URI scheme cannot be ``airflow`` (this is reserved for future use).
 
 If you try to use either of the examples below, your code will cause a ValueError to be raised, and Airflow will not import it.
