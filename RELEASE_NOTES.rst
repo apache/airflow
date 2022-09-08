@@ -28,7 +28,7 @@ Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
 - The DB related classes: ``DBApiHook``, ``SQLSensor`` have been moved to ``apache-airflow-providers-common-sql`` provider. (NEW)
-- DAGS used in a context manager no longer need to be assigned to a module variable
+- DAGS used in a context manager no longer need to be assigned to a module variable (#23592)
 
   Previously you had do assign a DAG to a module-level variable in order for Airflow to pick it up. For example this
 
@@ -61,15 +61,15 @@ Significant Changes
 
      dag_maker()
 
-  If you want to disable the behaviour for any reason then set ``auto_register=False`` on the dag::
+  If you want to disable the behaviour for any reason then set ``auto_register=False`` on the dag:
 
-  .. code-block::
+  .. code-block:: python
 
      # This dag will not be picked up by Airflow as it's not assigned to a variable
      with DAG(dag_id="example", auto_register=False):
-        ...
-  (#23592)
-- DAG runs sorting logic changed in grid view
+         ...
+
+- DAG runs sorting logic changed in grid view (#25410)
 
   The ordering of DAG runs in the grid view has been changed to be more "natural".
   The new logic generally orders by data interval, but a custom ordering can be
@@ -81,6 +81,7 @@ Significant Changes
   If you previously used the ``@daily`` cron preset, your DAG may have looked like this:
 
   .. code-block:: python
+
       with DAG(
           dag_id='my_example',
           start_date=datetime(2021, 1, 1),
@@ -91,6 +92,7 @@ Significant Changes
   Going forward, you should use the ``schedule`` argument instead:
 
   .. code-block:: python
+
       with DAG(
           dag_id='my_example',
           start_date=datetime(2021, 1, 1),
@@ -101,6 +103,7 @@ Significant Changes
   The same is true if you used a custom timetable.  Previously you would have used the ``timetable`` argument:
 
   .. code-block:: python
+
       with DAG(
           dag_id='my_example',
           start_date=datetime(2021, 1, 1),
@@ -111,6 +114,7 @@ Significant Changes
   Now you should use the ``schedule`` argument:
 
   .. code-block:: python
+
       with DAG(
           dag_id='my_example',
           start_date=datetime(2021, 1, 1),
@@ -118,10 +122,9 @@ Significant Changes
       ):
           ...
 
-  (#25410)
-- Removal of experimental Smart Sensors
+- Removal of experimental Smart Sensors (#25507)
 
-  Smart Sensors were added in 2.0 and deprecated in favour of Deferable operators in 2.2, and have now been removed. (#25507)
+  Smart Sensors were added in 2.0 and deprecated in favour of Deferable operators in 2.2, and have now been removed.
 - The ``airflow.contrib`` packages and deprecated modules from Airflow 1.10 in ``airflow.hooks``, ``airflow.operators``, ``airflow.sensors`` packages, have now dynamically generated modules and while users can continue using the deprecated contrib classes, they are no longer visible for static code check tools and will be reported as missing. It is recommended for the users to move to non-deprecated classes. (#26153, #26179, #26167)
 
 
