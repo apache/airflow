@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import io
 import json
 import logging
@@ -26,6 +27,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
+import pendulum
 import pytest
 from parameterized import parameterized
 
@@ -102,6 +104,21 @@ class TestCliTasks:
 
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @mock.patch('airflow.utils.timezone.utcnow')
+    def test_test_no_execution_date(self, mock_utcnow):
+        """Test the `airflow test` command"""
+        now = pendulum.now('UTC')
+        mock_utcnow.return_value = now
+        ds = now.strftime("%Y%m%d")
+        args = self.parser.parse_args(["tasks", "test", "example_python_operator", 'print_the_context'])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+
+        # Check that prints, and log messages, are shown
+        assert f"'example_python_operator__print_the_context__{ds}'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
@@ -255,9 +272,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -268,9 +285,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'also_run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -284,9 +301,9 @@ class TestCliTasks:
                         'test',
                         'example_passing_params_via_test_command',
                         'env_var_test_task',
+                        DEFAULT_DATE.isoformat(),
                         '--env-vars',
                         '{"foo":"bar"}',
-                        DEFAULT_DATE.isoformat(),
                     ]
                 )
             )

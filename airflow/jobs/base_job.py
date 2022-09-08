@@ -30,8 +30,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -41,6 +39,12 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+
+
+def _resolve_dagrun_model():
+    from airflow.models.dagrun import DagRun
+
+    return DagRun
 
 
 class BaseJob(Base, LoggingMixin):
@@ -75,15 +79,15 @@ class BaseJob(Base, LoggingMixin):
     )
 
     task_instances_enqueued = relationship(
-        TaskInstance,
-        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),  # type: ignore[has-type]
+        "TaskInstance",
+        primaryjoin="BaseJob.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref('queued_by_job', uselist=False),
     )
 
     dag_runs = relationship(
-        DagRun,
-        primaryjoin=id == foreign(DagRun.creating_job_id),  # type: ignore[has-type]
-        backref=backref('creating_job'),
+        "DagRun",
+        primaryjoin=lambda: BaseJob.id == foreign(_resolve_dagrun_model().creating_job_id),
+        backref='creating_job',
     )
 
     """

@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
-from airflow.models import DbCallbackRequest
+from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.utils.session import NEW_SESSION, provide_session
 
 

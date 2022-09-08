@@ -19,13 +19,14 @@
 """jsonschema for validating serialized DAG and operator."""
 
 import pkgutil
-from typing import Iterable
-
-import jsonschema
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.settings import json
 from airflow.typing_compat import Protocol
+
+if TYPE_CHECKING:
+    import jsonschema
 
 
 class Validator(Protocol):
@@ -43,7 +44,7 @@ class Validator(Protocol):
         """Check if the instance is valid under the current schema, raising validation error if not"""
         ...
 
-    def iter_errors(self, instance) -> Iterable[jsonschema.exceptions.ValidationError]:
+    def iter_errors(self, instance) -> Iterable["jsonschema.exceptions.ValidationError"]:
         """Lazily yield each of the validation errors in the given instance"""
         ...
 
@@ -62,5 +63,7 @@ def load_dag_schema_dict() -> dict:
 
 def load_dag_schema() -> Validator:
     """Load & Validate Json Schema for DAG"""
+    import jsonschema
+
     schema = load_dag_schema_dict()
     return jsonschema.Draft7Validator(schema)
