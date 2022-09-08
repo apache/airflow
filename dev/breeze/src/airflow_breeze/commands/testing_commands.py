@@ -50,6 +50,7 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console, message_type_from_return_code
 from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
 )
@@ -269,7 +270,7 @@ def tests(
     if db_reset:
         env_variables["DB_RESET"] = "true"
     perform_environment_checks(verbose=verbose)
-    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
     version = (
         mssql_version
@@ -326,7 +327,7 @@ def helm_tests(
     env_variables['RUN_TESTS'] = "true"
     env_variables['TEST_TYPE'] = 'Helm'
     perform_environment_checks(verbose=verbose)
-    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
     result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)

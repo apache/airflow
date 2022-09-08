@@ -266,6 +266,9 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
                 )
 
 
+DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+
+
 def check_docker_compose_version(verbose: bool):
     """
     Checks if the docker compose version is as expected, including some specific modifications done by
@@ -293,7 +296,8 @@ def check_docker_compose_version(verbose: bool):
             capture_output=True,
             text=True,
         )
-
+        DOCKER_COMPOSE_COMMAND.clear()
+        DOCKER_COMPOSE_COMMAND.extend(['docker', 'compose'])
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
