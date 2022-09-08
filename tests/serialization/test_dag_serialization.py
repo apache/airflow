@@ -1339,6 +1339,22 @@ class TestStringifiedDAGs:
             '<TIDep(Trigger Rule)>',
         ]
 
+    def test_serialize_mapped_outlets(self):
+        with DAG(dag_id="d", start_date=datetime.now()):
+            op = MockOperator.partial(task_id="x").expand(arg1=[1, 2])
+
+        assert op.inlets == []
+        assert op.outlets == []
+
+        serialized = SerializedBaseOperator.serialize_mapped_operator(op)
+        assert "inlets" not in serialized
+        assert "outlets" not in serialized
+
+        round_tripped = SerializedBaseOperator.deserialize_operator(serialized)
+        assert isinstance(round_tripped, MappedOperator)
+        assert round_tripped.inlets == []
+        assert round_tripped.outlets == []
+
     def test_derived_dag_deps_sensor(self):
         """
         Tests DAG dependency detection for sensors, including derived classes
@@ -2200,44 +2216,4 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
-    }
-
-
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-@pytest.mark.parametrize(
-    "is_inherit",
-    [
-        True,
-        False,
-    ],
-)
-def test_dummy_operator_serde(is_inherit):
-    """
-    Test to verify that when user uses custom DummyOperator with inherits_from_dummy_operator
-    we will have _is_empty in serialized operator.
-    """
-
-    # In this test we should NOT switch the DummyOperator to EmptyOperator.
-    # This test can be removed in Airflow 3.0 as EmptyOperator will be removed then.
-    from airflow.operators.dummy import DummyOperator
-
-    class MyDummyOperator(DummyOperator):
-        inherits_from_dummy_operator = is_inherit
-
-    op = MyDummyOperator(task_id='my_task')
-
-    serialized = SerializedBaseOperator.serialize(op)
-
-    assert serialized == {
-        '_is_empty': is_inherit,
-        '_task_module': 'tests.serialization.test_dag_serialization',
-        '_task_type': 'MyDummyOperator',
-        'downstream_task_ids': [],
-        "pool": "default_pool",
-        'task_id': 'my_task',
-        'ui_color': '#e8f7e4',
-        'ui_fgcolor': '#000',
-        'template_ext': [],
-        'template_fields': [],
-        'template_fields_renderers': {},
     }

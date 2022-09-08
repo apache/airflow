@@ -28,9 +28,9 @@ from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.serialized_objects import DagDependency
+from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
-from airflow.www.views import dag_edges
 
 
 def _refine_color(color: str):

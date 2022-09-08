@@ -16,27 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import ast
 import json
 import os
 import sys
-import unittest
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.utils import cli, cli_action_loggers
+from airflow.models.log import Log
+from airflow.utils import cli, cli_action_loggers, timezone
 
 
-class TestCliUtil(unittest.TestCase):
+class TestCliUtil:
     def test_metrics_build(self):
         func_name = 'test'
-        exec_date = datetime.utcnow()
+        exec_date = timezone.utcnow()
         namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
         metrics = cli._build_metrics(func_name, namespace)
 
@@ -52,13 +52,6 @@ class TestCliUtil(unittest.TestCase):
 
         assert metrics.get('start_datetime') <= datetime.utcnow()
         assert metrics.get('full_command')
-
-        log_dao = metrics.get('log')
-        assert log_dao
-        assert log_dao.dag_id == metrics.get('dag_id')
-        assert log_dao.task_id == metrics.get('task_id')
-        assert log_dao.execution_date == metrics.get('execution_date')
-        assert log_dao.owner == metrics.get('user')
 
     def test_fail_function(self):
         """
@@ -90,7 +83,8 @@ class TestCliUtil(unittest.TestCase):
         with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        ['given_command', 'expected_masked_command'],
         [
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
@@ -120,26 +114,36 @@ class TestCliUtil(unittest.TestCase):
                 "airflow celery flower -p 8888",
                 "airflow celery flower -p 8888",
             ),
-        ]
+        ],
     )
-    def test_cli_create_user_supplied_password_is_masked(self, given_command, expected_masked_command):
+    def test_cli_create_user_supplied_password_is_masked(
+        self, given_command, expected_masked_command, session
+    ):
         # '-p' value which is not password, like 'airflow scheduler -p'
         # or 'airflow celery flower -p 8888', should not be masked
         args = given_command.split()
 
         expected_command = expected_masked_command.split()
 
-        exec_date = datetime.utcnow()
+        exec_date = timezone.utcnow()
         namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
-        with mock.patch.object(sys, "argv", args):
+        with mock.patch.object(sys, "argv", args), mock.patch(
+            'airflow.utils.session.create_session'
+        ) as mock_create_session:
             metrics = cli._build_metrics(args[1], namespace)
+            # Make it so the default_action_log doesn't actually commit the txn, by giving it a nexted txn
+            # instead
+            mock_create_session.return_value = session.begin_nested()
+            mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
+            cli_action_loggers.default_action_log(**metrics)
+
+            log = session.query(Log).order_by(Log.dttm.desc()).first()
 
         assert metrics.get('start_datetime') <= datetime.utcnow()
 
-        log = metrics.get('log')
         command = json.loads(log.extra).get('full_command')  # type: str
         # Replace single quotes to double quotes to avoid json decode error
-        command = json.loads(command.replace("'", '"'))
+        command = ast.literal_eval(command)
         assert command == expected_command
 
     def test_setup_locations_relative_pid_path(self):

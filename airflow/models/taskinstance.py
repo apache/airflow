@@ -49,6 +49,7 @@ from urllib.parse import quote
 import attr
 import dill
 import jinja2
+import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
@@ -143,6 +144,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
 
 
@@ -587,7 +589,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "Operator", map_index: int) -> dict:
+    def insert_mapping(run_id: str, task: "Operator", map_index: int) -> Dict[str, Any]:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
@@ -1870,7 +1872,7 @@ class TaskInstance(Base, LoggingMixin):
         self.clear_next_method_args()
 
         # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
-        if context is None and self.task:
+        if context is None and getattr(self, 'task', None):
             context = self.get_template_context(session)
 
         if context is not None:
@@ -1890,7 +1892,7 @@ class TaskInstance(Base, LoggingMixin):
 
         task: Optional[BaseOperator] = None
         try:
-            if self.task and context:
+            if getattr(self, 'task', None) and context:
                 task = self.task.unmap((context, session))
         except Exception:
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
@@ -1929,7 +1931,7 @@ class TaskInstance(Base, LoggingMixin):
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
-        if not self.task:
+        if not getattr(self, 'task', None):
             # Couldn't load the task, don't know number of retries, guess:
             return self.try_number <= self.max_tries
 
@@ -2066,6 +2068,20 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return prev_ds.replace('-', '')
 
+        def get_triggering_events() -> Dict[str, List["DatasetEvent"]]:
+            nonlocal dag_run
+            # The dag_run may not be attached to the session anymore (code base is over-zealous with use of
+            # `session.expunge_all()`) so re-attach it if we get called
+            if dag_run not in session:
+                dag_run = session.merge(dag_run, load=False)
+
+            dataset_events = dag_run.consumed_dataset_events
+            triggering_events: Dict[str, List["DatasetEvent"]] = defaultdict(list)
+            for event in dataset_events:
+                triggering_events[event.dataset.uri].append(event)
+
+            return triggering_events
+
         # NOTE: If you add anything to this dict, make sure to also update the
         # definition in airflow/utils/context.pyi, and KNOWN_CONTEXT_KEYS in
         # airflow/utils/context.py!
@@ -2104,6 +2120,7 @@ class TaskInstance(Base, LoggingMixin):
             'ti': self,
             'tomorrow_ds': get_tomorrow_ds(),
             'tomorrow_ds_nodash': get_tomorrow_ds_nodash(),
+            'triggering_dataset_events': lazy_object_proxy.Proxy(get_triggering_events),
             'ts': ts,
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,

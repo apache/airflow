@@ -18,10 +18,13 @@
 """This package is deprecated. Please use `airflow.secrets` or `airflow.providers.*.secrets`."""
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
-    "This module is deprecated. Please use airflow.providers.*.secrets.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use airflow.providers.*.secrets.",
+    RemovedInAirflow3Warning,
+    stacklevel=2
 )
 
 __deprecated_classes = {
@@ -29,19 +32,23 @@ __deprecated_classes = {
         'SecretsManagerBackend': 'airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend',
     },
     'aws_systems_manager': {
-        'SystemsManagerParameterStoreBackend':
-            'airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend',
+        'SystemsManagerParameterStoreBackend': (
+            'airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend'
+        ),
     },
     'azure_key_vault': {
         'AzureKeyVaultBackend': 'airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend',
     },
     'gcp_secrets_manager': {
-        'CloudSecretManagerBackend':
-            'airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend',
+        'CloudSecretManagerBackend': (
+            'airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend'
+        ),
+        'CloudSecretsManagerBackend': (
+            'airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend'
+        ),
     },
     'hashicorp_vault': {
         'VaultBackend': 'airflow.providers.hashicorp.secrets.vault.VaultBackend',
     },
 }
-
 add_deprecated_classes(__deprecated_classes, __name__)

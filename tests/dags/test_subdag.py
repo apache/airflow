@@ -63,7 +63,7 @@ with DAG(
     max_active_runs=1,
     default_args=DEFAULT_TASK_ARGS,
     schedule=timedelta(minutes=1),
-) as dag:
+):
 
     start = EmptyOperator(
         task_id='start',
