@@ -44,6 +44,10 @@ In addition to scheduling DAGs based upon time, they can also be scheduled based
     ):
         ...
 
+
+.. image:: /img/dataset-scheduled-dags.png
+
+
 What is a "dataset"?
 --------------------
 
@@ -61,7 +65,7 @@ Airflow makes no assumptions about the content or location of the data represent
 
 There are two restrictions on the dataset URI:
 
-1. It must be a valid URI, which means it must only be composed of only ASCII characters.
+1. It must be a valid URI, which means it must be composed of only ASCII characters.
 2. The URI scheme cannot be ``airflow`` (this is reserved for future use).
 
 If you try to use either of the examples below, your code will cause a ValueError to be raised, and Airflow will not import it.
@@ -78,7 +82,7 @@ The identifier does not have to be an absolute URI, it can be a scheme-less, rel
 
     # valid datasets:
     schemeless = Dataset("//example/dataset")
-    csv_file = Dataset("example.csv")
+    csv_file = Dataset("example_dataset")
 
 If required, an extra dictionary can be included in a Dataset:
 
@@ -111,6 +115,9 @@ You can use datasets to specify data dependencies in your DAGs. Take the followi
         ...
 
 Once the ``producer`` task in the ``producer`` DAG has completed successfully, Airflow schedules the ``consumer`` DAG. A dataset will be marked as updated only if the task completes successfully — if the task fails or if it is skipped, no update occurs, and the ``consumer`` DAG will not be scheduled.
+
+A listing of the relationships between datasets and DAGs can be found in the
+:ref:`Datasets View<ui:datasets-view>`
 
 Multiple Datasets
 -----------------
@@ -192,8 +199,3 @@ Notes on schedules
 The ``schedule`` parameter to your DAG can take either a list of datasets to consume or a timetable-based option. The two cannot currently be mixed.
 
 When using datasets, in this first release (v2.4) waiting for all datasets in the list to be updated is the only option when multiple datasets are consumed by a DAG. A later release may introduce more fine-grained options allowing for greater flexibility.
-
-.. TODO:
-
-    Add screengrabs of the new parts of the DAGs view
-    Add screengrabs and prose to explain the new Dataset views
