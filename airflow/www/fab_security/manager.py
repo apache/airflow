@@ -71,9 +71,9 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
-from airflow.www.views import ResourceModelView
 
 log = logging.getLogger(__name__)
 
@@ -201,8 +201,13 @@ class BaseSecurityManager:
     rolemodelview = RoleModelView
     actionmodelview = PermissionModelView
     userstatschartview = UserStatsChartView
-    resourcemodelview = ResourceModelView
     permissionmodelview = PermissionModelView
+
+    @cached_property
+    def resourcemodelview(self):
+        from airflow.www.views import ResourceModelView
+
+        return ResourceModelView
 
     def __init__(self, appbuilder):
         self.appbuilder = appbuilder

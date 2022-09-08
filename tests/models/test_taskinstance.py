@@ -120,15 +120,6 @@ class CallbackWrapper:
         self.task_state_in_callback = context['ti'].state
 
 
-@pytest.fixture()
-def clear_datasets():
-    # Clean up before ourselves
-    db.clear_db_datasets()
-    yield
-    # and after
-    db.clear_db_datasets()
-
-
 class TestTaskInstance:
     @staticmethod
     def clean_db():
@@ -138,6 +129,7 @@ class TestTaskInstance:
         db.clear_db_task_fail()
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
+        db.clear_db_datasets()
 
     def setup_method(self):
         self.clean_db()
@@ -185,11 +177,11 @@ class TestTaskInstance:
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
 
-    def test_current_state(self, create_task_instance):
-        ti = create_task_instance()
-        assert ti.current_state() is None
+    def test_current_state(self, create_task_instance, session):
+        ti = create_task_instance(session=session)
+        assert ti.current_state(session=session) is None
         ti.run()
-        assert ti.current_state() == State.SUCCESS
+        assert ti.current_state(session=session) == State.SUCCESS
 
     def test_set_dag(self, dag_maker):
         """
@@ -1692,7 +1684,7 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_outlet_datasets(self, create_task_instance, clear_datasets):
+    def test_outlet_datasets(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
         completes successfully, a DatasetDagRunQueue is logged.
@@ -1740,7 +1732,7 @@ class TestTaskInstance:
             DatasetEvent.source_task_instance == ti
         ).one() == ('s3://dag1/output_1.txt',)
 
-    def test_outlet_datasets_failed(self, create_task_instance, clear_datasets):
+    def test_outlet_datasets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
         failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
@@ -1771,7 +1763,7 @@ class TestTaskInstance:
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
 
-    def test_outlet_datasets_skipped(self, create_task_instance, clear_datasets):
+    def test_outlet_datasets_skipped(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
         is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
@@ -1931,6 +1923,60 @@ class TestTaskInstance:
 
         assert ti_2.get_previous_start_date() == ti_1.start_date
         assert ti_1.start_date is None
+
+    def test_context_triggering_dataset_events_none(self, session, create_task_instance):
+        ti = create_task_instance()
+        template_context = ti.get_template_context()
+
+        assert ti in session
+        session.expunge_all()
+
+        assert template_context["triggering_dataset_events"] == {}
+
+    def test_context_triggering_dataset_events(self, create_dummy_dag, session):
+        ds1 = DatasetModel(id=1, uri="one")
+        ds2 = DatasetModel(id=2, uri="two")
+        session.add_all([ds1, ds2])
+        session.commit()
+
+        # it's easier to fake a manual run here
+        dag, task1 = create_dummy_dag(
+            dag_id="test_triggering_dataset_events",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            task_id="test_context",
+            with_dagrun_type=DagRunType.MANUAL,
+            session=session,
+        )
+        dr = dag.create_dagrun(
+            run_id="test2",
+            run_type=DagRunType.DATASET_TRIGGERED,
+            execution_date=timezone.utcnow(),
+            state=None,
+            session=session,
+        )
+        ds1_event = DatasetEvent(dataset_id=1)
+        ds2_event_1 = DatasetEvent(dataset_id=2)
+        ds2_event_2 = DatasetEvent(dataset_id=2)
+        dr.consumed_dataset_events.append(ds1_event)
+        dr.consumed_dataset_events.append(ds2_event_1)
+        dr.consumed_dataset_events.append(ds2_event_2)
+        session.commit()
+
+        ti = dr.get_task_instance(task1.task_id, session=session)
+        ti.refresh_from_task(task1)
+
+        # Check we run this in the same context as the actual task at runtime!
+        assert ti in session
+        session.expunge(ti)
+        session.expunge(dr)
+
+        template_context = ti.get_template_context()
+
+        assert template_context["triggering_dataset_events"] == {
+            "one": [ds1_event],
+            "two": [ds2_event_1, ds2_event_2],
+        }
 
     def test_pendulum_template_dates(self, create_task_instance):
         ti = create_task_instance(
@@ -3331,7 +3377,7 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
 
     dagrun = dag_maker.create_dagrun()
     for map_index in range(3):
-        ti = dagrun.get_task_instance("add_one", map_index=map_index)
+        ti = dagrun.get_task_instance("add_one", map_index=map_index, session=session)
         ti.refresh_from_task(dag.get_task("add_one"))
         ti.run()
 

@@ -67,7 +67,7 @@ def roles_delete(args):
 @suppress_logs_and_warning
 def roles_export(args):
     """
-    Exports all the rules from the data base to a file.
+    Exports all the roles from the data base to a file.
     Note, this function does not export the permissions associated for each role.
     Strictly, it exports the role names into the passed role json file.
     """

@@ -34,43 +34,18 @@ from airflow import settings
 from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.jobs.base_job import BaseJob  # noqa: F401
-from airflow.models import (  # noqa: F401
-    DAG,
-    XCOM_RETURN_KEY,
-    Base,
-    BaseOperator,
-    BaseOperatorLink,
-    Connection,
-    DagBag,
-    DagModel,
-    DagPickle,
-    DagRun,
-    DagTag,
-    Log,
-    Pool,
-    SkipMixin,
-    SlaMiss,
-    TaskFail,
-    TaskInstance,
-    TaskReschedule,
-    Variable,
-    XCom,
-)
-
-# We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.tasklog import LogTemplate
+from airflow.models import import_all_models
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
-from airflow.version import version
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query
+
+    from airflow.models.base import Base
 
 
 log = logging.getLogger(__name__)
@@ -105,7 +80,7 @@ def _format_airflow_moved_table_name(source_table, version, category):
 @provide_session
 def merge_conn(conn, session: Session = NEW_SESSION):
     """Add new Connection."""
-    if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
+    if not session.query(conn.__class__).filter_by(conn_id=conn.conn_id).first():
         session.add(conn)
         session.commit()
 
@@ -113,6 +88,8 @@ def merge_conn(conn, session: Session = NEW_SESSION):
 @provide_session
 def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
+    from airflow.models.pool import Pool
+
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
@@ -126,6 +103,8 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
 @provide_session
 def create_default_connections(session: Session = NEW_SESSION):
     """Create default Airflow connections."""
+    from airflow.models.connection import Connection
+
     merge_conn(
         Connection(
             conn_id="airflow_db",
@@ -667,7 +646,7 @@ def _create_db_from_orm(session):
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
 
-    from airflow.models import Base
+    from airflow.models.base import Base
     from airflow.www.fab_security.sqla.models import Model
     from airflow.www.session import AirflowDatabaseSessionInterface
 
@@ -690,6 +669,8 @@ def _create_db_from_orm(session):
 @provide_session
 def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
     """Initialize Airflow database."""
+    import_all_models()
+
     db_exists = _get_current_revision(session)
     if db_exists:
         upgradedb(session=session)
@@ -805,6 +786,8 @@ def check_and_run_migrations():
                     db_command()
                     print(f"DB {verb} done")
                 except Exception as error:
+                    from airflow.version import version
+
                     print(error)
                     print(
                         "You still have unapplied migrations. "
@@ -816,6 +799,8 @@ def check_and_run_migrations():
         except AirflowException:
             pass
     elif source_heads != db_heads:
+        from airflow.version import version
+
         print(
             f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
             f"Make sure the command is run using Airflow version {version}.",
@@ -826,6 +811,9 @@ def check_and_run_migrations():
 
 @provide_session
 def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+    from airflow.models.dagbag import DagBag
+    from airflow.models.serialized_dag import SerializedDagModel
+
     session.query(SerializedDagModel).delete(synchronize_session=False)
     dagbag = DagBag()
     dagbag.collect_dags(only_if_updated=False, safe_mode=False)
@@ -839,6 +827,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
+    from airflow.models.tasklog import LogTemplate
 
     def log_template_exists():
         metadata = reflect_tables([LogTemplate], session)
@@ -908,6 +897,8 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     :param session:  session of the sqlalchemy
     :rtype: str
     """
+    from airflow.models.connection import Connection
+
     dups = []
     try:
         dups = session.query(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1).all()
@@ -923,7 +914,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: Optional[List[Union[Base, str]]], session):
+def reflect_tables(tables: Optional[List[Union["Base", str]]], session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
@@ -948,6 +939,8 @@ def reflect_tables(tables: Optional[List[Union[Base, str]]], session):
 
 def check_task_fail_for_duplicates(session):
     """Check that there are no duplicates in the task_fail table before creating FK"""
+    from airflow.models.taskfail import TaskFail
+
     metadata = reflect_tables([TaskFail], session)
     task_fail = metadata.tables.get(TaskFail.__tablename__)  # type: ignore
     if task_fail is None:  # table not there
@@ -1017,6 +1010,8 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     :param session:  session of the sqlalchemy
     :rtype: str
     """
+    from airflow.models.connection import Connection
+
     n_nulls = []
     try:
         n_nulls = session.query(Connection.conn_id).filter(Connection.conn_type.is_(None)).all()
@@ -1046,6 +1041,8 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
 
 
 def check_run_id_null(session: Session) -> Iterable[str]:
+    from airflow.models.dagrun import DagRun
+
     metadata = reflect_tables([DagRun], session)
 
     # We can't use the model here since it may differ from the db state due to
@@ -1285,7 +1282,12 @@ def check_bad_references(session: Session) -> Iterable[str]:
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
     """
+    from airflow.models.dagrun import DagRun
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
+    from airflow.models.taskfail import TaskFail
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskreschedule import TaskReschedule
+    from airflow.models.xcom import XCom
 
     @dataclass
     class BadReferenceConfig:
@@ -1311,7 +1313,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         ref_table='task_instance',
     )
 
-    models_list: List[Tuple[Base, str, BadReferenceConfig]] = [
+    models_list: List[Tuple["Base", str, BadReferenceConfig]] = [
         (TaskInstance, '2.2', missing_dag_run_config),
         (TaskReschedule, '2.2', missing_ti_config),
         (RenderedTaskInstanceFields, '2.3', missing_ti_config),
@@ -1480,6 +1482,8 @@ def upgradedb(
         raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
     from alembic import command
 
+    import_all_models()
+
     config = _get_alembic_config()
 
     if show_sql_only:
@@ -1534,6 +1538,8 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")
 
+    import_all_models()
+
     connection = settings.engine.connect()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
@@ -1547,6 +1553,8 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
 @provide_session
 def bootstrap_dagbag(session: Session = NEW_SESSION):
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
 
     dagbag = DagBag()
     # Save DAGs in the ORM

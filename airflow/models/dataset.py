@@ -34,7 +34,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from airflow.datasets import Dataset
-from airflow.models.base import ID_LEN, Base, StringID
+from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -105,7 +105,7 @@ class DagScheduleDatasetReference(Base):
     """References from a DAG to a dataset of which it is a consumer."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
@@ -117,11 +117,6 @@ class DagScheduleDatasetReference(Base):
             DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
         )""",
     )
-    dag = relationship(
-        "DagModel",
-        primaryjoin="foreign(DagModel.dag_id) == DagScheduleDatasetReference.dag_id",
-        uselist=False,
-    )
 
     __tablename__ = "dag_schedule_dataset_reference"
     __table_args__ = (
@@ -131,6 +126,12 @@ class DagScheduleDatasetReference(Base):
             ["dataset.id"],
             name='dsdr_dataset_fkey',
             ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=['dag.dag_id'],
+            name='dsdr_dag_id_fkey',
+            ondelete='CASCADE',
         ),
     )
 
@@ -154,8 +155,8 @@ class TaskOutletDatasetReference(Base):
     """References from a task to a dataset that it updates / produces."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
-    task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
@@ -170,6 +171,12 @@ class TaskOutletDatasetReference(Base):
             ondelete="CASCADE",
         ),
         PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey", mssql_clustered=True),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=['dag.dag_id'],
+            name='todr_dag_id_fkey',
+            ondelete='CASCADE',
+        ),
     )
 
     def __eq__(self, other):
