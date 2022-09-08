@@ -27,105 +27,118 @@ Airflow 2.4.0beta1 (2022-09-08)
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-- The DB related classes: ``DBApiHook``, ``SQLSensor`` have been moved to ``apache-airflow-providers-common-sql`` provider. (NEW)
-- DAGS used in a context manager no longer need to be assigned to a module variable (#23592)
+DAGS used in a context manager no longer need to be assigned to a module variable (#23592)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  Previously you had do assign a DAG to a module-level variable in order for Airflow to pick it up. For example this
+Previously you had do assign a DAG to a module-level variable in order for Airflow to pick it up. For example this
 
-  .. code-block:: python
+.. code-block:: python
 
-     with DAG(dag_id="example") as dag:
-         ...
-
-
-     @dag
-     def dag_maker():
-         ...
+   with DAG(dag_id="example") as dag:
+       ...
 
 
-     dag2 = dag_maker()
+   @dag
+   def dag_maker():
+       ...
 
 
-  can become
-
-  .. code-block:: python
-
-     with DAG(dag_id="example"):
-         ...
+   dag2 = dag_maker()
 
 
-     @dag
-     def dag_maker():
-         ...
+can become
+
+.. code-block:: python
+
+   with DAG(dag_id="example"):
+       ...
 
 
-     dag_maker()
+   @dag
+   def dag_maker():
+       ...
 
-  If you want to disable the behaviour for any reason then set ``auto_register=False`` on the dag:
 
-  .. code-block:: python
+   dag_maker()
 
-     # This dag will not be picked up by Airflow as it's not assigned to a variable
-     with DAG(dag_id="example", auto_register=False):
-         ...
+If you want to disable the behaviour for any reason then set ``auto_register=False`` on the dag:
 
-- DAG runs sorting logic changed in grid view (#25410)
+.. code-block:: python
 
-  The ordering of DAG runs in the grid view has been changed to be more "natural".
-  The new logic generally orders by data interval, but a custom ordering can be
-  applied by setting the DAG to use a custom timetable. (#25090)
-- Deprecation of ``schedule_interval`` and ``timetable`` arguments
+   # This dag will not be picked up by Airflow as it's not assigned to a variable
+   with DAG(dag_id="example", auto_register=False):
+       ...
 
-  We added new DAG argument ``schedule`` that can accept a cron expression, timedelta object, *timetable* object, or list of dataset objects. Arguments ``schedule_interval`` and ``timetable`` are deprecated.
+Deprecation of ``schedule_interval`` and ``timetable`` arguments (#25410)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  If you previously used the ``@daily`` cron preset, your DAG may have looked like this:
+We added new DAG argument ``schedule`` that can accept a cron expression, timedelta object, *timetable* object, or list of dataset objects. Arguments ``schedule_interval`` and ``timetable`` are deprecated.
 
-  .. code-block:: python
+If you previously used the ``@daily`` cron preset, your DAG may have looked like this:
 
-      with DAG(
-          dag_id='my_example',
-          start_date=datetime(2021, 1, 1),
-          schedule_interval='@daily',
-      ):
-          ...
+.. code-block:: python
 
-  Going forward, you should use the ``schedule`` argument instead:
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        schedule_interval='@daily',
+    ):
+        ...
 
-  .. code-block:: python
+Going forward, you should use the ``schedule`` argument instead:
 
-      with DAG(
-          dag_id='my_example',
-          start_date=datetime(2021, 1, 1),
-          schedule='@daily',
-      ):
-          ...
+.. code-block:: python
 
-  The same is true if you used a custom timetable.  Previously you would have used the ``timetable`` argument:
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        schedule='@daily',
+    ):
+        ...
 
-  .. code-block:: python
+The same is true if you used a custom timetable.  Previously you would have used the ``timetable`` argument:
 
-      with DAG(
-          dag_id='my_example',
-          start_date=datetime(2021, 1, 1),
-          timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
-      ):
-          ...
+.. code-block:: python
 
-  Now you should use the ``schedule`` argument:
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
+    ):
+        ...
 
-  .. code-block:: python
+Now you should use the ``schedule`` argument:
 
-      with DAG(
-          dag_id='my_example',
-          start_date=datetime(2021, 1, 1),
-          schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
-      ):
-          ...
+.. code-block:: python
 
-- Removal of experimental Smart Sensors (#25507)
+    with DAG(
+        dag_id='my_example',
+        start_date=datetime(2021, 1, 1),
+        schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
+    ):
+        ...
 
-  Smart Sensors were added in 2.0 and deprecated in favor of Deferrable operators in 2.2, and have now been removed.
-- The ``airflow.contrib`` packages and deprecated modules from Airflow 1.10 in ``airflow.hooks``, ``airflow.operators``, ``airflow.sensors`` packages, have now dynamically generated modules and while users can continue using the deprecated contrib classes, they are no longer visible for static code check tools and will be reported as missing. It is recommended for the users to move to non-deprecated classes. (#26153, #26179, #26167)
+Removal of experimental Smart Sensors (#25507)
+""""""""""""""""""""""""""""""""""""""""""""""
+
+Smart Sensors were added in 2.0 and deprecated in favor of Deferrable operators in 2.2, and have now been removed.
+
+``airflow.contrib`` packages and deprecated modules are dynamically generated (#26153, #26179, #26167)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The ``airflow.contrib`` packages and deprecated modules from Airflow 1.10 in ``airflow.hooks``, ``airflow.operators``, ``airflow.sensors`` packages, have now dynamically generated modules and while users can continue using the deprecated contrib classes, they are no longer visible for static code check tools and will be reported as missing. It is recommended for the users to move to non-deprecated classes.
+
+``DBApiHook`` and ``SQLSensor`` have moved (#24836)
+"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``DBApiHook``, ``SQLSensor`` have been moved to the ``apache-airflow-providers-common-sql`` provider.
+
+DAG runs sorting logic changed in grid view (#25090)
+""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The ordering of DAG runs in the grid view has been changed to be more "natural".
+The new logic generally orders by data interval, but a custom ordering can be
+applied by setting the DAG to use a custom timetable.
 
 
 Features
