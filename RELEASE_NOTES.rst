@@ -124,7 +124,7 @@ Significant Changes
 
 - Removal of experimental Smart Sensors (#25507)
 
-  Smart Sensors were added in 2.0 and deprecated in favour of Deferable operators in 2.2, and have now been removed.
+  Smart Sensors were added in 2.0 and deprecated in favor of Deferrable operators in 2.2, and have now been removed.
 - The ``airflow.contrib`` packages and deprecated modules from Airflow 1.10 in ``airflow.hooks``, ``airflow.operators``, ``airflow.sensors`` packages, have now dynamically generated modules and while users can continue using the deprecated contrib classes, they are no longer visible for static code check tools and will be reported as missing. It is recommended for the users to move to non-deprecated classes. (#26153, #26179, #26167)
 
 
