@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-08T16:15:37Z
+# This constraints file was automatically generated on 2022-09-08T21:14:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -121,6 +121,7 @@ plyvel==1.4.0
 prison==0.2.1
 prometheus-client==0.14.1
 prompt-toolkit==3.0.31
+protobuf==3.20.1
 psutil==5.9.2
 pure-sasl==0.6.2
 pyarrow==9.0.0
