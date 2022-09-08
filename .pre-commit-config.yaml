@@ -406,6 +406,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
+        additional_dependencies: ['packaging']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
