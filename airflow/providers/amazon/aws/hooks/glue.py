@@ -151,13 +151,17 @@ class GlueJobHook(AwsBaseHook):
         self,
         job_name: str,
         run_id: str,
-        log_client,
         job_failed: bool = False,
         next_token: Optional[str] = None,
     ) -> Optional[str]:
         """Prints the batch of logs to the Airflow task log and returns nextToken."""
 
         response = {}
+        credentials = self.get_credentials(region_name=self.conn_region_name)
+        log_client = boto3.client('logs',
+                                  region_name=self.conn_region_name,
+                                  aws_access_key_id=credentials.access_key,
+                                  aws_secret_access_key=credentials.secret_key)
 
         # filter_pattern = FAILURE_LOG_FILTER if job_failed else DEFAULT_LOG_FILTER
         log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)['JobRun']['LogGroupName']
@@ -290,7 +294,6 @@ class GlueJobHook(AwsBaseHook):
                         next_log_token = self.print_job_logs(
                             job_name=job_name,
                             run_id=run_id,
-                            log_client=log_client,
                             job_failed=job_failed,
                             next_token=next_log_token,
                         )
@@ -300,7 +303,6 @@ class GlueJobHook(AwsBaseHook):
                         next_log_token = self.print_job_logs(
                             job_name=job_name,
                             run_id=run_id,
-                            log_client=log_client,
                             job_failed=job_failed,
                             next_token=next_log_token,
                         )
