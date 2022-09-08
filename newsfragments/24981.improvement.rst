@@ -1,1 +1,0 @@
-Default value for [core] hostname_callable is ``airflow.utils.net.getfqdn`` which should provide more stable canonical host name. You can still use ``socket.getfqdn``or any other ``hostname_callable`` you had configured..

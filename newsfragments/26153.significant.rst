@@ -1,1 +1,0 @@
-The ``contrib`` packages have now dynamically generated modules and while users can continue using the deprecated contrib classes, they are no longer visible for static code check tools and will be reported as missing. It is recommended for the users to move to non-deprecated classes.
