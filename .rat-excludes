@@ -126,3 +126,6 @@ scripts/*
 images/*
 dev/*
 chart/*.iml
+
+# Sha files
+.*sha256
