@@ -869,14 +869,14 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
+        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev|^tests/system/providers|^tests/providers
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*.py|^tests/providers/\*.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
