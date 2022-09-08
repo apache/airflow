@@ -175,9 +175,8 @@ class TriggerRuleDep(BaseTIDep):
                 if upstream_done and not (failed or upstream_failed):
                     changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.ONE_DONE:
-                if upstream_done:
-                    if not (failed or successes):
-                        changed = ti.set_state(State.SKIPPED, session)
+                if upstream_done and not (failed or successes):
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
                     changed = ti.set_state(State.UPSTREAM_FAILED, session)
@@ -214,7 +213,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
         elif trigger_rule == TR.ONE_DONE:
-            if not (successes or failed):
+            if successes + failed < 0:
                 yield self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}'"
