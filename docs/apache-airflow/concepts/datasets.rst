@@ -82,7 +82,7 @@ The identifier does not have to be an absolute URI, it can be a scheme-less, rel
 
     # valid datasets:
     schemeless = Dataset("//example/dataset")
-    csv_file = Dataset("example.csv")
+    csv_file = Dataset("example_dataset")
 
 If required, an extra dictionary can be included in a Dataset:
 
