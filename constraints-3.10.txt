@@ -1,6 +1,6 @@
 #
-# This constraints file was automatically generated on 2022-09-08T11:58:46Z
-# via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
+# This constraints file was automatically generated on 2022-09-08T20:12:04Z
+# via "eager-upgrade" mechanism of PIP. For the "v2-4-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
 #
@@ -58,7 +58,7 @@ ansiwrap==0.8.4
 anyio==3.6.1
 apache-airflow-providers-airbyte==3.1.0
 apache-airflow-providers-alibaba==2.0.1
-apache-airflow-providers-amazon==5.0.0
+apache-airflow-providers-amazon==5.1.0
 apache-airflow-providers-apache-beam==4.0.0
 apache-airflow-providers-apache-cassandra==3.0.0
 apache-airflow-providers-apache-drill==2.2.0
@@ -76,7 +76,7 @@ apache-airflow-providers-asana==2.0.1
 apache-airflow-providers-celery==3.0.0
 apache-airflow-providers-cloudant==3.0.0
 apache-airflow-providers-cncf-kubernetes==4.3.0
-apache-airflow-providers-common-sql==1.1.0
+apache-airflow-providers-common-sql==1.2.0
 apache-airflow-providers-databricks==3.2.0
 apache-airflow-providers-datadog==3.0.0
 apache-airflow-providers-dbt-cloud==2.1.0
@@ -111,8 +111,8 @@ apache-airflow-providers-oracle==3.3.0
 apache-airflow-providers-pagerduty==3.0.0
 apache-airflow-providers-papermill==3.0.0
 apache-airflow-providers-plexus==3.0.0
-apache-airflow-providers-postgres==5.2.0
-apache-airflow-providers-presto==4.0.0
+apache-airflow-providers-postgres==5.2.1
+apache-airflow-providers-presto==4.0.1
 apache-airflow-providers-qubole==3.2.0
 apache-airflow-providers-redis==3.0.0
 apache-airflow-providers-salesforce==5.1.0
@@ -123,12 +123,12 @@ apache-airflow-providers-sftp==4.0.0
 apache-airflow-providers-singularity==3.0.0
 apache-airflow-providers-slack==5.1.0
 apache-airflow-providers-snowflake==3.2.0
-apache-airflow-providers-sqlite==3.2.0
+apache-airflow-providers-sqlite==3.2.1
 apache-airflow-providers-ssh==3.1.0
 apache-airflow-providers-tableau==3.0.1
 apache-airflow-providers-tabular==1.0.1
 apache-airflow-providers-telegram==3.0.0
-apache-airflow-providers-trino==4.0.0
+apache-airflow-providers-trino==4.0.1
 apache-airflow-providers-vertica==3.2.0
 apache-airflow-providers-yandex==3.1.0
 apache-airflow-providers-zendesk==4.0.0
@@ -176,9 +176,9 @@ billiard==3.6.4.0
 black==22.8.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.68
+boto3==1.24.69
 boto==2.49.0
-botocore==1.27.68
+botocore==1.27.69
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -432,7 +432,6 @@ prompt-toolkit==3.0.31
 proto-plus==1.19.6
 protobuf==3.20.0
 psutil==5.9.2
-psycopg2-binary==2.9.3
 psycopg2==2.9.3
 ptyprocess==0.7.0
 pure-eval==0.2.2
@@ -582,12 +581,12 @@ types-cryptography==3.3.23
 types-docutils==0.19.0
 types-freezegun==1.1.10
 types-paramiko==2.11.5
-types-protobuf==3.20.1
+types-protobuf==3.20.2
 types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
 types-pytz==2022.2.1.0
 types-redis==4.3.20
-types-requests==2.28.9
+types-requests==2.28.10
 types-setuptools==65.3.0
 types-six==1.16.19
 types-tabulate==0.8.11
