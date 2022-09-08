@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-08T11:50:53Z
+# This constraints file was automatically generated on 2022-09-08T16:09:45Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -504,7 +504,7 @@ types-cryptography==3.3.23
 types-docutils==0.19.0
 types-freezegun==1.1.10
 types-paramiko==2.11.5
-types-protobuf==3.20.1
+types-protobuf==3.20.2
 types-python-dateutil==2.8.19
 types-python-slugify==6.1.0
 types-pytz==2022.2.1.0
