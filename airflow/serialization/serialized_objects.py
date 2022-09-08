@@ -27,6 +27,7 @@ from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type, Union
 
 import cattr
+import lazy_object_proxy
 import pendulum
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -44,9 +45,7 @@ from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers_manager import ProvidersManager
-from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
@@ -353,6 +352,8 @@ class BaseSerialization:
             step decode VAR according to TYPE;
         (3) Operator has a special field CLASS to record the original class
             name for displaying in UI.
+
+        :meta private:
         """
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
@@ -407,7 +408,10 @@ class BaseSerialization:
 
     @classmethod
     def deserialize(cls, encoded_var: Any) -> Any:
-        """Helper function of depth first search for deserialization."""
+        """Helper function of depth first search for deserialization.
+
+        :meta private:
+        """
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
             return encoded_var
@@ -560,6 +564,9 @@ class DependencyDetector:
 
     @staticmethod
     def detect_task_dependencies(task: Operator) -> List['DagDependency']:
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.sensors.external_task import ExternalTaskSensor
+
         """Detects dependencies caused by tasks"""
         deps = []
         if isinstance(task, TriggerDagRunOperator):
@@ -1068,7 +1075,7 @@ class SerializedDAG(DAG, BaseSerialization):
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults
 
-    _json_schema = load_dag_schema()
+    _json_schema = lazy_object_proxy.Proxy(load_dag_schema)
 
     @classmethod
     def serialize_dag(cls, dag: DAG) -> dict:

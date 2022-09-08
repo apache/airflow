@@ -94,6 +94,9 @@ can handle them.
 Here are the steps you can follow to fix it BEFORE you attempt to migrate
 (but you might also choose to do it your way if you know what you are doing).
 
+Get familiar with the internal Database structure of Airflow which you might find at
+:doc:`/database-erd-ref` and list of migrations that you might find in :doc:`/migrations-ref`.
+
 
 1. Make a backup of your database so that you can restore it in case of a mistake.
 

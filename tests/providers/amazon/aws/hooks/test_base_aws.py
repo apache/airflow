@@ -29,7 +29,7 @@ from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from moto.core import ACCOUNT_ID
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
     BaseSessionFactory,
@@ -123,6 +123,17 @@ class CustomSessionFactory(BaseSessionFactory):
         return mock.MagicMock()
 
 
+@pytest.fixture
+def mock_conn(request):
+    conn = Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID)
+    if request.param == "unwrapped":
+        return conn
+    if request.param == "wrapped":
+        return AwsConnectionWrapper(conn=conn)
+    else:
+        raise ValueError("invalid internal test config")
+
+
 class TestSessionFactory:
     @conf_vars(
         {("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"}
@@ -140,13 +151,7 @@ class TestSessionFactory:
         cls = resolve_session_factory()
         assert issubclass(cls, BaseSessionFactory)
 
-    @pytest.mark.parametrize(
-        "mock_conn",
-        [
-            Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID),
-            AwsConnectionWrapper(conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID)),
-        ],
-    )
+    @pytest.mark.parametrize("mock_conn", ["unwrapped", "wrapped"], indirect=True)
     def test_conn_property(self, mock_conn):
         sf = BaseSessionFactory(conn=mock_conn, region_name=None, config=None)
         session_factory_conn = sf.conn

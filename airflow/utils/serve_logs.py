@@ -19,6 +19,7 @@
 import collections
 import logging
 import os
+import socket
 
 import gunicorn.app.base
 from flask import Flask, abort, request, send_from_directory
@@ -143,13 +144,14 @@ def serve_logs():
 
     worker_log_server_port = conf.getint('logging', 'WORKER_LOG_SERVER_PORT')
 
-    # Make sure to have both an IPv4 and an IPv6 interface.
-    # Gunicorn can bind multiple addresses, see https://docs.gunicorn.org/en/stable/settings.html#bind.
-    options = [
-        GunicornOption("bind", f"0.0.0.0:{worker_log_server_port}"),
-        GunicornOption("bind", f"[::]:{worker_log_server_port}"),
-        GunicornOption("workers", 2),
-    ]
+    # If dual stack is available and IPV6_V6ONLY is not enabled on the socket
+    # then when IPV6 is bound to it will also bind to IPV4 automatically
+    if getattr(socket, "has_dualstack_ipv6", lambda: False)():
+        bind_option = GunicornOption("bind", f"[::]:{worker_log_server_port}")
+    else:
+        bind_option = GunicornOption("bind", f"0.0.0.0:{worker_log_server_port}")
+
+    options = [bind_option, GunicornOption("workers", 2)]
     StandaloneGunicornApplication(wsgi_app, options).run()
 
 

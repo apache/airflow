@@ -744,6 +744,9 @@ if PACKAGE_NAME == 'helm-chart':
 spelling_ignore_contributor_names = False
 spelling_ignore_importable_modules = True
 
+
+graphviz_output_format = 'svg'
+
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 if PACKAGE_NAME == 'apache-airflow':

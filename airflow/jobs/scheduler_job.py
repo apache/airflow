@@ -34,18 +34,14 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
-from airflow import models, settings
+from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import DAG
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent
@@ -72,9 +68,11 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from types import FrameType
 
-TI = models.TaskInstance
-DR = models.DagRun
-DM = models.DagModel
+    from airflow.dag_processing.manager import DagFileProcessorAgent
+
+TI = TaskInstance
+DR = DagRun
+DM = DagModel
 
 
 def _is_parent_process() -> bool:
@@ -154,7 +152,7 @@ class SchedulerJob(BaseJob):
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
-        self.processor_agent: Optional[DagFileProcessorAgent] = None
+        self.processor_agent: Optional["DagFileProcessorAgent"] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
         self._paused_dag_without_running_dagruns: Set = set()
@@ -244,6 +242,7 @@ class SchedulerJob(BaseJob):
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
         """
+        from airflow.models.pool import Pool
         from airflow.utils.db import DBLocks
 
         executable_tis: List[TI] = []
@@ -265,7 +264,7 @@ class SchedulerJob(BaseJob):
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = models.Pool.slots_stats(lock_rows=True, session=session)
+        pools = Pool.slots_stats(lock_rows=True, session=session)
 
         # If the pools are full, there is no point doing anything!
         # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
@@ -696,6 +695,8 @@ class SchedulerJob(BaseJob):
         return len(event_buffer)
 
     def _execute(self) -> None:
+        from airflow.dag_processing.manager import DagFileProcessorAgent
+
         self.log.info("Starting the scheduler")
 
         # DAGs can be pickled for easier remote execution by some executors
@@ -727,6 +728,8 @@ class SchedulerJob(BaseJob):
                     get_sink_pipe=self.processor_agent.get_callbacks_pipe
                 )
             else:
+                from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
                 self.executor.callback_sink = DatabaseCallbackSink()
 
@@ -752,7 +755,7 @@ class SchedulerJob(BaseJob):
                     self.log.info(
                         "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
                     )
-                    models.DAG.deactivate_stale_dags(execute_start_time)
+                    DAG.deactivate_stale_dags(execute_start_time)
 
             settings.Session.remove()  # type: ignore
         except Exception:
@@ -1342,7 +1345,9 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
-        pools = models.Pool.slots_stats(session=session)
+        from airflow.models.pool import Pool
+
+        pools = Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
             Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
@@ -1473,6 +1478,8 @@ class SchedulerJob(BaseJob):
         or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
         to be handled by the DAG processor.
         """
+        from airflow.jobs.local_task_job import LocalTaskJob
+
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 

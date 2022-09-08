@@ -21,6 +21,130 @@
 
 .. towncrier release notes start
 
+Airflow 2.4.0beta1 (2022-09-08)
+-------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- The DB related classes: ``DBApiHook``, ``SQLSensor`` have been moved to ``apache-airflow-providers-common-sql`` provider. (NEW)
+- DAGS used in a context manager no longer need to be assigned to a module variable (#23592)
+
+  Previously you had do assign a DAG to a module-level variable in order for Airflow to pick it up. For example this
+
+  .. code-block:: python
+
+     with DAG(dag_id="example") as dag:
+         ...
+
+
+     @dag
+     def dag_maker():
+         ...
+
+
+     dag2 = dag_maker()
+
+
+  can become
+
+  .. code-block:: python
+
+     with DAG(dag_id="example"):
+         ...
+
+
+     @dag
+     def dag_maker():
+         ...
+
+
+     dag_maker()
+
+  If you want to disable the behaviour for any reason then set ``auto_register=False`` on the dag:
+
+  .. code-block:: python
+
+     # This dag will not be picked up by Airflow as it's not assigned to a variable
+     with DAG(dag_id="example", auto_register=False):
+         ...
+
+- DAG runs sorting logic changed in grid view (#25410)
+
+  The ordering of DAG runs in the grid view has been changed to be more "natural".
+  The new logic generally orders by data interval, but a custom ordering can be
+  applied by setting the DAG to use a custom timetable. (#25090)
+- Deprecation of ``schedule_interval`` and ``timetable`` arguments
+
+  We added new DAG argument ``schedule`` that can accept a cron expression, timedelta object, *timetable* object, or list of dataset objects. Arguments ``schedule_interval`` and ``timetable`` are deprecated.
+
+  If you previously used the ``@daily`` cron preset, your DAG may have looked like this:
+
+  .. code-block:: python
+
+      with DAG(
+          dag_id='my_example',
+          start_date=datetime(2021, 1, 1),
+          schedule_interval='@daily',
+      ):
+          ...
+
+  Going forward, you should use the ``schedule`` argument instead:
+
+  .. code-block:: python
+
+      with DAG(
+          dag_id='my_example',
+          start_date=datetime(2021, 1, 1),
+          schedule='@daily',
+      ):
+          ...
+
+  The same is true if you used a custom timetable.  Previously you would have used the ``timetable`` argument:
+
+  .. code-block:: python
+
+      with DAG(
+          dag_id='my_example',
+          start_date=datetime(2021, 1, 1),
+          timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
+      ):
+          ...
+
+  Now you should use the ``schedule`` argument:
+
+  .. code-block:: python
+
+      with DAG(
+          dag_id='my_example',
+          start_date=datetime(2021, 1, 1),
+          schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
+      ):
+          ...
+
+- Removal of experimental Smart Sensors (#25507)
+
+  Smart Sensors were added in 2.0 and deprecated in favor of Deferrable operators in 2.2, and have now been removed.
+- The ``airflow.contrib`` packages and deprecated modules from Airflow 1.10 in ``airflow.hooks``, ``airflow.operators``, ``airflow.sensors`` packages, have now dynamically generated modules and while users can continue using the deprecated contrib classes, they are no longer visible for static code check tools and will be reported as missing. It is recommended for the users to move to non-deprecated classes. (#26153, #26179, #26167)
+
+
+Features
+^^^^^^^^
+
+- DbApiHook accepts log_sql to turn off logging SQL queries. (#24570)
+
+
+Improvements
+^^^^^^^^^^^^
+
+- Default value for [core] hostname_callable is ``airflow.utils.net.getfqdn`` which should provide more stable canonical host name. You can still use ``socket.getfqdn``or any other ``hostname_callable`` you had configured.. (#24981)
+
+
+Bug Fixes
+^^^^^^^^^
+
+- ``ExternalTaskSensor`` now supports the ``soft_fail`` flag to skip if external task or DAG enters a failed state. (#23647)
+
 
 Airflow 2.3.4 (2022-08-23)
 --------------------------
