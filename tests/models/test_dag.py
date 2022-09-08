@@ -857,7 +857,6 @@ class TestDag:
         """
         Ensure that datasets referenced in a dag are correctly loaded into the database.
         """
-        # todo: clear db
         dag_id1 = 'test_dataset_dag1'
         dag_id2 = 'test_dataset_dag2'
         task_id = 'test_dataset_task'
@@ -874,12 +873,12 @@ class TestDag:
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
-        d1 = stored_datasets[d1.uri]
-        d2 = stored_datasets[d2.uri]
-        d3 = stored_datasets[d3.uri]
+        d1_orm = stored_datasets[d1.uri]
+        d2_orm = stored_datasets[d2.uri]
+        d3_orm = stored_datasets[d3.uri]
         assert stored_datasets[uri1].extra == {"should": "be used"}
-        assert [x.dag_id for x in d1.consuming_dags] == [dag_id1]
-        assert [(x.task_id, x.dag_id) for x in d1.producing_tasks] == [(task_id, dag_id2)]
+        assert [x.dag_id for x in d1_orm.consuming_dags] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in d1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
             session.query(
                 TaskOutletDatasetReference.task_id,
@@ -889,10 +888,35 @@ class TestDag:
             .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
-            (task_id, dag_id1, d2.id),
-            (task_id, dag_id1, d3.id),
-            (task_id, dag_id2, d1.id),
+            (task_id, dag_id1, d2_orm.id),
+            (task_id, dag_id1, d3_orm.id),
+            (task_id, dag_id2, d1_orm.id),
         }
+
+        # now that we have verified that a new dag has its dataset references recorded properly,
+        # we need to verify that *changes* are recorded properly.
+        # so if any references are *removed*, they should also be deleted from the DB
+        # so let's remove some references and see what happens
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        EmptyOperator(task_id=task_id, dag=dag2)
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+        session.expunge_all()
+        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
+        d1_orm = stored_datasets[d1.uri]
+        d2_orm = stored_datasets[d2.uri]
+        assert [x.dag_id for x in d1_orm.consuming_dags] == []
+        assert set(
+            session.query(
+                TaskOutletDatasetReference.task_id,
+                TaskOutletDatasetReference.dag_id,
+                TaskOutletDatasetReference.dataset_id,
+            )
+            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
+            .all()
+        ) == {(task_id, dag_id1, d2_orm.id)}
 
     def test_sync_to_db(self):
         dag = DAG(

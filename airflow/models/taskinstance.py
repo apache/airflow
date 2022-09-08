@@ -1872,7 +1872,7 @@ class TaskInstance(Base, LoggingMixin):
         self.clear_next_method_args()
 
         # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
-        if context is None and self.task:
+        if context is None and getattr(self, 'task', None):
             context = self.get_template_context(session)
 
         if context is not None:
@@ -1892,7 +1892,7 @@ class TaskInstance(Base, LoggingMixin):
 
         task: Optional[BaseOperator] = None
         try:
-            if self.task and context:
+            if getattr(self, 'task', None) and context:
                 task = self.task.unmap((context, session))
         except Exception:
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
@@ -1931,7 +1931,7 @@ class TaskInstance(Base, LoggingMixin):
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
-        if not self.task:
+        if not getattr(self, 'task', None):
             # Couldn't load the task, don't know number of retries, guess:
             return self.try_number <= self.max_tries
 

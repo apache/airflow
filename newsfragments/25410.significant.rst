@@ -9,7 +9,7 @@ If you previously used the ``@daily`` cron preset, your DAG may have looked like
         dag_id='my_example',
         start_date=datetime(2021, 1, 1),
         schedule_interval='@daily',
-    ) as dag:
+    ):
         ...
 
 Going forward, you should use the ``schedule`` argument instead:
@@ -19,7 +19,7 @@ Going forward, you should use the ``schedule`` argument instead:
         dag_id='my_example',
         start_date=datetime(2021, 1, 1),
         schedule='@daily',
-    ) as dag:
+    ):
         ...
 
 The same is true if you used a custom timetable.  Previously you would have used the ``timetable`` argument:
@@ -29,7 +29,7 @@ The same is true if you used a custom timetable.  Previously you would have used
         dag_id='my_example',
         start_date=datetime(2021, 1, 1),
         timetable=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
-    ) as dag:
+    ):
         ...
 
 Now you should use the ``schedule`` argument:
@@ -39,5 +39,5 @@ Now you should use the ``schedule`` argument:
         dag_id='my_example',
         start_date=datetime(2021, 1, 1),
         schedule=EventsTimetable(event_dates=[pendulum.datetime(2022, 4, 5)]),
-    ) as dag:
+    ):
         ...
