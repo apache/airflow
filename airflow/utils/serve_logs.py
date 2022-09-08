@@ -146,7 +146,7 @@ def serve_logs():
 
     # If dual stack is available and IPV6_V6ONLY is not enabled on the socket
     # then when IPV6 is bound to it will also bind to IPV4 automatically
-    if getattr(socket, "has_dualstack_ipv6", bool)():
+    if getattr(socket, "has_dualstack_ipv6", False)():
         bind_option = GunicornOption("bind", f"[::]:{worker_log_server_port}")
     else:
         bind_option = GunicornOption("bind", f"0.0.0.0:{worker_log_server_port}")
