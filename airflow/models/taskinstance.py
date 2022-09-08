@@ -513,7 +513,7 @@ class TaskInstance(Base, LoggingMixin):
         uselist=False,
         innerjoin=True,
     )
-
+    triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy='noload', uselist=False)
 
