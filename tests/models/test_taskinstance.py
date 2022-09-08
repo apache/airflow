@@ -2340,6 +2340,16 @@ class TestTaskInstance:
         Stats_incr.assert_any_call('ti_failures')
         Stats_incr.assert_any_call('operator_failures_EmptyOperator')
 
+    def test_handle_failure_task_undefined(self, create_task_instance):
+        """
+        When the loaded taskinstance does not use refresh_from_task, the task may be undefined.
+        For example:
+            the DAG file has been deleted before executing _execute_task_callbacks
+        """
+        ti = create_task_instance()
+        del ti.task
+        ti.handle_failure("test ti.task undefined")
+
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():
             raise AirflowFailException("hopeless")
