@@ -1157,7 +1157,7 @@ export interface components {
     };
     Job: {
       id?: number;
-      dag_id?: string;
+      dag_id?: string | null;
       state?: string;
       job_type?: string;
       /** Format: datetime */

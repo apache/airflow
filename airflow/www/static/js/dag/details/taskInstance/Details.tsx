@@ -34,13 +34,15 @@ import Time from 'src/components/Time';
 import { ClipboardText } from 'src/components/Clipboard';
 import type { Task, TaskInstance, TaskState } from 'src/types';
 import DatasetUpdateEvents from './DatasetUpdateEvents';
+import useTaskInstance from '../../../api/useTaskInstance';
 
 interface Props {
   instance: TaskInstance;
   group: Task;
+  dagId: string;
 }
 
-const Details = ({ instance, group }: Props) => {
+const Details = ({ instance, group, dagId }: Props) => {
   const isGroup = !!group.children;
   const summary: React.ReactNode[] = [];
 
@@ -54,6 +56,9 @@ const Details = ({ instance, group }: Props) => {
     mapIndex,
   } = instance;
 
+  const { data: apiTI } = useTaskInstance({
+    dagId, dagRunId: runId, taskId, mapIndex, enabled: true,
+  });
   const {
     isMapped,
     tooltip,
@@ -101,7 +106,6 @@ const Details = ({ instance, group }: Props) => {
   const taskIdTitle = isGroup ? 'Task Group ID' : 'Task ID';
   const isStateFinal = state && ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
   const isOverall = (isMapped || isGroup) && 'Overall ';
-
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
       <Table variant="striped">
@@ -139,6 +143,14 @@ const Details = ({ instance, group }: Props) => {
           <Tr>
             <Td>{taskIdTitle}</Td>
             <Td><ClipboardText value={taskId} /></Td>
+          </Tr>
+          <Tr>
+            <Td>Assigned triggerer</Td>
+            <Td>{`${apiTI?.triggererJob?.hostname}`}</Td>
+          </Tr>
+          <Tr>
+            <Td>Latest triggerer heartbeat</Td>
+            <Td>{`${apiTI?.triggererJob?.latestHeartbeat}`}</Td>
           </Tr>
           <Tr>
             <Td>Run ID</Td>

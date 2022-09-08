@@ -2951,6 +2951,7 @@ components:
           type: integer
         dag_id:
           type: string
+          nullable: true
         state:
           type: string
         job_type:

@@ -161,7 +161,7 @@ const TaskInstance = ({
                   mapIndexes={actionsMapIndexes}
                 />
               )}
-              <Details instance={instance} group={group} />
+              <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
