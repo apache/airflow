@@ -353,6 +353,7 @@ Currently, **officially** using Airflow:
 1. [Pretius](https://www.pretius.com) [[@lmaczulajtys](https://github.com/lmaczulajtys)]
 1. [Promofarma](https://www.promofarma.com/) [[@JavierLopezT](https://github.com/JavierLopezT)]
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
+1. [ProSiebenSat.1](https://www.prosiebensat1.com/) [[@nicolamarangoni](https://github.com/nicolamarangoni)]
 1. [proton.ai](https://proton.ai/) [[@prmsolutions](https://github.com/prmsolutions)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]
 1. [Pura Scents](https://www.trypura.com/) [[@mfjackson](https://github.com/mfjackson)]
