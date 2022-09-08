@@ -1306,7 +1306,7 @@ class TestBackfillJob:
         subdag.clear()
         dag.clear()
 
-    def test_update_counters(self, dag_maker, session, caplog):
+    def test_update_counters(self, dag_maker, session):
         with dag_maker(dag_id='test_manage_executor_state', start_date=DEFAULT_DATE, session=session) as dag:
             task1 = EmptyOperator(task_id='dummy', owner='airflow')
         dr = dag_maker.create_dagrun(state=None)
@@ -1429,11 +1429,16 @@ class TestBackfillJob:
 
         ti_status.to_run.clear()
         # test for deferred
+        # if a task is deferred and it's not yet time for the triggerer
+        # to reschedule it, we should leave it in ti_status.running
         ti.set_state(State.DEFERRED)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status, session=session)
-        assert "The triggerer is not running. Please start the triggerer" in caplog.text
-
+        assert len(ti_status.running) == 1
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 0
         session.close()
 
     def test_dag_dagrun_infos_between(self, dag_maker):
