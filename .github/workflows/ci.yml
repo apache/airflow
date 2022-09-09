@@ -310,7 +310,7 @@ jobs:
 
   # Check that after earlier cache push, breeze command will build quickly
   chcek-that-image-builds-quicklly:
-    timeout-minutes: 50
+    timeout-minutes: 5
     name: "Check that image builds quickly"
     runs-on: ${{ needs.build-info.outputs.runs-on }}
     needs:
