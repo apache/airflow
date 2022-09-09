@@ -26,6 +26,7 @@ body:
       multiple: false
       options:
         - "2.3.4"
+        - "2.4.0b1"
         - "main (development)"
         - "Other Airflow 2 version"
     validations:

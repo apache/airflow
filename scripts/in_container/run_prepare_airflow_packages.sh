@@ -54,18 +54,9 @@ function prepare_airflow_packages() {
             tag_build=('egg_info' '--tag-build' "${VERSION_SUFFIX_FOR_PYPI}")
         else
             if [[ ${AIRFLOW_VERSION} != *${VERSION_SUFFIX_FOR_PYPI} ]]; then
-                if [[ $AIRFLOW_VERSION =~ ^[0-9\.]+([a-z0-9]*)$ ]]; then
-                    echo
-                    echo "${COLOR_YELLOW}The requested PyPI suffix ${VERSION_SUFFIX_FOR_PYPI} does not match the one in ${AIRFLOW_VERSION}. Overriding it with one from ${AIRFLOW_VERSION}.${COLOR_RESET}"
-                    echo
-                    VERSION_SUFFIX_FOR_PYPI="${BASH_REMATCH[1]}"
-                    export VERSION_SUFFIX_FOR_PYPI
-                else
-                    echo
-                    echo "${COLOR_RED}The ${AIRFLOW_VERSION} does not follow the right version pattern 'X.Y.Zsuffix'. Quitting.${COLOR_RESET}"
-                    echo
-                    exit 1
-                fi
+                echo
+                echo "${COLOR_YELLOW}The requested PyPI suffix ${VERSION_SUFFIX_FOR_PYPI} does not match the one in ${AIRFLOW_VERSION}. Overriding it with one from ${VERSION_SUFFIX_FOR_PYPI}.${COLOR_RESET}"
+                echo
             fi
         fi
     fi
