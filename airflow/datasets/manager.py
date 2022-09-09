@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc
@@ -109,10 +108,7 @@ class DatasetManager(LoggingMixin):
 
             prefix = 'IGNORE'
         else:
-            raise ValueError("Only sqlite and postgres supported with this method.")
-        logger = logging.getLogger('sqlalchemy')
-        logger.setLevel(logging.DEBUG)
-
+            raise ValueError("Only sqlite, postgres, and mysql supported with this method.")
         params = [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags]
         if params:
             stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id)
@@ -120,7 +116,6 @@ class DatasetManager(LoggingMixin):
                 stmt = stmt.prefix_with(prefix)
             else:
                 stmt = stmt.on_conflict_do_nothing()
-            logger.warning(stmt.compile())
             session.execute(stmt, params)
             session.flush()
 
