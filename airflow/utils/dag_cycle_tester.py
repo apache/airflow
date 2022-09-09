@@ -58,7 +58,7 @@ def check_cycle(dag: 'DAG') -> None:
         """Returns first untraversed child task, else None if all tasks traversed."""
         for adjacent_task in current_task.get_direct_relative_ids():
             if visited[adjacent_task] == CYCLE_IN_PROGRESS:
-                msg = f"Cycle detected in DAG. Faulty task: {task_id}"
+                msg = f"Cycle detected in DAG: {dag.dag_id}. Faulty task: {task_id}"
                 raise AirflowDagCycleException(msg)
             elif visited[adjacent_task] == CYCLE_NEW:
                 return adjacent_task

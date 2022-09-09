@@ -297,7 +297,7 @@ class WorkflowInfo(NamedTuple):
         print(get_ga_output(name="runs-on", value=self.get_runs_on()))
         print(get_ga_output(name='in-workflow-build', value=self.in_workflow_build()))
         print(get_ga_output(name="build-job-description", value=self.get_build_job_description()))
-        print(get_ga_output(name="merge-run", value=self.is_merge_run()))
+        print(get_ga_output(name="canary-run", value=self.is_canary_run()))
         print(get_ga_output(name="run-coverage", value=self.run_coverage()))
 
     def get_runs_on(self) -> str:
@@ -319,7 +319,7 @@ class WorkflowInfo(NamedTuple):
             return "Build"
         return "Skip Build (look in pull_request_target)"
 
-    def is_merge_run(self) -> str:
+    def is_canary_run(self) -> str:
         if (
             self.event_name == 'push'
             and self.head_repo == "apache/airflow"
