@@ -42,7 +42,9 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
         operator = LifeSciencesRunPipelineOperator(
             task_id='task-id', body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
         )
-        result = operator.execute(None)
+        context = mock.MagicMock()
+        result = operator.execute(context=context)
+
         assert result == TEST_OPERATION
 
     @mock.patch("airflow.providers.google.cloud.operators.life_sciences.LifeSciencesHook")
@@ -54,5 +56,6 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
             body=TEST_BODY,
             location=TEST_LOCATION,
         )
-        result = operator.execute(None)
+        context = mock.MagicMock()
+        result = operator.execute(context=context)
         assert result == TEST_OPERATION

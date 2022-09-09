@@ -33,6 +33,7 @@ import google.oauth2.service_account
 import google_auth_httplib2
 import requests
 import tenacity
+from asgiref.sync import sync_to_async
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk, compute_engine
@@ -55,7 +56,6 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
-
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
 INVALID_KEYS = [
@@ -602,3 +602,26 @@ class GoogleBaseHook(BaseHook):
             message = str(e)
 
         return status, message
+
+
+class GoogleBaseAsyncHook(BaseHook):
+    """GoogleBaseAsyncHook inherits from BaseHook class, run on the trigger worker"""
+
+    sync_hook_class: Any = None
+
+    def __init__(self, **kwargs: Any):
+        self._hook_kwargs = kwargs
+        self._sync_hook = None
+
+    async def get_sync_hook(self) -> Any:
+        """
+        Sync version of the Google Cloud Hooks makes blocking calls in ``__init__`` so we don't inherit
+        from it.
+        """
+        if not self._sync_hook:
+            self._sync_hook = await sync_to_async(self.sync_hook_class)(**self._hook_kwargs)
+        return self._sync_hook
+
+    async def service_file_as_context(self) -> Any:
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.provide_gcp_credential_file_as_context)()

@@ -17,10 +17,15 @@
 
 from unittest import TestCase, mock
 
+import pytest
+
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
+    BigQueryTableExistenceAsyncSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
+from airflow.providers.google.cloud.triggers.bigquery import BigQueryTableExistenceTrigger
 
 TEST_PROJECT_ID = "test_project"
 TEST_DATASET_ID = 'test_dataset'
@@ -87,3 +92,66 @@ class TestBigqueryTablePartitionExistenceSensor(TestCase):
             table_id=TEST_TABLE_ID,
             partition_id=TEST_PARTITION_ID,
         )
+
+
+@pytest.fixture()
+def context():
+    """
+    Creates an empty context.
+    """
+    context = {}
+    yield context
+
+
+class TestBigQueryTableExistenceAsyncSensor(TestCase):
+    def test_big_query_table_existence_sensor_async(self):
+        """
+        Asserts that a task is deferred and a BigQueryTableExistenceTrigger will be fired
+        when the BigQueryTableExistenceAsyncSensor is executed.
+        """
+        task = BigQueryTableExistenceAsyncSensor(
+            task_id="check_table_exists",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={})
+        assert isinstance(
+            exc.value.trigger, BigQueryTableExistenceTrigger
+        ), "Trigger is not a BigQueryTableExistenceTrigger"
+
+    def test_big_query_table_existence_sensor_async_execute_failure(self):
+        """Tests that an AirflowException is raised in case of error event"""
+        task = BigQueryTableExistenceAsyncSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
+
+    def test_big_query_table_existence_sensor_async_execute_complete(self):
+        """Asserts that logging occurs as expected"""
+        task = BigQueryTableExistenceAsyncSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+        )
+        table_uri = f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        with mock.patch.object(task.log, "info") as mock_log_info:
+            task.execute_complete(context={}, event={"status": "success", "message": "Job completed"})
+        mock_log_info.assert_called_with("Sensor checks existence of table: %s", table_uri)
+
+    def test_big_query_sensor_async_execute_complete_event_none(self):
+        """Asserts that logging occurs as expected"""
+        task = BigQueryTableExistenceAsyncSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context={}, event=None)
