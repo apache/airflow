@@ -90,7 +90,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
     @staticmethod
     def _append_label(instance: Instance, key: str, val: str) -> Instance:
         """
-        Append labels to provided Instance type
+        Append labels to provided Instance type.
 
         Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
          airflow version string follows semantic versioning spec: x.y.z).
@@ -275,6 +275,8 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
+        Failover of the primary node to current replica node.
+
         Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
         Memorystore for Redis instance.
 
@@ -392,8 +394,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-        Lists all Redis instances owned by a project in either the specified location (region) or all
-        locations.
+        List Redis instances owned by a project at the specified location (region) or all locations.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
 
@@ -528,7 +529,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     @staticmethod
     def _append_label(instance: cloud_memcache.Instance, key: str, val: str) -> cloud_memcache.Instance:
         """
-        Append labels to provided Instance type
+        Append labels to provided Instance type.
 
         Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
          airflow version string follows semantic versioning spec: x.y.z).
@@ -752,8 +753,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-        Lists all Memcached instances owned by a project in either the specified location (region) or all
-        locations.
+        List Memcached instances owned by a project at the specified location (region) or all locations.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
 
@@ -851,9 +851,10 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[Tuple[str, str]] = (),
     ):
         """
-        Updates the defined Memcached Parameters for an existing Instance. This method only stages the
-            parameters, it must be followed by apply_parameters to apply the parameters to nodes of
-            the Memcached Instance.
+        Update the defined Memcached Parameters for an existing Instance.
+
+        This method only stages the parameters, it must be followed by apply_parameters
+        to apply the parameters to nodes of the Memcached Instance.
 
         :param update_mask: Required. Mask of fields to update.
             If a dict is provided, it must be of the same form as the protobuf message

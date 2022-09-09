@@ -61,8 +61,10 @@ class MySqlHook(DbApiHook):
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
-        The MySQLdb (mysqlclient) client uses an `autocommit` method rather
-        than an `autocommit` property to set the autocommit setting
+        Set *autocommit*.
+
+        *mysqlclient* uses an *autocommit* method rather than an *autocommit*
+        property, so we need to override this to support it.
 
         :param conn: connection to set autocommit setting
         :param autocommit: autocommit setting
@@ -75,8 +77,10 @@ class MySqlHook(DbApiHook):
 
     def get_autocommit(self, conn: MySQLConnectionTypes) -> bool:
         """
-        The MySQLdb (mysqlclient) client uses a `get_autocommit` method
-        rather than an `autocommit` property to get the autocommit setting
+        Whether *autocommit* is active.
+
+        *mysqlclient* uses an *get_autocommit* method rather than an *autocommit*
+        property, so we need to override this to support it.
 
         :param conn: connection to get autocommit setting from.
         :return: connection autocommit setting
@@ -146,6 +150,8 @@ class MySqlHook(DbApiHook):
 
     def get_conn(self) -> MySQLConnectionTypes:
         """
+        Connection to a MySQL database.
+
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
 
@@ -174,7 +180,7 @@ class MySqlHook(DbApiHook):
         raise ValueError('Unknown MySQL client name provided!')
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """Loads a tab-delimited file into a database table"""
+        """Load a tab-delimited file into a database table."""
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -187,7 +193,7 @@ class MySqlHook(DbApiHook):
         conn.close()
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """Dumps a database table into a tab-delimited file"""
+        """Dump a database table into a tab-delimited file."""
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -202,6 +208,8 @@ class MySqlHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell: object, conn: Optional[Connection] = None) -> object:
         """
+        Convert argument to a literal.
+
         The package MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
 
@@ -214,6 +222,8 @@ class MySqlHook(DbApiHook):
 
     def get_iam_token(self, conn: Connection) -> Tuple[str, int]:
         """
+        Retrieve a temporary password to connect to MySQL.
+
         Uses AWSHook to retrieve a temporary password to connect to MySQL
         Port is required. If none is provided, default 3306 is used
         """

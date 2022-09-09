@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 class QuboleSensor(BaseSensorOperator):
-    """Base class for all Qubole Sensors"""
+    """Base class for all Qubole Sensors."""
 
     template_fields: Sequence[str] = ('data', 'qubole_conn_id')
 
@@ -68,8 +68,9 @@ class QuboleSensor(BaseSensorOperator):
 
 class QuboleFileSensor(QuboleSensor):
     """
-    Wait for a file or folder to be present in cloud storage
-    and check for its presence via QDS APIs
+    Wait for a file or folder to be present in cloud storage.
+
+    Check for file or folder presence via QDS APIs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -92,8 +93,9 @@ class QuboleFileSensor(QuboleSensor):
 
 class QubolePartitionSensor(QuboleSensor):
     """
-    Wait for a Hive partition to show up in QHS (Qubole Hive Service)
-    and check for its presence via QDS APIs
+    Wait for a Hive partition to show up in QHS (Qubole Hive Service).
+
+    Check for Hive partition presence via QDS APIs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

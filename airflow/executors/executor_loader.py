@@ -65,7 +65,7 @@ class ExecutorLoader:
 
     @classmethod
     def get_default_executor(cls) -> "BaseExecutor":
-        """Creates a new instance of the configured executor if none exists and returns it"""
+        """Creates a new instance of the configured executor if none exists and returns it."""
         if cls._default_executor is not None:
             return cls._default_executor
 
@@ -134,7 +134,6 @@ class ExecutorLoader:
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> "BaseExecutor":
-        """:return: an instance of CeleryKubernetesExecutor"""
         celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
@@ -143,7 +142,6 @@ class ExecutorLoader:
 
     @classmethod
     def __load_local_kubernetes_executor(cls) -> "BaseExecutor":
-        """:return: an instance of LocalKubernetesExecutor"""
         local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
