@@ -149,7 +149,6 @@ class TestRedshiftCreateClusterSnapshotOperator:
         create_snapshot.execute(None)
         mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
             ClusterIdentifier="test_cluster",
-            SnapshotIdentifier="test_snapshot",
             WaiterConfig={"Delay": 15, "MaxAttempts": 20},
         )
 
