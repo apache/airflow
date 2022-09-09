@@ -531,7 +531,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
