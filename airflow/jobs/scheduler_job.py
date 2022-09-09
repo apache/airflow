@@ -1135,6 +1135,7 @@ class SchedulerJob(BaseJob):
                 ]
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
+
                 dataset_events = (
                     session.query(DatasetEvent)
                     .join(
