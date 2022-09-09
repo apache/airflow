@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 class RedshiftToS3Operator(BaseOperator):
     """
-    Executes an UNLOAD command to s3 as a CSV with headers
+    Execute an UNLOAD command to s3 as a CSV with headers.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
