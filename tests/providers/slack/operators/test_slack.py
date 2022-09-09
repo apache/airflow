@@ -16,15 +16,64 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator
+import pytest
+
+from airflow.models import Connection
+from airflow.providers.slack.operators.slack import (
+    SlackAPIFileOperator,
+    SlackAPIOperator,
+    SlackAPIPostOperator,
+)
+
+SLACK_API_TEST_CONNECTION_ID = "test_slack_conn_id"
 
 
-class TestSlackAPIPostOperator(unittest.TestCase):
-    def setUp(self):
+@pytest.fixture(scope="module", autouse=True)
+def slack_api_connections():
+    """Create tests connections."""
+    connections = [
+        Connection(
+            conn_id=SLACK_API_TEST_CONNECTION_ID,
+            conn_type="slack",
+            password="xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
+        ),
+    ]
+    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
+
+    with mock.patch.dict("os.environ", values=conn_uris):
+        yield
+
+
+class TestSlackAPIOperator:
+    @mock.patch("airflow.providers.slack.operators.slack.mask_secret")
+    def test_mask_token(self, mock_mask_secret):
+        SlackAPIOperator(task_id="test-mask-token", token="super-secret-token")
+        mock_mask_secret.assert_called_once_with("super-secret-token")
+
+    @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
+    @pytest.mark.parametrize(
+        "token,conn_id",
+        [
+            ("token", SLACK_API_TEST_CONNECTION_ID),
+            ("token", None),
+            (None, SLACK_API_TEST_CONNECTION_ID),
+        ],
+    )
+    def test_hook(self, mock_slack_hook_cls, token, conn_id):
+        mock_slack_hook = mock_slack_hook_cls.return_value
+        op = SlackAPIOperator(task_id="test-mask-token", token=token, slack_conn_id=conn_id)
+        hook = op.hook
+        assert hook == mock_slack_hook
+        assert hook is op.hook
+        mock_slack_hook_cls.assert_called_once_with(token=token, slack_conn_id=conn_id)
+
+
+class TestSlackAPIPostOperator:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         self.test_username = 'test_username'
         self.test_channel = '#test_slack_channel'
         self.test_text = 'test_text'
@@ -91,7 +140,6 @@ class TestSlackAPIPostOperator(unittest.TestCase):
 
     def test_init_with_valid_params(self):
         test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
         assert slack_api_post_operator.token == test_token
@@ -105,18 +153,16 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         assert slack_api_post_operator.attachments == self.test_attachments
         assert slack_api_post_operator.blocks == self.test_blocks
 
-        slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
+        slack_api_post_operator = self.__construct_operator(None, SLACK_API_TEST_CONNECTION_ID)
         assert slack_api_post_operator.token is None
-        assert slack_api_post_operator.slack_conn_id == test_slack_conn_id
+        assert slack_api_post_operator.slack_conn_id == SLACK_API_TEST_CONNECTION_ID
 
     @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
     def test_api_call_params_with_default_args(self, mock_hook):
-        test_slack_conn_id = 'test_slack_conn_id'
-
         slack_api_post_operator = SlackAPIPostOperator(
             task_id='slack',
             username=self.test_username,
-            slack_conn_id=test_slack_conn_id,
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
         )
 
         slack_api_post_operator.execute(context=MagicMock())
@@ -135,32 +181,24 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         assert expected_api_params == slack_api_post_operator.api_params
 
 
-class TestSlackAPIFileOperator(unittest.TestCase):
-    def setUp(self):
+class TestSlackAPIFileOperator:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         self.test_username = 'test_username'
         self.test_channel = '#test_slack_channel'
         self.test_initial_comment = 'test text file test_filename.txt'
         self.filename = 'test_filename.txt'
         self.test_filetype = 'text'
         self.test_content = 'This is a test text file!'
-
         self.test_api_params = {'key': 'value'}
-
         self.expected_method = 'files.upload'
-        self.expected_api_params = {
-            'channel': self.test_channel,
-            'initial_comment': self.test_initial_comment,
-            'file': self.filename,
-            'filetype': self.test_filetype,
-            'content': self.test_content,
-        }
 
     def __construct_operator(self, test_token, test_slack_conn_id, test_api_params=None):
         return SlackAPIFileOperator(
             task_id='slack',
             token=test_token,
             slack_conn_id=test_slack_conn_id,
-            channel=self.test_channel,
+            channels=self.test_channel,
             initial_comment=self.test_initial_comment,
             filename=self.filename,
             filetype=self.test_filetype,
@@ -170,63 +208,84 @@ class TestSlackAPIFileOperator(unittest.TestCase):
 
     def test_init_with_valid_params(self):
         test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
         assert slack_api_post_operator.token == test_token
         assert slack_api_post_operator.slack_conn_id is None
         assert slack_api_post_operator.method == self.expected_method
         assert slack_api_post_operator.initial_comment == self.test_initial_comment
-        assert slack_api_post_operator.channel == self.test_channel
+        assert slack_api_post_operator.channels == self.test_channel
         assert slack_api_post_operator.api_params == self.test_api_params
         assert slack_api_post_operator.filename == self.filename
         assert slack_api_post_operator.filetype == self.test_filetype
         assert slack_api_post_operator.content == self.test_content
 
-        slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
+        slack_api_post_operator = self.__construct_operator(None, SLACK_API_TEST_CONNECTION_ID)
         assert slack_api_post_operator.token is None
-        assert slack_api_post_operator.slack_conn_id == test_slack_conn_id
+        assert slack_api_post_operator.slack_conn_id == SLACK_API_TEST_CONNECTION_ID
 
-    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
-    def test_api_call_params_with_content_args(self, mock_hook):
-        test_slack_conn_id = 'test_slack_conn_id'
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook.send_file')
+    @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
+    @pytest.mark.parametrize("title", [None, "Spam Egg"])
+    def test_api_call_params_with_content_args(self, mock_send_file, initial_comment, title):
+        SlackAPIFileOperator(
+            task_id='slack',
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            content='test-content',
+            channels='#test-channel',
+            initial_comment=initial_comment,
+            title=title,
+        ).execute(context=MagicMock())
 
-        slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack', slack_conn_id=test_slack_conn_id, content='test-content'
+        mock_send_file.assert_called_once_with(
+            channels='#test-channel',
+            content='test-content',
+            file=None,
+            initial_comment=initial_comment,
+            title=title,
         )
 
-        slack_api_post_operator.execute(context=MagicMock())
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook.send_file')
+    @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
+    @pytest.mark.parametrize("title", [None, "Spam Egg"])
+    def test_api_call_params_with_file_args(self, mock_send_file, initial_comment, title):
+        SlackAPIFileOperator(
+            task_id='slack',
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channels='C1234567890',
+            filename='/dev/null',
+            initial_comment=initial_comment,
+            title=title,
+        ).execute(context=MagicMock())
 
-        expected_api_params = {
-            'channels': '#general',
-            'initial_comment': 'No message has been set!',
-            'content': 'test-content',
-        }
-        assert expected_api_params == slack_api_post_operator.api_params
-
-    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
-    def test_api_call_params_with_file_args(self, mock_hook):
-        test_slack_conn_id = 'test_slack_conn_id'
-
-        import os
-
-        # Look for your absolute directory path
-        absolute_path = os.path.dirname(os.path.abspath(__file__))
-        # Or: file_path = os.path.join(absolute_path, 'folder', 'my_file.py')
-        file_path = absolute_path + '/test.csv'
-
-        print(f"full path ${file_path}")
-
-        slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack', slack_conn_id=test_slack_conn_id, filename=file_path, filetype='csv'
+        mock_send_file.assert_called_once_with(
+            channels='C1234567890',
+            content=None,
+            file='/dev/null',
+            initial_comment=initial_comment,
+            title=title,
         )
 
-        slack_api_post_operator.execute(context=MagicMock())
+    def test_channel_deprecated(self):
+        warning_message = (
+            r"Argument `channel` is deprecated and will removed in a future releases\. "
+            r"Please use `channels` instead\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            op = SlackAPIFileOperator(
+                task_id='slack',
+                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+                channel="#random",
+                channels=None,
+            )
+        assert op.channels == "#random"
 
-        expected_api_params = {
-            'channels': '#general',
-            'initial_comment': 'No message has been set!',
-            'filename': file_path,
-            'filetype': 'csv',
-        }
-        assert expected_api_params == slack_api_post_operator.api_params
+    def test_both_channel_and_channels_set(self):
+        error_message = r"Cannot set both arguments: channel=.* and channels=.*\."
+        with pytest.raises(ValueError, match=error_message):
+            SlackAPIFileOperator(
+                task_id='slack',
+                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+                channel="#random",
+                channels="#general",
+            )

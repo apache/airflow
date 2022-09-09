@@ -366,3 +366,99 @@ class TestSlackHook:
         conn_test = hook.test_connection()
         mock_webclient_call.assert_called_once_with("auth.test")
         assert not conn_test[0]
+
+    @pytest.mark.parametrize("file,content", [(None, None), ("", ""), ("foo.bar", "test-content")])
+    def test_send_file_wrong_parameters(self, file, content):
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        error_message = r"Either `file` or `content` must be provided, not both\."
+        with pytest.raises(ValueError, match=error_message):
+            hook.send_file(file=file, content=content)
+
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @pytest.mark.parametrize("initial_comment", [None, "test comment"])
+    @pytest.mark.parametrize("title", [None, "test title"])
+    @pytest.mark.parametrize("filetype", [None, "auto"])
+    @pytest.mark.parametrize("channels", [None, "#random", "#random,#general", ("#random", "#general")])
+    def test_send_file_path(
+        self, mock_webclient_cls, tmp_path_factory, initial_comment, title, filetype, channels
+    ):
+        """Test send file by providing filepath."""
+        mock_files_upload = mock.MagicMock()
+        mock_webclient_cls.return_value.files_upload = mock_files_upload
+
+        tmp = tmp_path_factory.mktemp("test_send_file_path")
+        file = tmp / "test.json"
+        file.write_bytes(b'{"foo": "bar"}')
+
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        hook.send_file(
+            channels=channels,
+            file=file,
+            filename="filename.mock",
+            initial_comment=initial_comment,
+            title=title,
+            filetype=filetype,
+        )
+
+        mock_files_upload.assert_called_once_with(
+            channels=channels,
+            file=mock.ANY,  # Validate file properties later
+            filename="filename.mock",
+            initial_comment=initial_comment,
+            title=title,
+            filetype=filetype,
+        )
+
+        # Validate file properties
+        mock_file = mock_files_upload.call_args[1]["file"]
+        assert mock_file.mode == "rb"
+        assert mock_file.name == str(file)
+
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @pytest.mark.parametrize("filename", ["test.json", "1.parquet.snappy"])
+    def test_send_file_path_set_filename(self, mock_webclient_cls, tmp_path_factory, filename):
+        """Test set filename in send_file method if it not set."""
+        mock_files_upload = mock.MagicMock()
+        mock_webclient_cls.return_value.files_upload = mock_files_upload
+
+        tmp = tmp_path_factory.mktemp("test_send_file_path_set_filename")
+        file = tmp / filename
+        file.write_bytes(b'{"foo": "bar"}')
+
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        hook.send_file(file=file)
+
+        assert mock_files_upload.call_count == 1
+        call_args = mock_files_upload.call_args[1]
+        assert "filename" in call_args
+        assert call_args["filename"] == filename
+
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    @pytest.mark.parametrize("initial_comment", [None, "test comment"])
+    @pytest.mark.parametrize("title", [None, "test title"])
+    @pytest.mark.parametrize("filetype", [None, "auto"])
+    @pytest.mark.parametrize("filename", [None, "foo.bar"])
+    @pytest.mark.parametrize("channels", [None, "#random", "#random,#general", ("#random", "#general")])
+    def test_send_file_content(
+        self, mock_webclient_cls, initial_comment, title, filetype, channels, filename
+    ):
+        """Test send file by providing content."""
+        mock_files_upload = mock.MagicMock()
+        mock_webclient_cls.return_value.files_upload = mock_files_upload
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        hook.send_file(
+            channels=channels,
+            content='{"foo": "bar"}',
+            filename=filename,
+            initial_comment=initial_comment,
+            title=title,
+            filetype=filetype,
+        )
+        mock_files_upload.assert_called_once_with(
+            channels=channels,
+            content='{"foo": "bar"}',
+            filename=filename,
+            initial_comment=initial_comment,
+            title=title,
+            filetype=filetype,
+        )
