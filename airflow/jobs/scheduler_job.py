@@ -1092,6 +1092,10 @@ class SchedulerJob(BaseJob):
                 tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
             )
         )
+        active_runs_of_dags = defaultdict(
+            int,
+            DagRun.active_runs_of_dags(dag_ids=(dm.dag_id for dm in dag_models), session=session),
+        )
 
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
@@ -1105,7 +1109,14 @@ class SchedulerJob(BaseJob):
                     dag_model.dag_id,
                 )
                 continue
-
+            if active_runs_of_dags[dag_model.dag_id] >= dag_model.max_active_runs:
+                self.log.info(
+                    "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                    dag_model.dag_id,
+                    active_runs_of_dags[dag_model.dag_id],
+                    dag.max_active_runs,
+                )
+                continue
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
 
             # Explicitly check if the DagRun already exists. This is an edge case
