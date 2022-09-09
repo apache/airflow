@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
+    ContainerGroupNetworkProfile,
     ContainerPort,
     EnvironmentVariable,
     IpAddress,
@@ -88,6 +89,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param restart_policy: Restart policy for all containers within the container group.
         Possible values include: 'Always', 'OnFailure', 'Never'
     :param ip_address: The IP address type of the container group.
+    :param network_profile: The network profile information for a container group.
 
     **Example**::
 
@@ -142,6 +144,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         restart_policy: str = 'Never',
         ip_address: Optional[IpAddress] = None,
         ports: Optional[List[ContainerPort]] = None,
+        network_profile: Optional[ContainerGroupNetworkProfile] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -179,6 +182,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             )
         self.ip_address = ip_address
         self.ports = ports
+        self.network_profile = network_profile
 
     def execute(self, context: "Context") -> int:
         # Check name again in case it was templated.
@@ -251,6 +255,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 os_type=self.os_type,
                 tags=self.tags,
                 ip_address=self.ip_address,
+                network_profile=self.network_profile,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
