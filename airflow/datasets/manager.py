@@ -61,7 +61,9 @@ class DatasetManager(LoggingMixin):
                 extra=extra,
             )
         )
-        self._queue_dagruns(dataset_model, session)
+        if dataset_model.consuming_dags:
+            self._queue_dagruns(dataset_model, session)
+        session.flush()
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
@@ -91,8 +93,6 @@ class DatasetManager(LoggingMixin):
             except exc.IntegrityError:
                 self.log.debug("Skipping record %s", item, exc_info=True)
 
-        session.flush()
-
     def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
@@ -101,7 +101,6 @@ class DatasetManager(LoggingMixin):
             stmt,
             [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
         )
-        session.flush()
 
 
 def resolve_dataset_manager() -> "DatasetManager":
