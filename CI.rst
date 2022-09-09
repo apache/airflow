@@ -21,7 +21,7 @@ CI Environment
 ==============
 
 Continuous Integration is important component of making Apache Airflow robust and stable. We are running
-a lot of tests for every pull request, for main and v2-*-test branches and regularly as CRON jobs.
+a lot of tests for every pull request, for main and v2-*-test branches and regularly as scheduled jobs.
 
 Our execution environment for CI is `GitHub Actions <https://github.com/features/actions>`_. GitHub Actions
 (GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/202 to become
@@ -83,6 +83,13 @@ a lot of precious time for jobs.
 We use `GitHub Container Registry <https://docs.github.com/en/packages/guides/about-github-container-registry>`_.
 ``GITHUB_TOKEN`` is needed to push to the registry and we configured scopes of the tokens in our jobs
 to be able to write to the registry.
+
+The latest cache is kept as ``:cache-amd64`` and ``:cache-arm64`` tagged cache (suitable for
+``--cache-from`` directive of buildx - it contains metadata and cache for all segments in the image,
+and cache is separately kept for different platform.
+
+The ``latest`` images of CI and PROD are ``amd64`` only images for CI, because there is no very easy way
+to push multiplatform images without merging the manifests and it is not really needed nor used for cache.
 
 Locally replicating CI failures
 -------------------------------
@@ -151,13 +158,6 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``FORCE_BUILD_IMAGES``                  |    false    |    false     |    false   | Forces building images. This is generally not   |
-|                                         |             |              |            | very useful in CI as in CI environment image    |
-|                                         |             |              |            | is built or pulled only once, so there is no    |
-|                                         |             |              |            | need to set the variable to true. For local     |
-|                                         |             |              |            | builds it forces rebuild, regardless if it      |
-|                                         |             |              |            | is determined to be needed.                     |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``ANSWER``                              |             |     yes      |     yes    | This variable determines if answer to questions |
 |                                         |             |              |            | during the build process should be              |
 |                                         |             |              |            | automatically given. For local development,     |
@@ -166,17 +166,6 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | the image should be rebuilt. By default         |
 |                                         |             |              |            | the user has to answer but in the CI            |
 |                                         |             |              |            | environment, we force "yes" answer.             |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``SKIP_CHECK_REMOTE_IMAGE``             |    false    |     true     |    true    | Determines whether we check if remote image     |
-|                                         |             |              |            | is "fresher" than the current image.            |
-|                                         |             |              |            | When doing local breeze runs we try to          |
-|                                         |             |              |            | determine if it will be faster to rebuild       |
-|                                         |             |              |            | the image or whether the image should be        |
-|                                         |             |              |            | pulled first from the cache because it has      |
-|                                         |             |              |            | been rebuilt. This is slightly experimental     |
-|                                         |             |              |            | feature and will be improved in the future      |
-|                                         |             |              |            | as the current mechanism does not always        |
-|                                         |             |              |            | work properly.                                  |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Host variables                                                            |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
@@ -265,107 +254,38 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | \* true in case of direct pushes and            |
 |                                         |             |              |            |    scheduled builds                             |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true     |   true\*   | Determines whether attempt should be            |
-|                                         |             |              |            | made to rebuild the CI image with latest        |
-|                                         |             |              |            | sources. It is true by default for              |
-|                                         |             |              |            | local builds, however it is set to              |
-|                                         |             |              |            | true in case we know that the image             |
-|                                         |             |              |            | we pulled or built already contains             |
-|                                         |             |              |            | the right sources. In such case we              |
-|                                         |             |              |            | should set it to false, especially              |
-|                                         |             |              |            | in case our local sources are not the           |
-|                                         |             |              |            | ones we intend to use (for example              |
-|                                         |             |              |            | when ``--image-tag`` is used              |
-|                                         |             |              |            | in Breeze.                                      |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | In CI jobs it is set to true                    |
-|                                         |             |              |            | in case of the ``Build Images``                 |
-|                                         |             |              |            | workflow or when                                |
-|                                         |             |              |            | waiting for images is disabled                  |
-|                                         |             |              |            | in the "Tests" workflow.                        |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* if waiting for images the variable is set    |
-|                                         |             |              |            |    to false automatically.                      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false    |   false\*  | Determines whether we should skip building      |
-|                                         |             |              |            | the PROD image with latest sources.             |
-|                                         |             |              |            | It is set to false, but in deploy app for       |
-|                                         |             |              |            | kubernetes step it is set to "true", because at |
-|                                         |             |              |            | this stage we know we have good image build or  |
-|                                         |             |              |            | pulled.                                         |
-|                                         |             |              |            |                                                 |
-|                                         |             |              |            | \* set to true in "Deploy App to Kubernetes"    |
-|                                         |             |              |            |    to false automatically.                      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 
 Running CI Jobs locally
 =======================
 
-The scripts and configuration files for CI jobs are all in ``scripts/ci`` - so that in the
-``pull_request_target`` target workflow, we can copy those scripts from the ``main`` branch and use them
-regardless of the changes done in the PR. This way we are kept safe from PRs injecting code into the builds.
+All our CI jobs are executed via ``breeze`` commands. You can replicate exactly what our CI is doing
+by running the sequence of corresponding ``breeze`` command. Make sure however that you look at both:
 
-* ``build_airflow`` - builds airflow packages
-* ``constraints`` - scripts to build and publish latest set of valid constraints
-* ``docs`` - scripts to build documentation
-* ``images`` - scripts to build and push CI and PROD images
-* ``kubernetes`` - scripts to setup kubernetes cluster, deploy airflow and run kubernetes tests with it
-* ``openapi`` - scripts to run openapi generation
-* ``pre_commit`` - scripts to run pre-commit checks
-* ``provider_packages`` - scripts to build and test provider packages
-* ``static_checks`` - scripts to run static checks manually
-* ``testing`` - scripts that run unit and integration tests
-* ``tools`` - scripts that can be used for various clean-up and preparation tasks
+* flags passed to ``breeze`` commands
+* environment variables used when ``breeze`` command is run - this is useful when we want
+  to set a common flag for all ``breeze`` commands in the same job or even the whole workflow. For
+  example ``VERBOSE`` variable is set to ``true`` for all our workflows so that more detailed information
+  about internal commands executed in CI is printed.
 
-Common libraries of functions for all the scripts can be found in ``libraries`` folder. The ``dockerfiles``,
-``mysql.d``, ``openldap``, ``spectral_rules`` folders contains DockerFiles and configuration of integrations
-needed to run tests.
-
-For detailed use of those scripts you can refer to ``.github/workflows/`` - those scripts are used
-by the CI workflows of ours. There are some variables that you can set to change the behaviour of the
-scripts.
-
-The default values are "sane"  you can change them to interact with your own repositories or registries.
-Note that you need to set "CI" variable to true in order to get the same results as in CI.
-
-+------------------------------+----------------------+-----------------------------------------------------+
-| Variable                     | Default              | Comment                                             |
-+==============================+======================+=====================================================+
-| CI                           | ``false``            | If set to "true", we simulate behaviour of          |
-|                              |                      | all scripts as if they are in CI environment        |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_TARGET_REPO               | ``apache/airflow``   | Target repository for the CI job. Used to           |
-|                              |                      | compare incoming changes from PR with the target.   |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_TARGET_BRANCH             | ``main``             | Target branch where the PR should land. Used to     |
-|                              |                      | compare incoming changes from PR with the target.   |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_BUILD_ID                  | ``0``                | Unique id of the build that is kept across re runs  |
-|                              |                      | (for GitHub actions it is ``GITHUB_RUN_ID``)        |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_JOB_ID                    | ``0``                | Unique id of the job - used to produce unique       |
-|                              |                      | artifact names.                                     |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_EVENT_TYPE                | ``pull_request``     | Type of the event. It can be one of                 |
-|                              |                      | [``pull_request``, ``pull_request_target``,         |
-|                              |                      |  ``schedule``, ``push``]                            |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_REF                       | ``refs/head/main``   | Branch in the source repository that is used to     |
-|                              |                      | make the pull request.                              |
-+------------------------------+----------------------+-----------------------------------------------------+
-
+In the output of the CI jobs, you will find both  - the flags passed and environment variables set.
 
 GitHub Registry Variables
 =========================
 
-Our CI uses GitHub Registry to pull and push images to/from by default. You can use your own repo by changing
-``GITHUB_REPOSITORY`` and providing your own GitHub Username and Token.
+Our CI uses GitHub Registry to pull and push images to/from by default. Those variables are set automatically
+by GitHub Actions when you run Airflow workflows in your fork, so they should automatically use your
+own repository as GitHub Registry to build and keep the images as build image cache.
+
+The variables are automatically set in GitHub actions
 
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
 | GITHUB_REPOSITORY              | ``apache/airflow``        | Prefix of the image. It indicates which.     |
-|                                |                           | registry from GitHub to use                  |
+|                                |                           | registry from GitHub to use for image cache  |
+|                                |                           | and to determine the name of the image.      |
++--------------------------------+---------------------------+----------------------------------------------+
+| CONSTRAINTS_GITHUB_REPOSITORY  | ``apache/airflow``        | Repository where constraints are stored      |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_USERNAME                |                           | Username to use to login to GitHub           |
 |                                |                           |                                              |
@@ -373,43 +293,49 @@ Our CI uses GitHub Registry to pull and push images to/from by default. You can 
 | GITHUB_TOKEN                   |                           | Token to use to login to GitHub.             |
 |                                |                           | Only used when pushing images on CI.         |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY_PULL_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
-|                                |                           | default, can also be full-length commit SHA. |
-+--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Push this image tag. This is "latest" by     |
-|                                |                           | default, can also be full-length commit SHA. |
-+--------------------------------+---------------------------+----------------------------------------------+
+
+The Variables beginning with ``GITHUB_`` cannot be overridden in GitHub Actions by the workflow.
+Those variables are set by GitHub Actions automatically and they are immutable. Therefore if
+you want to override them in your own CI workflow and use ``breeze``, you need to pass the
+values by corresponding ``breeze`` flags ``--github-repository``, ``--github-username``,
+``--github-token`` rather than by setting them as environment variables in your workflow.
+Unless you want to keep your own copy of constraints in orphaned ``constraints-*``
+branches, the ``CONSTRAINTS_GITHUB_REPOSITORY`` should remain ``apache/airflow``, regardless in which
+repository the CI job is run.
+
+One of the variables you might want to override in your own GitHub Actions workflow when using ``breeze`` is
+``--github-repository`` - you might want to force it to ``apache/airflow``, because then the cache from
+``apache/airflow`` repository will be used and your builds will be much faster.
+
+Example command to build your CI image efficiently in your own CI workflow:
+
+.. code-block:: bash
+
+   # GITHUB_REPOSITORY is set automatically in Github Actions so we need to override it with flag
+   #
+   breeze ci-image build --github-repository apache/airflow --python 3.10
+   docker tag ghcr.io/apache/airflow/main/ci/python3.10 your-image-name:tag
+
 
 Authentication in GitHub Registry
 =================================
 
 We are using GitHub Container Registry as cache for our images. Authentication uses GITHUB_TOKEN mechanism.
 Authentication is needed for pushing the images (WRITE) only in "push", "pull_request_target" workflows.
+When you are running the CI jobs in GitHub Actions, GITHUB_TOKEN is set automatically by the actions.
 
-CI Architecture
-===============
-
-The following components are part of the CI infrastructure
-
-* **Apache Airflow Code Repository** - our code repository at https://github.com/apache/airflow
-* **Apache Airflow Forks** - forks of the Apache Airflow Code Repository from which contributors make
-  Pull Requests
-* **GitHub Actions** -  (GA) UI + execution engine for our jobs
-* **GA CRON trigger** - GitHub Actions CRON triggering our jobs
-* **GA Workers** - virtual machines running our jobs at GitHub Actions (max 20 in parallel)
-* **GitHub Image Registry** - image registry used as build cache for CI jobs.
-  It is at https://ghcr.io/apache/airflow
-* **DockerHub Image Registry** - image registry used to pull base Python images and (manually) publish
-  the released Production Airflow images. It is at https://dockerhub.com/apache/airflow
-* **Official Images** (future) - these are official images that are prominently visible in DockerHub.
-  We aim our images to become official images so that you will be able to pull them
-  with ``docker pull apache-airflow``
 
 CI run types
 ============
 
 The following CI Job run types are currently run for Apache Airflow (run by ci.yaml workflow)
 and each of the run types has different purpose and context.
+
+Besides the regular "PR" runs we also have "Canary" runs that are able to detect most of the
+problems that might impact regular PRs early, without necessarily failing all PRs when those
+problems happen. This allows to provide much more stable environment for contributors, who
+contribute their PR, while giving a chance to maintainers to react early on problems that
+need reaction, when the "canary" builds fail.
 
 Pull request run
 ----------------
@@ -426,27 +352,37 @@ CI, Production Images as well as base Python images that are also cached in the 
 Also for those builds we only execute Python tests if important files changed (so for example if it is
 "no-code" change, no tests will be executed.
 
-Direct Push/Merge Run
----------------------
+Regular PR builds run in a "stable" environment:
 
-Those runs are results of direct pushes done by the committers or as result of merge of a Pull Request
+* fixed set of constraints (constraints that passed the tests) - except the PRs that change dependencies
+* limited matrix and set of tests (determined by selective checks based on what changed in the PR)
+* no ARM image builds are build in the regular PRs
+* lower probability of flaky tests for non-committer PRs (public runners and less parallelism)
+
+Canary run
+----------
+
+Those runs are results of direct pushes done by the committers - basically merging of a Pull Request
 by the committers. Those runs execute in the context of the Apache Airflow Code Repository and have also
 write permission for GitHub resources (container registry, code repository).
+
 The main purpose for the run is to check if the code after merge still holds all the assertions - like
-whether it still builds, all tests are green.
+whether it still builds, all tests are green. This is a "Canary" build that helps us to detect early
+problems with dependencies, image building, full matrix of tests in case they passed through selective checks.
 
 This is needed because some of the conflicting changes from multiple PRs might cause build and test failures
 after merge even if they do not fail in isolation. Also those runs are already reviewed and confirmed by the
 committers so they can be used to do some housekeeping:
-- pushing most recent image build in the PR to the GitHub Container Registry (for caching)
+
+- pushing most recent image build in the PR to the GitHub Container Registry (for caching) including recent
+  Dockerfile changes and setup.py/setup.cfg changes (Early Cache)
+- test that image in ``breeze`` command builds quickly
+- run full matrix of tests to detect any tests that will be mistakenly missed in ``selective checks``
 - upgrading to latest constraints and pushing those constraints if all tests succeed
 - refresh latest Python base images in case new patch-level is released
 
 The housekeeping is important - Python base images are refreshed with varying frequency (once every few months
 usually but sometimes several times per week) with the latest security and bug fixes.
-Those patch level images releases can occasionally break Airflow builds (specifically Docker image builds
-based on those images) therefore in PRs we only use latest "good" Python image that we store in the
-GitHub Container Registry and those push requests will refresh the latest images if they changed.
 
 Scheduled runs
 --------------
@@ -522,53 +458,55 @@ Tests Workflow
 
 This workflow is a regular workflow that performs all checks of Airflow code.
 
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Job                       | Description                                  | PR    | Push  | CRON |
-|                           |                                              |       | Merge | (1)  |
-+===========================+==============================================+=======+=======+======+
-| Build info                | Prints detailed information about the build  | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Push early cache & images | Pushes early cache/images to GitHub Registry | -     | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Test OpenAPI client gen   | Tests if OpenAPIClient continues to generate | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| UI tests                  | React UI tests for new Airflow UI            | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| WWW tests                 | React tests for current Airflow UI           | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Test image building       | Tests if PROD image build examples work      | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| CI Images                 | Waits for and verify CI Images (3)           | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| (Basic) Static checks     | Performs static checks (full or basic)       | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Build docs                | Builds documentation                         | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Tests                     | Run all the Pytest tests for Python code     | Yes(2)| Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Tests provider packages   | Tests if provider packages work              | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Upload coverage           | Uploads test coverage from all the tests     | -     | Yes   | -    |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| PROD Images               | Waits for and verify PROD Images (3)         | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Tests Kubernetes          | Run Kubernetes test                          | Yes(2)| Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Constraints               | Upgrade constraints to latest ones (4)       | -     | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Push cache & images       | Pushes cache/images to GitHub Registry (4)   | -     | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Job                         | Description                                              | PR      | Canary   | Scheduled |
++=============================+==========================================================+=========+==========+===========+
+| Build info                  | Prints detailed information about the build              | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Build CI/PROD images        | Builds images in-workflow (not in the build images one)  | -       | Yes      | Yes (1)   |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Push early cache & images   | Pushes early cache/images to GitHub Registry and test    | -       | Yes      | -         |
+|                             | speed of building breeze images from scratch             |         |          |           |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Test OpenAPI client gen     | Tests if OpenAPIClient continues to generate             | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| UI tests                    | React UI tests for new Airflow UI                        | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| WWW tests                   | React tests for current Airflow UI                       | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Test image building         | Tests if PROD image build examples work                  | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| CI Images                   | Waits for and verify CI Images (3)                       | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| (Basic) Static checks       | Performs static checks (full or basic)                   | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Build docs                  | Builds documentation                                     | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Tests                       | Run all the Pytest tests for Python code                 | Yes(2)  | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Tests provider packages     | Tests if provider packages work                          | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Upload coverage             | Uploads test coverage from all the tests                 | -       | Yes      | -         |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| PROD Images                 | Waits for and verify PROD Images (3)                     | Yes     | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Tests Kubernetes            | Run Kubernetes test                                      | Yes(2)  | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Constraints                 | Upgrade constraints to latest ones (4)                   | -       | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
+| Push cache & images         | Pushes cache/images to GitHub Registry (4)               | -       | Yes      | Yes       |
++-----------------------------+----------------------------------------------------------+---------+----------+-----------+
 
+``(1)`` Scheduled jobs builds images from scratch - to test if everything works properly for clean builds
 
-Comments:
+``(2)`` The tests are run when the Trigger Tests job determine that important files change (this allows
+for example "no-code" changes to build much faster)
 
- (1) CRON jobs builds images from scratch - to test if everything works properly for clean builds
- (2) The tests are run when the Trigger Tests job determine that important files change (this allows
-     for example "no-code" changes to build much faster)
- (3) The jobs wait for CI images to be available.
- (4) PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
-     upgrade only if all tests are successful. The images are rebuilt in this step using constraints pushed
-     in the previous step.
+``(3)`` The jobs wait for CI images to be available.
+
+``(4)`` PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
+upgraded only if all tests are successful. The images are rebuilt in this step using constraints pushed
+in the previous step.
 
 CodeQL scan
 -----------

@@ -40,7 +40,7 @@ def test_pr_info():
         assert wi.event_name == 'pull_request'
         assert wi.pr_number == 26004
         assert wi.get_runs_on() == "ubuntu-20.04"
-        assert wi.is_merge_run() == "false"
+        assert wi.is_canary_run() == "false"
         assert wi.run_coverage() == "false"
 
 
@@ -54,7 +54,7 @@ def test_push_info():
         assert wi.event_name == 'push'
         assert wi.pr_number is None
         assert wi.get_runs_on() == "ubuntu-20.04"
-        assert wi.is_merge_run() == "true"
+        assert wi.is_canary_run() == "true"
         assert wi.run_coverage() == "true"
 
 
@@ -68,7 +68,7 @@ def test_schedule():
         assert wi.event_name == 'schedule'
         assert wi.pr_number is None
         assert wi.get_runs_on() == "ubuntu-20.04"
-        assert wi.is_merge_run() == "false"
+        assert wi.is_canary_run() == "false"
         assert wi.run_coverage() == "false"
 
 
@@ -82,7 +82,7 @@ def test_runs_on_self_hosted():
         assert wi.event_name == 'pull_request'
         assert wi.pr_number == 1234
         assert wi.get_runs_on() == "self-hosted"
-        assert wi.is_merge_run() == "false"
+        assert wi.is_canary_run() == "false"
         assert wi.run_coverage() == "false"
 
 
@@ -96,7 +96,7 @@ def test_runs_on_forced_public_runner():
         assert wi.event_name == 'pull_request'
         assert wi.pr_number == 1234
         assert wi.get_runs_on() == "ubuntu-20.04"
-        assert wi.is_merge_run() == "false"
+        assert wi.is_canary_run() == "false"
         assert wi.run_coverage() == "false"
 
 
@@ -110,7 +110,7 @@ def test_runs_on_simple_pr_other_repo():
         assert wi.event_name == 'pull_request'
         assert wi.pr_number == 1234
         assert wi.get_runs_on() == "ubuntu-20.04"
-        assert wi.is_merge_run() == "false"
+        assert wi.is_canary_run() == "false"
         assert wi.run_coverage() == "false"
 
 
@@ -124,7 +124,7 @@ def test_runs_on_push_other_branch():
         assert wi.event_name == 'push'
         assert wi.pr_number is None
         assert wi.get_runs_on() == "self-hosted"
-        assert wi.is_merge_run() == "false"
+        assert wi.is_canary_run() == "false"
         assert wi.run_coverage() == "false"
 
 
@@ -138,5 +138,5 @@ def test_runs_on_push_v_test_branch():
         assert wi.event_name == 'push'
         assert wi.pr_number is None
         assert wi.get_runs_on() == "self-hosted"
-        assert wi.is_merge_run() == "true"
+        assert wi.is_canary_run() == "true"
         assert wi.run_coverage() == "false"

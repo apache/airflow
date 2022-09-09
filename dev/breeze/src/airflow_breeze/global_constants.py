@@ -29,13 +29,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-20.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
 
-# Commented this out as we are using buildkit and this vars became irrelevant
-# FORCE_PULL_IMAGES = False
-# CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
-FORCE_BUILD_IMAGES = False
 ANSWER = ""
-SKIP_CHECK_REMOTE_IMAGE = False
-# PUSH_PYTHON_BASE_IMAGE = False
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
