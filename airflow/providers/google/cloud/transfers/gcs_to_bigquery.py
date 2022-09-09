@@ -315,16 +315,15 @@ class GCSToBigQueryOperator(BaseOperator):
                 warnings.simplefilter("ignore", DeprecationWarning)
                 job_id = bq_hook.run_query(
                     sql=select_command,
+                    location=self.location,
                     use_legacy_sql=False,
                 )
-            row = list(bq_hook.get_job(job_id).result())
+            row = list(bq_hook.get_job(job_id=job_id, location=self.location).result())
             if row:
                 max_id = row[0] if row[0] else 0
                 self.log.info(
-                    'Loaded BQ data with max %s.%s=%s',
-                    self.destination_project_dataset_table,
-                    self.max_id_key,
-                    max_id,
+                    f'Loaded BQ data with max {self.destination_project_dataset_table}.{self.max_id_key}={max_id}',
                 )
+                return max_id
             else:
                 raise RuntimeError(f"The {select_command} returned no rows!")
