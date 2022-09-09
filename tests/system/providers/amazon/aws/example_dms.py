@@ -83,21 +83,21 @@ def _get_rds_instance_endpoint(instance_name: str):
 
 
 @task
-def create_security_group(sg_name: str, vpc_id: str):
+def create_security_group(security_group_name: str, vpc_id: str):
     client = boto3.client('ec2')
     security_group = client.create_security_group(
-        GroupName=sg_name,
+        GroupName=security_group_name,
         Description='Created for DMS system test',
         VpcId=vpc_id,
     )
     client.get_waiter('security_group_exists').wait(
         GroupIds=[security_group['GroupId']],
-        GroupNames=[sg_name],
+        GroupNames=[security_group_name],
         WaiterConfig={'Delay': 15, 'MaxAttempts': 4},
     )
     client.authorize_security_group_ingress(
         GroupId=security_group['GroupId'],
-        GroupName=sg_name,
+        GroupName=security_group_name,
         IpPermissions=[SG_IP_PERMISSION],
     )
 
@@ -220,8 +220,8 @@ def delete_dms_assets(
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_security_group(sg_id: str, sg_name: str):
-    boto3.client('ec2').delete_security_group(GroupId=sg_id, GroupName=sg_name)
+def delete_security_group(security_group_id: str, security_group_name: str):
+    boto3.client('ec2').delete_security_group(GroupId=security_group_id, GroupName=security_group_name)
 
 
 with DAG(
