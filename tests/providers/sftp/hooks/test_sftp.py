@@ -107,12 +107,18 @@ class TestSFTPHook(unittest.TestCase):
         self.hook.mkdir(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         assert new_dir_name in output
+        # test the directory has default permissions to 777
+        output = self.hook.get_conn().lstat(new_dir_name)
+        assert output.st_mode & 0o777 == 0o777
 
     def test_create_and_delete_directory(self):
         new_dir_name = "new_dir"
         self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         assert new_dir_name in output
+        # test the directory has default permissions to 777
+        output = self.hook.get_conn().lstat(new_dir_name)
+        assert output.st_mode & 0o777 == 0o777
         # test directory already exists for code coverage, should not raise an exception
         self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         # test path already exists and is a file, should raise an exception

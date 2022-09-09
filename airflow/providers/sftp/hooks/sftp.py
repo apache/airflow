@@ -214,7 +214,7 @@ class SFTPHook(SSHHook):
                 self.create_directory(dirname, mode)
             if basename:
                 self.log.info("Creating %s", path)
-                conn.mkdir(path, mode=mode)
+                conn.mkdir(path, mode=int(str(mode), 8))
 
     def delete_directory(self, path: str) -> None:
         """
