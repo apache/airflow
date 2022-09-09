@@ -18,7 +18,8 @@
 
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -212,6 +213,58 @@ class SlackHook(BaseHook):
             iterated on to execute subsequent requests.
         """
         return self.client.api_call(api_method, **kwargs)
+
+    def send_file(
+        self,
+        *,
+        channels: Optional[Union[str, Sequence[str]]] = None,
+        file: Optional[Union[str, Path]] = None,
+        content: Optional[str] = None,
+        filename: Optional[str] = None,
+        filetype: Optional[str] = None,
+        initial_comment: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> "SlackResponse":
+        """
+        Create or upload an existing file.
+
+        :param channels: Comma-separated list of channel names or IDs where the file will be shared.
+            If omitting this parameter, then file will send to workspace.
+        :param file: Path to file which need to be sent.
+        :param content: File contents. If omitting this parameter, you must provide a file.
+        :param filename: Displayed filename.
+        :param filetype: A file type identifier.
+        :param initial_comment: The message text introducing the file in specified ``channels``.
+        :param title: Title of file.
+
+        .. seealso::
+            - `Slack API files.upload method <https://api.slack.com/methods/files.upload>`_
+            - `File types <https://api.slack.com/types/file#file_types>`_
+        """
+        if not ((not file) ^ (not content)):
+            raise ValueError("Either `file` or `content` must be provided, not both.")
+        elif file:
+            file = Path(file)
+            with open(file, "rb") as fp:
+                if not filename:
+                    filename = file.name
+                return self.client.files_upload(
+                    file=fp,
+                    filename=filename,
+                    filetype=filetype,
+                    initial_comment=initial_comment,
+                    title=title,
+                    channels=channels,
+                )
+
+        return self.client.files_upload(
+            content=content,
+            filename=filename,
+            filetype=filetype,
+            initial_comment=initial_comment,
+            title=title,
+            channels=channels,
+        )
 
     def test_connection(self):
         """Tests the Slack API connection.
