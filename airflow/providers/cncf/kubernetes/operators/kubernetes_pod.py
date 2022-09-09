@@ -129,6 +129,7 @@ class KubernetesPodOperator(BaseOperator):
     :param hostnetwork: If True enable host networking on the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
+    :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec
@@ -199,6 +200,7 @@ class KubernetesPodOperator(BaseOperator):
         hostnetwork: bool = False,
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         security_context: Optional[Dict] = None,
+        container_security_context: Optional[Dict] = None,
         dnspolicy: Optional[str] = None,
         schedulername: Optional[str] = None,
         full_pod_spec: Optional[k8s.V1Pod] = None,
@@ -270,6 +272,7 @@ class KubernetesPodOperator(BaseOperator):
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
         self.security_context = security_context or {}
+        self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
@@ -557,6 +560,7 @@ class KubernetesPodOperator(BaseOperator):
                         args=self.arguments,
                         env=self.env_vars,
                         env_from=self.env_from,
+                        security_context=self.container_security_context,
                     )
                 ],
                 image_pull_secrets=self.image_pull_secrets,

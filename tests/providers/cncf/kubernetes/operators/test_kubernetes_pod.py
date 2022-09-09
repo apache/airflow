@@ -152,6 +152,42 @@ class TestKubernetesPodOperator:
         assert k.env_vars[0].value == "footemplated"
         assert k.env_vars[0].name == "bartemplated"
 
+    def test_security_context(self):
+        security_context = {
+            'runAsUser': 1245,
+        }
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            security_context=security_context,
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        assert pod.spec.security_context == security_context
+
+    def test_container_security_context(self):
+        container_security_context = {'allowPrivilegeEscalation': False}
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            container_security_context=container_security_context,
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        assert pod.spec.containers[0].security_context == container_security_context
+
     def test_envs_from_configmaps(
         self,
     ):
