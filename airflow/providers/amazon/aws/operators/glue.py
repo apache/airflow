@@ -17,17 +17,14 @@
 # under the License.
 
 import os.path
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
-# from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 
 class GlueJobOperator(BaseOperator):
@@ -35,44 +32,45 @@ class GlueJobOperator(BaseOperator):
     Creates an AWS Glue Job. AWS Glue is a serverless Spark
     ETL service for running Spark Jobs on the AWS cloud.
     Language support: Python and Scala
-
-    .. seealso::
+    .. see also::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GlueJobOperator`
-
     :param job_name: unique job name per AWS Account
     :param script_location: location of ETL script. Must be a local or S3 path
     :param job_desc: job description details
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
     :param script_args: etl script arguments and AWS Glue arguments (templated)
     :param retry_limit: The maximum number of times to retry this job if it fails
-    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
+    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
     :param region_name: aws region name (example: us-east-1)
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
-    :param wait_for_completion: Whether or not wait for job run completion. (default: True)
+    :param wait_for_completion: wait or not wait for job run completion. (default: True)
+    :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     """
 
-
-    template_fields: Sequence[str] = ('script_args',)
+    template_fields: Sequence[str] = (
+        'job_name',
+        'script_location',
+        'script_args',
+        's3_bucket',
+        'iam_role_name',
+    )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "script_args": "json",
         "create_job_kwargs": "json",
-
     }
-
     ui_color = '#ededed'
-
 
     def __init__(
         self,
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: str,
+        script_location: Optional[str] = None,
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
         retry_limit: int = 0,
@@ -83,9 +81,9 @@ class GlueJobOperator(BaseOperator):
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         run_job_kwargs: Optional[dict] = None,
-        verbose:bool = False,
-        continuous_logging:bool = False,
         wait_for_completion: bool = True,
+        verbose: bool = False,
+        continuous_logging: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -104,15 +102,13 @@ class GlueJobOperator(BaseOperator):
         self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
         self.create_job_kwargs = create_job_kwargs
         self.run_job_kwargs = run_job_kwargs or {}
+        self.wait_for_completion = wait_for_completion
         self.verbose = verbose
         self.continuous_logging = continuous_logging
-        self.wait_for_completion = wait_for_completion
-
 
     def execute(self, context: 'Context'):
         """
         Executes AWS Glue Job from Airflow
-
         :return: the id of the current glue job.
         """
         if self.script_location is None:
@@ -146,10 +142,9 @@ class GlueJobOperator(BaseOperator):
         )
         glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
         if self.wait_for_completion:
-            glue_job_run = glue_job.job_completion(self.job_name,
-                                                   glue_job_run['JobRunId'],
-                                                   verbose=self.verbose,
-                                                   continuous_logging=self.continuous_logging)
+            glue_job_run = glue_job.job_completion(
+                self.job_name, glue_job_run['JobRunId'], self.verbose, self.continuous_logging
+            )
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,
@@ -159,18 +154,3 @@ class GlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']
-
-class GlueJobOperator(GlueJobOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
