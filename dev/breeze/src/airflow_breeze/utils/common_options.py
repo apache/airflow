@@ -48,8 +48,32 @@ from airflow_breeze.utils.custom_param_types import (
 )
 from airflow_breeze.utils.recording import generating_command_images
 
+
+def _set_default_from_parent(ctx: "click.core.Context", option: "click.core.Option", value):
+    from click.core import ParameterSource
+
+    if (
+        ctx.parent
+        and option.name in ctx.parent.params
+        and ctx.get_parameter_source(option.name)
+        in (
+            ParameterSource.DEFAULT,
+            ParameterSource.DEFAULT_MAP,
+        )
+    ):
+        # Current value is the default, use the parent's value (i.e. for `breeze
+        # # -v static-checks` respect the "global" option)
+        value = ctx.parent.params[option.name]
+    return value
+
+
 option_verbose = click.option(
-    "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Print verbose information about performed steps.",
+    envvar='VERBOSE',
+    callback=_set_default_from_parent,
 )
 option_dry_run = click.option(
     "-D",
@@ -57,6 +81,7 @@ option_dry_run = click.option(
     is_flag=True,
     help="If dry-run is set, commands are only printed, not executed.",
     envvar='DRY_RUN',
+    callback=_set_default_from_parent,
 )
 option_answer = click.option(
     "-a",
@@ -64,6 +89,7 @@ option_answer = click.option(
     type=AnswerChoice(['y', 'n', 'q', 'yes', 'no', 'quit']),
     help="Force answer to questions.",
     envvar='ANSWER',
+    callback=_set_default_from_parent,
 )
 option_github_repository = click.option(
     '-g',
@@ -72,6 +98,7 @@ option_github_repository = click.option(
     default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     envvar='GITHUB_REPOSITORY',
+    callback=_set_default_from_parent,
 )
 option_python = click.option(
     '-p',
@@ -500,4 +527,5 @@ option_max_time = click.option(
     help="Maximum time that the command should take - if it takes longer, the command will fail.",
     type=click.IntRange(min=1),
     envvar='MAX_TIME',
+    callback=_set_default_from_parent,
 )
