@@ -178,11 +178,11 @@ sequenceDiagram
     deactivate Tests
 ```
 
-## Direct Push/Merge flow
+## Merge "Canary" run
 
 ```mermaid
 sequenceDiagram
-    Note over Airflow Repo: pull request
+    Note over Airflow Repo: push/merge
     Note over Tests: push<br>[Write Token]
     activate Airflow Repo
     Airflow Repo -->> Tests: Trigger 'push'
@@ -199,6 +199,7 @@ sequenceDiagram
     and
         Note over Tests: Build CI Images<br>Use original constraints
         Tests ->> GitHub Registry: Push CI Image Early cache + latest
+        Note over Tests: Test 'breeze' image build quickly
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -257,7 +258,7 @@ sequenceDiagram
     deactivate Tests
 ```
 
-## Scheduled build flow
+## Scheduled run
 
 ```mermaid
 sequenceDiagram
@@ -279,6 +280,7 @@ sequenceDiagram
     and
         Note over Tests: Build CI Images<br>Use original constraints
         Tests ->> GitHub Registry: Push CI Image Early cache + latest
+        Note over Tests: Test 'breeze' image build quickly
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]

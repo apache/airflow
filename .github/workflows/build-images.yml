@@ -26,8 +26,6 @@ permissions:
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   ANSWER: "yes"
-  CHECK_IMAGE_FOR_REBUILD: "true"
-  SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}

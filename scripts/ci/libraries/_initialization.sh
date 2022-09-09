@@ -274,15 +274,9 @@ function initialization::initialize_mount_variables() {
 
 # Determine values of force settings
 function initialization::initialize_force_variables() {
-    # Determines whether to force build without checking if it is needed
-    # Can be overridden by '--force-build-images' flag.
-    export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
     # Can be set to "yes/no/quit" in order to force specified answer to all questions asked to the user.
     export ANSWER=${ANSWER:=""}
-
-    # Can be set to true to skip if the image is newer in registry
-    export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
 
     # integrations are disabled by default
     export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
@@ -461,8 +455,6 @@ function initialization::initialize_git_variables() {
 }
 
 function initialization::initialize_github_variables() {
-    export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
-    export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
     export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
     # Allows to override the repository which is used as source of constraints during the build
@@ -557,7 +549,7 @@ function initialization::get_docker_cache_image_names() {
     # Example:
     #  ghcr.io/apache/airflow/main/ci/python3.8:latest
     #  ghcr.io/apache/airflow/main/ci/python3.8:<COMMIT_SHA>
-    export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest"
 
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
@@ -585,9 +577,7 @@ Mount variables:
 
 Force variables:
 
-    FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     ANSWER: ${ANSWER}
-    SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
 
 Host variables:
 
@@ -643,7 +633,6 @@ Detected GitHub environment:
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
     GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
-    GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
     GITHUB_ACTIONS: '${GITHUB_ACTIONS=}'
 
 Initialization variables:
@@ -772,7 +761,6 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_RUNTIME_APT_ENV
 
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
-    readonly GITHUB_REGISTRY_PUSH_IMAGE_TAG
 
     readonly GITHUB_REPOSITORY
     readonly GITHUB_TOKEN

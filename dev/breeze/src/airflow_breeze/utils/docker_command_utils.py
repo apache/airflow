@@ -580,7 +580,6 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
-    set_value_to_default_if_not_set(env, 'GITHUB_REGISTRY_PULL_IMAGE_TAG', "latest")
     set_value_to_default_if_not_set(env, 'HOST_GROUP_ID', get_host_group_id())
     set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
     set_value_to_default_if_not_set(env, 'HOST_USER_ID', get_host_user_id())
