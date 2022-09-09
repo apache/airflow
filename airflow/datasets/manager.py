@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc
@@ -76,11 +77,12 @@ class DatasetManager(LoggingMixin):
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
 
-        if session.bind.dialect.name == "postgresql":
-            return self._postgres_queue_dagruns(dataset, session)
-        return self._slow_path_queue_dagruns(dataset, session)
+        if session.bind.dialect.name in ("postgresql", "sqlite", "mysql"):
+            return self._queue_dagruns_fast_path(dataset, session)
 
-    def _slow_path_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+        return self._queue_dagruns_slow_path(dataset, session)
+
+    def _queue_dagruns_slow_path(self, dataset: DatasetModel, session: Session) -> None:
         consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
         self.log.debug("consuming dag ids %s", consuming_dag_ids)
 
@@ -94,14 +96,33 @@ class DatasetManager(LoggingMixin):
             except exc.IntegrityError:
                 self.log.debug("Skipping record %s", item, exc_info=True)
 
-    def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
-        from sqlalchemy.dialects.postgresql import insert
+        session.flush()
 
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
-        session.execute(
-            stmt,
-            [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
-        )
+    def _queue_dagruns_fast_path(self, dataset: DatasetModel, session: Session) -> None:
+        prefix = None
+        if session.bind.dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert
+        elif session.bind.dialect.name == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert
+        elif session.bind.dialect.name == "mysql":
+            from sqlalchemy.dialects.mysql import insert
+
+            prefix = 'IGNORE'
+        else:
+            raise ValueError("Only sqlite and postgres supported with this method.")
+        logger = logging.getLogger('sqlalchemy')
+        logger.setLevel(logging.DEBUG)
+
+        params = [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags]
+        if params:
+            stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id)
+            if prefix:
+                stmt = stmt.prefix_with(prefix)
+            else:
+                stmt = stmt.on_conflict_do_nothing()
+            logger.warning(stmt.compile())
+            session.execute(stmt, params)
+            session.flush()
 
 
 def resolve_dataset_manager() -> "DatasetManager":
