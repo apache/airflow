@@ -169,8 +169,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _parse_host(host: str) -> str:
         """
-        The purpose of this function is to be robust to improper connections
-        settings provided by users, specifically in the host field.
+        This function is resistant to incorrect connection settings provided by users, in the host field.
 
         For example -- when users supply ``https://xx.cloud.databricks.com`` as the
         host, we must strip out the protocol to get the host.::
@@ -195,21 +194,23 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_retry_object(self) -> Retrying:
         """
-        Instantiates a retry object
+        Instantiate a retry object.
         :return: instance of Retrying class
         """
         return Retrying(**self.retry_args)
 
     def _a_get_retry_object(self) -> AsyncRetrying:
         """
-        Instantiates an async retry object
+        Instantiate an async retry object.
         :return: instance of AsyncRetrying class
         """
         return AsyncRetrying(**self.retry_args)
 
     def _get_aad_token(self, resource: str) -> str:
         """
-        Function to get AAD token for given resource. Supports managed identity or service principal auth
+        Function to get AAD token for given resource.
+
+        Supports managed identity or service principal auth.
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
@@ -340,7 +341,7 @@ class BaseDatabricksHook(BaseHook):
 
     def _get_aad_headers(self) -> dict:
         """
-        Fills AAD headers if necessary (SPN is outside of the workspace)
+        Fill AAD headers if necessary (SPN is outside of the workspace).
         :return: dictionary with filled AAD headers
         """
         headers = {}
@@ -369,7 +370,8 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _is_aad_token_valid(aad_token: dict) -> bool:
         """
-        Utility function to check AAD token hasn't expired yet
+        Utility function to check AAD token hasn't expired yet.
+
         :param aad_token: dict with properties of AAD token
         :return: true if token is valid, false otherwise
         :rtype: bool
@@ -382,7 +384,7 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _check_azure_metadata_service() -> None:
         """
-        Check for Azure Metadata Service
+        Check for Azure Metadata Service.
         https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
         """
         try:
@@ -472,7 +474,7 @@ class BaseDatabricksHook(BaseHook):
         wrap_http_errors: bool = True,
     ):
         """
-        Utility function to perform an API call with retries
+        Utility function to perform an API call with retries.
 
         :param endpoint_info: Tuple of method and endpoint
         :param json: Parameters for this API call.
@@ -617,7 +619,9 @@ class BaseDatabricksHook(BaseHook):
 
 class _TokenAuth(AuthBase):
     """
-    Helper class for requests Auth field. AuthBase requires you to implement the __call__
+    Helper class for requests Auth field.
+
+    AuthBase requires you to implement the ``__call__``
     magic function.
     """
 
