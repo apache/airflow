@@ -183,7 +183,7 @@ def shell(
         force_build=force_build,
         db_reset=db_reset,
         include_mypy_volume=include_mypy_volume,
-        extra_args=extra_args if not max_time else "exit",
+        extra_args=extra_args if not max_time else ["exit"],
         answer=answer,
         image_tag=image_tag,
         platform=platform,

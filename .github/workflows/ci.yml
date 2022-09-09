@@ -304,7 +304,44 @@ jobs:
       - name: "Clean docker cache for ${{ matrix.platform }}"
         run: docker system prune --all --force
         if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
-      - name: "Check that image builds quickly ${{ matrix.platform }}"
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always() && needs.build-info.outputs.merge-run == 'true'
+
+  # Check that after earlier cache push, breeze command will build quickly
+  chcek-that-image-builds-quicklly:
+    timeout-minutes: 5
+    name: "Check that image builds quickly"
+    runs-on: ${{ needs.build-info.outputs.runs-on }}
+    needs:
+      - build-info
+      - push-early-buildx-cache-to-github-registry
+    env:
+      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: false
+      PLATFORM: "linux/amd64"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+        if: needs.build-info.outputs.merge-run == 'true'
+      - run: ./scripts/ci/install_breeze.sh
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Free space"
+        run: breeze ci free-space
+        if: needs.build-info.outputs.merge-run == 'true'
+      - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
         if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.merge-run == 'true'
       - name: "Fix ownership"
