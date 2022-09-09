@@ -213,7 +213,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
         elif trigger_rule == TR.ONE_DONE:
-            if successes + failed < 0:
+            if successes + failed <= 0:
                 yield self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}'"
