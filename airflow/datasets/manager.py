@@ -61,6 +61,7 @@ class DatasetManager(LoggingMixin):
                 extra=extra,
             )
         )
+        session.flush()
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
