@@ -50,6 +50,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
 
         bq_hook.return_value.run_query.assert_called_once_with(
             sql="SELECT MAX(id) FROM `test-project.dataset.table`",
+            location=None,
             use_legacy_sql=False,
         )
 
