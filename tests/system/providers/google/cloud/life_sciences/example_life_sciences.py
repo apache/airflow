@@ -18,18 +18,26 @@
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import models
+from airflow.models.baseoperator import chain
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_gcp_life_sciences"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+DAG_ID = "example_life_sciences"
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project-id")
-BUCKET = os.environ.get("GCP_GCS_LIFE_SCIENCES_BUCKET", "INVALID BUCKET NAME")
-FILENAME = os.environ.get("GCP_GCS_LIFE_SCIENCES_FILENAME", 'input.in')
-LOCATION = os.environ.get("GCP_LIFE_SCIENCES_LOCATION", 'us-central1')
+BUCKET_NAME = f"bucket_{DAG_ID}-{ENV_ID}"
 
+FILE_NAME = "file"
+LOCATION = "us-central1"
+
+CURRENT_FOLDER = Path(__file__).parent
+FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / FILE_NAME)
 
 # [START howto_configure_simple_action_pipeline]
 SIMPLE_ACTION_PIPELINE = {
@@ -53,7 +61,7 @@ MULTI_ACTION_PIPELINE = {
         "actions": [
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", f"gs://{BUCKET}/{FILENAME}", "/tmp"],
+                "commands": ["gsutil", "cp", f"gs://{BUCKET_NAME}/{FILE_NAME}", "/tmp"],
             },
             {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
             {
@@ -61,8 +69,8 @@ MULTI_ACTION_PIPELINE = {
                 "commands": [
                     "gsutil",
                     "cp",
-                    f"gs://{BUCKET}/{FILENAME}",
-                    f"gs://{BUCKET}/output.in",
+                    f"gs://{BUCKET_NAME}/{FILE_NAME}",
+                    f"gs://{BUCKET_NAME}/output.in",
                 ],
             },
         ],
@@ -83,6 +91,14 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload_file",
+        src=FILE_LOCAL_PATH,
+        dst=FILE_NAME,
+        bucket=BUCKET_NAME,
+    )
 
     # [START howto_run_pipeline]
     simple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
@@ -97,7 +113,26 @@ with models.DAG(
         task_id='multi-action-pipeline', body=MULTI_ACTION_PIPELINE, project_id=PROJECT_ID, location=LOCATION
     )
 
-    simple_life_science_action_pipeline >> multiple_life_science_action_pipeline
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    chain(
+        # TEST SETUP
+        create_bucket,
+        upload_file,
+        # TEST BODY
+        simple_life_science_action_pipeline,
+        multiple_life_science_action_pipeline,
+        # TEST TEARDOWN
+        delete_bucket,
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 
 from tests.system.utils import get_test_run  # noqa: E402
