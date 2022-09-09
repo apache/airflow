@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-09T12:40:45Z
+# This constraints file was automatically generated on 2022-09-09T21:33:58Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -178,9 +178,9 @@ billiard==3.6.4.0
 black==22.8.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.69
+boto3==1.24.70
 boto==2.49.0
-botocore==1.27.69
+botocore==1.27.70
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -239,7 +239,7 @@ exceptiongroup==1.0.0rc9
 execnet==1.9.0
 executing==1.0.0
 facebook-business==14.0.0
-fastavro==1.6.0
+fastavro==1.6.1
 fastjsonschema==2.16.1
 filelock==3.8.0
 fissix==21.11.13
@@ -399,7 +399,7 @@ networkx==2.8.6
 nodeenv==1.7.0
 ntlm-auth==1.5.0
 numpy==1.22.4
-oauthlib==3.2.0
+oauthlib==3.2.1
 openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
