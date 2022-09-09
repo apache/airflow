@@ -41,7 +41,7 @@ class TeamsWebhookOperator(SimpleHttpOperator):
     :param action_button_name: The name of the action button
     :param action_button_url: The URL for the action button clicked
     :param theme_color: Hex code of the card theme, without the #
-    :param icon_url: The icon activityImage URL string to be added to message card.
+    :param icon_url: The icon URL string to be added to message card.
     :param proxy: Proxy to use to make the MS Teams webhook call
     """
 
