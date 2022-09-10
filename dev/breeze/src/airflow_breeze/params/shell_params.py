@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -55,23 +55,23 @@ class ShellParams:
     )
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = ""
-    answer: Optional[str] = None
+    answer: str | None = None
     backend: str = ALLOWED_BACKENDS[0]
     ci: bool = False
     db_reset: bool = False
     dry_run: bool = False
-    extra_args: Tuple = ()
+    extra_args: tuple = ()
     force_build: bool = False
     forward_credentials: str = "false"
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
-    image_tag: Optional[str] = None
+    image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_providers_from_sources: bool = True
-    integration: Tuple[str, ...] = ()
+    integration: tuple[str, ...] = ()
     issue_id: str = ""
     load_default_connections: bool = False
     load_example_dags: bool = False
@@ -86,7 +86,7 @@ class ShellParams:
     skip_environment_initialization: bool = False
     skip_constraints: bool = False
     start_airflow: str = "false"
-    use_airflow_version: Optional[str] = None
+    use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
     verbose: bool = False
     version_suffix_for_pypi: str = ""
