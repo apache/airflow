@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module allows you to transfer data from any Google API endpoint into a S3 Bucket."""
+from __future__ import annotations
+
 import json
 import sys
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator, TaskInstance
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
@@ -100,16 +101,16 @@ class GoogleApiToS3Operator(BaseOperator):
         google_api_endpoint_path: str,
         google_api_endpoint_params: dict,
         s3_destination_key: str,
-        google_api_response_via_xcom: Optional[str] = None,
-        google_api_endpoint_params_via_xcom: Optional[str] = None,
-        google_api_endpoint_params_via_xcom_task_ids: Optional[str] = None,
+        google_api_response_via_xcom: str | None = None,
+        google_api_endpoint_params_via_xcom: str | None = None,
+        google_api_endpoint_params_via_xcom_task_ids: str | None = None,
         google_api_pagination: bool = False,
         google_api_num_retries: int = 0,
         s3_overwrite: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         aws_conn_id: str = 'aws_default',
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -129,7 +130,7 @@ class GoogleApiToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.google_impersonation_chain = google_impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """
         Transfers Google APIs json data to S3.
 

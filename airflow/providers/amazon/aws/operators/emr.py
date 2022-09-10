@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
@@ -60,11 +62,11 @@ class EmrAddStepsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_flow_id: Optional[str] = None,
-        job_flow_name: Optional[str] = None,
-        cluster_states: Optional[List[str]] = None,
+        job_flow_id: str | None = None,
+        job_flow_name: str | None = None,
+        cluster_states: list[str] | None = None,
         aws_conn_id: str = 'aws_default',
-        steps: Optional[Union[List[dict], str]] = None,
+        steps: list[dict] | str | None = None,
         **kwargs,
     ):
         if not (job_flow_id is None) ^ (job_flow_name is None):
@@ -78,7 +80,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context: 'Context') -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -150,7 +152,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         eks_namespace: str,
         virtual_cluster_id: str = '',
         aws_conn_id: str = "aws_default",
-        tags: Optional[dict] = None,
+        tags: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -166,7 +168,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         """Create and return an EmrContainerHook."""
         return EmrContainerHook(self.aws_conn_id)
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         """Create EMR on EKS virtual Cluster"""
         self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
             self.virtual_cluster_name, self.eks_cluster_name, self.eks_namespace, self.tags
@@ -218,13 +220,13 @@ class EmrContainerOperator(BaseOperator):
         execution_role_arn: str,
         release_label: str,
         job_driver: dict,
-        configuration_overrides: Optional[dict] = None,
-        client_request_token: Optional[str] = None,
+        configuration_overrides: dict | None = None,
+        client_request_token: str | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
         poll_interval: int = 30,
-        max_tries: Optional[int] = None,
-        tags: Optional[dict] = None,
+        max_tries: int | None = None,
+        tags: dict | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -240,7 +242,7 @@ class EmrContainerOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.max_tries = max_tries
         self.tags = tags
-        self.job_id: Optional[str] = None
+        self.job_id: str | None = None
 
     @cached_property
     def hook(self) -> EmrContainerHook:
@@ -250,7 +252,7 @@ class EmrContainerOperator(BaseOperator):
             virtual_cluster_id=self.virtual_cluster_id,
         )
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         """Run job on EMR Containers"""
         self.job_id = self.hook.submit_job(
             self.name,
@@ -332,8 +334,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         *,
         aws_conn_id: str = 'aws_default',
         emr_conn_id: str = 'emr_default',
-        job_flow_overrides: Optional[Union[str, Dict[str, Any]]] = None,
-        region_name: Optional[str] = None,
+        job_flow_overrides: str | dict[str, Any] | None = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -344,7 +346,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides
         self.region_name = region_name
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         emr = EmrHook(
             aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
         )
@@ -354,7 +356,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         )
 
         if isinstance(self.job_flow_overrides, str):
-            job_flow_overrides: Dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
+            job_flow_overrides: dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
             self.job_flow_overrides = job_flow_overrides
         else:
             job_flow_overrides = self.job_flow_overrides
@@ -402,7 +404,7 @@ class EmrModifyClusterOperator(BaseOperator):
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
-    def execute(self, context: 'Context') -> int:
+    def execute(self, context: Context) -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
         emr = emr_hook.get_conn()
 
@@ -451,7 +453,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
         emr = emr_hook.get_conn()
 
@@ -494,7 +496,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         release_label: str,
         job_type: str,
         client_request_token: str = '',
-        config: Optional[dict] = None,
+        config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = 'aws_default',
         **kwargs,
@@ -514,7 +516,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         response = self.hook.conn.create_application(
             clientToken=self.client_request_token,
             releaseLabel=self.release_label,
@@ -588,9 +590,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
         application_id: str,
         execution_role_arn: str,
         job_driver: dict,
-        configuration_overrides: Optional[dict],
+        configuration_overrides: dict | None,
         client_request_token: str = '',
-        config: Optional[dict] = None,
+        config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = 'aws_default',
         **kwargs,
@@ -611,7 +613,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: 'Context') -> Dict:
+    def execute(self, context: Context) -> dict:
         self.log.info('Starting job on Application: %s', self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
@@ -690,7 +692,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Stopping application: %s', self.application_id)
         self.hook.conn.stop_application(applicationId=self.application_id)
 

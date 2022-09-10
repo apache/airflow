@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
+from __future__ import annotations
 
 from datetime import datetime
 from os import environ
@@ -29,6 +27,9 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
 
 CLUSTER_NAME = environ.get('EKS_CLUSTER_NAME', 'eks-demo')
 NODEGROUP_NAME = f'{CLUSTER_NAME}-nodegroup'

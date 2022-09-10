@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import List
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -62,7 +62,7 @@ with DAG(
     tags=['example'],
 ) as dag:
     # [START howto_sensor_s3_key_function_definition]
-    def check_fn(files: List) -> bool:
+    def check_fn(files: list) -> bool:
         """
         Example of custom check: check if all files are bigger than ``1kB``
 
