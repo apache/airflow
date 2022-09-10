@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Dag sub-commands"""
+from __future__ import annotations
+
 import ast
 import errno
 import json
@@ -23,7 +24,6 @@ import logging
 import signal
 import subprocess
 import sys
-from typing import Optional
 
 from graphviz.dot import Dot
 from sqlalchemy.orm import Session
@@ -295,7 +295,7 @@ def dag_next_execution(args):
             .filter(DagRun.dag_id == dag.dag_id)
             .subquery()
         )
-        max_date_run: Optional[DagRun] = (
+        max_date_run: DagRun | None = (
             session.query(DagRun)
             .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == max_date_subq.c.max_date)
             .one_or_none()

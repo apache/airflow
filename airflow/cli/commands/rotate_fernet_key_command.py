@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Rotate Fernet key command"""
+from __future__ import annotations
+
 from airflow.models import Connection, Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
