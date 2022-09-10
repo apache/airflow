@@ -20,11 +20,12 @@ API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
+from __future__ import annotations
+
 import copy
 import hashlib
 import re
 import uuid
-from typing import Dict, List, Optional, Union
 
 from kubernetes.client import models as k8s
 
@@ -117,33 +118,33 @@ class PodGenerator:
 
     def __init__(
         self,
-        image: Optional[str] = None,
-        name: Optional[str] = None,
-        namespace: Optional[str] = None,
-        volume_mounts: Optional[List[Union[k8s.V1VolumeMount, dict]]] = None,
-        envs: Optional[Dict[str, str]] = None,
-        cmds: Optional[List[str]] = None,
-        args: Optional[List[str]] = None,
-        labels: Optional[Dict[str, str]] = None,
-        node_selectors: Optional[Dict[str, str]] = None,
-        ports: Optional[List[Union[k8s.V1ContainerPort, dict]]] = None,
-        volumes: Optional[List[Union[k8s.V1Volume, dict]]] = None,
-        image_pull_policy: Optional[str] = None,
-        restart_policy: Optional[str] = None,
-        image_pull_secrets: Optional[str] = None,
-        init_containers: Optional[List[k8s.V1Container]] = None,
-        service_account_name: Optional[str] = None,
-        resources: Optional[Union[k8s.V1ResourceRequirements, dict]] = None,
-        annotations: Optional[Dict[str, str]] = None,
-        affinity: Optional[dict] = None,
+        image: str | None = None,
+        name: str | None = None,
+        namespace: str | None = None,
+        volume_mounts: list[k8s.V1VolumeMount | dict] | None = None,
+        envs: dict[str, str] | None = None,
+        cmds: list[str] | None = None,
+        args: list[str] | None = None,
+        labels: dict[str, str] | None = None,
+        node_selectors: dict[str, str] | None = None,
+        ports: list[k8s.V1ContainerPort | dict] | None = None,
+        volumes: list[k8s.V1Volume | dict] | None = None,
+        image_pull_policy: str | None = None,
+        restart_policy: str | None = None,
+        image_pull_secrets: str | None = None,
+        init_containers: list[k8s.V1Container] | None = None,
+        service_account_name: str | None = None,
+        resources: k8s.V1ResourceRequirements | dict | None = None,
+        annotations: dict[str, str] | None = None,
+        affinity: dict | None = None,
         hostnetwork: bool = False,
-        tolerations: Optional[list] = None,
-        security_context: Optional[Union[k8s.V1PodSecurityContext, dict]] = None,
-        configmaps: Optional[List[str]] = None,
-        dnspolicy: Optional[str] = None,
-        schedulername: Optional[str] = None,
+        tolerations: list | None = None,
+        security_context: k8s.V1PodSecurityContext | dict | None = None,
+        configmaps: list[str] | None = None,
+        dnspolicy: str | None = None,
+        schedulername: str | None = None,
         extract_xcom: bool = False,
-        priority_class_name: Optional[str] = None,
+        priority_class_name: str | None = None,
     ):
 
         self.pod = k8s.V1Pod()
@@ -240,7 +241,7 @@ class PodGenerator:
         return pod_cp
 
     @staticmethod
-    def from_obj(obj) -> Optional[k8s.V1Pod]:
+    def from_obj(obj) -> k8s.V1Pod | None:
         """Converts to pod from obj"""
         if obj is None:
             return None

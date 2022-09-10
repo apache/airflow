@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 import pendulum
 from slugify import slugify
@@ -56,7 +56,7 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
     return safe_dag_id + safe_task_id
 
 
-def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]:
+def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey | None:
     """Build a TaskInstanceKey based on pod annotations"""
     log.debug("Creating task key for annotations %s", annotations)
     dag_id = annotations['dag_id']
