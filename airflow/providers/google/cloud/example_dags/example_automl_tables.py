@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that uses Google AutoML services.
 """
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, cast
+from typing import cast
 
 from airflow import models
 from airflow.models.xcom_arg import XComArg
@@ -74,7 +75,7 @@ IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DATASET_BUCKET]}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
-def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
+def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
     """
     Using column name returns spec of the column.
     """

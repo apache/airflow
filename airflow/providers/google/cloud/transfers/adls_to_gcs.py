@@ -19,9 +19,11 @@
 This module contains Azure Data Lake Storage to
 Google Cloud Storage operator.
 """
+from __future__ import annotations
+
 import os
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
@@ -108,10 +110,10 @@ class ADLSToGCSOperator(ADLSListOperator):
         dest_gcs: str,
         azure_data_lake_conn_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         replace: bool = False,
         gzip: bool = False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -125,7 +127,7 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
         g_hook = GCSHook(
