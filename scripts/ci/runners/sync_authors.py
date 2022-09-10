@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 import re
+
 import requests
 import toml
 
@@ -30,7 +30,7 @@ author_list = toml.loads(req.text)
 
 author_set = set()
 for membership in author_list:
-    author_set.update([ author for author in author_list[membership] ])
+    author_set.update([author for author in author_list[membership]])
 
 authors = ''
 for author in sorted(author_set):
