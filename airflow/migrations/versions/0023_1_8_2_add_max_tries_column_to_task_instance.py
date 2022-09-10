@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``max_tries`` column to ``task_instance``
 
 Revision ID: cc1e65623dc7
@@ -22,6 +21,7 @@ Revises: 127d2bf2dfa7
 Create Date: 2017-06-19 16:53:12.851141
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

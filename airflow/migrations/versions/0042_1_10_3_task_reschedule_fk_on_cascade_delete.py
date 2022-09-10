@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """task reschedule foreign key on cascade delete
 
 Revision ID: 939bb1e647c8
@@ -22,6 +21,7 @@ Revises: dd4ecb8fbee3
 Create Date: 2019-02-04 20:21:50.669751
 
 """
+from __future__ import annotations
 
 from alembic import op
 

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``max_active_runs`` column to ``dag_model`` table
 
 Revision ID: 092435bf5d12
@@ -23,6 +22,7 @@ Revises: 97cdd93827b8
 Create Date: 2021-09-06 21:29:24.728923
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
