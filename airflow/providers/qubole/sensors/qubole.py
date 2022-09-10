@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from qds_sdk.qubole import Qubole
@@ -47,7 +49,7 @@ class QuboleSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
 
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)

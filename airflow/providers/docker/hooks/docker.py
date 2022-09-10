@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from docker import APIClient  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
@@ -40,7 +42,7 @@ class DockerHook(BaseHook, LoggingMixin):
     hook_name = 'Docker'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],
@@ -52,10 +54,10 @@ class DockerHook(BaseHook, LoggingMixin):
 
     def __init__(
         self,
-        docker_conn_id: Optional[str] = default_conn_name,
-        base_url: Optional[str] = None,
-        version: Optional[str] = None,
-        tls: Optional[str] = None,
+        docker_conn_id: str | None = default_conn_name,
+        base_url: str | None = None,
+        version: str | None = None,
+        tls: str | None = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         super().__init__()

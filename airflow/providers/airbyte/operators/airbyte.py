@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
@@ -51,10 +53,10 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self,
         connection_id: str,
         airbyte_conn_id: str = "airbyte_default",
-        asynchronous: Optional[bool] = False,
+        asynchronous: bool | None = False,
         api_version: str = "v1",
         wait_seconds: float = 3,
-        timeout: Optional[float] = 3600,
+        timeout: float | None = 3600,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -65,7 +67,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.wait_seconds = wait_seconds
         self.asynchronous = asynchronous
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Create Airbyte Job and wait to finish"""
         self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = self.hook.submit_sync_connection(connection_id=self.connection_id)
