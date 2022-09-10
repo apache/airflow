@@ -1110,7 +1110,7 @@ class SchedulerJob(BaseJob):
                 )
                 continue
             if active_runs_of_dags[dag_model.dag_id] >= dag_model.max_active_runs:
-                self.log.info(
+                self.log.debug(
                     "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                     dag_model.dag_id,
                     active_runs_of_dags[dag_model.dag_id],
