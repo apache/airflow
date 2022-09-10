@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import inspect
 import os
 import pickle
@@ -27,7 +29,7 @@ from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
 
@@ -42,7 +44,7 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 from airflow.version import version as airflow_version
 
 
-def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
+def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
     """
     Deprecated function that calls @task.python and allows users to turn a python function into
     an Airflow task. Please use the following instead:
@@ -141,10 +143,10 @@ class PythonOperator(BaseOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        templates_dict: Optional[Dict[str, Any]] = None,
-        templates_exts: Optional[Sequence[str]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        templates_dict: dict[str, Any] | None = None,
+        templates_exts: Sequence[str] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
@@ -331,11 +333,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         *,
         python_callable: Callable,
         use_dill: bool = False,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        string_args: Optional[Iterable[str]] = None,
-        templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        string_args: Iterable[str] | None = None,
+        templates_dict: dict | None = None,
+        templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         **kwargs,
     ):
@@ -399,7 +401,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return super().__deepcopy__(memo)
 
     def _execute_python_callable_in_subprocess(self, python_path: Path, tmp_dir: Path):
-        op_kwargs: Dict[str, Any] = {k: v for k, v in self.op_kwargs.items()}
+        op_kwargs: dict[str, Any] = {k: v for k, v in self.op_kwargs.items()}
         if self.templates_dict:
             op_kwargs['templates_dict'] = self.templates_dict
         input_path = tmp_dir / 'script.in'
@@ -492,16 +494,16 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Union[None, Iterable[str], str] = None,
-        python_version: Optional[Union[str, int, float]] = None,
+        requirements: None | Iterable[str] | str = None,
+        python_version: str | int | float | None = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        pip_install_options: Optional[List[str]] = None,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        string_args: Optional[Iterable[str]] = None,
-        templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        pip_install_options: list[str] | None = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        string_args: Iterable[str] | None = None,
+        templates_dict: dict | None = None,
+        templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         **kwargs,
     ):
@@ -518,7 +520,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if not shutil.which("virtualenv"):
             raise AirflowException('PythonVirtualenvOperator requires virtualenv, please install it.')
         if not requirements:
-            self.requirements: Union[List[str], str] = []
+            self.requirements: list[str] | str = []
         elif isinstance(requirements, str):
             self.requirements = requirements
         else:
@@ -627,11 +629,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         python: str,
         python_callable: Callable,
         use_dill: bool = False,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        string_args: Optional[Iterable[str]] = None,
-        templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        string_args: Iterable[str] | None = None,
+        templates_dict: dict | None = None,
+        templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         expect_pendulum: bool = False,
         **kwargs,
@@ -675,7 +677,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             tmp_path = Path(tmp_dir)
             return self._execute_python_callable_in_subprocess(python_path, tmp_path)
 
-    def _get_python_version_from_environment(self) -> List[str]:
+    def _get_python_version_from_environment(self) -> list[str]:
         try:
             result = subprocess.check_output([self.python, "--version"], text=True)
             return result.strip().split(" ")[-1].split(".")
@@ -704,7 +706,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                 )
             return False
 
-    def _get_airflow_version_from_target_env(self) -> Optional[str]:
+    def _get_airflow_version_from_target_env(self) -> str | None:
         try:
             result = subprocess.check_output(
                 [self.python, "-c", "from airflow import version; print(version.version)"], text=True
