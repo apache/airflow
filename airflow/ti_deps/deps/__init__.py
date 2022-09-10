@@ -16,3 +16,4 @@
 # specific language governing permissions and limitations
 # under the License.
 """Implementation of specific dependencies for tasks."""
+from __future__ import annotations
