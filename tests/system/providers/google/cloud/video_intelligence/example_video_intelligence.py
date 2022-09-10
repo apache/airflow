@@ -22,7 +22,7 @@ Cloud Platform.
 
 This DAG relies on the following OS environment variables:
 
-* GCP_BUCKET_NAME - Google Cloud Storage bucket where the file exists.
+* BUCKET_NAME - Google Cloud Storage bucket where the file exists.
 """
 import os
 from datetime import datetime
@@ -30,29 +30,52 @@ from datetime import datetime
 from google.api_core.retry import Retry
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
     CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+
+DAG_ID = "example_gcp_video_intelligence"
+
+# Public bucket holding the sample data
+BUCKET_NAME_SRC = "cloud-samples-data"
+# Path to the data inside the public bucket
+PATH_SRC = "video/cat.mp4"
 
 # [START howto_operator_video_intelligence_os_args]
-GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "INVALID BUCKET NAME")
+BUCKET_NAME_DST = f"bucket-src-{DAG_ID}-{ENV_ID}"
 # [END howto_operator_video_intelligence_os_args]
 
+FILE_NAME = "video.mp4"
 
 # [START howto_operator_video_intelligence_other_args]
-INPUT_URI = f"gs://{GCP_BUCKET_NAME}/video.mp4"
+INPUT_URI = f"gs://{BUCKET_NAME_DST}/{FILE_NAME}"
 # [END howto_operator_video_intelligence_other_args]
 
-
 with models.DAG(
-    "example_gcp_video_intelligence",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
 ) as dag:
+
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME_DST)
+
+    copy_single_file = GCSToGCSOperator(
+        task_id="copy_single_gcs_file",
+        source_bucket=BUCKET_NAME_SRC,
+        source_object=PATH_SRC,
+        destination_bucket=BUCKET_NAME_DST,
+        destination_object=FILE_NAME,
+    )
 
     # [START howto_operator_video_intelligence_detect_labels]
     detect_video_label = CloudVideoIntelligenceDetectVideoLabelsOperator(
@@ -110,6 +133,33 @@ with models.DAG(
     )
     # [END howto_operator_video_intelligence_detect_video_shots_result]
 
-    detect_video_label >> detect_video_label_result
-    detect_video_explicit_content >> detect_video_explicit_content_result
-    detect_video_shots >> detect_video_shots_result
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    chain(
+        # TEST SETUP
+        create_bucket,
+        copy_single_file,
+        # TEST BODY
+        detect_video_label,
+        detect_video_label_result,
+        detect_video_explicit_content,
+        detect_video_explicit_content_result,
+        detect_video_shots,
+        detect_video_shots_result,
+        # TEST TEARDOWN
+        delete_bucket,
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
