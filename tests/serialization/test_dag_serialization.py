@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Unit tests for stringified DAGs."""
+from __future__ import annotations
 
 import copy
 import importlib
@@ -27,7 +27,6 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from glob import glob
-from typing import Optional
 from unittest import mock
 
 import pendulum
@@ -83,7 +82,7 @@ class CustomDependencyDetector(DependencyDetector):
     """
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> Optional[DagDependency]:  # type: ignore
+    def detect_task_dependencies(task: Operator) -> DagDependency | None:  # type: ignore
         if isinstance(task, CustomDepOperator):
             return DagDependency(
                 source=task.dag_id,

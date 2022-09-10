@@ -213,7 +213,9 @@ repos:
       - id: pyupgrade
         name: Upgrade Python code automatically
         args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
+        # Test Python tests if different kinds of typing including one that does not have
+        # __future__ annotations, so it shuld be left without automated upgrade
+        exclude: ^airflow/_vendor/|^test/decorators/test_python.py^
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:
