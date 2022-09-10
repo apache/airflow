@@ -80,3 +80,17 @@ class TestDatasetManager:
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
         assert session.query(DatasetDagRunQueue).count() == 2
+
+    def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):
+        dsem = DatasetManager()
+
+        ds = Dataset(uri="never_consumed")
+        dsm = DatasetModel(uri="never_consumed")
+        session.add(dsm)
+        session.flush()
+
+        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+
+        # Ensure we've created a dataset
+        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert session.query(DatasetDagRunQueue).count() == 0

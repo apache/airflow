@@ -1332,7 +1332,7 @@ def _run_tests(
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     get_console(output=output).print(f"\n[info]Running tests with {kubectl_cluster_name} cluster.")
-    shell_binary = env['SHELL']
+    shell_binary = env.get('SHELL', shutil.which('bash'))
     extra_shell_args: List[str] = []
     if shell_binary.endswith("zsh"):
         extra_shell_args.append('--no-rcs')

@@ -65,7 +65,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import GenericRegexpProgressMatcher, check_async_run_results, run_with_pool
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -305,6 +305,11 @@ def run_generate_constraints(
     )
 
 
+CONSTRAINT_PROGRESS_MATCHER = (
+    r'Found|Uninstalling|uninstalled|Collecting|Downloading|eta|Running|Installing|built|Attempting'
+)
+
+
 def run_generate_constraints_in_parallel(
     shell_params_list: List[ShellParams],
     python_version_list: List[str],
@@ -320,7 +325,13 @@ def run_generate_constraints_in_parallel(
             f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}"
             for shell_params in shell_params_list
         ]
-        with run_with_pool(parallelism=parallelism, all_params=all_params) as (pool, outputs):
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            progress_matcher=GenericRegexpProgressMatcher(
+                regexp=CONSTRAINT_PROGRESS_MATCHER, lines_to_search=6
+            ),
+        ) as (pool, outputs):
             results = [
                 pool.apply_async(
                     run_generate_constraints,
