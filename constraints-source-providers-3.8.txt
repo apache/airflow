@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-09T21:28:12Z
+# This constraints file was automatically generated on 2022-09-10T11:09:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -164,7 +164,7 @@ exceptiongroup==1.0.0rc9
 execnet==1.9.0
 executing==1.0.0
 facebook-business==14.0.0
-fastavro==1.6.0
+fastavro==1.6.1
 fastjsonschema==2.16.1
 filelock==3.8.0
 fissix==21.11.13
