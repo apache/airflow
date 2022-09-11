@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
@@ -195,7 +196,8 @@ class EmrContainerOperator(BaseOperator):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param wait_for_completion: Whether or not to wait in the operator for the job to complete.
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
-    :param max_tries: Maximum number of times to wait for the job run to finish.
+    :param max_tries: Deprecated - use max_polling_attempts instead.
+    :param max_polling_attempts: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
     :param tags: The tags assigned to job runs.
         Defaults to None
@@ -225,6 +227,7 @@ class EmrContainerOperator(BaseOperator):
         poll_interval: int = 30,
         max_tries: Optional[int] = None,
         tags: Optional[dict] = None,
+        max_polling_attempts: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -238,9 +241,21 @@ class EmrContainerOperator(BaseOperator):
         self.client_request_token = client_request_token or str(uuid4())
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
-        self.max_tries = max_tries
+        self.max_polling_attempts = max_polling_attempts
         self.tags = tags
         self.job_id: Optional[str] = None
+
+        if max_tries:
+            warnings.warn(
+                f"Parameter `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
+                "in a future release.  Please use method `max_polling_attempts` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if max_polling_attempts and max_polling_attempts != max_tries:
+                raise Exception("max_polling_attempts must be the same value as max_tries")
+            else:
+                self.max_polling_attempts = max_tries
 
     @cached_property
     def hook(self) -> EmrContainerHook:
@@ -262,7 +277,9 @@ class EmrContainerOperator(BaseOperator):
             self.tags,
         )
         if self.wait_for_completion:
-            query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
+            query_status = self.hook.poll_query_status(
+                self.job_id, self.max_polling_attempts, self.poll_interval
+            )
 
             if query_status in EmrContainerHook.FAILURE_STATES:
                 error_message = self.hook.get_job_failure_reason(self.job_id)
@@ -352,7 +369,6 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.log.info(
             'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s', self.aws_conn_id, self.emr_conn_id
         )
-
         if isinstance(self.job_flow_overrides, str):
             job_flow_overrides: Dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
             self.job_flow_overrides = job_flow_overrides

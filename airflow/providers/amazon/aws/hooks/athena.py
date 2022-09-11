@@ -23,6 +23,7 @@ This module contains AWS Athena hook.
 
     PageIterator
 """
+import warnings
 from time import sleep
 from typing import Any, Dict, Optional
 
@@ -188,17 +189,35 @@ class AthenaHook(AwsBaseHook):
         paginator = self.get_conn().get_paginator('get_query_results')
         return paginator.paginate(**result_params)
 
-    def poll_query_status(self, query_execution_id: str, max_tries: Optional[int] = None) -> Optional[str]:
+    def poll_query_status(
+        self,
+        query_execution_id: str,
+        max_tries: Optional[int] = None,
+        max_polling_attempts: Optional[int] = None,
+    ) -> Optional[str]:
         """
         Poll the status of submitted athena query until query state reaches final state.
         Returns one of the final states
 
         :param query_execution_id: Id of submitted athena query
-        :param max_tries: Number of times to poll for query state before function exits
+        :param max_tries: Deprecated - Use max_polling_attempts instead
+        :param max_polling_attempts: Number of times to poll for query state before function exits
         :return: str
         """
+        if max_tries:
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
+                "in a future release.  Please use method `max_polling_attempts` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if max_polling_attempts and max_polling_attempts != max_tries:
+                raise Exception("max_polling_attempts must be the same value as max_tries")
+            else:
+                max_polling_attempts = max_tries
+
         try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_tries reached
+        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
         while True:
             query_state = self.check_query_status(query_execution_id)
             if query_state is None:
@@ -211,7 +230,9 @@ class AthenaHook(AwsBaseHook):
                 break
             else:
                 self.log.info('Trial %s: Query is still in non-terminal state - %s', try_number, query_state)
-            if max_tries and try_number >= max_tries:  # Break loop if max_tries reached
+            if (
+                max_polling_attempts and try_number >= max_polling_attempts
+            ):  # Break loop if max_polling_attempts reached
                 final_query_state = query_state
                 break
             try_number += 1

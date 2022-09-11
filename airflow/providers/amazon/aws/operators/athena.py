@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.compat.functools import cached_property
@@ -43,7 +44,9 @@ class AthenaOperator(BaseOperator):
     :param query_execution_context: Context in which query need to be run
     :param result_configuration: Dict with path to store results in and config related to encryption
     :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
-    :param max_tries: Number of times to poll for query state before function exits
+    :param max_tries: Deprecated - use max_polling_attempts instead.
+    :param max_polling_attempts: Number of times to poll for query state before function exits
+        To limit task execution time, use execution_timeout.
     """
 
     ui_color = '#44b5e2'
@@ -64,6 +67,7 @@ class AthenaOperator(BaseOperator):
         result_configuration: Optional[Dict[str, Any]] = None,
         sleep_time: int = 30,
         max_tries: Optional[int] = None,
+        max_polling_attempts: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -76,8 +80,20 @@ class AthenaOperator(BaseOperator):
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}
         self.sleep_time = sleep_time
-        self.max_tries = max_tries
+        self.max_polling_attempts = max_polling_attempts
         self.query_execution_id = None  # type: Optional[str]
+
+        if max_tries:
+            warnings.warn(
+                f"Parameter `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
+                "in a future release.  Please use method `max_polling_attempts` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if max_polling_attempts and max_polling_attempts != max_tries:
+                raise Exception("max_polling_attempts must be the same value as max_tries")
+            else:
+                self.max_polling_attempts = max_tries
 
     @cached_property
     def hook(self) -> AthenaHook:
@@ -95,7 +111,7 @@ class AthenaOperator(BaseOperator):
             self.client_request_token,
             self.workgroup,
         )
-        query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
+        query_status = self.hook.poll_query_status(self.query_execution_id, self.max_polling_attempts)
 
         if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
