@@ -707,8 +707,26 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
                 installable_files+=( "${file}" )
             fi
         done
+        constraints=""
+        if [[ ${USE_AIRFLOW_VERSION} =~ ^[0-9\.]+$ ]]; then
+            echo "Limiting lower constraints to those not lower than in ${USE_AIRFLOW_VERSION}"
+            constraints_file="/tmp/constraints.txt"
+            lower_bound_constraints_file="/tmp/lower_bound_constraints.txt"
+            constraints_from="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${USE_AIRFLOW_VERSION}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            echo "Downloading constraints from ${constraints_from}"
+            curl --silent "${constraints_from}" -o "${constraints_file}"
+            constraints="--constraint ${lower_bound_constraints_file}"
+            sed "s/==/>=/" < ${constraints_file} | grep -v "apache-airflow" >"${lower_bound_constraints_file}"
+            echo "Constraints used:"
+            echo "---------"
+            cat "${lower_bound_constraints_file}"
+            echo "---------"
+        fi
         if (( ${#installable_files[@]} )); then
-            pip install --root-user-action ignore "${installable_files[@]}"
+            # shellcheck disable=SC2086
+            echo "Running: pip install --root-user-action ignore ${installable_files[*]} ${constraints}"
+            # shellcheck disable=SC2086
+            pip install --root-user-action ignore "${installable_files[@]}" ${constraints}
         fi
     fi
 
