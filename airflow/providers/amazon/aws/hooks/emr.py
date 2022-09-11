@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from time import sleep
 from typing import Any, Callable, Dict, List, Optional, Set
 
@@ -321,19 +322,36 @@ class EmrContainerHook(AwsBaseHook):
             return None
 
     def poll_query_status(
-        self, job_id: str, max_tries: Optional[int] = None, poll_interval: int = 30
+        self,
+        job_id: str,
+        max_tries: Optional[int] = None,
+        poll_interval: int = 30,
+        max_polling_attempts: Optional[int] = None,
     ) -> Optional[str]:
         """
         Poll the status of submitted job run until query state reaches final state.
         Returns one of the final states.
 
         :param job_id: Id of submitted job run
-        :param max_tries: Number of times to poll for query state before function exits
+        :param max_tries: Deprecated - Use max_polling_attempts instead
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR
+        :param max_polling_attempts: Number of times to poll for query state before function exits
         :return: str
         """
+        if max_tries:
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
+                "in a future release.  Please use method `max_polling_attempts` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if max_polling_attempts and max_polling_attempts != max_tries:
+                raise Exception("max_polling_attempts must be the same value as max_tries")
+            else:
+                max_polling_attempts = max_tries
+
         try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_tries reached
+        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
 
         while True:
             query_state = self.check_query_status(job_id)
@@ -345,7 +363,9 @@ class EmrContainerHook(AwsBaseHook):
                 break
             else:
                 self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
-            if max_tries and try_number >= max_tries:  # Break loop if max_tries reached
+            if (
+                max_polling_attempts and try_number >= max_polling_attempts
+            ):  # Break loop if max_polling_attempts reached
                 final_query_state = query_state
                 break
             try_number += 1
