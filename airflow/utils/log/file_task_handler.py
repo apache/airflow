@@ -21,6 +21,7 @@ import os
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -194,8 +195,8 @@ class FileTaskHandler(logging.Handler):
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
+            url = urljoin(
+                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log", log_relative_path
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
