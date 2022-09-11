@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
+from airflow.providers.google.cloud.links.life_sciences import LifeSciencesLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -57,6 +58,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         "api_version",
         "impersonation_chain",
     )
+    operator_extra_links = (LifeSciencesLink(),)
 
     def __init__(
         self,
@@ -90,5 +92,11 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            LifeSciencesLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+            )
         return hook.run_pipeline(body=self.body, location=self.location, project_id=self.project_id)

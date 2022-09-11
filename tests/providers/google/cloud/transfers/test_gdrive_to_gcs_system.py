@@ -18,7 +18,7 @@
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.system.providers.google.cloud.life_sciences.example_life_sciences import BUCKET
+from tests.system.providers.google.cloud.life_sciences.example_life_sciences import BUCKET_NAME
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
@@ -28,7 +28,7 @@ class GoogleDriveToGCSExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.create_gcs_bucket(BUCKET)
+        self.create_gcs_bucket(BUCKET_NAME)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag_function(self):
@@ -36,5 +36,5 @@ class GoogleDriveToGCSExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.delete_gcs_bucket(BUCKET)
+        self.delete_gcs_bucket(BUCKET_NAME)
         super().tearDown()

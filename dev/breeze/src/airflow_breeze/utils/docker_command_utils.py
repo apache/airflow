@@ -266,6 +266,9 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
                 )
 
 
+DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+
+
 def check_docker_compose_version(verbose: bool):
     """
     Checks if the docker compose version is as expected, including some specific modifications done by
@@ -293,7 +296,8 @@ def check_docker_compose_version(verbose: bool):
             capture_output=True,
             text=True,
         )
-
+        DOCKER_COMPOSE_COMMAND.clear()
+        DOCKER_COMPOSE_COMMAND.extend(['docker', 'compose'])
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -576,7 +580,6 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'DEFAULT_BRANCH', AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, 'ENABLED_SYSTEMS', "")
     set_value_to_default_if_not_set(env, 'ENABLE_TEST_COVERAGE', "false")
-    set_value_to_default_if_not_set(env, 'GITHUB_REGISTRY_PULL_IMAGE_TAG', "latest")
     set_value_to_default_if_not_set(env, 'HOST_GROUP_ID', get_host_group_id())
     set_value_to_default_if_not_set(env, 'HOST_OS', get_host_os())
     set_value_to_default_if_not_set(env, 'HOST_USER_ID', get_host_user_id())
