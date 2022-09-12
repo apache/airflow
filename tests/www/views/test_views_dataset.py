@@ -15,17 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import string
+
 import pendulum
 import pytest
 from dateutil.tz import UTC
 
 from airflow import Dataset
-from airflow.models.dataset import DatasetModel, DatasetEvent
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets
 
 
@@ -34,11 +34,10 @@ class TestDatasetEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)
-    def cleanup(self) -> None:
+    def cleanup(self):
         clear_db_datasets()
         yield
         # clear_db_datasets()
-        pass
 
 
 class TestGetDatasets(TestDatasetEndpoint):
@@ -104,46 +103,50 @@ class TestGetDatasets(TestDatasetEndpoint):
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json['detail'] == msg
 
-    def test_order_by_desc(self, admin_client, session):
+    @pytest.mark.parametrize(
+        "order_by, ordered_dataset_ids",
+        [
+            ("uri", [1, 2, 3, 4]),
+            ("-uri", [4, 3, 2, 1]),
+            ("last_dataset_update", [3, 2, 4, 1]),
+            ("-last_dataset_update", [1, 4, 2, 3]),
+        ],
+    )
+    def test_order_by(self, admin_client, session, order_by, ordered_dataset_ids):
         datasets = [
             DatasetModel(
                 id=i,
-                uri=f"s3://bucket/key/{i}",
+                uri=string.ascii_lowercase[i],
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
             )
-            for i in [1, 2]
+            for i in range(1, len(ordered_dataset_ids) + 1)
         ]
         session.add_all(datasets)
+        dataset_events = [
+            DatasetEvent(
+                dataset_id=datasets[2].id,
+                timestamp=pendulum.today('UTC').add(days=-3),
+            ),
+            DatasetEvent(
+                dataset_id=datasets[1].id,
+                timestamp=pendulum.today('UTC').add(days=-2),
+            ),
+            DatasetEvent(
+                dataset_id=datasets[1].id,
+                timestamp=pendulum.today('UTC').add(days=-1),
+            ),
+        ]
+        session.add_all(dataset_events)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(DatasetModel).count() == len(ordered_dataset_ids)
 
-        response = admin_client.get("/object/list_datasets?order_by=-uri")
+        response = admin_client.get(f"/object/list_datasets?order_by={order_by}")
 
         assert response.status_code == 200
-        response_data = response.json
-        assert response_data == {
-            "datasets": [
-                {
-                    "id": 2,
-                    "uri": "s3://bucket/key/2",
-                    "last_dataset_update": None,
-                    "total_updates": 0,
-                    "producing_task_count": 0,
-                    "consuming_dag_count": 0,
-                },
-                {
-                    "id": 1,
-                    "uri": "s3://bucket/key/1",
-                    "last_dataset_update": None,
-                    "total_updates": 0,
-                    "producing_task_count": 0,
-                    "consuming_dag_count": 0,
-                },
-            ],
-            "total_entries": 2,
-        }
+        assert ordered_dataset_ids == [json_dict['id'] for json_dict in response.json['datasets']]
+        assert response.json['total_entries'] == len(ordered_dataset_ids)
 
     @pytest.mark.need_serialized_dag
     def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
@@ -161,9 +164,24 @@ class TestGetDatasets(TestDatasetEndpoint):
             ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
             ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
 
-            session.add(DatasetEvent(dataset_id=ds1_id, timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)))
-            session.add(DatasetEvent(dataset_id=ds1_id, timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)))
-            session.add(DatasetEvent(dataset_id=ds1_id, timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)))
+            session.add(
+                DatasetEvent(
+                    dataset_id=ds1_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
+                )
+            )
+            session.add(
+                DatasetEvent(
+                    dataset_id=ds1_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
+                )
+            )
+            session.add(
+                DatasetEvent(
+                    dataset_id=ds1_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
+                )
+            )
             session.commit()
 
             response = admin_client.get("/object/list_datasets")

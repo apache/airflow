@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, desc, distinct, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -99,11 +99,11 @@ from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import (
-    DatasetDagRef,
+    DagScheduleDatasetReference,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    DatasetTaskRef,
+    TaskOutletDatasetReference,
 )
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
@@ -3565,91 +3565,57 @@ class Airflow(AirflowBaseView):
         limit = int(request.args.get("limit", 25))
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
-        lstriped_orderby = order_by.lstrip('-')
-        if allowed_attrs and lstriped_orderby not in allowed_attrs:
+        lstripped_orderby = order_by.lstrip('-')
+        if lstripped_orderby not in allowed_attrs:
             return {
-                "detail": f"Ordering with '{lstriped_orderby}' is disallowed or the attribute does not exist on the model"
+                "detail": (
+                    f"Ordering with '{lstripped_orderby}' is disallowed or the attribute does not "
+                    "exist on the model"
+                )
             }, 400
 
-        if lstriped_orderby == "uri":
+        if lstripped_orderby == "uri":
             if order_by[0] == "-":
-                order_by = getattr(DatasetModel, lstriped_orderby).desc()
+                order_by = (DatasetModel.uri.desc(),)
             else:
-                order_by = getattr(DatasetModel, lstriped_orderby).asc()
-        if lstriped_orderby == "last_dataset_update":
+                order_by = (DatasetModel.uri.asc(),)
+        elif lstripped_orderby == "last_dataset_update":
             if order_by[0] == "-":
-                order_by = func.max(DatasetEvent.timestamp).desc()
+                # Datasets without updates are probably more interesting than datasets with updates, so we
+                # push the nulls to the top
+                order_by = (func.max(DatasetEvent.timestamp).desc().nulls_first(), DatasetModel.uri.asc())
             else:
-                order_by = func.max(DatasetEvent.timestamp).asc()
+                order_by = (func.max(DatasetEvent.timestamp).asc().nulls_last(), DatasetModel.uri.desc())
 
-        if limit > 50:
-            limit = 50
+        limit = 50 if limit > 50 else limit
 
         with create_session() as session:
             total_entries = session.query(func.count(DatasetModel.id)).scalar()
 
-            print(
-                session.query(
+            datasets = [
+                dict(dataset)
+                for dataset in session.query(
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
                     func.count(DatasetEvent.id).label("total_updates"),
-                    func.count(DatasetModel.producing_tasks).label("producing_task_count"),
-                    func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
+                    func.count(distinct(DatasetModel.producing_tasks)).label("producing_task_count"),
+                    func.count(distinct(DatasetModel.consuming_dags)).label("consuming_dag_count"),
                 )
                 .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
-                .outerjoin(DatasetDagRef)
-                .outerjoin(DatasetTaskRef)
-                .group_by(DatasetModel.id, DatasetModel.uri)
-                .order_by(order_by)
+                .outerjoin(
+                    DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id
+                )
+                .outerjoin(
+                    TaskOutletDatasetReference, TaskOutletDatasetReference.dataset_id == DatasetModel.id
+                )
+                .group_by(
+                    DatasetModel.id,
+                    DatasetModel.uri,
+                )
+                .order_by(*order_by)
                 .offset(offset)
                 .limit(limit)
-            )
-
-            print(session.query(DatasetModel.producing_tasks).all())
-
-            # datasets = [
-            #    dict(dataset)
-            #    for dataset in (
-            #        session.query(
-            #            DatasetModel.id,
-            #            DatasetModel.uri,
-            #            func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-            #            func.count(DatasetEvent.id).label("total_updates"),
-            #            func.count(DatasetModel.producing_tasks).label("producing_task_count"),
-            #            func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
-            #        )
-            #        .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
-            #        .outerjoin(DatasetDagRef)
-            #        .outerjoin(DatasetTaskRef)
-            #        .group_by(DatasetModel.id, DatasetModel.uri)
-            #        .order_by(order_by)
-            #        .offset(offset)
-            #        .limit(limit)
-            #        .all()
-            #    )
-            # ]
-            datasets = [
-                dict(dataset)
-                for dataset in (
-                    session.query(
-                        DatasetModel.id,
-                        DatasetModel.uri,
-                        func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                        func.count(DatasetEvent.id).label("total_updates"),
-                        func.count(DatasetTaskRef.dataset_id).label("producing_task_count"),
-                        func.count(DatasetModel.consuming_dags).label("consuming_dag_count"),
-                    )
-                    # .outerjoin(DatasetModel.events)
-                    .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
-                    .outerjoin(DatasetModel.producing_tasks)
-                    .outerjoin(DatasetModel.consuming_dags)
-                    .group_by(DatasetModel.id, DatasetModel.uri)
-                    .order_by(order_by)
-                    .offset(offset)
-                    .limit(limit)
-                    .all()
-                )
             ]
             data = {"datasets": datasets, "total_entries": total_entries}
 
