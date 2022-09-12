@@ -3238,15 +3238,13 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
-        from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
-
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info_list = {
-            x.dag_id: (x.first_event_time, x.last_event_time)
+            x.dag_id: (x.first_queued_time, x.last_queued_time)
             for x in session.query(
                 DagScheduleDatasetReference.dag_id,
-                func.max(DDRQ.created_at).label('last_event_time'),
-                func.max(DDRQ.created_at).label('first_event_time'),
+                func.max(DDRQ.created_at).label('last_queued_time'),
+                func.min(DDRQ.created_at).label('first_queued_time'),
             )
             .join(DagScheduleDatasetReference.queue_records, isouter=True)
             .group_by(DagScheduleDatasetReference.dag_id)
