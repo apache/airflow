@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamVali
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, TaskOutletDatasetReference
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -2219,6 +2219,52 @@ class TestDagModel:
         dag.fileloc = fileloc
 
         assert dag.relative_fileloc == expected_relative
+
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns_dataset_triggered_dag_info_queued_times(self, session, dag_maker):
+        dataset1 = Dataset(uri="ds1")
+        dataset2 = Dataset(uri="ds2")
+
+        for dag_id, dataset in [("datasets-1", dataset1), ("datasets-2", dataset2)]:
+            with dag_maker(dag_id=dag_id, start_date=timezone.utcnow(), session=session):
+                EmptyOperator(task_id="task", outlets=[dataset])
+            dr = dag_maker.create_dagrun()
+
+            ds_id = session.query(DatasetModel.id).filter_by(uri=dataset.uri).scalar()
+
+            session.add(
+                DatasetEvent(
+                    dataset_id=ds_id,
+                    source_task_id="task",
+                    source_dag_id=dr.dag_id,
+                    source_run_id=dr.run_id,
+                    source_map_index=-1,
+                )
+            )
+
+        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        ds2_id = session.query(DatasetModel.id).filter_by(uri=dataset2.uri).scalar()
+
+        with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]) as dag:
+            pass
+
+        session.flush()
+        session.add_all(
+            [
+                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                DatasetDagRunQueue(
+                    dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
+                ),
+            ]
+        )
+        session.flush()
+
+        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        assert 1 == len(dataset_triggered_dag_info)
+        assert dag.dag_id in dataset_triggered_dag_info
+        first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
+        assert first_queued_time == DEFAULT_DATE
+        assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
 
 class TestQueries:
