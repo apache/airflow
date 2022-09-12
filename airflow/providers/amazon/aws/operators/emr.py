@@ -632,7 +632,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.log.info('Starting job on Application: %s', self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
-        if app_state not in EmrServerlessHook.JOB_SUCCESS_STATES:
+        if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
 
             self.hook.waiter(
