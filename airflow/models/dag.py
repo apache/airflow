@@ -3255,9 +3255,18 @@ class DagModel(Base):
         }
         dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
         if dataset_triggered_dag_ids:
-            exclusion_list = set(
-                DagRun.active_runs_of_dags(dataset_triggered_dag_ids, session=session).keys()
-            )
+            exclusion_list = {
+                x.dag_id
+                for x in (
+                    session.query(DagModel.dag_id)
+                    .join(DagRun.dag)
+                    .filter(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
+                    .filter(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                    .group_by(DagModel.dag_id)
+                    .having(func.count() >= DagModel.max_active_runs)
+                    .all()
+                )
+            }
             if exclusion_list:
                 dataset_triggered_dag_ids -= exclusion_list
                 dataset_triggered_dag_info = {
