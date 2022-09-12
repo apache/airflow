@@ -322,8 +322,10 @@ class GCSToBigQueryOperator(BaseOperator):
             if row:
                 max_id = row[0] if row[0] else 0
                 self.log.info(
-                    f'Loaded BQ data with max '
-                    f'{self.destination_project_dataset_table}.{self.max_id_key}={max_id}',
+                    'Loaded BQ data with max %s.%s=%s',
+                    self.destination_project_dataset_table,
+                    self.max_id_key,
+                    max_id,
                 )
                 return max_id
             else:

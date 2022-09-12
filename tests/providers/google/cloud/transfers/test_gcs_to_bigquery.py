@@ -46,7 +46,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
 
         result = operator.execute(None)
 
-        self.assertEqual(result, '1')
+        assert result == '1'
 
         bq_hook.return_value.run_query.assert_called_once_with(
             sql="SELECT MAX(id) FROM `test-project.dataset.table`",
