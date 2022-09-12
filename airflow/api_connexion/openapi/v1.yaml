@@ -1412,6 +1412,23 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entry
       tags: [XCom]
+      parameters:
+        - in: query
+          name: deserialize
+          schema:
+            type: boolean
+            default: false
+          required: false
+          description: |
+            Whether to deserialize an XCom value when using a custom XCom backend.
+
+            The XCom API endpoint calls `orm_deserialize_value` by default since an XCom may contain value
+            that is potentially expensive to deserialize in the web server. Setting this to true overrides
+            the consideration, and calls `deserialize_value` instead.
+
+            This parameter is not meaningful when using the default XCom backend.
+
+            *New in version 2.5.0*
       responses:
         '200':
           description: Success.

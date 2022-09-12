@@ -3413,6 +3413,20 @@ export interface operations {
         /** The XCom key. */
         xcom_key: components["parameters"]["XComKey"];
       };
+      query: {
+        /**
+         * Whether to deserialize an XCom value when using a custom XCom backend.
+         *
+         * The XCom API endpoint calls `orm_deserialize_value` by default since an XCom may contain value
+         * that is potentially expensive to deserialize in the web server. Setting this to true overrides
+         * the consideration, and calls `deserialize_value` instead.
+         *
+         * This parameter is not meaningful when using the default XCom backend.
+         *
+         * *New in version 2.5.0*
+         */
+        deserialize?: boolean;
+      };
     };
     responses: {
       /** Success. */
@@ -4221,7 +4235,7 @@ export type GetVariableVariables = CamelCasedPropertiesDeep<operations['get_vari
 export type DeleteVariableVariables = CamelCasedPropertiesDeep<operations['delete_variable']['parameters']['path']>;
 export type PatchVariableVariables = CamelCasedPropertiesDeep<operations['patch_variable']['parameters']['path'] & operations['patch_variable']['parameters']['query'] & operations['patch_variable']['requestBody']['content']['application/json']>;
 export type GetXcomEntriesVariables = CamelCasedPropertiesDeep<operations['get_xcom_entries']['parameters']['path'] & operations['get_xcom_entries']['parameters']['query']>;
-export type GetXcomEntryVariables = CamelCasedPropertiesDeep<operations['get_xcom_entry']['parameters']['path']>;
+export type GetXcomEntryVariables = CamelCasedPropertiesDeep<operations['get_xcom_entry']['parameters']['path'] & operations['get_xcom_entry']['parameters']['query']>;
 export type GetExtraLinksVariables = CamelCasedPropertiesDeep<operations['get_extra_links']['parameters']['path']>;
 export type GetLogVariables = CamelCasedPropertiesDeep<operations['get_log']['parameters']['path'] & operations['get_log']['parameters']['query']>;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<operations['get_dag_details']['parameters']['path']>;

@@ -15,18 +15,32 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import timedelta
+from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
-from airflow.models import DagModel, DagRun, TaskInstance, XCom
+from airflow.models.dag import DagModel
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
+from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+
+
+class CustomXCom(BaseXCom):
+    @classmethod
+    def deserialize_value(cls, xcom: XCom):
+        return f"real deserialized {super().deserialize_value(xcom)}"
+
+    def orm_deserialize_value(self):
+        return f"orm deserialized {super().orm_deserialize_value()}"
 
 
 @pytest.fixture(scope="module")
@@ -145,7 +159,7 @@ class TestGetXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 403
 
-    def _create_xcom_entry(self, dag_id, run_id, execution_date, task_id, xcom_key):
+    def _create_xcom_entry(self, dag_id, run_id, execution_date, task_id, xcom_key, *, backend=XCom):
         with create_session() as session:
             dagrun = DagRun(
                 dag_id=dag_id,
@@ -158,13 +172,33 @@ class TestGetXComEntry(TestXComEndpoint):
             ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
             ti.dag_id = dag_id
             session.add(ti)
-        XCom.set(
+        backend.set(
             key=xcom_key,
             value="TEST_VALUE",
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,
         )
+
+    @pytest.mark.parametrize(
+        "query, expected_value",
+        [
+            pytest.param("?deserialize=true", "real deserialized TEST_VALUE", id="true"),
+            pytest.param("?deserialize=false", "orm deserialized TEST_VALUE", id="false"),
+            pytest.param("", "orm deserialized TEST_VALUE", id="default"),
+        ],
+    )
+    @conf_vars({("core", "xcom_backend"): "tests.api_connexion.endpoints.test_xcom_endpoint.CustomXCom"})
+    def test_custom_xcom_deserialize(self, query, expected_value):
+        XCom = resolve_xcom_backend()
+        self._create_xcom_entry("dag", "run", utcnow(), "task", "key", backend=XCom)
+
+        url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/key{query}"
+        with mock.patch("airflow.api_connexion.endpoints.xcom_endpoint.XCom", XCom):
+            response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+
+        assert response.status_code == 200
+        assert response.json["value"] == expected_value
 
 
 class TestGetXComEntries(TestXComEndpoint):
@@ -386,7 +420,8 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
         self.execution_date_parsed = parse_execution_date(self.execution_date)
         self.run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.execution_date_parsed)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "query_params, expected_xcom_ids",
         [
             (
                 "limit=1",
@@ -433,12 +468,12 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 "limit=2&offset=2",
                 ["TEST_XCOM_KEY2", "TEST_XCOM_KEY3"],
             ),
-        ]
+        ],
     )
     def test_handle_limit_offset(self, query_params, expected_xcom_ids):
-        url = "/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries?{query_params}"
-        url = url.format(
-            dag_id=self.dag_id, dag_run_id=self.run_id, task_id=self.task_id, query_params=query_params
+        url = (
+            f"/api/v1/dags/{self.dag_id}/dagRuns/{self.run_id}/taskInstances/{self.task_id}/xcomEntries"
+            f"?{query_params}"
         )
         with create_session() as session:
             dagrun = DagRun(
