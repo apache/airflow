@@ -26,7 +26,7 @@ from airflow.datasets import Dataset
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -342,17 +342,35 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
         ddrq = DatasetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 1, tzinfo=UTC)
+            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
         session.add(ddrq)
+        dataset_events = [
+            DatasetEvent(
+                dataset_id=ds1_id,
+                extra={},
+                timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
+            ),
+            DatasetEvent(
+                dataset_id=ds1_id,
+                extra={},
+                timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
+            ),
+            DatasetEvent(
+                dataset_id=ds1_id,
+                extra={},
+                timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
+            ),
+        ]
+        session.add_all(dataset_events)
         session.commit()
 
         resp = admin_client.get(f'/object/next_run_datasets/{DAG_ID}', follow_redirects=True)
 
     assert resp.status_code == 200, resp.json
     assert resp.json == [
-        {'id': ds1_id, 'uri': 's3://bucket/key/1', 'created_at': "2022-08-01T00:00:00+00:00"},
-        {'id': ds2_id, 'uri': 's3://bucket/key/2', 'created_at': None},
+        {'id': ds1_id, 'uri': 's3://bucket/key/1', 'lastUpdate': "2022-08-02T02:00:00+00:00"},
+        {'id': ds2_id, 'uri': 's3://bucket/key/2', 'lastUpdate': None},
     ]
 
 
