@@ -3259,7 +3259,7 @@ class DagModel(Base):
                 x.dag_id
                 for x in (
                     session.query(DagModel.dag_id)
-                    .join(DagRun.dag)
+                    .join(DagRun.dag_model)
                     .filter(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
                     .filter(DagModel.dag_id.in_(dataset_triggered_dag_ids))
                     .group_by(DagModel.dag_id)

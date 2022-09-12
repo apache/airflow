@@ -167,7 +167,9 @@ class DagRun(Base, LoggingMixin):
     task_instances = relationship(
         TI, back_populates="dag_run", cascade='save-update, merge, delete, delete-orphan'
     )
-    dag = relationship("DagModel", primaryjoin="DagRun.dag_id == foreign(DagModel.dag_id)")
+    dag_model = relationship(
+        "DagModel", primaryjoin="DagRun.dag_id == foreign(DagModel.dag_id)", uselist=False
+    )
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         'scheduler',
