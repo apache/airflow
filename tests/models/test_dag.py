@@ -2171,6 +2171,21 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == []
 
+        # increase max active runs and we should now need another run
+        dag = DAG(
+            dag_id='my_dag',
+            max_active_runs=2,
+            schedule=[dataset],
+            start_date=pendulum.now().add(days=-2),
+        )
+        EmptyOperator(task_id='dummy', dag=dag)
+        DAG.bulk_write_to_db([dag], session=session)
+        session.commit()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        session.commit()
+        assert dag_models == [dag_model]
+
     def test_max_active_runs_not_none(self):
         dag = DAG(dag_id='test_max_active_runs_not_none', start_date=timezone.datetime(2038, 1, 1))
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
