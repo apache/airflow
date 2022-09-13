@@ -3263,7 +3263,7 @@ class DagModel(Base):
                     .filter(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
                     .filter(DagModel.dag_id.in_(dataset_triggered_dag_ids))
                     .group_by(DagModel.dag_id)
-                    .having(func.count() >= DagModel.max_active_runs)
+                    .having(func.count() >= func.max(DagModel.max_active_runs))
                     .all()
                 )
             }

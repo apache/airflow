@@ -65,7 +65,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
@@ -2102,6 +2102,11 @@ class TestDag:
 
 
 class TestDagModel:
+    def setup_method(self):
+        clear_db_dags()
+        clear_db_datasets()
+        clear_db_runs()
+
     def test_dags_needing_dagruns_not_too_early(self):
         dag = DAG(dag_id='far_future_dag', start_date=timezone.datetime(2038, 1, 1))
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
