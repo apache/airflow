@@ -15,8 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Handler that integrates with Stackdriver"""
+from __future__ import annotations
+
 import logging
-from typing import Collection, Dict, List, Optional, Tuple, Type, Union
+from typing import Collection
 from urllib.parse import urlencode
 
 from google.auth.credentials import Credentials
@@ -78,25 +80,25 @@ class StackdriverTaskHandler(logging.Handler):
 
     def __init__(
         self,
-        gcp_key_path: Optional[str] = None,
-        scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,
+        gcp_key_path: str | None = None,
+        scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         name: str = DEFAULT_LOGGER_NAME,
-        transport: Type[Transport] = BackgroundThreadTransport,
+        transport: type[Transport] = BackgroundThreadTransport,
         resource: Resource = _GLOBAL_RESOURCE,
-        labels: Optional[Dict[str, str]] = None,
+        labels: dict[str, str] | None = None,
     ):
         super().__init__()
-        self.gcp_key_path: Optional[str] = gcp_key_path
-        self.scopes: Optional[Collection[str]] = scopes
+        self.gcp_key_path: str | None = gcp_key_path
+        self.scopes: Collection[str] | None = scopes
         self.name: str = name
-        self.transport_type: Type[Transport] = transport
+        self.transport_type: type[Transport] = transport
         self.resource: Resource = resource
-        self.labels: Optional[Dict[str, str]] = labels
-        self.task_instance_labels: Optional[Dict[str, str]] = {}
+        self.labels: dict[str, str] | None = labels
+        self.task_instance_labels: dict[str, str] | None = {}
         self.task_instance_hostname = 'default-hostname'
 
     @cached_property
-    def _credentials_and_project(self) -> Tuple[Credentials, str]:
+    def _credentials_and_project(self) -> tuple[Credentials, str]:
         credentials, project = get_credentials_and_project_id(
             key_path=self.gcp_key_path, scopes=self.scopes, disable_logging=True
         )
@@ -136,7 +138,7 @@ class StackdriverTaskHandler(logging.Handler):
         :param record: The record to be logged.
         """
         message = self.format(record)
-        labels: Optional[Dict[str, str]]
+        labels: dict[str, str] | None
         if self.labels and self.task_instance_labels:
             labels = {}
             labels.update(self.labels)
@@ -159,8 +161,8 @@ class StackdriverTaskHandler(logging.Handler):
         self.task_instance_hostname = task_instance.hostname
 
     def read(
-        self, task_instance: TaskInstance, try_number: Optional[int] = None, metadata: Optional[Dict] = None
-    ) -> Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, Union[str, bool]]]]:
+        self, task_instance: TaskInstance, try_number: int | None = None, metadata: dict | None = None
+    ) -> tuple[list[tuple[tuple[str, str]]], list[dict[str, str | bool]]]:
         """
         Read logs of given task instance from Stackdriver logging.
 
@@ -193,14 +195,14 @@ class StackdriverTaskHandler(logging.Handler):
 
         messages, end_of_log, next_page_token = self._read_logs(log_filter, next_page_token, all_pages)
 
-        new_metadata: Dict[str, Union[str, bool]] = {"end_of_log": end_of_log}
+        new_metadata: dict[str, str | bool] = {"end_of_log": end_of_log}
 
         if next_page_token:
             new_metadata['next_page_token'] = next_page_token
 
         return [((self.task_instance_hostname, messages),)], [new_metadata]
 
-    def _prepare_log_filter(self, ti_labels: Dict[str, str]) -> str:
+    def _prepare_log_filter(self, ti_labels: dict[str, str]) -> str:
         """
         Prepares the filter that chooses which log entries to fetch.
 
@@ -233,8 +235,8 @@ class StackdriverTaskHandler(logging.Handler):
         return "\n".join(log_filters)
 
     def _read_logs(
-        self, log_filter: str, next_page_token: Optional[str], all_pages: bool
-    ) -> Tuple[str, bool, Optional[str]]:
+        self, log_filter: str, next_page_token: str | None, all_pages: bool
+    ) -> tuple[str, bool, str | None]:
         """
         Sends requests to the Stackdriver service and downloads logs.
 
@@ -270,7 +272,7 @@ class StackdriverTaskHandler(logging.Handler):
             end_of_log = not bool(next_page_token)
         return "\n".join(messages), end_of_log, next_page_token
 
-    def _read_single_logs_page(self, log_filter: str, page_token: Optional[str] = None) -> Tuple[str, str]:
+    def _read_single_logs_page(self, log_filter: str, page_token: str | None = None) -> tuple[str, str]:
         """
         Sends requests to the Stackdriver service and downloads single pages with logs.
 
@@ -297,7 +299,7 @@ class StackdriverTaskHandler(logging.Handler):
         return "\n".join(messages), page.next_page_token
 
     @classmethod
-    def _task_instance_to_labels(cls, ti: TaskInstance) -> Dict[str, str]:
+    def _task_instance_to_labels(cls, ti: TaskInstance) -> dict[str, str]:
         return {
             cls.LABEL_TASK_ID: ti.task_id,
             cls.LABEL_DAG_ID: ti.dag_id,

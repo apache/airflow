@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from an S3 bucket to Hive."""
+from __future__ import annotations
 
 import bz2
 import gzip
 import os
 import tempfile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -94,21 +94,21 @@ class S3ToHiveOperator(BaseOperator):
         self,
         *,
         s3_key: str,
-        field_dict: Dict,
+        field_dict: dict,
         hive_table: str,
         delimiter: str = ',',
         create: bool = True,
         recreate: bool = False,
-        partition: Optional[Dict] = None,
+        partition: dict | None = None,
         headers: bool = False,
         check_headers: bool = False,
         wildcard_match: bool = False,
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[bool, str]] = None,
+        verify: bool | str | None = None,
         hive_cli_conn_id: str = 'hive_cli_default',
         input_compressed: bool = False,
-        tblproperties: Optional[Dict] = None,
-        select_expression: Optional[str] = None,
+        tblproperties: dict | None = None,
+        select_expression: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -132,7 +132,7 @@ class S3ToHiveOperator(BaseOperator):
         if self.check_headers and not (self.field_dict is not None and self.headers):
             raise AirflowException("To check_headers provide field_dict and headers")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         # Downloading file from S3
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
@@ -162,7 +162,7 @@ class S3ToHiveOperator(BaseOperator):
                 if self.delimiter:
                     option['FieldDelimiter'] = self.delimiter
 
-                input_serialization: Dict[str, Any] = {'CSV': option}
+                input_serialization: dict[str, Any] = {'CSV': option}
                 if self.input_compressed:
                     input_serialization['CompressionType'] = 'GZIP'
 

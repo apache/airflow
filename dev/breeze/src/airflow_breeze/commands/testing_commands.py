@@ -50,6 +50,7 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console, message_type_from_return_code
 from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
 )
@@ -269,7 +270,7 @@ def tests(
     if db_reset:
         env_variables["DB_RESET"] = "true"
     perform_environment_checks(verbose=verbose)
-    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
     version = (
         mssql_version
@@ -306,11 +307,6 @@ def tests(
 )
 @option_dry_run
 @option_verbose
-@click.option(
-    '--limit-progress-output',
-    help="Limit progress to percentage only and just show the summary when tests complete.",
-    is_flag=True,
-)
 @option_image_tag_for_running
 @option_mount_sources
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
@@ -319,7 +315,6 @@ def helm_tests(
     verbose: bool,
     extra_pytest_args: Tuple,
     image_tag: Optional[str],
-    limit_progress_output: bool,
     mount_sources: str,
 ):
     exec_shell_params = ShellParams(
@@ -332,18 +327,7 @@ def helm_tests(
     env_variables['RUN_TESTS'] = "true"
     env_variables['TEST_TYPE'] = 'Helm'
     perform_environment_checks(verbose=verbose)
-    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
-    if limit_progress_output:
-        result = run_with_progress(
-            cmd=cmd,
-            python=exec_shell_params.python,
-            backend=exec_shell_params.backend,
-            test_type='Helm',
-            env_variables=env_variables,
-            verbose=verbose,
-            dry_run=dry_run,
-        )
-    else:
-        result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+    result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)

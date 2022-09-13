@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -30,6 +28,10 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+
+# mypy ignore arg types (for templated fields)
+# type: ignore[arg-type]
+
 
 # Example Jinja Template format, substitute your values:
 """
@@ -65,7 +67,8 @@ with DAG(
         cluster_name=CLUSTER_NAME,
         compute=None,
         cluster_role_arn="{{ dag_run.conf['cluster_role_arn'] }}",
-        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",
+        # This only works with render_template_as_native_obj flag (this dag has it set)
+        resources_vpc_config="{{ dag_run.conf['resources_vpc_config'] }}",  # type: ignore[arg-type]
     )
 
     await_create_cluster = EksClusterStateSensor(

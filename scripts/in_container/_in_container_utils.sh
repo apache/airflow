@@ -59,22 +59,6 @@ function in_container_script_start() {
     fi
 }
 
-function in_container_script_end() {
-    #shellcheck disable=2181
-    EXIT_CODE=$?
-    if [[ ${EXIT_CODE} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" || "${PRINT_INFO_FROM_SCRIPTS}" == "True" ]]; then
-            echo "########################################################################################################################"
-            echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
-            echo "########################################################################################################################"
-        fi
-    fi
-
-    if [[ ${VERBOSE_COMMANDS:="false"} == "true" || ${VERBOSE_COMMANDS} == "True" ]]; then
-        set +x
-    fi
-}
-
 #
 # Cleans up PYC files (in case they come in mounted folders)
 #
@@ -85,9 +69,7 @@ function in_container_cleanup_pyc() {
     fi
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
         -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -106,9 +88,7 @@ function in_container_cleanup_pycache() {
     fi
     find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
         -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -123,7 +103,7 @@ function in_container_cleanup_pycache() {
 # changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "Linux" ]]; then
+    if [[ ${HOST_OS:=} == "linux" ]]; then
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
@@ -131,6 +111,7 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/docs"
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/images/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
@@ -147,10 +128,6 @@ function in_container_fix_ownership() {
         echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
         echo
     fi
-}
-
-function in_container_clear_tmp() {
-    rm -rf /tmp/*
 }
 
 function in_container_go_to_airflow_sources() {

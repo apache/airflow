@@ -31,7 +31,6 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_operator_short_circuit]
     cond_true = ShortCircuitOperator(
         task_id='condition_is_True',
         python_callable=lambda: True,
@@ -47,9 +46,7 @@ with DAG(
 
     chain(cond_true, *ds_true)
     chain(cond_false, *ds_false)
-    # [END howto_operator_short_circuit]
 
-    # [START howto_operator_short_circuit_trigger_rules]
     [task_1, task_2, task_3, task_4, task_5, task_6] = [
         EmptyOperator(task_id=f"task_{i}") for i in range(1, 7)
     ]
@@ -61,4 +58,3 @@ with DAG(
     )
 
     chain(task_1, [task_2, short_circuit], [task_3, task_4], [task_5, task_6], task_7)
-    # [END howto_operator_short_circuit_trigger_rules]

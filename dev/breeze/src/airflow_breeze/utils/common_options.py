@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     SINGLE_PLATFORMS,
     get_available_packages,
 )
@@ -45,10 +46,34 @@ from airflow_breeze.utils.custom_param_types import (
     CacheableDefault,
     UseAirflowVersionType,
 )
-from airflow_breeze.utils.recording import output_file_for_recording
+from airflow_breeze.utils.recording import generating_command_images
+
+
+def _set_default_from_parent(ctx: "click.core.Context", option: "click.core.Option", value):
+    from click.core import ParameterSource
+
+    if (
+        ctx.parent
+        and option.name in ctx.parent.params
+        and ctx.get_parameter_source(option.name)
+        in (
+            ParameterSource.DEFAULT,
+            ParameterSource.DEFAULT_MAP,
+        )
+    ):
+        # Current value is the default, use the parent's value (i.e. for `breeze
+        # # -v static-checks` respect the "global" option)
+        value = ctx.parent.params[option.name]
+    return value
+
 
 option_verbose = click.option(
-    "-v", "--verbose", is_flag=True, help="Print verbose information about performed steps.", envvar='VERBOSE'
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Print verbose information about performed steps.",
+    envvar='VERBOSE',
+    callback=_set_default_from_parent,
 )
 option_dry_run = click.option(
     "-D",
@@ -56,6 +81,7 @@ option_dry_run = click.option(
     is_flag=True,
     help="If dry-run is set, commands are only printed, not executed.",
     envvar='DRY_RUN',
+    callback=_set_default_from_parent,
 )
 option_answer = click.option(
     "-a",
@@ -63,14 +89,16 @@ option_answer = click.option(
     type=AnswerChoice(['y', 'n', 'q', 'yes', 'no', 'quit']),
     help="Force answer to questions.",
     envvar='ANSWER',
+    callback=_set_default_from_parent,
 )
 option_github_repository = click.option(
     '-g',
     '--github-repository',
     help='GitHub repository used to pull, push run images.',
-    default="apache/airflow",
+    default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     show_default=True,
     envvar='GITHUB_REPOSITORY',
+    callback=_set_default_from_parent,
 )
 option_python = click.option(
     '-p',
@@ -184,25 +212,32 @@ option_image_tag_for_pulling = click.option(
     '-t',
     '--image-tag',
     help='Tag of the image which is used to pull the image',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
-    required=True,
 )
 option_image_tag_for_building = click.option(
     '-t',
     '--image-tag',
     help='Tag the image after building it',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
 )
 option_image_tag_for_running = click.option(
     '-t',
     '--image-tag',
     help='Tag of the image which is used to run the image (implies --mount-sources=skip)',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
 )
 option_image_tag_for_verifying = click.option(
     '-t',
     '--image-tag',
     help='Tag of the image when verifying it',
+    show_default=True,
+    default="latest",
     envvar='IMAGE_TAG',
 )
 option_image_name = click.option(
@@ -226,6 +261,13 @@ option_upgrade_to_newer_dependencies = click.option(
     is_flag=True,
     help='When set, upgrade all PIP packages to latest.',
     envvar='UPGRADE_TO_NEWER_DEPENDENCIES',
+)
+option_upgrade_on_failure = click.option(
+    "-u",
+    '--upgrade-on-failure',
+    is_flag=True,
+    help='When set, attempt to run upgrade to newer dependencies when regular build fails.',
+    envvar='UPGRADE_ON_FAILURE',
 )
 option_additional_extras = click.option(
     '--additional-extras',
@@ -388,8 +430,8 @@ option_run_in_parallel = click.option(
 option_parallelism = click.option(
     '--parallelism',
     help="Maximum number of processes to use while running the operation in parallel.",
-    type=click.IntRange(1, mp.cpu_count() * 2 if not output_file_for_recording else 8),
-    default=mp.cpu_count() if not output_file_for_recording else 4,
+    type=click.IntRange(1, mp.cpu_count() * 2 if not generating_command_images() else 8),
+    default=mp.cpu_count() if not generating_command_images() else 4,
     envvar='PARALLELISM',
     show_default=True,
 )
@@ -473,4 +515,17 @@ option_skip_cleanup = click.option(
     help="Skip cleanup of temporary files created during parallel run",
     is_flag=True,
     envvar='SKIP_CLEANUP',
+)
+option_include_mypy_volume = click.option(
+    '--include-mypy-volume',
+    help="Whether to include mounting of the mypy volume (useful for debugging mypy).",
+    is_flag=True,
+    envvar='INCLUDE_MYPY_VOLUME',
+)
+option_max_time = click.option(
+    '--max-time',
+    help="Maximum time that the command should take - if it takes longer, the command will fail.",
+    type=click.IntRange(min=1),
+    envvar='MAX_TIME',
+    callback=_set_default_from_parent,
 )

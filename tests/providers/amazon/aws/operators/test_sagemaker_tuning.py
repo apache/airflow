@@ -15,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTuningOperator
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
     ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
     ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
@@ -34,7 +35,7 @@ EXPECTED_INTEGER_FIELDS: List[List[str]] = [
     ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds'],
 ]
 
-CREATE_TUNING_PARAMS: Dict = {
+CREATE_TUNING_PARAMS: dict = {
     'HyperParameterTuningJobName': 'job_name',
     'HyperParameterTuningJobConfig': {
         'Strategy': 'Bayesian',
@@ -83,7 +84,8 @@ class TestSageMakerTuningOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_tuning_job')
-    def test_integer_fields(self, mock_tuning, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields(self, serialize, mock_tuning, mock_client):
         mock_tuning.return_value = {'TrainingJobArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}}
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
@@ -92,7 +94,8 @@ class TestSageMakerTuningOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_tuning_job')
-    def test_execute(self, mock_tuning, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute(self, serialize, mock_tuning, mock_client):
         mock_tuning.return_value = {'TrainingJobArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}}
         self.sagemaker.execute(None)
         mock_tuning.assert_called_once_with(

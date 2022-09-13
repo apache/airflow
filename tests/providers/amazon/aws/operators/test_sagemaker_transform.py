@@ -15,24 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ['Transform', 'TransformResources', 'InstanceCount'],
     ['Transform', 'MaxConcurrentTransforms'],
     ['Transform', 'MaxPayloadInMB'],
 ]
 
-CREATE_TRANSFORM_PARAMS: Dict = {
+CREATE_TRANSFORM_PARAMS: dict = {
     'TransformJobName': 'job_name',
     'ModelName': 'model_name',
     'MaxConcurrentTransforms': '12',
@@ -43,13 +44,13 @@ CREATE_TRANSFORM_PARAMS: Dict = {
     'TransformResources': {'InstanceType': 'ml.m4.xlarge', 'InstanceCount': '3'},
 }
 
-CREATE_MODEL_PARAMS: Dict = {
+CREATE_MODEL_PARAMS: dict = {
     'ModelName': 'model_name',
     'PrimaryContainer': {'Image': 'test_image', 'ModelDataUrl': 'output_path'},
     'ExecutionRoleArn': 'arn:aws:iam:role/test-role',
 }
 
-CONFIG: Dict = {'Model': CREATE_MODEL_PARAMS, 'Transform': CREATE_TRANSFORM_PARAMS}
+CONFIG: dict = {'Model': CREATE_MODEL_PARAMS, 'Transform': CREATE_TRANSFORM_PARAMS}
 
 
 class TestSageMakerTransformOperator(unittest.TestCase):
@@ -65,7 +66,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_integer_fields(self, mock_transform, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields(self, serialize, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -82,7 +84,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute(self, mock_transform, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute(self, serialize, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -106,7 +109,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute_with_check_if_job_exists(self, mock_transform, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_with_check_if_job_exists(self, serialize, mock_transform, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -123,7 +127,8 @@ class TestSageMakerTransformOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute_without_check_if_job_exists(self, mock_transform, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute_without_check_if_job_exists(self, serialize, mock_transform, mock_client):
         mock_transform.return_value = {
             'TransformJobArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},

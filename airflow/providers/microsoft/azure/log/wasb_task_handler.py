@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import shutil
-from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 
@@ -41,7 +42,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         wasb_container: str,
         delete_local_copy: str,
         *,
-        filename_template: Optional[str] = None,
+        filename_template: str | None = None,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container
@@ -103,7 +104,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number: int, metadata: Optional[str] = None) -> Tuple[str, Dict[str, bool]]:
+    def _read(self, ti, try_number: int, metadata: str | None = None) -> tuple[str, dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.

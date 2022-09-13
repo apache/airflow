@@ -21,12 +21,12 @@ import os
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 
@@ -138,6 +138,8 @@ class FileTaskHandler(logging.Handler):
                          can be used for steaming log reading and auto-tailing.
         :return: log message as a string and metadata.
         """
+        from airflow.utils.jwt_signer import JWTSigner
+
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -193,8 +195,8 @@ class FileTaskHandler(logging.Handler):
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
+            url = urljoin(
+                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log", log_relative_path
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"

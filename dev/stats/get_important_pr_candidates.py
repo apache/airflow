@@ -19,6 +19,7 @@
 import logging
 import math
 import pickle
+import re
 import sys
 import textwrap
 from datetime import datetime
@@ -62,19 +63,26 @@ class PrStat:
     COMMENT_INTERACTION_VALUE = 1.0
     REACTION_INTERACTION_VALUE = 0.5
 
-    def __init__(self, pull_request: PullRequest):
+    def __init__(self, g, pull_request: PullRequest):
+        self.g = g
         self.pull_request = pull_request
         self._users: Set[str] = set()
+        self.issue_nums: List[int] = []
+        self.len_issue_comments = 0
+        self.num_issue_comments = 0
+        self.num_issue_reactions = 0
 
     @property
     def label_score(self) -> float:
+        """assigns label score"""
         for label in self.pull_request.labels:
             if "provider" in label.name:
                 return PrStat.PROVIDER_SCORE
         return PrStat.REGULAR_SCORE
 
     @cached_property
-    def num_comments(self) -> int:
+    def num_comments(self):
+        """counts reviewer comments"""
         comments = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
@@ -82,7 +90,17 @@ class PrStat:
         return comments
 
     @cached_property
+    def num_conv_comments(self) -> int:
+        """counts conversational comments"""
+        conv_comments = 0
+        for conv_comment in self.pull_request.get_issue_comments():
+            self._users.add(conv_comment.user.login)
+            conv_comments += 1
+        return conv_comments
+
+    @cached_property
     def num_reactions(self) -> int:
+        """counts reactions to reviewer comments"""
         reactions = 0
         for comment in self.pull_request.get_comments():
             for reaction in comment.get_reactions():
@@ -91,17 +109,77 @@ class PrStat:
         return reactions
 
     @cached_property
+    def num_conv_reactions(self) -> int:
+        """counts reactions to conversational comments"""
+        reactions = 0
+        for conv_comment in self.pull_request.get_issue_comments():
+            for reaction in conv_comment.get_reactions():
+                self._users.add(reaction.user.login)
+                reactions += 1
+        return reactions
+
+    @cached_property
     def num_reviews(self) -> int:
+        """counts reviews"""
         reviews = 0
         for review in self.pull_request.get_reviews():
             self._users.add(review.user.login)
             reviews += 1
         return reviews
 
+    @cached_property
+    def issues(self):
+        """finds issues in PR"""
+        if self.pull_request.body is not None:
+            regex = r'(?<=closes: #|elated: #)\d{5}'
+            issue_strs = re.findall(regex, self.pull_request.body)
+            issue_ints = [eval(s) for s in issue_strs]
+            self.issue_nums = issue_ints
+            return issue_ints
+
+    @cached_property
+    def issue_reactions(self) -> int:
+        """counts reactions to issue comments"""
+        if self.issue_nums:
+            repo = self.g.get_repo("apache/airflow")
+            issue_reactions = 0
+            for num in self.issue_nums:
+                issue = repo.get_issue(number=num)
+                for reaction in issue.get_reactions():
+                    self._users.add(reaction.user.login)
+                    issue_reactions += 1
+            self.num_issue_reactions = issue_reactions
+            return issue_reactions
+        return 0
+
+    @cached_property
+    def issue_comments(self) -> int:
+        """counts issue comments and calculates comment length"""
+        issues = self.issues
+        if issues:
+            repo = self.g.get_repo("apache/airflow")
+            issue_comments = 0
+            len_issue_comments = 0
+            for num in issues:
+                issue = repo.get_issue(number=num)
+                for issue_comment in issue.get_comments():
+                    issue_comments += 1
+                    self._users.add(issue_comment.user.login)
+                    if issue_comment.body is not None:
+                        len_issue_comments += len(issue_comment.body)
+            self.len_issue_comments = len_issue_comments
+            self.num_issue_comments = issue_comments
+            return issue_comments
+        return 0
+
     @property
     def interaction_score(self) -> float:
-        interactions = self.num_comments * PrStat.COMMENT_INTERACTION_VALUE
-        interactions += self.num_reactions * PrStat.REACTION_INTERACTION_VALUE
+        interactions = (
+            self.num_comments + self.num_conv_comments + self.issue_comments
+        ) * PrStat.COMMENT_INTERACTION_VALUE
+        interactions += (
+            self.num_reactions + self.num_conv_reactions + self.issue_reactions
+        ) * PrStat.REACTION_INTERACTION_VALUE
         interactions += self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
         return interactions
 
@@ -149,6 +227,10 @@ class PrStat:
         for comment in self.pull_request.get_review_comments():
             if comment.body is not None:
                 length += len(comment.body)
+        for conv_comment in self.pull_request.get_issue_comments():
+            if conv_comment.body is not None:
+                length += len(conv_comment.body)
+        length += self.len_issue_comments
         return length
 
     @property
@@ -164,7 +246,7 @@ class PrStat:
             score *= 0.8
         if self.body_length < 20:
             score *= 0.4
-        return score
+        return round(score, 3)
 
     @property
     def score(self):
@@ -185,13 +267,14 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
-        return (
+        return round(
             1.0
             * self.interaction_score
             * self.label_score
             * self.length_score
             * self.change_score
-            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0)
+            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0),
+            3,
         )
 
     def __str__(self) -> str:
@@ -212,7 +295,12 @@ class PrStat:
             f'-- Interaction score: [green]{self.interaction_score}[/] '
             f'(users interacting: {self.num_interacting_users}, '
             f'reviews: {self.num_reviews}, '
-            f'comments: {self.num_comments})\n'
+            f'review comments: {self.num_comments}, '
+            f'review reactions: {self.num_reactions}, '
+            f'non-review comments: {self.num_conv_comments}, '
+            f'non-review reactions: {self.num_conv_reactions}, '
+            f'issue comments: {self.num_issue_comments}, '
+            f'issue reactions: {self.num_issue_reactions})\n'
             f'-- Change score: [green]{self.change_score}[/] '
             f'(changed files: {self.num_changed_files}, '
             f'additions: {self.num_additions}, '
@@ -255,7 +343,9 @@ def main(
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding='bytes')
+        issue_num = 0
         for pr_stat in selected_prs:
+            issue_num += 1
             console.print(
                 f"[green]Loading PR: #{pr_stat.pull_request.number} `{pr_stat.pull_request.title}`.[/]"
                 f" Score: {pr_stat.score}."
@@ -272,7 +362,6 @@ def main(
         pulls = repo.get_pulls(state="closed", sort="created", direction='desc')
         issue_num = 0
         for pr in pulls:
-            issue_num += 1
             if not pr.merged:
                 continue
 
@@ -287,7 +376,8 @@ def main(
                 console.print("[bright_blue]Completed selecting candidates")
                 break
 
-            pr_stat = PrStat(pull_request=pr)  # type: ignore
+            issue_num += 1
+            pr_stat = PrStat(pull_request=pr, g=g)  # type: ignore
             console.print(
                 f"[green]Selecting PR: #{pr.number} `{pr.title}` as candidate.[/]"
                 f" Score: {pr_stat.score}."
@@ -302,7 +392,7 @@ def main(
                 console.print(f'[red]Reached {MAX_PR_CANDIDATES}. Stopping')
                 break
 
-    console.print(f"Top {top_number} PRs:")
+    console.print(f"Top {top_number} out of {issue_num} PRs:")
     for pr_stat in sorted(selected_prs, key=lambda s: -s.score)[:top_number]:
         console.print(f" * {pr_stat}")
 

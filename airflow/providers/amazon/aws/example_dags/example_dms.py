@@ -19,10 +19,12 @@
 Note:  DMS requires you to configure specific IAM roles/permissions.  For more information, see
 https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Security.html#CHAP_Security.APIRole
 """
+from __future__ import annotations
 
 import json
 import os
 from datetime import datetime
+from typing import cast
 
 import boto3
 from sqlalchemy import Column, MetaData, String, Table, create_engine
@@ -256,10 +258,12 @@ with DAG(
     )
     # [END howto_operator_dms_create_task]
 
+    task_arn = cast(str, create_task.output)
+
     # [START howto_operator_dms_start_task]
     start_task = DmsStartTaskOperator(
         task_id='start_task',
-        replication_task_arn=create_task.output,
+        replication_task_arn=task_arn,
     )
     # [END howto_operator_dms_start_task]
 
@@ -280,7 +284,7 @@ with DAG(
 
     await_task_start = DmsTaskBaseSensor(
         task_id='await_task_start',
-        replication_task_arn=create_task.output,
+        replication_task_arn=task_arn,
         target_statuses=['running'],
         termination_statuses=['stopped', 'deleting', 'failed'],
     )
@@ -288,7 +292,7 @@ with DAG(
     # [START howto_operator_dms_stop_task]
     stop_task = DmsStopTaskOperator(
         task_id='stop_task',
-        replication_task_arn=create_task.output,
+        replication_task_arn=task_arn,
     )
     # [END howto_operator_dms_stop_task]
 
@@ -296,14 +300,14 @@ with DAG(
     # [START howto_sensor_dms_task_completed]
     await_task_stop = DmsTaskCompletedSensor(
         task_id='await_task_stop',
-        replication_task_arn=create_task.output,
+        replication_task_arn=task_arn,
     )
     # [END howto_sensor_dms_task_completed]
 
     # [START howto_operator_dms_delete_task]
     delete_task = DmsDeleteTaskOperator(
         task_id='delete_task',
-        replication_task_arn=create_task.output,
+        replication_task_arn=task_arn,
         trigger_rule='all_done',
     )
     # [END howto_operator_dms_delete_task]

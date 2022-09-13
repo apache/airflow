@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import base64
 import subprocess
 from datetime import datetime
@@ -419,7 +421,6 @@ with DAG(
     preprocess_raw_data = SageMakerProcessingOperator(
         task_id='preprocess_raw_data',
         config=test_setup['processing_config'],
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_processing]
 
@@ -429,7 +430,6 @@ with DAG(
         config=test_setup['training_config'],
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_training]
 
@@ -437,7 +437,6 @@ with DAG(
     await_training = SageMakerTrainingSensor(
         task_id="await_training",
         job_name=test_setup['training_job_name'],
-        do_xcom_push=False,
     )
     # [END howto_sensor_sagemaker_training]
 
@@ -445,7 +444,6 @@ with DAG(
     create_model = SageMakerModelOperator(
         task_id='create_model',
         config=test_setup['model_config'],
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_model]
 
@@ -455,7 +453,6 @@ with DAG(
         config=test_setup['tuning_config'],
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_tuning]
 
@@ -463,7 +460,6 @@ with DAG(
     await_tune = SageMakerTuningSensor(
         task_id="await_tuning",
         job_name=test_setup['tuning_job_name'],
-        do_xcom_push=False,
     )
     # [END howto_sensor_sagemaker_tuning]
 
@@ -473,7 +469,6 @@ with DAG(
         config=test_setup['transform_config'],
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_transform]
 
@@ -481,7 +476,6 @@ with DAG(
     await_transform = SageMakerTransformSensor(
         task_id="await_transform",
         job_name=test_setup['transform_job_name'],
-        do_xcom_push=False,
     )
     # [END howto_sensor_sagemaker_transform]
 
@@ -490,7 +484,6 @@ with DAG(
         task_id="delete_model",
         config={'ModelName': test_setup['model_name']},
         trigger_rule=TriggerRule.ALL_DONE,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_delete_model]
 

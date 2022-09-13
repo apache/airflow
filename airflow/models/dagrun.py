@@ -25,16 +25,18 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     Iterable,
+    Iterator,
     List,
     NamedTuple,
     Optional,
     Sequence,
     Set,
     Tuple,
+    TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from sqlalchemy import (
@@ -68,6 +70,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -79,6 +82,9 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+
+
+CreatedTasksType = TypeVar("CreatedTasksType")
 
 
 class TISchedulingDecision(NamedTuple):
@@ -521,6 +527,25 @@ class DagRun(Base, LoggingMixin):
         # Callback to execute in case of Task Failures
         callback: Optional[DagCallbackRequest] = None
 
+        class _UnfinishedStates(NamedTuple):
+            tis: Sequence[TI]
+
+            @classmethod
+            def calculate(cls, unfinished_tis: Sequence[TI]) -> "_UnfinishedStates":
+                return cls(tis=unfinished_tis)
+
+            @property
+            def should_schedule(self) -> bool:
+                return (
+                    bool(self.tis)
+                    and all(not t.task.depends_on_past for t in self.tis)
+                    and all(t.task.max_active_tis_per_dag is None for t in self.tis)
+                    and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
+                )
+
+            def recalculate(self) -> "_UnfinishedStates":
+                return self._replace(tis=[t for t in self.tis if t.state in State.unfinished])
+
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
         with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"):
@@ -531,71 +556,75 @@ class DagRun(Base, LoggingMixin):
             schedulable_tis = info.schedulable_tis
             changed_tis = info.changed_tis
             finished_tis = info.finished_tis
-            unfinished_tis = info.unfinished_tis
+            unfinished = _UnfinishedStates.calculate(info.unfinished_tis)
 
-            none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tis)
-            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tis)
-            none_deferred = all(t.state != State.DEFERRED for t in unfinished_tis)
-
-            if unfinished_tis and none_depends_on_past and none_task_concurrency and none_deferred:
+            if unfinished.should_schedule:
+                are_runnable_tasks = schedulable_tis or changed_tis
                 # small speed up
-                are_runnable_tasks = (
-                    schedulable_tis
-                    or self._are_premature_tis(unfinished_tis, finished_tis, session)
-                    or changed_tis
-                )
+                if not are_runnable_tasks:
+                    are_runnable_tasks, changed_by_upstream = self._are_premature_tis(
+                        unfinished.tis, finished_tis, session
+                    )
+                    if changed_by_upstream:  # Something changed, we need to recalculate!
+                        unfinished = unfinished.recalculate()
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
 
         # if all roots finished and at least one failed, the run failed
-        if not unfinished_tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
+        if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error('Marking run %s failed', self)
             self.set_state(DagRunState.FAILED)
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
             elif dag.has_on_failure_callback:
+                from airflow.models.dag import DagModel
+
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='task_failure',
                 )
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
+        elif not unfinished.tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(DagRunState.SUCCESS)
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
             elif dag.has_on_success_callback:
+                from airflow.models.dag import DagModel
+
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='success',
                 )
 
         # if *all tasks* are deadlocked, the run failed
-        elif (
-            unfinished_tis
-            and none_depends_on_past
-            and none_task_concurrency
-            and none_deferred
-            and not are_runnable_tasks
-        ):
+        elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error('Deadlock; marking run %s failed', self)
             self.set_state(DagRunState.FAILED)
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
             elif dag.has_on_failure_callback:
+                from airflow.models.dag import DagModel
+
+                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
                 callback = DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
+                    processor_subdir=dag_model.processor_subdir,
                     msg='all_tasks_deadlocked',
                 )
 
@@ -744,24 +773,22 @@ class DagRun(Base, LoggingMixin):
 
     def _are_premature_tis(
         self,
-        unfinished_tis: List[TI],
+        unfinished_tis: Sequence[TI],
         finished_tis: List[TI],
         session: Session,
-    ) -> bool:
+    ) -> Tuple[bool, bool]:
+        dep_context = DepContext(
+            flag_upstream_failed=True,
+            ignore_in_retry_period=True,
+            ignore_in_reschedule_period=True,
+            finished_tis=finished_tis,
+        )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
         # not ready yet so we set the flags to count them in
-        for ut in unfinished_tis:
-            if ut.are_dependencies_met(
-                dep_context=DepContext(
-                    flag_upstream_failed=True,
-                    ignore_in_retry_period=True,
-                    ignore_in_reschedule_period=True,
-                    finished_tis=finished_tis,
-                ),
-                session=session,
-            ):
-                return True
-        return False
+        return (
+            any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
+            dep_context.have_changed_ti_states,
+        )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: List[TI]) -> None:
         """
@@ -839,7 +866,8 @@ class DagRun(Base, LoggingMixin):
         from airflow.settings import task_instance_mutation_hook
 
         # Set for the empty default in airflow.settings -- if it's not set this means it has been changed
-        hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
+        # Note: Literal[True, False] instead of bool because otherwise it doesn't correctly find the overload.
+        hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, 'is_noop', False)
 
         dag = self.get_dag()
         task_ids: Set[str] = set()
@@ -943,9 +971,30 @@ class DagRun(Base, LoggingMixin):
 
         return task_ids
 
+    @overload
     def _get_task_creator(
-        self, created_counts: Dict[str, int], ti_mutation_hook: Callable, hook_is_noop: bool
-    ) -> Callable:
+        self,
+        created_counts: Dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[True],
+    ) -> Callable[["Operator", Tuple[int, ...]], Iterator[Dict[str, Any]]]:
+        ...
+
+    @overload
+    def _get_task_creator(
+        self,
+        created_counts: Dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[False],
+    ) -> Callable[["Operator", Tuple[int, ...]], Iterator[TI]]:
+        ...
+
+    def _get_task_creator(
+        self,
+        created_counts: Dict[str, int],
+        ti_mutation_hook: Callable,
+        hook_is_noop: Literal[True, False],
+    ) -> Callable[["Operator", Tuple[int, ...]], Union[Iterator[Dict[str, Any]], Iterator[TI]]]:
         """
         Get the task creator function.
 
@@ -958,7 +1007,7 @@ class DagRun(Base, LoggingMixin):
         """
         if hook_is_noop:
 
-            def create_ti_mapping(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+            def create_ti_mapping(task: "Operator", indexes: Tuple[int, ...]) -> Iterator[Dict[str, Any]]:
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(self.run_id, task, map_index=map_index)
@@ -967,7 +1016,7 @@ class DagRun(Base, LoggingMixin):
 
         else:
 
-            def create_ti(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+            def create_ti(task: "Operator", indexes: Tuple[int, ...]) -> Iterator[TI]:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index)
                     ti_mutation_hook(ti)
@@ -980,11 +1029,11 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         dag: "DAG",
-        task_creator: Callable,
-        task_filter: Callable,
+        task_creator: Callable[["Operator", Tuple[int, ...]], CreatedTasksType],
+        task_filter: Callable[["Operator"], bool],
         *,
         session: Session,
-    ) -> Iterable["Operator"]:
+    ) -> CreatedTasksType:
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
 
@@ -1011,14 +1060,15 @@ class DagRun(Base, LoggingMixin):
 
         tasks_and_map_idxs = map(expand_mapped_literals, filter(task_filter, dag.task_dict.values()))
 
-        tasks = itertools.chain.from_iterable(itertools.starmap(task_creator, tasks_and_map_idxs))
-
+        tasks: CreatedTasksType = itertools.chain.from_iterable(  # type: ignore
+            itertools.starmap(task_creator, tasks_and_map_idxs)  # type: ignore
+        )
         return tasks
 
     def _create_task_instances(
         self,
         dag_id: str,
-        tasks: Iterable["Operator"],
+        tasks: Union[Iterator[Dict[str, Any]], Iterator[TI]],
         created_counts: Dict[str, int],
         hook_is_noop: bool,
         *,
@@ -1155,7 +1205,7 @@ class DagRun(Base, LoggingMixin):
 
         Each element of ``schedulable_tis`` should have it's ``task`` attribute already set.
 
-        Any EmptyOperator without callbacks is instead set straight to the success state.
+        Any EmptyOperator without callbacks or outlets is instead set straight to the success state.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
@@ -1169,6 +1219,7 @@ class DagRun(Base, LoggingMixin):
                 ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
+                and not ti.task.outlets
             ):
                 dummy_ti_ids.append(ti.task_id)
             else:

@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -42,7 +42,7 @@ class BuildProdParams(CommonBuildParams):
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     airflow_constraints_mode: str = "constraints"
-    airflow_constraints_reference: str = ""
+    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
     airflow_extras: str = get_airflow_extras()
     disable_airflow_repo_cache: bool = False

@@ -63,36 +63,47 @@ def _create_dataset_table():
     op.create_index('idx_uri_unique', 'dataset', ['uri'], unique=True)
 
 
-def _create_dataset_dag_ref_table():
+def _create_dag_schedule_dataset_reference_table():
     op.create_table(
-        'dataset_dag_ref',
+        'dag_schedule_dataset_reference',
         sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
-        sa.Column('dag_id', String(250), primary_key=True, nullable=False),
+        sa.Column('dag_id', StringID(), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
             ('dataset_id',),
             ['dataset.id'],
-            name="datasetdagref_dataset_fkey",
+            name="dsdr_dataset_fkey",
             ondelete="CASCADE",
         ),
-        sqlite_autoincrement=True,  # ensures PK values not reused
+        sa.ForeignKeyConstraint(
+            columns=('dag_id',),
+            refcolumns=['dag.dag_id'],
+            name='dsdr_dag_id_fkey',
+            ondelete='CASCADE',
+        ),
     )
 
 
-def _create_dataset_task_ref_table():
+def _create_task_outlet_dataset_reference_table():
     op.create_table(
-        'dataset_task_ref',
+        'task_outlet_dataset_reference',
         sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
-        sa.Column('dag_id', String(250), primary_key=True, nullable=False),
-        sa.Column('task_id', String(250), primary_key=True, nullable=False),
+        sa.Column('dag_id', StringID(), primary_key=True, nullable=False),
+        sa.Column('task_id', StringID(), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
             ('dataset_id',),
             ['dataset.id'],
-            name="datasettaskref_dataset_fkey",
+            name="todr_dataset_fkey",
             ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            columns=('dag_id',),
+            refcolumns=['dag.dag_id'],
+            name='todr_dag_id_fkey',
+            ondelete='CASCADE',
         ),
     )
 
@@ -161,8 +172,8 @@ def _create_dataset_event_dag_run_table():
 def upgrade():
     """Apply Add Dataset model"""
     _create_dataset_table()
-    _create_dataset_dag_ref_table()
-    _create_dataset_task_ref_table()
+    _create_dag_schedule_dataset_reference_table()
+    _create_task_outlet_dataset_reference_table()
     _create_dataset_dag_run_queue_table()
     _create_dataset_event_table()
     _create_dataset_event_dag_run_table()
@@ -170,8 +181,8 @@ def upgrade():
 
 def downgrade():
     """Unapply Add Dataset model"""
-    op.drop_table('dataset_dag_ref')
-    op.drop_table('dataset_task_ref')
+    op.drop_table('dag_schedule_dataset_reference')
+    op.drop_table('task_outlet_dataset_reference')
     op.drop_table('dataset_dag_run_queue')
     op.drop_table('dagrun_dataset_event')
     op.drop_table('dataset_event')

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import copy
 import datetime
 import json
 import logging
@@ -130,7 +130,7 @@ class ExtendedJSON(TypeDecorator):
             return None
 
         # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization._serialize(value)
+        value = BaseSerialization.serialize(value)
 
         # Then, if the database does not have native JSON support, encode it again as a string
         if not self.db_supports_json():
@@ -148,7 +148,7 @@ class ExtendedJSON(TypeDecorator):
         if not self.db_supports_json():
             value = json.loads(value)
 
-        return BaseSerialization._deserialize(value)
+        return BaseSerialization.deserialize(value)
 
 
 class ExecutorConfigType(PickleType):
@@ -166,9 +166,10 @@ class ExecutorConfigType(PickleType):
         super_process = super().bind_processor(dialect)
 
         def process(value):
-            if isinstance(value, dict) and 'pod_override' in value:
-                value['pod_override'] = BaseSerialization()._serialize(value['pod_override'])
-            return super_process(value)
+            val_copy = copy.copy(value)
+            if isinstance(val_copy, dict) and 'pod_override' in val_copy:
+                val_copy['pod_override'] = BaseSerialization.serialize(val_copy['pod_override'])
+            return super_process(val_copy)
 
         return process
 
@@ -185,7 +186,7 @@ class ExecutorConfigType(PickleType):
 
                 # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
                 if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
-                    value['pod_override'] = BaseSerialization()._deserialize(pod_override)
+                    value['pod_override'] = BaseSerialization.deserialize(pod_override)
             return value
 
         return process

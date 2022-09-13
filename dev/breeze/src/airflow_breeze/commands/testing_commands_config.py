@@ -49,7 +49,6 @@ TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
         {
             "name": "Advanced flag for helms-tests command",
             "options": [
-                "--limit-progress-output",
                 "--image-tag",
                 "--mount-sources",
             ],

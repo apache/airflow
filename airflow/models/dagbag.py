@@ -260,9 +260,12 @@ class DagBag(LoggingMixin):
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
         """
+        from airflow.models.dag import DagContext
+
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
         # todo: raise exception?
+
         if filepath is None or not os.path.isfile(filepath):
             return []
 
@@ -280,6 +283,9 @@ class DagBag(LoggingMixin):
             self.log.exception(e)
             return []
 
+        # Ensure we don't pick up anything else we didn't mean to
+        DagContext.autoregistered_dags.clear()
+
         if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
             mods = self._load_modules_from_file(filepath, safe_mode)
         else:
@@ -291,6 +297,8 @@ class DagBag(LoggingMixin):
         return found_dags
 
     def _load_modules_from_file(self, filepath, safe_mode):
+        from airflow.models.dag import DagContext
+
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
             if not self.has_logged:
@@ -305,6 +313,8 @@ class DagBag(LoggingMixin):
 
         if mod_name in sys.modules:
             del sys.modules[mod_name]
+
+        DagContext.current_autoregister_module_name = mod_name
 
         def parse(mod_name, filepath):
             try:
@@ -344,6 +354,8 @@ class DagBag(LoggingMixin):
             return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
+        from airflow.models.dag import DagContext
+
         mods = []
         with zipfile.ZipFile(filepath) as current_zip_file:
             for zip_info in current_zip_file.infolist():
@@ -372,6 +384,7 @@ class DagBag(LoggingMixin):
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
 
+                DagContext.current_autoregister_module_name = mod_name
                 try:
                     sys.path.insert(0, filepath)
                     current_module = importlib.import_module(mod_name)
@@ -391,9 +404,14 @@ class DagBag(LoggingMixin):
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
-        from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.models.dag import DAG, DagContext  # Avoid circular import
 
-        top_level_dags = ((o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG))
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
+
+        top_level_dags.update(DagContext.autoregistered_dags)
+
+        DagContext.current_autoregister_module_name = None
+        DagContext.autoregistered_dags.clear()
 
         found_dags = []
 
@@ -575,7 +593,7 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, session: Session = None):
+    def sync_to_db(self, processor_subdir: Optional[str] = None, session: Session = None):
         """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
@@ -622,7 +640,9 @@ class DagBag(LoggingMixin):
                     for dag in self.dags.values():
                         serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
 
-                    DAG.bulk_write_to_db(self.dags.values(), session=session)
+                    DAG.bulk_write_to_db(
+                        self.dags.values(), processor_subdir=processor_subdir, session=session
+                    )
                 except OperationalError:
                     session.rollback()
                     raise

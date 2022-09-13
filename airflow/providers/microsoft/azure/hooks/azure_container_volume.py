@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.hooks.container_volume`."""
+from __future__ import annotations
 
 import warnings
 

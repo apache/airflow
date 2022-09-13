@@ -19,10 +19,10 @@
 
 .. _howto/connection:slack:
 
-Slack Connection
-================
+Slack API Connection
+====================
 
-The Slack connection type enables Slack Integrations.
+The Slack connection type enables Slack API Integrations.
 
 Authenticating to Slack
 -----------------------
@@ -33,21 +33,54 @@ Authenticate to Slack using a `Slack API token
 Default Connection IDs
 ----------------------
 
-The SlackHook and SlackAPIOperator use ``slack_default`` by default.
+.. warning::
+
+  The SlackHook and community provided operators not intend to use any Slack API Connection by default right now.
+  It might change in the future to ``slack_api_default``.
 
 Configuring the Connection
 --------------------------
 
-Password (optional)
+Password
     Specify the Slack API token.
 
-When specifying the connection in environment variable you should specify
-it using URI syntax.
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in slack_sdk.WebClient.
+    All parameters are optional.
 
-Note that all components of the URI should be URL-encoded.
+    * ``timeout``: The maximum number of seconds the client will wait to connect and receive a response from Slack API.
+    * ``base_url``: A string representing the Slack API base URL.
+    * ``proxy``: Proxy to make the Slack Incoming Webhook call.
+    * ``retry_handlers``: Comma separated list of import paths to zero-argument callable which returns retry handler
+      for Slack WebClient.
 
-For example:
+If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
-.. code-block:: bash
+Examples
+--------
 
-   export AIRFLOW_CONN_SLACK_DEFAULT='slack://:token@'
+**Set Slack API Connection as Environment Variable (URI)**
+  .. code-block:: bash
+
+     export AIRFLOW_CONN_SLACK_API_DEFAULT='slack://:xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx@/?timeout=42'
+
+**Snippet for create Connection as URI**:
+  .. code-block:: python
+
+    from airflow.models.connection import Connection
+
+    conn = Connection(
+        conn_id="slack_api_default",
+        conn_type="slack",
+        password="xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
+        extra={
+            # Specify extra parameters here
+            "timeout": "42",
+        },
+    )
+
+    # Generate Environment Variable Name
+    env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+
+    print(f"{env_key}='{conn.get_uri()}'")
+    # AIRFLOW_CONN_SLACK_API_DEFAULT='slack://:xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx@/?timeout=42'

@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Cloud Dataproc Metastore hook."""
+from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -45,7 +45,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: Optional[float], operation: Operation):
+    def wait_for_operation(self, timeout: float | None, operation: Operation):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -59,12 +59,12 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        backup: Union[Dict[Any, Any], Backup],
+        backup: dict[Any, Any] | Backup,
         backup_id: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a new backup in a given project and location.
@@ -118,10 +118,10 @@ class DataprocMetastoreHook(GoogleBaseHook):
         service_id: str,
         metadata_import: MetadataImport,
         metadata_import_id: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a new MetadataImport in a given project and location.
@@ -173,12 +173,12 @@ class DataprocMetastoreHook(GoogleBaseHook):
         self,
         region: str,
         project_id: str,
-        service: Union[Dict, Service],
+        service: dict | Service,
         service_id: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a metastore service in a project and location.
@@ -225,10 +225,10 @@ class DataprocMetastoreHook(GoogleBaseHook):
         region: str,
         service_id: str,
         backup_id: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Deletes a single backup.
@@ -273,10 +273,10 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Deletes a single service.
@@ -316,11 +316,11 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        request_id: Optional[str] = None,
-        database_dump_type: Optional[DatabaseDumpSpec] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        database_dump_type: DatabaseDumpSpec | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Exports metadata from a service.
@@ -367,9 +367,9 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets the details of a single service.
@@ -407,9 +407,9 @@ class DataprocMetastoreHook(GoogleBaseHook):
         region: str,
         service_id: str,
         backup_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Backup:
         """
         Get backup from a service.
@@ -446,13 +446,13 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists backups in a service.
@@ -516,11 +516,11 @@ class DataprocMetastoreHook(GoogleBaseHook):
         backup_region: str,
         backup_service_id: str,
         backup_id: str,
-        restore_type: Optional[Restore] = None,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        restore_type: Restore | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Restores a service from a backup.
@@ -576,12 +576,12 @@ class DataprocMetastoreHook(GoogleBaseHook):
         project_id: str,
         region: str,
         service_id: str,
-        service: Union[Dict, Service],
+        service: dict | Service,
         update_mask: FieldMask,
-        request_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates the parameters of a single service.

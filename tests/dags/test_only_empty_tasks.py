@@ -18,7 +18,7 @@
 from datetime import datetime
 from typing import Sequence
 
-from airflow.models import DAG
+from airflow import DAG, Dataset
 from airflow.operators.empty import EmptyOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
@@ -47,8 +47,10 @@ with dag:
 
     task_a >> task_b
 
-    task_c = MyEmptyOperator(task_id="test_task_c", body={"hello": "world"})
+    MyEmptyOperator(task_id="test_task_c", body={"hello": "world"})
 
-    task_d = EmptyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: None)
+    EmptyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: None)
 
-    task_e = EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)
+    EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)
+
+    EmptyOperator(task_id="test_task_outlets", outlets=[Dataset("hello")])

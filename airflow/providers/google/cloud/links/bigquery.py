@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery links."""
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -43,7 +45,7 @@ class BigQueryDatasetLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         dataset_id: str,
         project_id: str,
@@ -64,11 +66,11 @@ class BigQueryTableLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         project_id: str,
         table_id: str,
-        dataset_id: Optional[str] = None,
+        dataset_id: str | None = None,
     ):
         task_instance.xcom_push(
             context,

@@ -29,7 +29,7 @@ from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
-    from airflow.models.mappedoperator import Mappable
+    from airflow.models.mappedoperator import OperatorExpandArgument
 
 F = TypeVar("F", bound=Callable)
 R = TypeVar("R")
@@ -62,6 +62,9 @@ class TaskGroupDecorator(Generic[R]):
 
     def __call__(self, *args, **kwargs) -> Union[R, TaskGroup]:
         with self._make_task_group(add_suffix_on_collision=True, **self.kwargs) as task_group:
+            if self.function.__doc__ and not task_group.tooltip:
+                task_group.tooltip = self.function.__doc__
+
             # Invoke function to run Tasks inside the TaskGroup
             retval = self.function(*args, **kwargs)
 
@@ -100,7 +103,7 @@ class Group(Generic[F]):
     function: F
 
     # Return value should match F's return type, but that's impossible to declare.
-    def expand(self, **kwargs: "Mappable") -> Any:
+    def expand(self, **kwargs: "OperatorExpandArgument") -> Any:
         ...
 
     def partial(self, **kwargs: Any) -> "Group[F]":

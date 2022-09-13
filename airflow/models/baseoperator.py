@@ -98,6 +98,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -278,8 +279,8 @@ def partial(
     partial_kwargs.setdefault("on_success_callback", on_success_callback)
     partial_kwargs.setdefault("run_as_user", run_as_user)
     partial_kwargs.setdefault("executor_config", executor_config)
-    partial_kwargs.setdefault("inlets", inlets)
-    partial_kwargs.setdefault("outlets", outlets)
+    partial_kwargs.setdefault("inlets", inlets or [])
+    partial_kwargs.setdefault("outlets", outlets or [])
     partial_kwargs.setdefault("resources", resources)
     partial_kwargs.setdefault("doc", doc)
     partial_kwargs.setdefault("doc_json", doc_json)
@@ -834,7 +835,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
-        self.trigger_rule = TriggerRule(trigger_rule)
+        self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_downstream: bool = wait_for_downstream
@@ -1365,7 +1366,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return [self]
 
     @property
-    def output(self):
+    def output(self) -> "XComArg":
         """Returns reference to XCom pushed by current operator"""
         from airflow.models.xcom_arg import XComArg
 

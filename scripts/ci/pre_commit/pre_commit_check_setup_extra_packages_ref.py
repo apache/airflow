@@ -42,6 +42,7 @@ from setup import (  # noqa # isort:skip
     EXTRAS_DEPRECATED_ALIASES,
     EXTRAS_DEPENDENCIES,
     PREINSTALLED_PROVIDERS,
+    EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS,
 )
 
 
@@ -53,7 +54,11 @@ def get_file_content(*path_elements: str) -> str:
 
 def get_extras_from_setup() -> Set[str]:
     """Returns a set of regular (non-deprecated) extras from setup."""
-    return set(EXTRAS_DEPENDENCIES.keys()) - set(EXTRAS_DEPRECATED_ALIASES.keys())
+    return (
+        set(EXTRAS_DEPENDENCIES.keys())
+        - set(EXTRAS_DEPRECATED_ALIASES.keys())
+        - set(EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS)
+    )
 
 
 def get_extras_from_docs() -> Set[str]:

@@ -1171,8 +1171,8 @@ export interface components {
       unixname?: string;
       pool?: string;
       pool_slots?: number;
-      queue?: string;
-      priority_weight?: number;
+      queue?: string | null;
+      priority_weight?: number | null;
       /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
       operator?: string | null;
       queued_when?: string | null;
@@ -1349,7 +1349,7 @@ export interface components {
       is_mapped?: boolean;
       wait_for_downstream?: boolean;
       retries?: number;
-      queue?: string;
+      queue?: string | null;
       pool?: string;
       pool_slots?: number;
       execution_timeout?: components["schemas"]["TimeDelta"] | null;
@@ -1477,15 +1477,15 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      consuming_dags?: components["schemas"]["DatasetDagRef"][];
-      producing_tasks?: components["schemas"]["DatasetTaskRef"][];
+      consuming_dags?: components["schemas"]["DagScheduleDatasetReference"][];
+      producing_tasks?: components["schemas"]["TaskOutletDatasetReference"][];
     };
     /**
      * @description A datasets reference to an upstream task.
      *
      * *New in version 2.4.0*
      */
-    DatasetTaskRef: {
+    TaskOutletDatasetReference: {
       /** @description The DAG ID that updates the dataset. */
       dag_id?: string | null;
       /** @description The task ID that updates the dataset. */
@@ -1500,7 +1500,7 @@ export interface components {
      *
      * *New in version 2.4.0*
      */
-    DatasetDagRef: {
+    DagScheduleDatasetReference: {
       /** @description The DAG ID that depends on the dataset. */
       dag_id?: string | null;
       /** @description The dataset reference creation time */
@@ -1536,8 +1536,41 @@ export interface components {
       source_run_id?: string | null;
       /** @description The task map index that updated the dataset. */
       source_map_index?: number | null;
+      created_dagruns?: components["schemas"]["BasicDAGRun"][];
       /** @description The dataset event creation time */
       timestamp?: string;
+    };
+    BasicDAGRun: {
+      /** @description Run ID. */
+      run_id?: string;
+      dag_id?: string;
+      /**
+       * Format: date-time
+       * @description The logical date (previously called execution date). This is the time or interval covered by
+       * this DAG run, according to the DAG definition.
+       *
+       * The value of this field can be set only when creating the object. If you try to modify the
+       * field of an existing object, the request fails with an BAD_REQUEST error.
+       *
+       * This together with DAG_ID are a unique key.
+       *
+       * *New in version 2.2.0*
+       */
+      logical_date?: string;
+      /**
+       * Format: date-time
+       * @description The start time. The time when DAG run was actually created.
+       *
+       * *Changed in version 2.1.3*&#58; Field becomes nullable.
+       */
+      start_date?: string | null;
+      /** Format: date-time */
+      end_date?: string | null;
+      /** Format: date-time */
+      data_interval_start?: string | null;
+      /** Format: date-time */
+      data_interval_end?: string | null;
+      state?: components["schemas"]["DagState"];
     };
     /**
      * @description A collection of dataset events.
@@ -3194,7 +3227,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstance"];
+          "application/json": components["schemas"]["TaskInstanceCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3379,6 +3412,20 @@ export interface operations {
         task_id: components["parameters"]["TaskID"];
         /** The XCom key. */
         xcom_key: components["parameters"]["XComKey"];
+      };
+      query: {
+        /**
+         * Whether to deserialize an XCom value when using a custom XCom backend.
+         *
+         * The XCom API endpoint calls `orm_deserialize_value` by default since an XCom may contain value
+         * that is potentially expensive to deserialize in the web server. Setting this to true overrides
+         * the consideration, and calls `deserialize_value` instead.
+         *
+         * This parameter is not meaningful when using the default XCom backend.
+         *
+         * *New in version 2.5.0*
+         */
+        deserialize?: boolean;
       };
     };
     responses: {
@@ -4112,10 +4159,11 @@ export type ActionCollection = CamelCasedPropertiesDeep<components['schemas']['A
 export type Resource = CamelCasedPropertiesDeep<components['schemas']['Resource']>;
 export type ActionResource = CamelCasedPropertiesDeep<components['schemas']['ActionResource']>;
 export type Dataset = CamelCasedPropertiesDeep<components['schemas']['Dataset']>;
-export type DatasetTaskRef = CamelCasedPropertiesDeep<components['schemas']['DatasetTaskRef']>;
-export type DatasetDagRef = CamelCasedPropertiesDeep<components['schemas']['DatasetDagRef']>;
+export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<components['schemas']['TaskOutletDatasetReference']>;
+export type DagScheduleDatasetReference = CamelCasedPropertiesDeep<components['schemas']['DagScheduleDatasetReference']>;
 export type DatasetCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = CamelCasedPropertiesDeep<components['schemas']['DatasetEvent']>;
+export type BasicDAGRun = CamelCasedPropertiesDeep<components['schemas']['BasicDAGRun']>;
 export type DatasetEventCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetEventCollection']>;
 export type ConfigOption = CamelCasedPropertiesDeep<components['schemas']['ConfigOption']>;
 export type ConfigSection = CamelCasedPropertiesDeep<components['schemas']['ConfigSection']>;
@@ -4187,7 +4235,7 @@ export type GetVariableVariables = CamelCasedPropertiesDeep<operations['get_vari
 export type DeleteVariableVariables = CamelCasedPropertiesDeep<operations['delete_variable']['parameters']['path']>;
 export type PatchVariableVariables = CamelCasedPropertiesDeep<operations['patch_variable']['parameters']['path'] & operations['patch_variable']['parameters']['query'] & operations['patch_variable']['requestBody']['content']['application/json']>;
 export type GetXcomEntriesVariables = CamelCasedPropertiesDeep<operations['get_xcom_entries']['parameters']['path'] & operations['get_xcom_entries']['parameters']['query']>;
-export type GetXcomEntryVariables = CamelCasedPropertiesDeep<operations['get_xcom_entry']['parameters']['path']>;
+export type GetXcomEntryVariables = CamelCasedPropertiesDeep<operations['get_xcom_entry']['parameters']['path'] & operations['get_xcom_entry']['parameters']['query']>;
 export type GetExtraLinksVariables = CamelCasedPropertiesDeep<operations['get_extra_links']['parameters']['path']>;
 export type GetLogVariables = CamelCasedPropertiesDeep<operations['get_log']['parameters']['path'] & operations['get_log']['parameters']['query']>;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<operations['get_dag_details']['parameters']['path']>;
