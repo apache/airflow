@@ -53,22 +53,23 @@ class DatasetManager(LoggingMixin):
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset_model)
             return
-        session.add(
-            DatasetEvent(
-                dataset_id=dataset_model.id,
-                source_task_id=task_instance.task_id,
-                source_dag_id=task_instance.dag_id,
-                source_run_id=task_instance.run_id,
-                source_map_index=task_instance.map_index,
-                extra=extra,
-            )
+        dataset_event = DatasetEvent(
+            dataset_id=dataset_model.id,
+            source_task_id=task_instance.task_id,
+            source_dag_id=task_instance.dag_id,
+            source_run_id=task_instance.run_id,
+            source_map_index=task_instance.map_index,
+            extra=extra,
         )
-        session.flush()
-        if dataset_model.consuming_dags:
-            self._queue_dagruns(dataset_model, session)
+        session.add(dataset_event)
         session.flush()
 
-    def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+        downstream_dag_ids = [x.dag_id for x in dataset_model.consuming_dags]
+        if downstream_dag_ids:
+            self._queue_dagruns(consuming_dag_ids=downstream_dag_ids, dataset_id=dataset.id, session=session)
+        session.flush()
+
+    def _queue_dagruns(self, *, consuming_dag_ids: list[str], dataset_id: int, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same dataset, this can fail with a unique
         # constraint violation.
@@ -79,31 +80,31 @@ class DatasetManager(LoggingMixin):
         # where `ti.state` is changed.
 
         if session.bind.dialect.name == "postgresql":
-            return self._postgres_queue_dagruns(dataset, session)
-        return self._slow_path_queue_dagruns(dataset, session)
+            return self._postgres_queue_dagruns(
+                consuming_dag_ids=consuming_dag_ids, dataset_id=dataset_id, session=session
+            )
+        return self._slow_path_queue_dagruns(
+            consuming_dag_ids=consuming_dag_ids, dataset_id=dataset_id, session=session
+        )
 
-    def _slow_path_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
-        consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
+    def _slow_path_queue_dagruns(self, *, consuming_dag_ids, dataset_id, session: Session) -> None:
         self.log.debug("consuming dag ids %s", consuming_dag_ids)
 
         # Don't error whole transaction when a single RunQueue item conflicts.
         # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
         for dag_id in consuming_dag_ids:
-            item = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset.id)
+            item = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
             try:
                 with session.begin_nested():
                     session.merge(item)
             except exc.IntegrityError:
                 self.log.debug("Skipping record %s", item, exc_info=True)
 
-    def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    def _postgres_queue_dagruns(self, *, consuming_dag_ids, dataset_id, session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
-        session.execute(
-            stmt,
-            [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
-        )
+        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset_id).on_conflict_do_nothing()
+        session.execute(stmt, [{'target_dag_id': x.dag_id} for x in consuming_dag_ids])
 
 
 def resolve_dataset_manager() -> DatasetManager:
