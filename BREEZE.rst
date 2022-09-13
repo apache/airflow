@@ -218,7 +218,7 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
 
-    pipx install -e ./dev/ereeze
+    pipx install -e ./dev/breeze
 
 Once this is complete, you should have ``breeze`` binary on your PATH and available to run by ``breeze``
 command.
