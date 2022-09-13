@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from unittest import TestCase, mock
+from unittest import mock
 
 import pendulum
 import pytest
@@ -290,36 +290,33 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        TestCase().assertDictEqual(
-            response.json,
-            {
-                "dag_id": "example_python_operatorr",
-                "duration": 10000.0,
-                "end_date": "2020-01-03T00:00:00+00:00",
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "executor_config": "{}",
-                "hostname": "",
-                "map_index": -1,
-                "max_tries": 0,
-                "operator": "_PythonDecoratedOperator",
-                "pid": 100,
-                "pool": "default_pool",
-                "pool_slots": 1,
-                "priority_weight": 8,
-                "queue": "default_queue",
-                "queued_when": None,
-                "sla_miss": None,
-                "start_date": "2020-01-02T00:00:00+00:00",
-                "state": "removed",
-                "task_id": "print_the_context",
-                "try_number": 0,
-                "unixname": getuser(),
-                "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {},
-                "trigger": None,
-                "triggerer_job": None,
-            },
-        )
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "_PythonDecoratedOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 8,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "removed",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
+        }
 
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
         tis = self.create_task_instances(session)
@@ -372,6 +369,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+            "trigger": None,
+            "triggerer_job": None,
         }
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
@@ -424,6 +423,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+                "trigger": None,
+                "triggerer_job": None,
             }
 
     def test_should_raises_401_unauthenticated(self):
