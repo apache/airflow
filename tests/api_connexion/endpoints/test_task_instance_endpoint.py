@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 import datetime as dt
-from unittest import mock
+from unittest import TestCase, mock
 
+import pendulum
 import pytest
 from parameterized import parameterized
 from sqlalchemy.orm import contains_eager
 
-from airflow.models import DagRun, SlaMiss, TaskInstance
+from airflow.jobs.triggerer_job import TriggererJob
+from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser
@@ -167,6 +169,12 @@ class TestTaskInstanceEndpoint:
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
     @parameterized.expand(["test", "test_dag_read_only", "test_task_read_only"])
     @provide_session
     def test_should_respond_200(self, username, session):
@@ -207,16 +215,38 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
         }
 
-    def test_should_respond_200_with_task_state_in_removed(self, session):
-        self.create_task_instances(session, task_instances=[{"state": State.REMOVED}], update_extras=True)
+    def test_should_respond_200_with_task_state_in_deferred(self, session):
+        now = pendulum.now('UTC')
+        now_iso = now.isoformat()
+        ti = self.create_task_instances(
+            session, task_instances=[{"state": State.DEFERRED}], update_extras=True
+        )[0]
+        ti.trigger = Trigger('none', {})
+        ti.trigger.created_date = now
+        ti.triggerer_job = TriggererJob()
+        ti.triggerer_job.state = 'running'
+        session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
         )
+        data = response.json
+
+        # this logic in effect replicates mock.ANY for these values
+        values_to_ignore = {
+            'trigger': ['created_date', 'id', 'triggerer_id'],
+            'triggerer_job': ['executor_class', 'hostname', 'id', 'latest_heartbeat', 'start_date'],
+        }
+        for k, v in values_to_ignore.items():
+            for elem in v:
+                del data[k][elem]
+
         assert response.status_code == 200
-        assert response.json == {
+        assert data == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
@@ -234,13 +264,62 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "queued_when": None,
             "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
-            "state": "removed",
+            "state": "deferred",
             "task_id": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
+            'trigger': {
+                'classpath': 'none',
+                'kwargs': '{}',
+            },
+            'triggerer_job': {
+                'dag_id': None,
+                'end_date': None,
+                'job_type': 'TriggererJob',
+                'state': 'running',
+                'unixname': getuser(),
+            },
         }
+
+    def test_should_respond_200_with_task_state_in_removed(self, session):
+        self.create_task_instances(session, task_instances=[{"state": State.REMOVED}], update_extras=True)
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        TestCase().assertDictEqual(
+            response.json,
+            {
+                "dag_id": "example_python_operatorr",
+                "duration": 10000.0,
+                "end_date": "2020-01-03T00:00:00+00:00",
+                "execution_date": "2020-01-01T00:00:00+00:00",
+                "executor_config": "{}",
+                "hostname": "",
+                "map_index": -1,
+                "max_tries": 0,
+                "operator": "_PythonDecoratedOperator",
+                "pid": 100,
+                "pool": "default_pool",
+                "pool_slots": 1,
+                "priority_weight": 8,
+                "queue": "default_queue",
+                "queued_when": None,
+                "sla_miss": None,
+                "start_date": "2020-01-02T00:00:00+00:00",
+                "state": "removed",
+                "task_id": "print_the_context",
+                "try_number": 0,
+                "unixname": getuser(),
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "rendered_fields": {},
+                "trigger": None,
+                "triggerer_job": None,
+            },
+        )
 
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
         tis = self.create_task_instances(session)

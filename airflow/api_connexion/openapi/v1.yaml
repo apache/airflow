@@ -2954,23 +2954,31 @@ components:
           nullable: true
         state:
           type: string
+          nullable: true
         job_type:
           type: string
+          nullable: true
         start_date:
           type: string
           format: datetime
+          nullable: true
         end_date:
           type: string
           format: datetime
+          nullable: true
         latest_heartbeat:
           type: string
           format: datetime
+          nullable: true
         executor_class:
           type: string
+          nullable: true
         hostname:
           type: string
+          nullable: true
         unixname:
           type: string
+          nullable: true
 
     TaskInstance:
       type: object

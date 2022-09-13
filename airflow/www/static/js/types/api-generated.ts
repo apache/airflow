@@ -1158,17 +1158,17 @@ export interface components {
     Job: {
       id?: number;
       dag_id?: string | null;
-      state?: string;
-      job_type?: string;
+      state?: string | null;
+      job_type?: string | null;
       /** Format: datetime */
-      start_date?: string;
+      start_date?: string | null;
       /** Format: datetime */
-      end_date?: string;
+      end_date?: string | null;
       /** Format: datetime */
-      latest_heartbeat?: string;
-      executor_class?: string;
-      hostname?: string;
-      unixname?: string;
+      latest_heartbeat?: string | null;
+      executor_class?: string | null;
+      hostname?: string | null;
+      unixname?: string | null;
     };
     TaskInstance: {
       task_id?: string;
