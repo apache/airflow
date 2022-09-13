@@ -32,7 +32,6 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
@@ -497,6 +496,8 @@ def task_group_to_dict(task_item_or_group):
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
+    from airflow.models.abstractoperator import AbstractOperator
+
     if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
