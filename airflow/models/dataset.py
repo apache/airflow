@@ -160,7 +160,7 @@ class TaskOutletDatasetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("DatasetModel")
+    dataset = relationship("DatasetModel", back_populates="producing_tasks")
 
     __tablename__ = "task_outlet_dataset_reference"
     __table_args__ = (
