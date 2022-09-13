@@ -3566,6 +3566,7 @@ class Airflow(AirflowBaseView):
         offset = int(request.args.get("offset", 0))
         order_by = request.args.get("order_by", "uri")
         lstripped_orderby = order_by.lstrip('-')
+
         if lstripped_orderby not in allowed_attrs:
             return {
                 "detail": (
@@ -3574,22 +3575,42 @@ class Airflow(AirflowBaseView):
                 )
             }, 400
 
-        if lstripped_orderby == "uri":
-            if order_by[0] == "-":
-                order_by = (DatasetModel.uri.desc(),)
-            else:
-                order_by = (DatasetModel.uri.asc(),)
-        elif lstripped_orderby == "last_dataset_update":
-            if order_by[0] == "-":
-                # Datasets without updates are probably more interesting than datasets with updates, so we
-                # push the nulls to the top
-                order_by = (func.max(DatasetEvent.timestamp).desc().nulls_first(), DatasetModel.uri.asc())
-            else:
-                order_by = (func.max(DatasetEvent.timestamp).asc().nulls_last(), DatasetModel.uri.desc())
-
         limit = 50 if limit > 50 else limit
 
         with create_session() as session:
+            if lstripped_orderby == "uri":
+                if order_by[0] == "-":
+                    order_by = (DatasetModel.uri.desc(),)
+                else:
+                    order_by = (DatasetModel.uri.asc(),)
+            elif lstripped_orderby == "last_dataset_update":
+                if order_by[0] == "-":
+                    # Datasets without updates are probably more interesting than datasets with updates, so we
+                    # push the nulls to the top
+                    if session.bind.dialect.name == 'mysql':
+                        order_by = (
+                            func.max(DatasetEvent.timestamp).isnot(None),
+                            func.max(DatasetEvent.timestamp).desc(),
+                            DatasetModel.uri.asc(),
+                        )
+                    else:
+                        order_by = (
+                            func.max(DatasetEvent.timestamp).desc().nulls_first(),
+                            DatasetModel.uri.asc(),
+                        )
+                else:
+                    if session.bind.dialect.name == 'mysql':
+                        order_by = (
+                            func.max(DatasetEvent.timestamp).is_(None),
+                            func.max(DatasetEvent.timestamp).asc(),
+                            DatasetModel.uri.desc(),
+                        )
+                    else:
+                        order_by = (
+                            func.max(DatasetEvent.timestamp).asc().nulls_last(),
+                            DatasetModel.uri.desc(),
+                        )
+
             total_entries = session.query(func.count(DatasetModel.id)).scalar()
 
             datasets = [
