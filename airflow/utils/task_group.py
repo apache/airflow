@@ -78,7 +78,7 @@ class TaskGroup(DAGNode):
         prefix_group_id: bool = True,
         parent_group: TaskGroup | None = None,
         dag: DAG | None = None,
-        default_args: dict | None = None,
+        default_args: dict[str, Any] | None = None,
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",

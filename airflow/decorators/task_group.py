@@ -96,10 +96,10 @@ class _TaskGroupFactory(Generic[FParams, FReturn]):
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
-        """TODO: Implement me."""
+        raise NotImplementedError("TODO: Implement me")
 
     def expand(self, **kwargs: OperatorExpandArgument) -> TaskGroup:
-        """TODO: Implement me."""
+        raise NotImplementedError("TODO: Implement me")
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> TaskGroup:
         raise NotImplementedError("TODO: Implement me")
@@ -112,7 +112,6 @@ class _TaskGroupFactory(Generic[FParams, FReturn]):
 # argument defaults aren't actually used at runtime--the real implementation
 # does not use them, and simply rely on TaskGroup's defaults, so it's not
 # disastrous if they go out of sync with TaskGroup.
-# TODO: Write a pre-commit hook to keep the arguments in sync.
 @overload
 def task_group(
     group_id: str | None = None,
