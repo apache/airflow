@@ -552,10 +552,10 @@ class DagFileProcessor(LoggingMixin):
                     synchronize_session='fetch',
                 )
             else:
-                emails: Set[str] = set(conf.get(section='email', key='dag_import_failure_email_to').split())
-                if emails and conf.getboolean(
-                    section='email', key='email_on_dag_import_failure', fallback=True
-                ):
+                emails: Set[str] = set(
+                    conf.get(section='email', key='dag_import_failure_email_to', fallback='').split()
+                )
+                if emails:
                     try:
                         email_content = f"""File {filename} has failed to import due to:\n
                         <pre><code>{stacktrace}<code></pre>
