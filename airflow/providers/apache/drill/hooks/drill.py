@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Iterable, Optional, Tuple
+from typing import Any, Iterable
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection
@@ -80,8 +81,8 @@ class DrillHook(DbApiHook):
     def insert_rows(
         self,
         table: str,
-        rows: Iterable[Tuple[str]],
-        target_fields: Optional[Iterable[str]] = None,
+        rows: Iterable[tuple[str]],
+        target_fields: Iterable[str] | None = None,
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,

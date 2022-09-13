@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import List
 from unittest import mock
 from uuid import UUID
 
@@ -66,7 +66,7 @@ class TestPubSubHook(unittest.TestCase):
         with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
 
-    def _generate_messages(self, count) -> List[ReceivedMessage]:
+    def _generate_messages(self, count) -> list[ReceivedMessage]:
         return [
             ReceivedMessage(
                 ack_id=str(i),

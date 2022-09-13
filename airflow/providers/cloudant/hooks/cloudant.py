@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Cloudant"""
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
 
 from cloudant import cloudant  # type: ignore[attr-defined]
 
@@ -39,7 +41,7 @@ class CloudantHook(BaseHook):
     hook_name = 'Cloudant'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['port', 'extra'],

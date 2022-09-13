@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Type
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from requests.auth import AuthBase, HTTPBasicAuth
 
@@ -73,16 +75,16 @@ class SimpleHttpOperator(BaseOperator):
     def __init__(
         self,
         *,
-        endpoint: Optional[str] = None,
+        endpoint: str | None = None,
         method: str = 'POST',
         data: Any = None,
-        headers: Optional[Dict[str, str]] = None,
-        response_check: Optional[Callable[..., bool]] = None,
-        response_filter: Optional[Callable[..., Any]] = None,
-        extra_options: Optional[Dict[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        response_check: Callable[..., bool] | None = None,
+        response_filter: Callable[..., Any] | None = None,
+        extra_options: dict[str, Any] | None = None,
         http_conn_id: str = 'http_default',
         log_response: bool = False,
-        auth_type: Type[AuthBase] = HTTPBasicAuth,
+        auth_type: type[AuthBase] = HTTPBasicAuth,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
@@ -105,7 +107,7 @@ class SimpleHttpOperator(BaseOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         from airflow.utils.operator_helpers import determine_kwargs
 
         http = HttpHook(

@@ -18,9 +18,11 @@
 """
 Example Airflow DAG that shows how to use DisplayVideo.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Dict, cast
+from typing import cast
 
 from airflow import models
 from airflow.models.xcom_arg import XComArg
@@ -74,13 +76,13 @@ REPORT = {
 
 PARAMETERS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 
-CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
+CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
     "version": SDF_VERSION,
     "advertiserId": ADVERTISER_ID,
     "inventorySourceFilter": {"inventorySourceIds": []},
 }
 
-DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
+DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
 
 START_DATE = datetime(2021, 1, 1)

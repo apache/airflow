@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
@@ -63,7 +65,7 @@ class GlueCrawlerOperator(BaseOperator):
         """Create and return an GlueCrawlerHook."""
         return GlueCrawlerHook(self.aws_conn_id)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Executes AWS Glue Crawler from Airflow
 

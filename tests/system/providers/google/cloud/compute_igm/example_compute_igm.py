@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that uses IGM-type compute operations:
 * copy of Instance Template
@@ -37,6 +36,7 @@ Variables for update template in Group Manager:
 * SOURCE_TEMPLATE_URL - url of the template to replace in the Instance Group Manager
 * DESTINATION_TEMPLATE_URL - url of the new template to set in the Instance Group Manager
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

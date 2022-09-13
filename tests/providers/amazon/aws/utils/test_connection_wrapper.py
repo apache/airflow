@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import fields
-from typing import Optional
 from unittest import mock
 
 import pytest
@@ -31,7 +31,7 @@ MOCK_ROLE_ARN = "arn:aws:iam::222222222222:role/awesome-role"
 
 
 def mock_connection_factory(
-    conn_id: Optional[str] = MOCK_AWS_CONN_ID, conn_type: Optional[str] = MOCK_CONN_TYPE, **kwargs
+    conn_id: str | None = MOCK_AWS_CONN_ID, conn_type: str | None = MOCK_CONN_TYPE, **kwargs
 ) -> Connection:
     return Connection(conn_id=conn_id, conn_type=conn_type, **kwargs)
 

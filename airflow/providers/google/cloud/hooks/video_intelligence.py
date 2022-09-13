@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Video Intelligence Hook."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
@@ -52,8 +54,8 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -77,15 +79,15 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def annotate_video(
         self,
-        input_uri: Optional[str] = None,
-        input_content: Optional[bytes] = None,
-        features: Optional[List[VideoIntelligenceServiceClient.enums.Feature]] = None,
-        video_context: Union[Dict, VideoContext] = None,
-        output_uri: Optional[str] = None,
-        location: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        input_uri: str | None = None,
+        input_content: bytes | None = None,
+        features: list[VideoIntelligenceServiceClient.enums.Feature] | None = None,
+        video_context: dict | VideoContext = None,
+        output_uri: str | None = None,
+        location: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Performs video annotation.

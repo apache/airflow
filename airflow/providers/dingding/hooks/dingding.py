@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import List, Optional, Union
 
 import requests
 from requests import Session
@@ -52,8 +52,8 @@ class DingdingHook(HttpHook):
         self,
         dingding_conn_id='dingding_default',
         message_type: str = 'text',
-        message: Optional[Union[str, dict]] = None,
-        at_mobiles: Optional[List[str]] = None,
+        message: str | dict | None = None,
+        at_mobiles: list[str] | None = None,
         at_all: bool = False,
         *args,
         **kwargs,
@@ -90,7 +90,7 @@ class DingdingHook(HttpHook):
             data = {'msgtype': self.message_type, self.message_type: self.message}
         return json.dumps(data)
 
-    def get_conn(self, headers: Optional[dict] = None) -> Session:
+    def get_conn(self, headers: dict | None = None) -> Session:
         """
         Overwrite HttpHook get_conn because just need base_url and headers and
         not don't need generic params

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
@@ -72,7 +73,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self.hook = AzureSynapseHook(
             azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool
         )

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from Hive to MySQL."""
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
@@ -75,10 +76,10 @@ class HiveToMySqlOperator(BaseOperator):
         mysql_table: str,
         hiveserver2_conn_id: str = 'hiveserver2_default',
         mysql_conn_id: str = 'mysql_default',
-        mysql_preoperator: Optional[str] = None,
-        mysql_postoperator: Optional[str] = None,
+        mysql_preoperator: str | None = None,
+        mysql_postoperator: str | None = None,
         bulk_load: bool = False,
-        hive_conf: Optional[Dict] = None,
+        hive_conf: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,7 +92,7 @@ class HiveToMySqlOperator(BaseOperator):
         self.bulk_load = bulk_load
         self.hive_conf = hive_conf
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info("Extracting data from Hive: %s", self.sql)

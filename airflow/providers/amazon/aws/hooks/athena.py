@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains AWS Athena hook.
 
@@ -23,9 +22,11 @@ This module contains AWS Athena hook.
 
     PageIterator
 """
+from __future__ import annotations
+
 import warnings
 from time import sleep
-from typing import Any, Dict, Optional
+from typing import Any
 
 from botocore.paginate import PageIterator
 
@@ -67,9 +68,9 @@ class AthenaHook(AwsBaseHook):
     def run_query(
         self,
         query: str,
-        query_context: Dict[str, str],
-        result_configuration: Dict[str, Any],
-        client_request_token: Optional[str] = None,
+        query_context: dict[str, str],
+        result_configuration: dict[str, Any],
+        client_request_token: str | None = None,
         workgroup: str = 'primary',
     ) -> str:
         """
@@ -93,7 +94,7 @@ class AthenaHook(AwsBaseHook):
         response = self.get_conn().start_query_execution(**params)
         return response['QueryExecutionId']
 
-    def check_query_status(self, query_execution_id: str) -> Optional[str]:
+    def check_query_status(self, query_execution_id: str) -> str | None:
         """
         Fetch the status of submitted athena query. Returns None or one of valid query states.
 
@@ -111,7 +112,7 @@ class AthenaHook(AwsBaseHook):
             # The error is being absorbed to implement retries.
             return state
 
-    def get_state_change_reason(self, query_execution_id: str) -> Optional[str]:
+    def get_state_change_reason(self, query_execution_id: str) -> str | None:
         """
         Fetch the reason for a state change (e.g. error message). Returns None or reason string.
 
@@ -130,8 +131,8 @@ class AthenaHook(AwsBaseHook):
             return reason
 
     def get_query_results(
-        self, query_execution_id: str, next_token_id: Optional[str] = None, max_results: int = 1000
-    ) -> Optional[dict]:
+        self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
+    ) -> dict | None:
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else dict of query output
@@ -156,10 +157,10 @@ class AthenaHook(AwsBaseHook):
     def get_query_results_paginator(
         self,
         query_execution_id: str,
-        max_items: Optional[int] = None,
-        page_size: Optional[int] = None,
-        starting_token: Optional[str] = None,
-    ) -> Optional[PageIterator]:
+        max_items: int | None = None,
+        page_size: int | None = None,
+        starting_token: str | None = None,
+    ) -> PageIterator | None:
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else a paginator to iterate through pages of results. If you
@@ -192,9 +193,9 @@ class AthenaHook(AwsBaseHook):
     def poll_query_status(
         self,
         query_execution_id: str,
-        max_tries: Optional[int] = None,
-        max_polling_attempts: Optional[int] = None,
-    ) -> Optional[str]:
+        max_tries: int | None = None,
+        max_polling_attempts: int | None = None,
+    ) -> str | None:
         """
         Poll the status of submitted athena query until query state reaches final state.
         Returns one of the final states
@@ -264,7 +265,7 @@ class AthenaHook(AwsBaseHook):
 
         return output_location
 
-    def stop_query(self, query_execution_id: str) -> Dict:
+    def stop_query(self, query_execution_id: str) -> dict:
         """
         Cancel the submitted athena query
 

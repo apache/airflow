@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
@@ -52,11 +53,11 @@ class GrpcOperator(BaseOperator):
         stub_class: Callable,
         call_func: str,
         grpc_conn_id: str = "grpc_default",
-        data: Optional[dict] = None,
-        interceptors: Optional[List[Callable]] = None,
-        custom_connection_func: Optional[Callable] = None,
+        data: dict | None = None,
+        interceptors: list[Callable] | None = None,
+        custom_connection_func: Callable | None = None,
         streaming: bool = False,
-        response_callback: Optional[Callable] = None,
+        response_callback: Callable | None = None,
         log_response: bool = False,
         **kwargs,
     ) -> None:
@@ -78,7 +79,7 @@ class GrpcOperator(BaseOperator):
             custom_connection_func=self.custom_connection_func,
         )
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = self._get_grpc_hook()
         self.log.info("Calling gRPC service")
 
@@ -88,7 +89,7 @@ class GrpcOperator(BaseOperator):
         for response in responses:
             self._handle_response(response, context)
 
-    def _handle_response(self, response: Any, context: 'Context') -> None:
+    def _handle_response(self, response: Any, context: Context) -> None:
         if self.log_response:
             self.log.info(repr(response))
         if self.response_callback:

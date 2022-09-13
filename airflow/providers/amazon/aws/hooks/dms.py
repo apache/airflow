@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from enum import Enum
-from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -54,9 +55,7 @@ class DmsHook(AwsBaseHook):
 
         return response.get('Marker'), response.get('ReplicationTasks', [])
 
-    def find_replication_tasks_by_arn(
-        self, replication_task_arn: str, without_settings: Optional[bool] = False
-    ):
+    def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
         """
         Find and describe replication tasks by task ARN
         :param replication_task_arn: Replication task arn
@@ -76,7 +75,7 @@ class DmsHook(AwsBaseHook):
 
         return tasks
 
-    def get_task_status(self, replication_task_arn: str) -> Optional[str]:
+    def get_task_status(self, replication_task_arn: str) -> str | None:
         """
         Retrieve task status.
 

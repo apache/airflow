@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 from contextlib import closing
-from typing import Any, Callable, Iterable, List, Mapping, Optional, Union
+from typing import Any, Callable, Iterable, Mapping
 
 import trino
 from trino.exceptions import DatabaseError
@@ -150,8 +152,8 @@ class TrinoHook(DbApiHook):
 
     def get_records(
         self,
-        sql: Union[str, List[str]] = "",
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        sql: str | list[str] = "",
+        parameters: Iterable | Mapping | None = None,
         **kwargs: dict,
     ):
         if not isinstance(sql, str):
@@ -161,9 +163,7 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_first(
-        self, sql: Union[str, List[str]] = "", parameters: Optional[Union[Iterable, Mapping]] = None
-    ) -> Any:
+    def get_first(self, sql: str | list[str] = "", parameters: Iterable | Mapping | None = None) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
         try:
@@ -172,7 +172,7 @@ class TrinoHook(DbApiHook):
             raise TrinoException(e)
 
     def get_pandas_df(
-        self, sql: str = "", parameters: Optional[Union[Iterable, Mapping]] = None, **kwargs
+        self, sql: str = "", parameters: Iterable | Mapping | None = None, **kwargs
     ):  # type: ignore[override]
         import pandas
 
@@ -192,13 +192,13 @@ class TrinoHook(DbApiHook):
 
     def run(
         self,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Optional[Callable] = None,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Optional[Union[Any, List[Any]]]:
+    ) -> Any | list[Any] | None:
         return super().run(
             sql=sql,
             autocommit=autocommit,
@@ -212,7 +212,7 @@ class TrinoHook(DbApiHook):
         self,
         table: str,
         rows: Iterable[tuple],
-        target_fields: Optional[Iterable[str]] = None,
+        target_fields: Iterable[str] | None = None,
         commit_every: int = 0,
         replace: bool = False,
         **kwargs,

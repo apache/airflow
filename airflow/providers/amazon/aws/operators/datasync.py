@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Create, get, update, execute and delete an AWS DataSync Task."""
+from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING, List, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
@@ -123,16 +123,16 @@ class DataSyncOperator(BaseOperator):
         wait_interval_seconds: int = 30,
         max_iterations: int = 60,
         wait_for_completion: bool = True,
-        task_arn: Optional[str] = None,
-        source_location_uri: Optional[str] = None,
-        destination_location_uri: Optional[str] = None,
+        task_arn: str | None = None,
+        source_location_uri: str | None = None,
+        destination_location_uri: str | None = None,
         allow_random_task_choice: bool = False,
         allow_random_location_choice: bool = False,
-        create_task_kwargs: Optional[dict] = None,
-        create_source_location_kwargs: Optional[dict] = None,
-        create_destination_location_kwargs: Optional[dict] = None,
-        update_task_kwargs: Optional[dict] = None,
-        task_execution_kwargs: Optional[dict] = None,
+        create_task_kwargs: dict | None = None,
+        create_source_location_kwargs: dict | None = None,
+        create_destination_location_kwargs: dict | None = None,
+        update_task_kwargs: dict | None = None,
+        task_execution_kwargs: dict | None = None,
         delete_task_after_execution: bool = False,
         **kwargs,
     ):
@@ -177,16 +177,16 @@ class DataSyncOperator(BaseOperator):
             )
 
         # Others
-        self.hook: Optional[DataSyncHook] = None
+        self.hook: DataSyncHook | None = None
         # Candidates - these are found in AWS as possible things
         # for us to use
-        self.candidate_source_location_arns: Optional[List[str]] = None
-        self.candidate_destination_location_arns: Optional[List[str]] = None
-        self.candidate_task_arns: Optional[List[str]] = None
+        self.candidate_source_location_arns: list[str] | None = None
+        self.candidate_destination_location_arns: list[str] | None = None
+        self.candidate_task_arns: list[str] | None = None
         # Actuals
-        self.source_location_arn: Optional[str] = None
-        self.destination_location_arn: Optional[str] = None
-        self.task_execution_arn: Optional[str] = None
+        self.source_location_arn: str | None = None
+        self.destination_location_arn: str | None = None
+        self.task_execution_arn: str | None = None
 
     def get_hook(self) -> DataSyncHook:
         """Create and return DataSyncHook.
@@ -202,7 +202,7 @@ class DataSyncOperator(BaseOperator):
         )
         return self.hook
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         # If task_arn was not specified then try to
         # find 0, 1 or many candidate DataSync Tasks to run
         if not self.task_arn:
@@ -260,7 +260,7 @@ class DataSyncOperator(BaseOperator):
         )
         self.log.info("Found candidate DataSync TaskArns %s", self.candidate_task_arns)
 
-    def choose_task(self, task_arn_list: list) -> Optional[str]:
+    def choose_task(self, task_arn_list: list) -> str | None:
         """Select 1 DataSync TaskArn from a list"""
         if not task_arn_list:
             return None
@@ -274,7 +274,7 @@ class DataSyncOperator(BaseOperator):
             return random.choice(task_arn_list)
         raise AirflowException(f"Unable to choose a Task from {task_arn_list}")
 
-    def choose_location(self, location_arn_list: Optional[List[str]]) -> Optional[str]:
+    def choose_location(self, location_arn_list: list[str] | None) -> str | None:
         """Select 1 DataSync LocationArn from a list"""
         if not location_arn_list:
             return None
@@ -398,7 +398,7 @@ class DataSyncOperator(BaseOperator):
         hook.delete_task(self.task_arn)
         self.log.info("Task Deleted")
 
-    def _get_location_arns(self, location_uri) -> List[str]:
+    def _get_location_arns(self, location_uri) -> list[str]:
         location_arns = self.get_hook().get_location_arns(location_uri)
         self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
         return location_arns

@@ -18,6 +18,8 @@
 """
 Example use of MsSql related operators.
 """
+from __future__ import annotations
+
 # [START mssql_operator_howto_guide]
 import os
 from datetime import datetime

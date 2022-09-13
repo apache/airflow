@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Dict, Optional, SupportsAbs, Tuple, Union
+from typing import Any, AsyncIterator, SupportsAbs
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -40,10 +41,10 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     def __init__(
         self,
         conn_id: str,
-        job_id: Optional[str],
-        project_id: Optional[str],
-        dataset_id: Optional[str] = None,
-        table_id: Optional[str] = None,
+        job_id: str | None,
+        project_id: str | None,
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         poll_interval: float = 4.0,
     ):
         super().__init__()
@@ -56,7 +57,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         self.table_id = table_id
         self.poll_interval = poll_interval
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryInsertJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger",
@@ -105,7 +106,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
 class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
     """BigQueryCheckTrigger run on the trigger worker"""
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger",
@@ -164,7 +165,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
 class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
     """BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class"""
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryInsertJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger",
@@ -235,15 +236,15 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         conn_id: str,
         first_job_id: str,
         second_job_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
         table: str,
-        metrics_thresholds: Dict[str, int],
-        date_filter_column: Optional[str] = "ds",
+        metrics_thresholds: dict[str, int],
+        date_filter_column: str | None = "ds",
         days_back: SupportsAbs[int] = -7,
         ratio_formula: str = "max_over_min",
         ignore_zero: bool = True,
-        dataset_id: Optional[str] = None,
-        table_id: Optional[str] = None,
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         poll_interval: float = 4.0,
     ):
         super().__init__(
@@ -265,7 +266,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         self.ratio_formula = ratio_formula
         self.ignore_zero = ignore_zero
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger",
@@ -310,14 +311,14 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
 
                     # If empty list, then no records are available
                     if not first_records:
-                        first_job_row: Optional[str] = None
+                        first_job_row: str | None = None
                     else:
                         # Extract only first record from the query results
                         first_job_row = first_records.pop(0)
 
                     # If empty list, then no records are available
                     if not second_records:
-                        second_job_row: Optional[str] = None
+                        second_job_row: str | None = None
                     else:
                         # Extract only first record from the query results
                         second_job_row = second_records.pop(0)
@@ -374,12 +375,12 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         self,
         conn_id: str,
         sql: str,
-        pass_value: Union[int, float, str],
-        job_id: Optional[str],
-        project_id: Optional[str],
+        pass_value: int | float | str,
+        job_id: str | None,
+        project_id: str | None,
         tolerance: Any = None,
-        dataset_id: Optional[str] = None,
-        table_id: Optional[str] = None,
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         poll_interval: float = 4.0,
     ):
         super().__init__(
@@ -394,7 +395,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         self.pass_value = pass_value
         self.tolerance = tolerance
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryValueCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger",
@@ -457,7 +458,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         dataset_id: str,
         table_id: str,
         gcp_conn_id: str,
-        hook_params: Dict[str, Any],
+        hook_params: dict[str, Any],
         poll_interval: float = 4.0,
     ):
         self.dataset_id = dataset_id
@@ -467,7 +468,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         self.poll_interval = poll_interval
         self.hook_params = hook_params
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryTableExistenceTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger",

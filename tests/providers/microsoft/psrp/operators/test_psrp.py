@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from itertools import product
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, NamedTuple
 from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
@@ -37,7 +38,7 @@ CONNECTION_ID = "conn_id"
 class ExecuteParameter(NamedTuple):
     name: str
     expected_method: str
-    expected_parameters: Optional[Dict[str, Any]]
+    expected_parameters: dict[str, Any] | None
 
 
 class TestPsrpOperator(TestCase):

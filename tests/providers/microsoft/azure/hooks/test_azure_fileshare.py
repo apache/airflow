@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains integration with Azure File Share.
 
@@ -24,6 +23,7 @@ type `wasb` exists. Authorization can be done by supplying a login (=Storage acc
 and password (=Storage account key), or login and SAS token in the extra field
 (see connection `azure_fileshare_default` for an example).
 """
+from __future__ import annotations
 
 import json
 import unittest

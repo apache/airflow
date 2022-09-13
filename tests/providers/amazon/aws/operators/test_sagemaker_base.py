@@ -14,16 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator
 
-CONFIG: Dict = {'key1': '1', 'key2': {'key3': '3', 'key4': '4'}, 'key5': [{'key6': '6'}, {'key6': '7'}]}
-PARSED_CONFIG: Dict = {'key1': 1, 'key2': {'key3': 3, 'key4': 4}, 'key5': [{'key6': 6}, {'key6': 7}]}
+CONFIG: dict = {'key1': '1', 'key2': {'key3': '3', 'key4': '4'}, 'key5': [{'key6': '6'}, {'key6': '7'}]}
+PARSED_CONFIG: dict = {'key1': 1, 'key2': {'key3': 3, 'key4': 4}, 'key5': [{'key6': 6}, {'key6': 7}]}
 
-EXPECTED_INTEGER_FIELDS: List[List[Any]] = []
+EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
 
 class TestSageMakerBaseOperator(unittest.TestCase):

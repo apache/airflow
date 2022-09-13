@@ -23,9 +23,11 @@ This module contains a Google Pub/Sub Hook.
     MessageStoragePolicy
     ReceivedMessage
 """
+from __future__ import annotations
+
 import warnings
 from base64 import b64decode
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 from uuid import uuid4
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
@@ -65,8 +67,8 @@ class PubSubHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -100,7 +102,7 @@ class PubSubHook(GoogleBaseHook):
     def publish(
         self,
         topic: str,
-        messages: List[dict],
+        messages: list[dict],
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """
@@ -167,12 +169,12 @@ class PubSubHook(GoogleBaseHook):
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_exists: bool = False,
-        labels: Optional[Dict[str, str]] = None,
-        message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
-        kms_key_name: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        labels: dict[str, str] | None = None,
+        message_storage_policy: dict | MessageStoragePolicy = None,
+        kms_key_name: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Creates a Pub/Sub topic, if it does not already exist.
@@ -237,9 +239,9 @@ class PubSubHook(GoogleBaseHook):
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a Pub/Sub topic if it exists.
@@ -279,22 +281,22 @@ class PubSubHook(GoogleBaseHook):
         self,
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        subscription: Optional[str] = None,
-        subscription_project_id: Optional[str] = None,
+        subscription: str | None = None,
+        subscription_project_id: str | None = None,
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
-        push_config: Optional[Union[dict, PushConfig]] = None,
-        retain_acked_messages: Optional[bool] = None,
-        message_retention_duration: Optional[Union[dict, Duration]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        push_config: dict | PushConfig | None = None,
+        retain_acked_messages: bool | None = None,
+        message_retention_duration: dict | Duration | None = None,
+        labels: dict[str, str] | None = None,
         enable_message_ordering: bool = False,
-        expiration_policy: Optional[Union[dict, ExpirationPolicy]] = None,
-        filter_: Optional[str] = None,
-        dead_letter_policy: Optional[Union[dict, DeadLetterPolicy]] = None,
-        retry_policy: Optional[Union[dict, RetryPolicy]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        expiration_policy: dict | ExpirationPolicy | None = None,
+        filter_: str | None = None,
+        dead_letter_policy: dict | DeadLetterPolicy | None = None,
+        retry_policy: dict | RetryPolicy | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
         Creates a Pub/Sub subscription, if it does not already exist.
@@ -410,9 +412,9 @@ class PubSubHook(GoogleBaseHook):
         subscription: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a Pub/Sub subscription, if it exists.
@@ -459,10 +461,10 @@ class PubSubHook(GoogleBaseHook):
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[ReceivedMessage]:
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> list[ReceivedMessage]:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 
@@ -514,11 +516,11 @@ class PubSubHook(GoogleBaseHook):
         self,
         subscription: str,
         project_id: str,
-        ack_ids: Optional[List[str]] = None,
-        messages: Optional[List[ReceivedMessage]] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        ack_ids: list[str] | None = None,
+        messages: list[ReceivedMessage] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Acknowledges the messages associated with the ``ack_ids`` from Pub/Sub subscription.

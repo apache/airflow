@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Telegram"""
-from typing import Optional
+from __future__ import annotations
 
 import telegram
 import tenacity
@@ -58,9 +58,9 @@ class TelegramHook(BaseHook):
 
     def __init__(
         self,
-        telegram_conn_id: Optional[str] = None,
-        token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        telegram_conn_id: str | None = None,
+        token: str | None = None,
+        chat_id: str | None = None,
     ) -> None:
         super().__init__()
         self.token = self.__get_token(token, telegram_conn_id)
@@ -76,7 +76,7 @@ class TelegramHook(BaseHook):
         """
         return telegram.bot.Bot(token=self.token)
 
-    def __get_token(self, token: Optional[str], telegram_conn_id: Optional[str]) -> str:
+    def __get_token(self, token: str | None, telegram_conn_id: str | None) -> str:
         """
         Returns the telegram API token
 
@@ -98,7 +98,7 @@ class TelegramHook(BaseHook):
 
         raise AirflowException("Cannot get token: No valid Telegram connection supplied.")
 
-    def __get_chat_id(self, chat_id: Optional[str], telegram_conn_id: Optional[str]) -> Optional[str]:
+    def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
         """
         Returns the telegram chat ID for a chat/channel/group
 

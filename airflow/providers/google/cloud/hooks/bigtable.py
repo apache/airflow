@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Bigtable Hook."""
+from __future__ import annotations
+
 import enum
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Sequence
 
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.cluster import Cluster
@@ -41,8 +43,8 @@ class BigtableHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -104,13 +106,13 @@ class BigtableHook(GoogleBaseHook):
         main_cluster_id: str,
         main_cluster_zone: str,
         project_id: str,
-        replica_clusters: Optional[List[Dict[str, str]]] = None,
-        instance_display_name: Optional[str] = None,
+        replica_clusters: list[dict[str, str]] | None = None,
+        instance_display_name: str | None = None,
         instance_type: enums.Instance.Type = enums.Instance.Type.TYPE_UNSPECIFIED,
-        instance_labels: Optional[Dict] = None,
-        cluster_nodes: Optional[int] = None,
+        instance_labels: dict | None = None,
+        cluster_nodes: int | None = None,
         cluster_storage_type: enums.StorageType = enums.StorageType.STORAGE_TYPE_UNSPECIFIED,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> Instance:
         """
         Creates new instance.
@@ -174,10 +176,10 @@ class BigtableHook(GoogleBaseHook):
         self,
         instance_id: str,
         project_id: str,
-        instance_display_name: Optional[str] = None,
-        instance_type: Optional[Union[enums.Instance.Type, enum.IntEnum]] = None,
-        instance_labels: Optional[Dict] = None,
-        timeout: Optional[float] = None,
+        instance_display_name: str | None = None,
+        instance_type: enums.Instance.Type | enum.IntEnum | None = None,
+        instance_labels: dict | None = None,
+        timeout: float | None = None,
     ) -> Instance:
         """
         Update an existing instance.
@@ -212,8 +214,8 @@ class BigtableHook(GoogleBaseHook):
     def create_table(
         instance: Instance,
         table_id: str,
-        initial_split_keys: Optional[List] = None,
-        column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
+        initial_split_keys: list | None = None,
+        column_families: dict[str, GarbageCollectionRule] | None = None,
     ) -> None:
         """
         Creates the specified Cloud Bigtable table.
@@ -264,7 +266,7 @@ class BigtableHook(GoogleBaseHook):
         cluster.update()
 
     @staticmethod
-    def get_column_families_for_table(instance: Instance, table_id: str) -> Dict[str, ColumnFamily]:
+    def get_column_families_for_table(instance: Instance, table_id: str) -> dict[str, ColumnFamily]:
         """
         Fetches Column Families for the specified table in Cloud Bigtable.
 
@@ -276,7 +278,7 @@ class BigtableHook(GoogleBaseHook):
         return table.list_column_families()
 
     @staticmethod
-    def get_cluster_states_for_table(instance: Instance, table_id: str) -> Dict[str, ClusterState]:
+    def get_cluster_states_for_table(instance: Instance, table_id: str) -> dict[str, ClusterState]:
         """
         Fetches Cluster States for the specified table in Cloud Bigtable.
         Raises google.api_core.exceptions.NotFound if the table does not exist.

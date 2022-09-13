@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from Exasol database into a S3 Bucket."""
+from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -59,13 +60,13 @@ class ExasolToS3Operator(BaseOperator):
         *,
         query_or_table: str,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: Optional[str] = None,
-        query_params: Optional[Dict] = None,
-        export_params: Optional[Dict] = None,
+        acl_policy: str | None = None,
+        query_params: dict | None = None,
+        export_params: dict | None = None,
         exasol_conn_id: str = 'exasol_default',
         aws_conn_id: str = 'aws_default',
         **kwargs,
@@ -83,7 +84,7 @@ class ExasolToS3Operator(BaseOperator):
         self.exasol_conn_id = exasol_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         exasol_hook = ExasolHook(exasol_conn_id=self.exasol_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 

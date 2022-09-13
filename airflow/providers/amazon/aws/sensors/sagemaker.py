@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Optional, Sequence, Set
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
@@ -39,7 +40,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
     def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
-        self.hook: Optional[SageMakerHook] = None
+        self.hook: SageMakerHook | None = None
 
     def get_hook(self) -> SageMakerHook:
         """Get SageMakerHook."""
@@ -48,7 +49,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         response = self.get_sagemaker_response()
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             self.log.info('Bad HTTP response: %s', response)
@@ -62,11 +63,11 @@ class SageMakerBaseSensor(BaseSensorOperator):
             raise AirflowException(f'Sagemaker job failed for the following reason: {failed_reason}')
         return True
 
-    def non_terminal_states(self) -> Set[str]:
+    def non_terminal_states(self) -> set[str]:
         """Placeholder for returning states with should not terminate."""
         raise NotImplementedError('Please implement non_terminal_states() in subclass')
 
-    def failed_states(self) -> Set[str]:
+    def failed_states(self) -> set[str]:
         """Placeholder for returning states with are considered failed."""
         raise NotImplementedError('Please implement failed_states() in subclass')
 
@@ -213,8 +214,8 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.print_log = print_log
         self.positions = {}
         self.stream_names = []
-        self.instance_count: Optional[int] = None
-        self.state: Optional[int] = None
+        self.instance_count: int | None = None
+        self.state: int | None = None
         self.last_description = None
         self.last_describe_job_call = None
         self.log_resource_inited = False

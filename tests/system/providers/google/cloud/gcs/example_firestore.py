@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that shows interactions with Google Cloud Firestore.
 
@@ -42,6 +41,7 @@ If you want to run this example, you must do the following:
 6. Give read/write access for Firebase admin to bucket to step no. 5.
 7. Create collection in the Firestore database.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

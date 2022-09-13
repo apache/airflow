@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context
 
 

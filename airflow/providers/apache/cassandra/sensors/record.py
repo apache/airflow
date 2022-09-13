@@ -19,8 +19,9 @@
 This module contains sensor that check the existence
 of a record in a Cassandra cluster.
 """
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base import BaseSensorOperator
@@ -58,7 +59,7 @@ class CassandraRecordSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        keys: Dict[str, str],
+        keys: dict[str, str],
         table: str,
         cassandra_conn_id: str = CassandraHook.default_conn_name,
         **kwargs: Any,
@@ -68,7 +69,7 @@ class CassandraRecordSensor(BaseSensorOperator):
         self.table = table
         self.keys = keys
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info('Sensor check existence of record: %s', self.keys)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.record_exists(self.table, self.keys)

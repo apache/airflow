@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Datastore hook."""
-
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -40,9 +39,9 @@ class DatastoreHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -91,7 +90,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp['keys']
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: str, transaction_options: Dict[str, Any]) -> str:
+    def begin_transaction(self, project_id: str, transaction_options: dict[str, Any]) -> str:
         """
         Begins a new transaction.
 
@@ -137,8 +136,8 @@ class DatastoreHook(GoogleBaseHook):
         self,
         keys: list,
         project_id: str,
-        read_consistency: Optional[str] = None,
-        transaction: Optional[str] = None,
+        read_consistency: str | None = None,
+        transaction: str | None = None,
     ) -> dict:
         """
         Lookup some entities by key.
@@ -235,7 +234,7 @@ class DatastoreHook(GoogleBaseHook):
 
         return resp
 
-    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> Dict:
+    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> dict:
         """
         Poll backup operation state until it's completed.
 
@@ -245,7 +244,7 @@ class DatastoreHook(GoogleBaseHook):
         :rtype: dict
         """
         while True:
-            result: Dict = self.get_operation(name)
+            result: dict = self.get_operation(name)
 
             state: str = result['metadata']['common']['state']
             if state == 'PROCESSING':
@@ -261,9 +260,9 @@ class DatastoreHook(GoogleBaseHook):
         self,
         bucket: str,
         project_id: str,
-        namespace: Optional[str] = None,
-        entity_filter: Optional[dict] = None,
-        labels: Optional[Dict[str, str]] = None,
+        namespace: str | None = None,
+        entity_filter: dict | None = None,
+        labels: dict[str, str] | None = None,
     ) -> dict:
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
@@ -308,9 +307,9 @@ class DatastoreHook(GoogleBaseHook):
         bucket: str,
         file: str,
         project_id: str,
-        namespace: Optional[str] = None,
-        entity_filter: Optional[dict] = None,
-        labels: Optional[Union[dict, str]] = None,
+        namespace: str | None = None,
+        entity_filter: dict | None = None,
+        labels: dict | str | None = None,
     ) -> dict:
         """
         Import a backup from Cloud Storage to Cloud Datastore.

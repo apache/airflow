@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -77,7 +79,7 @@ class GcpAuthenticator(CommandExecutor):
 
     original_account = None  # type: Optional[str]
 
-    def __init__(self, gcp_key: str, project_extra: Optional[str] = None):
+    def __init__(self, gcp_key: str, project_extra: str | None = None):
         super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra

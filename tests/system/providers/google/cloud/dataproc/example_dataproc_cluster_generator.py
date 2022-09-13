@@ -19,6 +19,7 @@
 Example Airflow DAG testing Dataproc
 operators for managing a cluster and submitting jobs.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

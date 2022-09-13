@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
 
 from airflow.models import BaseOperator
@@ -60,7 +62,7 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
-        s3_conn_id: Optional[str] = None,
+        s3_conn_id: str | None = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
@@ -81,7 +83,7 @@ class S3ToSFTPOperator(BaseOperator):
         parsed_s3_key = urlparse(s3_key)
         return parsed_s3_key.path.lstrip('/')
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.aws_conn_id)

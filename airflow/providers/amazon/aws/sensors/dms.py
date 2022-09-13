@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -47,8 +48,8 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         self,
         replication_task_arn: str,
         aws_conn_id='aws_default',
-        target_statuses: Optional[Iterable[str]] = None,
-        termination_statuses: Optional[Iterable[str]] = None,
+        target_statuses: Iterable[str] | None = None,
+        termination_statuses: Iterable[str] | None = None,
         *args,
         **kwargs,
     ):
@@ -57,7 +58,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         self.replication_task_arn = replication_task_arn
         self.target_statuses: Iterable[str] = target_statuses or []
         self.termination_statuses: Iterable[str] = termination_statuses or []
-        self.hook: Optional[DmsHook] = None
+        self.hook: DmsHook | None = None
 
     def get_hook(self) -> DmsHook:
         """Get DmsHook"""
@@ -67,8 +68,8 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         self.hook = DmsHook(self.aws_conn_id)
         return self.hook
 
-    def poke(self, context: 'Context'):
-        status: Optional[str] = self.get_hook().get_task_status(self.replication_task_arn)
+    def poke(self, context: Context):
+        status: str | None = self.get_hook().get_task_status(self.replication_task_arn)
 
         if not status:
             raise AirflowException(

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Level DB"""
-from typing import List, Optional
+from __future__ import annotations
 
 try:
     import plyvel
@@ -58,7 +58,7 @@ class LevelDBHook(BaseHook):
         super().__init__()
         self.leveldb_conn_id = leveldb_conn_id
         self.connection = self.get_connection(leveldb_conn_id)
-        self.db: Optional[plyvel.DB] = None
+        self.db: plyvel.DB | None = None
 
     def get_conn(self, name: str = '/tmp/testdb/', create_if_missing: bool = False, **kwargs) -> DB:
         """
@@ -86,10 +86,10 @@ class LevelDBHook(BaseHook):
         self,
         command: str,
         key: bytes,
-        value: Optional[bytes] = None,
-        keys: Optional[List[bytes]] = None,
-        values: Optional[List[bytes]] = None,
-    ) -> Optional[bytes]:
+        value: bytes | None = None,
+        keys: list[bytes] | None = None,
+        values: list[bytes] | None = None,
+    ) -> bytes | None:
         """
         Execute operation with leveldb
 
@@ -152,7 +152,7 @@ class LevelDBHook(BaseHook):
             raise Exception(DB_NOT_INITIALIZED_BEFORE)
         self.db.delete(key)
 
-    def write_batch(self, keys: List[bytes], values: List[bytes]):
+    def write_batch(self, keys: list[bytes], values: list[bytes]):
         """
         Write batch of values in a leveldb db by keys
 

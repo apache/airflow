@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -57,11 +58,11 @@ class WinRMOperator(BaseOperator):
     def __init__(
         self,
         *,
-        winrm_hook: Optional[WinRMHook] = None,
-        ssh_conn_id: Optional[str] = None,
-        remote_host: Optional[str] = None,
-        command: Optional[str] = None,
-        ps_path: Optional[str] = None,
+        winrm_hook: WinRMHook | None = None,
+        ssh_conn_id: str | None = None,
+        remote_host: str | None = None,
+        command: str | None = None,
+        ps_path: str | None = None,
         output_encoding: str = 'utf-8',
         timeout: int = 10,
         **kwargs,
@@ -75,7 +76,7 @@ class WinRMOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.timeout = timeout
 
-    def execute(self, context: "Context") -> Union[list, str]:
+    def execute(self, context: Context) -> list | str:
         if self.ssh_conn_id and not self.winrm_hook:
             self.log.info("Hook not found, creating...")
             self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)

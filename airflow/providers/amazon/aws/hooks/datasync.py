@@ -14,11 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Interact with AWS DataSync, using the AWS ``boto3`` library."""
+from __future__ import annotations
 
 import time
-from typing import List, Optional
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -85,7 +84,7 @@ class DataSyncHook(AwsBaseHook):
 
     def get_location_arns(
         self, location_uri: str, case_sensitive: bool = False, ignore_trailing_slash: bool = True
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Return all LocationArns which match a LocationUri.
 
@@ -262,7 +261,7 @@ class DataSyncHook(AwsBaseHook):
         """
         return self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
 
-    def get_current_task_execution_arn(self, task_arn: str) -> Optional[str]:
+    def get_current_task_execution_arn(self, task_arn: str) -> str | None:
         """
         Get current TaskExecutionArn (if one exists) for the specified ``task_arn``.
 

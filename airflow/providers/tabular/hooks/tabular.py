@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import requests
 from requests import HTTPError
@@ -42,7 +43,7 @@ class TabularHook(BaseHook):
     hook_name = "Tabular"
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema", "port"],
@@ -62,7 +63,7 @@ class TabularHook(BaseHook):
         super().__init__()
         self.conn_id = tabular_conn_id
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         """Test the Tabular connection."""
         try:
             self.get_conn()

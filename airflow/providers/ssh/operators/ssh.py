@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
 from base64 import b64encode
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -67,14 +68,14 @@ class SSHOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ssh_hook: Optional["SSHHook"] = None,
-        ssh_conn_id: Optional[str] = None,
-        remote_host: Optional[str] = None,
-        command: Optional[str] = None,
-        timeout: Optional[int] = None,
-        conn_timeout: Optional[int] = None,
-        cmd_timeout: Optional[int] = None,
-        environment: Optional[dict] = None,
+        ssh_hook: SSHHook | None = None,
+        ssh_conn_id: str | None = None,
+        remote_host: str | None = None,
+        command: str | None = None,
+        timeout: int | None = None,
+        conn_timeout: int | None = None,
+        cmd_timeout: int | None = None,
+        environment: dict | None = None,
         get_pty: bool = False,
         banner_timeout: float = 30.0,
         **kwargs,
@@ -104,7 +105,7 @@ class SSHOperator(BaseOperator):
                 stacklevel=2,
             )
 
-    def get_hook(self) -> "SSHHook":
+    def get_hook(self) -> SSHHook:
         from airflow.providers.ssh.hooks.ssh import SSHHook
 
         if self.ssh_conn_id:
@@ -131,12 +132,12 @@ class SSHOperator(BaseOperator):
 
         return self.ssh_hook
 
-    def get_ssh_client(self) -> "SSHClient":
+    def get_ssh_client(self) -> SSHClient:
         # Remember to use context manager or call .close() on this when done
         self.log.info('Creating ssh_client')
         return self.get_hook().get_conn()
 
-    def exec_ssh_client_command(self, ssh_client: "SSHClient", command: str):
+    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str):
         warnings.warn(
             'exec_ssh_client_command method on SSHOperator is deprecated, call '
             '`ssh_hook.exec_ssh_client_command` instead',
@@ -151,7 +152,7 @@ class SSHOperator(BaseOperator):
         if exit_status != 0:
             raise AirflowException(f"SSH operator error: exit status = {exit_status}")
 
-    def run_ssh_client_command(self, ssh_client: "SSHClient", command: str) -> bytes:
+    def run_ssh_client_command(self, ssh_client: SSHClient, command: str) -> bytes:
         assert self.ssh_hook
         exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
             ssh_client, command, timeout=self.timeout, environment=self.environment, get_pty=self.get_pty
@@ -159,8 +160,8 @@ class SSHOperator(BaseOperator):
         self.raise_for_status(exit_status, agg_stderr)
         return agg_stdout
 
-    def execute(self, context=None) -> Union[bytes, str]:
-        result: Union[bytes, str]
+    def execute(self, context=None) -> bytes | str:
+        result: bytes | str
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 

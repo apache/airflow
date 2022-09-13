@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import unittest
-from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
@@ -69,7 +69,7 @@ OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
 
 
 class DummySQLToGCSOperator(BaseSQLToGCSOperator):
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         return {
             'name': field[0],
             'type': 'STRING',

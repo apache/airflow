@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Amazon EKS operators."""
+from __future__ import annotations
+
 import warnings
 from ast import literal_eval
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -124,18 +125,18 @@ class EksCreateClusterOperator(BaseOperator):
         self,
         cluster_name: str,
         cluster_role_arn: str,
-        resources_vpc_config: Dict[str, Any],
-        compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
-        create_cluster_kwargs: Optional[Dict] = None,
+        resources_vpc_config: dict[str, Any],
+        compute: str | None = DEFAULT_COMPUTE_TYPE,
+        create_cluster_kwargs: dict | None = None,
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
-        nodegroup_role_arn: Optional[str] = None,
-        create_nodegroup_kwargs: Optional[Dict] = None,
+        nodegroup_role_arn: str | None = None,
+        create_nodegroup_kwargs: dict | None = None,
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
-        fargate_pod_execution_role_arn: Optional[str] = None,
-        fargate_selectors: Optional[List] = None,
-        create_fargate_profile_kwargs: Optional[Dict] = None,
+        fargate_pod_execution_role_arn: str | None = None,
+        fargate_selectors: list | None = None,
+        create_fargate_profile_kwargs: dict | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         self.compute = compute
@@ -154,7 +155,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if self.compute:
             if self.compute not in SUPPORTED_COMPUTE_VALUES:
                 raise ValueError("Provided compute type is not supported.")
@@ -260,12 +261,12 @@ class EksCreateNodegroupOperator(BaseOperator):
     def __init__(
         self,
         cluster_name: str,
-        nodegroup_subnets: Union[List[str], str],
+        nodegroup_subnets: list[str] | str,
         nodegroup_role_arn: str,
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
-        create_nodegroup_kwargs: Optional[Dict] = None,
+        create_nodegroup_kwargs: dict | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -277,9 +278,9 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_subnets = nodegroup_subnets
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if isinstance(self.nodegroup_subnets, str):
-            nodegroup_subnets_list: List[str] = []
+            nodegroup_subnets_list: list[str] = []
             if self.nodegroup_subnets != "":
                 try:
                     nodegroup_subnets_list = cast(List, literal_eval(self.nodegroup_subnets))
@@ -343,11 +344,11 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self,
         cluster_name: str,
         pod_execution_role_arn: str,
-        selectors: List,
-        fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
-        create_fargate_profile_kwargs: Optional[Dict] = None,
+        selectors: list,
+        fargate_profile_name: str | None = DEFAULT_FARGATE_PROFILE_NAME,
+        create_fargate_profile_kwargs: dict | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -359,7 +360,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -407,7 +408,7 @@ class EksDeleteClusterOperator(BaseOperator):
         cluster_name: str,
         force_delete_compute: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -416,7 +417,7 @@ class EksDeleteClusterOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -527,7 +528,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_name: str,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -536,7 +537,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -576,7 +577,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         cluster_name: str,
         fargate_profile_name: str,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -585,7 +586,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region = region
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -645,12 +646,12 @@ class EksPodOperator(KubernetesPodOperator):
         # file is stored locally in the worker and not in the cluster.
         in_cluster: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
-        pod_context: Optional[str] = None,
-        pod_name: Optional[str] = None,
-        pod_username: Optional[str] = None,
+        pod_context: str | None = None,
+        pod_name: str | None = None,
+        pod_username: str | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        is_delete_operator_pod: Optional[bool] = None,
+        region: str | None = None,
+        is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
         if is_delete_operator_pod is None:
@@ -682,7 +683,7 @@ class EksPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,

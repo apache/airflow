@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from github import GithubException
 
@@ -50,8 +51,8 @@ class GithubOperator(BaseOperator):
         *,
         github_method: str,
         github_conn_id: str = 'github_default',
-        github_method_args: Optional[dict] = None,
-        result_processor: Optional[Callable] = None,
+        github_method_args: dict | None = None,
+        result_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -60,7 +61,7 @@ class GithubOperator(BaseOperator):
         self.github_method_args = github_method_args
         self.result_processor = result_processor
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         try:
             # Default method execution is on the top level GitHub client
             hook = GithubHook(github_conn_id=self.github_conn_id)

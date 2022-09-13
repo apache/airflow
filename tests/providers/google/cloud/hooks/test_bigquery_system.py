@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google BigQuery hooks"""
+from __future__ import annotations
 
 import pytest
 

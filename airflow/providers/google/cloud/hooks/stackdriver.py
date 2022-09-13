@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Google Cloud Stackdriver operators."""
+from __future__ import annotations
 
 import json
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Sequence
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -39,8 +39,8 @@ class StackdriverHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -64,13 +64,13 @@ class StackdriverHook(GoogleBaseHook):
     def list_alert_policies(
         self,
         project_id: str = PROVIDE_PROJECT_ID,
-        format_: Optional[str] = None,
-        filter_: Optional[str] = None,
-        order_by: Optional[str] = None,
-        page_size: Optional[int] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        format_: str | None = None,
+        filter_: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Fetches all the Alert Policies identified by the filter passed as
@@ -126,10 +126,10 @@ class StackdriverHook(GoogleBaseHook):
         self,
         new_state: bool,
         project_id: str = PROVIDE_PROJECT_ID,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         client = self._get_policy_client()
         policies_ = self.list_alert_policies(project_id=project_id, filter_=filter_)
@@ -148,10 +148,10 @@ class StackdriverHook(GoogleBaseHook):
     def enable_alert_policies(
         self,
         project_id: str = PROVIDE_PROJECT_ID,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter
@@ -181,10 +181,10 @@ class StackdriverHook(GoogleBaseHook):
     def disable_alert_policies(
         self,
         project_id: str = PROVIDE_PROJECT_ID,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Disables one or more enabled alerting policies identified by filter
@@ -215,9 +215,9 @@ class StackdriverHook(GoogleBaseHook):
         self,
         alerts: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
          Creates a new alert or updates an existing policy identified
@@ -311,9 +311,9 @@ class StackdriverHook(GoogleBaseHook):
     def delete_alert_policy(
         self,
         name: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes an alerting policy.
@@ -339,13 +339,13 @@ class StackdriverHook(GoogleBaseHook):
     def list_notification_channels(
         self,
         project_id: str = PROVIDE_PROJECT_ID,
-        format_: Optional[str] = None,
-        filter_: Optional[str] = None,
-        order_by: Optional[str] = None,
-        page_size: Optional[int] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        format_: str | None = None,
+        filter_: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Fetches all the Notification Channels identified by the filter passed as
@@ -401,10 +401,10 @@ class StackdriverHook(GoogleBaseHook):
         self,
         new_state: bool,
         project_id: str = PROVIDE_PROJECT_ID,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         client = self._get_channel_client()
         channels = client.list_notification_channels(
@@ -425,10 +425,10 @@ class StackdriverHook(GoogleBaseHook):
     def enable_notification_channels(
         self,
         project_id: str = PROVIDE_PROJECT_ID,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter
@@ -458,10 +458,10 @@ class StackdriverHook(GoogleBaseHook):
     def disable_notification_channels(
         self,
         project_id: str,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Disables one or more enabled notification channels identified by filter
@@ -492,9 +492,9 @@ class StackdriverHook(GoogleBaseHook):
         self,
         channels: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
         Creates a new notification or updates an existing notification channel
@@ -553,9 +553,9 @@ class StackdriverHook(GoogleBaseHook):
     def delete_notification_channel(
         self,
         name: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a notification channel.

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that show how to create a Dataproc cluster in Google Kubernetes Engine.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

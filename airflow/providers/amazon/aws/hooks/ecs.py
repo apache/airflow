@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
 from collections import deque
 from datetime import datetime, timedelta
 from enum import Enum
 from logging import Logger
 from threading import Event, Thread
-from typing import Dict, Generator, Optional
+from typing import Generator
 
 from botocore.exceptions import ClientError, ConnectionClosedError
 from botocore.waiter import Waiter
@@ -129,8 +131,8 @@ class EcsTaskLogFetcher(Thread):
         log_stream_name: str,
         fetch_interval: timedelta,
         logger: Logger,
-        aws_conn_id: Optional[str] = 'aws_default',
-        region_name: Optional[str] = None,
+        aws_conn_id: str | None = 'aws_default',
+        region_name: str | None = None,
     ):
         super().__init__()
         self._event = Event()
@@ -173,7 +175,7 @@ class EcsTaskLogFetcher(Thread):
     def get_last_log_messages(self, number_messages) -> list:
         return [log['message'] for log in deque(self._get_log_events(), maxlen=number_messages)]
 
-    def get_last_log_message(self) -> Optional[str]:
+    def get_last_log_message(self) -> str | None:
         try:
             return self.get_last_log_messages(1)[0]
         except IndexError:
@@ -198,7 +200,7 @@ class EcsProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    def run_task(self, **kwargs) -> Dict:
+    def run_task(self, **kwargs) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
 
@@ -206,18 +208,18 @@ class EcsProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
         ...
 
-    def describe_tasks(self, cluster: str, tasks) -> Dict:
+    def describe_tasks(self, cluster: str, tasks) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
         ...
 
-    def stop_task(self, cluster, task, reason: str) -> Dict:
+    def stop_task(self, cluster, task, reason: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
         ...
 
-    def describe_task_definition(self, taskDefinition: str) -> Dict:
+    def describe_task_definition(self, taskDefinition: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
         ...
 
-    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
+    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...

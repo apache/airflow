@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import datetime
 import re
 from copy import deepcopy
-from typing import Dict, List, Optional, Pattern, Tuple, Type, Union
+from typing import Pattern, Type, Union
 
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 
@@ -40,9 +41,9 @@ InputTypes = Union[Type[ClusterInputs], Type[NodegroupInputs], Type[FargateProfi
 def attributes_to_test(
     inputs: InputTypes,
     cluster_name: str,
-    fargate_profile_name: Optional[str] = None,
-    nodegroup_name: Optional[str] = None,
-) -> List[Tuple]:
+    fargate_profile_name: str | None = None,
+    nodegroup_name: str | None = None,
+) -> list[tuple]:
     """
     Assembles the list of tuples which will be used to validate test results.
     The format of the tuple is (attribute name, expected value)
@@ -55,7 +56,7 @@ def attributes_to_test(
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
     :rtype: List[Tuple]
     """
-    result: List[Tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
+    result: list[tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
     if inputs == ClusterInputs:
         result += [(ClusterAttributes.NAME, cluster_name)]
     elif inputs == FargateProfileInputs:
@@ -64,9 +65,9 @@ def attributes_to_test(
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        required_tag: Dict = {f'kubernetes.io/cluster/{cluster_name}': 'owned'}
+        required_tag: dict = {f'kubernetes.io/cluster/{cluster_name}': 'owned'}
         # Find the user-submitted tag set and append the required tag to it.
-        final_tag_set: Dict = required_tag
+        final_tag_set: dict = required_tag
         for key, value in result:
             if key == "tags":
                 final_tag_set = {**value, **final_tag_set}
@@ -81,7 +82,7 @@ def attributes_to_test(
     return result
 
 
-def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> List[str]:
+def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> list[str]:
     """
     Generates a number of EKS Clusters with data and adds them to the mocked backend.
 
@@ -102,7 +103,7 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> Li
 
 def generate_fargate_profiles(
     eks_hook: EksHook, cluster_name: str, num_profiles: int, minimal: bool
-) -> List[str]:
+) -> list[str]:
     """
     Generates a number of EKS Fargate profiles with data and adds them to the mocked backend.
 
@@ -126,7 +127,7 @@ def generate_fargate_profiles(
 
 def generate_nodegroups(
     eks_hook: EksHook, cluster_name: str, num_nodegroups: int, minimal: bool
-) -> List[str]:
+) -> list[str]:
     """
     Generates a number of EKS Managed Nodegroups with data and adds them to the mocked backend.
 
@@ -157,7 +158,7 @@ def region_matches_partition(region: str, partition: str) -> bool:
     :return: Returns True if the provided region and partition are a valid pair.
     :rtype: bool
     """
-    valid_matches: List[Tuple[str, str]] = [
+    valid_matches: list[tuple[str, str]] = [
         ("cn-", "aws-cn"),
         ("us-gov-", "aws-us-gov"),
         ("us-gov-iso-", "aws-iso"),
@@ -170,7 +171,7 @@ def region_matches_partition(region: str, partition: str) -> bool:
     return partition == "aws"
 
 
-def _input_builder(options: InputTypes, minimal: bool) -> Dict:
+def _input_builder(options: InputTypes, minimal: bool) -> dict:
     """
     Assembles the inputs which will be used to generate test object into a dictionary.
 
@@ -180,7 +181,7 @@ def _input_builder(options: InputTypes, minimal: bool) -> Dict:
     :return: Returns a dict containing the keys and values to be validated in testing.
     :rtype: Dict
     """
-    values: List[Tuple] = deepcopy(options.REQUIRED)  # type: ignore
+    values: list[tuple] = deepcopy(options.REQUIRED)  # type: ignore
     if not minimal:
         values.extend(deepcopy(options.OPTIONAL))
     return dict(values)  # type: ignore
@@ -197,7 +198,7 @@ def string_to_regex(value: str) -> Pattern[str]:
     return re.compile(re.sub(r"[{](.*?)[}]", r"(?P<\1>.+)", value))
 
 
-def convert_keys(original: Dict) -> Dict:
+def convert_keys(original: dict) -> dict:
     """
     API Input and Output keys are formatted differently.  The EKS Hooks map
     as closely as possible to the API calls, which use camelCase variable
@@ -244,5 +245,5 @@ def iso_date(input_datetime: datetime.datetime) -> str:
     return input_datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
 
 
-def generate_dict(prefix, count) -> Dict:
+def generate_dict(prefix, count) -> dict:
     return {f"{prefix}_{_count}": str(_count) for _count in range(count)}

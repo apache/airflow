@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
@@ -52,7 +54,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job = hook.get_job(job_id=self.airbyte_job_id)
         status = job.json()['job']['status']

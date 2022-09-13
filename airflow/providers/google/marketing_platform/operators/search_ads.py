@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Search Ads operators."""
+from __future__ import annotations
+
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -66,11 +68,11 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
     def __init__(
         self,
         *,
-        report: Dict[str, Any],
+        report: dict[str, Any],
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -86,7 +88,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
             with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -145,13 +147,13 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         *,
         report_id: str,
         bucket_name: str,
-        report_name: Optional[str] = None,
+        report_name: str | None = None,
         gzip: bool = True,
         chunk_size: int = 10 * 1024 * 1024,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -187,7 +189,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             return fragment_records[1]
         return b""
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

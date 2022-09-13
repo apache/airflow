@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 import boto3
 from botocore.client import BaseClient
@@ -75,7 +76,7 @@ def delete_logs(job_id: str, crawler_name: str) -> None:
     """
     Glue generates four Cloudwatch log groups and multiple log streams and leaves them.
     """
-    generated_log_groups: List[Tuple[str, Optional[str]]] = [
+    generated_log_groups: list[tuple[str, str | None]] = [
         # Format: ('log group name', 'log stream prefix')
         ('/aws-glue/crawlers', crawler_name),
         ('/aws-glue/jobs/logs-v2', job_id),

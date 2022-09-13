@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
+from __future__ import annotations
+
 import json
 import math
 import time
@@ -22,7 +24,7 @@ import warnings
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Iterable, cast
 
 import pendulum
 import tenacity
@@ -96,7 +98,7 @@ class PodLoggingStatus:
     """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`"""
 
     running: bool
-    last_log_time: Optional[DateTime]
+    last_log_time: DateTime | None
 
 
 class PodManager(LoggingMixin):
@@ -109,7 +111,7 @@ class PodManager(LoggingMixin):
         self,
         kube_client: client.CoreV1Api = None,
         in_cluster: bool = True,
-        cluster_context: Optional[str] = None,
+        cluster_context: str | None = None,
     ):
         """
         Creates the launcher.
@@ -194,14 +196,14 @@ class PodManager(LoggingMixin):
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
     def fetch_container_logs(
-        self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
+        self, pod: V1Pod, container_name: str, *, follow=False, since_time: DateTime | None = None
     ) -> PodLoggingStatus:
         """
         Follows the logs of container and streams to airflow logging.
         Returns when container exits.
         """
 
-        def consume_logs(*, since_time: Optional[DateTime] = None, follow: bool = True) -> Optional[DateTime]:
+        def consume_logs(*, since_time: DateTime | None = None, follow: bool = True) -> DateTime | None:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -274,7 +276,7 @@ class PodManager(LoggingMixin):
             time.sleep(2)
         return remote_pod
 
-    def parse_log_line(self, line: str) -> Tuple[Optional[DateTime], str]:
+    def parse_log_line(self, line: str) -> tuple[DateTime | None, str]:
         """
         Parse K8s log line and returns the final state
 
@@ -309,9 +311,9 @@ class PodManager(LoggingMixin):
         self,
         pod: V1Pod,
         container_name: str,
-        tail_lines: Optional[int] = None,
+        tail_lines: int | None = None,
         timestamps: bool = False,
-        since_seconds: Optional[int] = None,
+        since_seconds: int | None = None,
         follow=True,
     ) -> Iterable[bytes]:
         """Reads log from the POD"""
@@ -337,7 +339,7 @@ class PodManager(LoggingMixin):
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod_events(self, pod: V1Pod) -> "CoreV1EventList":
+    def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(
@@ -391,7 +393,7 @@ class PodManager(LoggingMixin):
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
-    def _exec_pod_command(self, resp, command: str) -> Optional[str]:
+    def _exec_pod_command(self, resp, command: str) -> str | None:
         res = None
         if resp.is_open():
             self.log.info('Running command... %s\n', command)

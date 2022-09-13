@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to SFTP operator."""
+from __future__ import annotations
+
 import os
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -113,8 +115,8 @@ class GCSToSFTPOperator(BaseOperator):
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -130,7 +132,7 @@ class GCSToSFTPOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.sftp_dirs = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -162,7 +164,7 @@ class GCSToSFTPOperator(BaseOperator):
             self._copy_single_object(gcs_hook, sftp_hook, self.source_object, destination_path)
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
-    def _resolve_destination_path(self, source_object: str, prefix: Optional[str] = None) -> str:
+    def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
         if not self.keep_directory_structure:
             if prefix:
                 source_object = os.path.relpath(source_object, start=prefix)

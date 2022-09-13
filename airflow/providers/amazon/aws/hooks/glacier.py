@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-
-from typing import Any, Dict
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -29,7 +29,7 @@ class GlacierHook(AwsBaseHook):
         super().__init__(client_type="glacier")
         self.aws_conn_id = aws_conn_id
 
-    def retrieve_inventory(self, vault_name: str) -> Dict[str, Any]:
+    def retrieve_inventory(self, vault_name: str) -> dict[str, Any]:
         """
         Initiate an Amazon Glacier inventory-retrieval job
 
@@ -42,7 +42,7 @@ class GlacierHook(AwsBaseHook):
         self.log.info("Retrieval Job ID: %s", response["jobId"])
         return response
 
-    def retrieve_inventory_results(self, vault_name: str, job_id: str) -> Dict[str, Any]:
+    def retrieve_inventory_results(self, vault_name: str, job_id: str) -> dict[str, Any]:
         """
         Retrieve the results of an Amazon Glacier inventory-retrieval job
 
@@ -53,7 +53,7 @@ class GlacierHook(AwsBaseHook):
         response = self.get_conn().get_job_output(vaultName=vault_name, jobId=job_id)
         return response
 
-    def describe_job(self, vault_name: str, job_id: str) -> Dict[str, Any]:
+    def describe_job(self, vault_name: str, job_id: str) -> dict[str, Any]:
         """
         Retrieve the status of an Amazon S3 Glacier job, such as an
         inventory-retrieval job

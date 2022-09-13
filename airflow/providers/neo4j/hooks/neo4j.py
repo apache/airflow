@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module allows to connect to a Neo4j database."""
+from __future__ import annotations
 
 from neo4j import GraphDatabase, Neo4jDriver, Result
 

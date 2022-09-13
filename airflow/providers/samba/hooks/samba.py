@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import posixpath
 from functools import wraps
 from shutil import copyfileobj
-from typing import Dict, Optional
 
 import smbclient
 import smbprotocol.connection
@@ -44,7 +44,7 @@ class SambaHook(BaseHook):
     conn_type = 'samba'
     hook_name = 'Samba'
 
-    def __init__(self, samba_conn_id: str = default_conn_name, share: Optional[str] = None) -> None:
+    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
         super().__init__()
         conn = self.get_connection(samba_conn_id)
 
@@ -54,7 +54,7 @@ class SambaHook(BaseHook):
         if not conn.password:
             self.log.info("Password not provided")
 
-        connection_cache: Dict[str, smbprotocol.connection.Connection] = {}
+        connection_cache: dict[str, smbprotocol.connection.Connection] = {}
 
         self._host = conn.host
         self._share = share or conn.schema

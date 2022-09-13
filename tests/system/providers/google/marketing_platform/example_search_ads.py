@@ -18,6 +18,8 @@
 """
 Example Airflow DAG that shows how to use SearchAds.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from typing import cast

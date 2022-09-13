@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
+from __future__ import annotations
+
 import os
 import warnings
 from base64 import decodebytes
 from io import StringIO
 from select import select
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Sequence
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -70,7 +72,7 @@ class SSHHook(BaseHook):
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
-    _pkey_loaders: Sequence[Type[paramiko.PKey]] = (
+    _pkey_loaders: Sequence[type[paramiko.PKey]] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
@@ -90,7 +92,7 @@ class SSHHook(BaseHook):
     hook_name = 'SSH'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema'],
@@ -101,18 +103,18 @@ class SSHHook(BaseHook):
 
     def __init__(
         self,
-        ssh_conn_id: Optional[str] = None,
+        ssh_conn_id: str | None = None,
         remote_host: str = '',
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        key_file: Optional[str] = None,
-        port: Optional[int] = None,
-        timeout: Optional[int] = None,
-        conn_timeout: Optional[int] = None,
+        username: str | None = None,
+        password: str | None = None,
+        key_file: str | None = None,
+        port: int | None = None,
+        timeout: int | None = None,
+        conn_timeout: int | None = None,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
-        disabled_algorithms: Optional[dict] = None,
-        ciphers: Optional[List[str]] = None,
+        disabled_algorithms: dict | None = None,
+        ciphers: list[str] | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -138,7 +140,7 @@ class SSHHook(BaseHook):
         self.look_for_keys = True
 
         # Placeholder for deprecated __enter__
-        self.client: Optional[paramiko.SSHClient] = None
+        self.client: paramiko.SSHClient | None = None
 
         # Use connection to override defaults
         if self.ssh_conn_id is not None:
@@ -262,7 +264,7 @@ class SSHHook(BaseHook):
         self.port = self.port or SSH_PORT
 
     @cached_property
-    def host_proxy(self) -> Optional[paramiko.ProxyCommand]:
+    def host_proxy(self) -> paramiko.ProxyCommand | None:
         cmd = self.host_proxy_cmd
         return paramiko.ProxyCommand(cmd) if cmd else None
 
@@ -304,7 +306,7 @@ class SSHHook(BaseHook):
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
-        connect_kwargs: Dict[str, Any] = dict(
+        connect_kwargs: dict[str, Any] = dict(
             hostname=self.remote_host,
             username=self.username,
             timeout=self.conn_timeout,
@@ -354,7 +356,7 @@ class SSHHook(BaseHook):
         self.client = client
         return client
 
-    def __enter__(self) -> 'SSHHook':
+    def __enter__(self) -> SSHHook:
         warnings.warn(
             'The contextmanager of SSHHook is deprecated.'
             'Please use get_conn() as a contextmanager instead.'
@@ -369,7 +371,7 @@ class SSHHook(BaseHook):
             self.client = None
 
     def get_tunnel(
-        self, remote_port: int, remote_host: str = "localhost", local_port: Optional[int] = None
+        self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
     ) -> SSHTunnelForwarder:
         """
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
@@ -381,7 +383,7 @@ class SSHHook(BaseHook):
         :return: sshtunnel.SSHTunnelForwarder object
         """
         if local_port:
-            local_bind_address: Union[Tuple[str, int], Tuple[str]] = ('localhost', local_port)
+            local_bind_address: tuple[str, int] | tuple[str] = ('localhost', local_port)
         else:
             local_bind_address = ('localhost',)
 
@@ -430,7 +432,7 @@ class SSHHook(BaseHook):
 
         return self.get_tunnel(remote_port, remote_host, local_port)
 
-    def _pkey_from_private_key(self, private_key: str, passphrase: Optional[str] = None) -> paramiko.PKey:
+    def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
         """
         Creates appropriate paramiko key for given private key
 
@@ -461,9 +463,9 @@ class SSHHook(BaseHook):
         ssh_client: paramiko.SSHClient,
         command: str,
         get_pty: bool,
-        environment: Optional[dict],
-        timeout: Optional[int],
-    ) -> Tuple[int, bytes, bytes]:
+        environment: dict | None,
+        timeout: int | None,
+    ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
 
         # set timeout taken as params

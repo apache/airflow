@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
 from time import sleep
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable
 
 from botocore.exceptions import ClientError
 
@@ -48,7 +50,7 @@ class EmrHook(AwsBaseHook):
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: List[str]) -> Optional[str]:
+    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: list[str]) -> str | None:
         """
         Fetch id of EMR cluster with given name and (optional) states.
         Will return only if single id is found.
@@ -73,7 +75,7 @@ class EmrHook(AwsBaseHook):
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides: Dict[str, Any]) -> Dict[str, Any]:
+    def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
         """
         Creates a job flow using the config from the EMR connection.
         Keys of the json extra hash may have the arguments of the boto3
@@ -116,10 +118,10 @@ class EmrServerlessHook(AwsBaseHook):
     def waiter(
         self,
         get_state_callable: Callable,
-        get_state_args: Dict,
-        parse_response: List,
-        desired_state: Set,
-        failure_states: Set,
+        get_state_args: dict,
+        parse_response: list,
+        desired_state: set,
+        failure_states: set,
         object_type: str,
         action: str,
         countdown: int = 25 * 60,
@@ -194,7 +196,7 @@ class EmrContainerHook(AwsBaseHook):
         "CANCEL_PENDING",
     )
 
-    def __init__(self, *args: Any, virtual_cluster_id: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, virtual_cluster_id: str | None = None, **kwargs: Any) -> None:
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 
@@ -203,7 +205,7 @@ class EmrContainerHook(AwsBaseHook):
         virtual_cluster_name: str,
         eks_cluster_name: str,
         eks_namespace: str,
-        tags: Optional[dict] = None,
+        tags: dict | None = None,
     ) -> str:
         response = self.conn.create_virtual_cluster(
             name=virtual_cluster_name,
@@ -230,9 +232,9 @@ class EmrContainerHook(AwsBaseHook):
         execution_role_arn: str,
         release_label: str,
         job_driver: dict,
-        configuration_overrides: Optional[dict] = None,
-        client_request_token: Optional[str] = None,
-        tags: Optional[dict] = None,
+        configuration_overrides: dict | None = None,
+        client_request_token: str | None = None,
+        tags: dict | None = None,
     ) -> str:
         """
         Submit a job to the EMR Containers API and return the job ID.
@@ -275,7 +277,7 @@ class EmrContainerHook(AwsBaseHook):
             )
             return response['id']
 
-    def get_job_failure_reason(self, job_id: str) -> Optional[str]:
+    def get_job_failure_reason(self, job_id: str) -> str | None:
         """
         Fetch the reason for a job failure (e.g. error message). Returns None or reason string.
 
@@ -300,7 +302,7 @@ class EmrContainerHook(AwsBaseHook):
 
         return reason
 
-    def check_query_status(self, job_id: str) -> Optional[str]:
+    def check_query_status(self, job_id: str) -> str | None:
         """
         Fetch the status of submitted job run. Returns None or one of valid query states.
         See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run  # noqa: E501
@@ -324,10 +326,10 @@ class EmrContainerHook(AwsBaseHook):
     def poll_query_status(
         self,
         job_id: str,
-        max_tries: Optional[int] = None,
+        max_tries: int | None = None,
         poll_interval: int = 30,
-        max_polling_attempts: Optional[int] = None,
-    ) -> Optional[str]:
+        max_polling_attempts: int | None = None,
+    ) -> str | None:
         """
         Poll the status of submitted job run until query state reaches final state.
         Returns one of the final states.
@@ -372,7 +374,7 @@ class EmrContainerHook(AwsBaseHook):
             sleep(poll_interval)
         return final_query_state
 
-    def stop_query(self, job_id: str) -> Dict:
+    def stop_query(self, job_id: str) -> dict:
         """
         Cancel the submitted job_run
 

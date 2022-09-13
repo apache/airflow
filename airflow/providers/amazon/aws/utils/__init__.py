@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Tuple
 
 from airflow.version import version
 
@@ -41,6 +41,6 @@ def datetime_to_epoch_us(date_time: datetime) -> int:
     return int(date_time.timestamp() * 1_000_000)
 
 
-def get_airflow_version() -> Tuple[int, ...]:
+def get_airflow_version() -> tuple[int, ...]:
     val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), version)
     return tuple(int(x) for x in val.split('.'))

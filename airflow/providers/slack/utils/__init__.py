@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from airflow.utils.module_loading import import_string
 
@@ -42,7 +43,7 @@ class ConnectionExtraConfig:
     :param extra: Connection extra dictionary.
     """
 
-    def __init__(self, conn_type: str, conn_id: Optional[str] = None, extra: Optional[Dict[str, Any]] = None):
+    def __init__(self, conn_type: str, conn_id: str | None = None, extra: dict[str, Any] | None = None):
         super().__init__()
         self.conn_type = conn_type
         self.conn_id = conn_id

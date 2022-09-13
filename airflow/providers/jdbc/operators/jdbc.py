@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -53,10 +54,10 @@ class JdbcOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         jdbc_conn_id: str = 'jdbc_default',
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
         **kwargs,
     ) -> None:
@@ -68,7 +69,7 @@ class JdbcOperator(BaseOperator):
         self.handler = handler
         self.hook = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
         if self.do_xcom_push:

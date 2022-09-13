@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from elasticsearch import Elasticsearch
 from es.elastic.api import Connection as ESConnection, connect
@@ -42,7 +44,7 @@ class ElasticsearchSQLHook(DbApiHook):
     conn_type = 'elasticsearch'
     hook_name = 'Elasticsearch'
 
-    def __init__(self, schema: str = "http", connection: Optional[AirflowConnection] = None, *args, **kwargs):
+    def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.connection = connection
@@ -123,7 +125,7 @@ class ElasticsearchPythonHook(BaseHook):
                                 Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
     """
 
-    def __init__(self, hosts: List[Any], es_conn_args: Optional[dict] = None):
+    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None):
         super().__init__()
         self.hosts = hosts
         self.es_conn_args = es_conn_args if es_conn_args else {}
@@ -139,7 +141,7 @@ class ElasticsearchPythonHook(BaseHook):
         """Returns the Elasticsearch client (cached)"""
         return self._get_elastic_connection()
 
-    def search(self, query: Dict[Any, Any], index: str = "_all") -> dict:
+    def search(self, query: dict[Any, Any], index: str = "_all") -> dict:
         """
         Returns results matching a query using Elasticsearch DSL
 

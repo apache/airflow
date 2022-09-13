@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -115,7 +117,7 @@ class S3ToGCSOperator(S3ListOperator):
         delegate_to=None,
         replace=False,
         gzip=False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
 
@@ -139,7 +141,7 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)

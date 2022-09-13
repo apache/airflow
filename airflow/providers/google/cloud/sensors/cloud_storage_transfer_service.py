@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Transfer sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Set, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     COUNTERS,
@@ -68,10 +70,10 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self,
         *,
         job_name: str,
-        expected_statuses: Union[Set[str], str],
-        project_id: Optional[str] = None,
+        expected_statuses: set[str] | str,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,7 +85,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

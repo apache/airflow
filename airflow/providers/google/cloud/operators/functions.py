@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Functions operators."""
+from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from googleapiclient.errors import HttpError
 
@@ -148,13 +149,13 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         self,
         *,
         location: str,
-        body: Dict,
-        project_id: Optional[str] = None,
+        body: dict,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        zip_path: Optional[str] = None,
+        zip_path: str | None = None,
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -211,7 +212,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             self.body['labels'] = {}
         self.body['labels'].update({'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -256,7 +257,7 @@ class ZipPathPreprocessor:
 
     upload_function = None  # type: Optional[bool]
 
-    def __init__(self, body: dict, zip_path: Optional[str] = None) -> None:
+    def __init__(self, body: dict, zip_path: str | None = None) -> None:
         self.body = body
         self.zip_path = zip_path
 
@@ -353,7 +354,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
         name: str,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.name = name
@@ -371,7 +372,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
             if not pattern.match(self.name):
                 raise AttributeError(f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -427,12 +428,12 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         self,
         *,
         function_id: str,
-        input_data: Dict,
+        input_data: dict,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -444,7 +445,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudFunctionsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,

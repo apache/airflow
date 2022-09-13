@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow module for email backend using sendgrid"""
+from __future__ import annotations
 
 import base64
 import logging
 import mimetypes
 import os
 import warnings
-from typing import Dict, Iterable, Optional, Union
+from typing import Iterable, Union
 
 import sendgrid
 from sendgrid.helpers.mail import (
@@ -50,9 +51,9 @@ def send_email(
     to: AddressesType,
     subject: str,
     html_content: str,
-    files: Optional[AddressesType] = None,
-    cc: Optional[AddressesType] = None,
-    bcc: Optional[AddressesType] = None,
+    files: AddressesType | None = None,
+    cc: AddressesType | None = None,
+    bcc: AddressesType | None = None,
     sandbox_mode: bool = False,
     conn_id: str = "sendgrid_default",
     **kwargs,
@@ -122,7 +123,7 @@ def send_email(
     _post_sendgrid_mail(mail.get(), conn_id)
 
 
-def _post_sendgrid_mail(mail_data: Dict, conn_id: str = "sendgrid_default") -> None:
+def _post_sendgrid_mail(mail_data: dict, conn_id: str = "sendgrid_default") -> None:
     api_key = None
     try:
         conn = BaseHook.get_connection(conn_id)

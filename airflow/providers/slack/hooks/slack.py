@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -85,12 +86,12 @@ class SlackHook(BaseHook):
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        slack_conn_id: Optional[str] = None,
-        base_url: Optional[str] = None,
-        timeout: Optional[int] = None,
-        proxy: Optional[str] = None,
-        retry_handlers: Optional[List["RetryHandler"]] = None,
+        token: str | None = None,
+        slack_conn_id: str | None = None,
+        base_url: str | None = None,
+        timeout: int | None = None,
+        proxy: str | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
         **extra_client_args: Any,
     ) -> None:
         if not token and not slack_conn_id:
@@ -131,10 +132,10 @@ class SlackHook(BaseHook):
         """Get the underlying slack_sdk.WebClient (cached)."""
         return self.client
 
-    def _get_conn_params(self) -> Dict[str, Any]:
+    def _get_conn_params(self) -> dict[str, Any]:
         """Fetch connection params as a dict and merge it with hook parameters."""
         conn = self.get_connection(self.slack_conn_id) if self.slack_conn_id else None
-        conn_params: Dict[str, Any] = {}
+        conn_params: dict[str, Any] = {}
 
         if self._token:
             conn_params["token"] = self._token
@@ -197,7 +198,7 @@ class SlackHook(BaseHook):
 
         raise AirflowException('Cannot get token: No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, api_method: str, **kwargs) -> "SlackResponse":
+    def call(self, api_method: str, **kwargs) -> SlackResponse:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 
@@ -217,14 +218,14 @@ class SlackHook(BaseHook):
     def send_file(
         self,
         *,
-        channels: Optional[Union[str, Sequence[str]]] = None,
-        file: Optional[Union[str, Path]] = None,
-        content: Optional[str] = None,
-        filename: Optional[str] = None,
-        filetype: Optional[str] = None,
-        initial_comment: Optional[str] = None,
-        title: Optional[str] = None,
-    ) -> "SlackResponse":
+        channels: str | Sequence[str] | None = None,
+        file: str | Path | None = None,
+        content: str | None = None,
+        filename: str | None = None,
+        filetype: str | None = None,
+        initial_comment: str | None = None,
+        title: str | None = None,
+    ) -> SlackResponse:
         """
         Create or upload an existing file.
 
@@ -290,7 +291,7 @@ class SlackHook(BaseHook):
             return True, str(response)
 
     @classmethod
-    def get_connection_form_widgets(cls) -> Dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns dictionary of widgets to be added for the hook to handle extra values."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -322,7 +323,7 @@ class SlackHook(BaseHook):
         }
 
     @classmethod
-    def get_ui_field_behaviour(cls) -> Dict[str, Any]:
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["login", "port", "host", "schema", "extra"],

@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google DisplayVideo hook."""
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -27,14 +28,14 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleDisplayVideo360Hook(GoogleBaseHook):
     """Hook for Google Display & Video 360."""
 
-    _conn: Optional[Resource] = None
+    _conn: Resource | None = None
 
     def __init__(
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -68,7 +69,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         return self._conn
 
     @staticmethod
-    def erf_uri(partner_id, entity_type) -> List[str]:
+    def erf_uri(partner_id, entity_type) -> list[str]:
         """
         Return URI for all Entity Read Files in bucket.
 
@@ -86,7 +87,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 
-    def create_query(self, query: Dict[str, Any]) -> dict:
+    def create_query(self, query: dict[str, Any]) -> dict:
         """
         Creates a query.
 
@@ -114,12 +115,12 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def list_queries(
         self,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Retrieves stored queries."""
         response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
         return response.get('queries', [])
 
-    def run_query(self, query_id: str, params: Optional[Dict[str, Any]]) -> None:
+    def run_query(self, query_id: str, params: dict[str, Any] | None) -> None:
         """
         Runs a stored query to generate a report.
 
@@ -133,7 +134,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def upload_line_items(self, line_items: Any) -> List[Dict[str, Any]]:
+    def upload_line_items(self, line_items: Any) -> list[dict[str, Any]]:
         """
         Uploads line items in CSV format.
 
@@ -155,7 +156,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response
 
-    def download_line_items(self, request_body: Dict[str, Any]) -> List[Any]:
+    def download_line_items(self, request_body: dict[str, Any]) -> list[Any]:
         """
         Retrieves line items in CSV format.
 
@@ -171,7 +172,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response["lineItems"]
 
-    def create_sdf_download_operation(self, body_request: Dict[str, Any]) -> Dict[str, Any]:
+    def create_sdf_download_operation(self, body_request: dict[str, Any]) -> dict[str, Any]:
         """
         Creates an SDF Download Task and Returns an Operation.
 

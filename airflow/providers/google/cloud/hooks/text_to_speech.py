@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Text to Speech Hook."""
-from typing import Dict, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Optional, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -56,8 +58,8 @@ class CloudTextToSpeechHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -82,11 +84,11 @@ class CloudTextToSpeechHook(GoogleBaseHook):
     @GoogleBaseHook.quota_retry()
     def synthesize_speech(
         self,
-        input_data: Union[Dict, SynthesisInput],
-        voice: Union[Dict, VoiceSelectionParams],
-        audio_config: Union[Dict, AudioConfig],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        input_data: dict | SynthesisInput,
+        voice: dict | VoiceSelectionParams,
+        audio_config: dict | AudioConfig,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
     ) -> SynthesizeSpeechResponse:
         """
         Synthesizes text input

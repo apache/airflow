@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
 creates, patches and deletes a database inside the instance, in Google Cloud.
@@ -26,6 +25,7 @@ https://airflow.apache.org/concepts.html#variables
 * INSTANCE_NAME - Name of the Cloud SQL instance.
 * DB_NAME - Name of the database inside a Cloud SQL instance.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

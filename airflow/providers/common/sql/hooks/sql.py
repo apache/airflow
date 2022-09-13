@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Callable, Iterable, Mapping, Optional
 
 import sqlparse
 from packaging.version import Version
@@ -31,7 +33,7 @@ from airflow.utils.module_loading import import_string
 from airflow.version import version
 
 
-def fetch_all_handler(cursor) -> Optional[List[Tuple]]:
+def fetch_all_handler(cursor) -> list[tuple] | None:
     """Handler for DbApiHook.run() to return results"""
     if cursor.description is not None:
         return cursor.fetchall()
@@ -84,9 +86,9 @@ if Version(version) < Version('2.4'):
         from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
     except ImportError:
         # just in case we have a problem with circular import
-        BaseForDbApiHook: Type[BaseHook] = BaseHook  # type: ignore[no-redef]
+        BaseForDbApiHook: type[BaseHook] = BaseHook  # type: ignore[no-redef]
 else:
-    BaseForDbApiHook: Type[BaseHook] = BaseHook  # type: ignore[no-redef]
+    BaseForDbApiHook: type[BaseHook] = BaseHook  # type: ignore[no-redef]
 
 
 class DbApiHook(BaseForDbApiHook):
@@ -112,7 +114,7 @@ class DbApiHook(BaseForDbApiHook):
     # Override with the db-specific value used for placeholders
     placeholder: str = "%s"
 
-    def __init__(self, *args, schema: Optional[str] = None, log_sql: bool = True, **kwargs):
+    def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -198,8 +200,8 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_records(
         self,
-        sql: Union[str, List[str]],
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        sql: str | list[str],
+        parameters: Iterable | Mapping | None = None,
         **kwargs: dict,
     ):
         """
@@ -217,7 +219,7 @@ class DbApiHook(BaseForDbApiHook):
                     cur.execute(sql)
                 return cur.fetchall()
 
-    def get_first(self, sql: Union[str, List[str]], parameters=None):
+    def get_first(self, sql: str | list[str], parameters=None):
         """
         Executes the sql and returns the first resulting row.
 
@@ -238,7 +240,7 @@ class DbApiHook(BaseForDbApiHook):
         return sql.strip().rstrip(';')
 
     @staticmethod
-    def split_sql_string(sql: str) -> List[str]:
+    def split_sql_string(sql: str) -> list[str]:
         """
         Splits string into multiple SQL expressions
 
@@ -246,18 +248,18 @@ class DbApiHook(BaseForDbApiHook):
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements: List[str] = list(filter(None, splits))
+        statements: list[str] = list(filter(None, splits))
         return statements
 
     def run(
         self,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Optional[Callable] = None,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Optional[Union[Any, List[Any]]]:
+    ) -> Any | list[Any] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute

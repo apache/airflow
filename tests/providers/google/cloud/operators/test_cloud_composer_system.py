@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Composer operators"""
+from __future__ import annotations
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_COMPOSER

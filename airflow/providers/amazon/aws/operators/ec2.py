@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -50,7 +50,7 @@ class EC2StartInstanceOperator(BaseOperator):
         *,
         instance_id: str,
         aws_conn_id: str = "aws_default",
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         check_interval: float = 15,
         **kwargs,
     ):
@@ -60,7 +60,7 @@ class EC2StartInstanceOperator(BaseOperator):
         self.region_name = region_name
         self.check_interval = check_interval
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Starting EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
@@ -96,7 +96,7 @@ class EC2StopInstanceOperator(BaseOperator):
         *,
         instance_id: str,
         aws_conn_id: str = "aws_default",
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         check_interval: float = 15,
         **kwargs,
     ):
@@ -106,7 +106,7 @@ class EC2StopInstanceOperator(BaseOperator):
         self.region_name = region_name
         self.check_interval = check_interval
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Stopping EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)

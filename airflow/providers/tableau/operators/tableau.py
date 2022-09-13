@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -69,7 +71,7 @@ class TableauOperator(BaseOperator):
         method: str,
         find: str,
         match_with: str = 'id',
-        site_id: Optional[str] = None,
+        site_id: str | None = None,
         blocking_refresh: bool = True,
         check_interval: float = 20,
         tableau_conn_id: str = 'tableau_default',
@@ -85,7 +87,7 @@ class TableauOperator(BaseOperator):
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         """
         Executes the Tableau API resource and pushes the job id or downloaded file URI to xcom.
         :param context: The task context during execution.

@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for JIRA"""
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from jira import JIRA
 from jira.exceptions import JIRAError
@@ -37,11 +39,11 @@ class JiraHook(BaseHook):
     conn_name_attr = "jira_conn_id"
     hook_name = "JIRA"
 
-    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Optional[Any] = None) -> None:
+    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Any | None = None) -> None:
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
-        self.client: Optional[JIRA] = None
+        self.client: JIRA | None = None
         self.get_conn()
 
     def get_conn(self) -> JIRA:

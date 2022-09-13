@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from MySQL to Hive."""
+from __future__ import annotations
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -80,14 +80,14 @@ class MySqlToHiveOperator(BaseOperator):
         hive_table: str,
         create: bool = True,
         recreate: bool = False,
-        partition: Optional[Dict] = None,
+        partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: Optional[str] = None,
+        quoting: str | None = None,
         quotechar: str = '"',
-        escapechar: Optional[str] = None,
+        escapechar: str | None = None,
         mysql_conn_id: str = 'mysql_default',
         hive_cli_conn_id: str = 'hive_cli_default',
-        tblproperties: Optional[Dict] = None,
+        tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -125,7 +125,7 @@ class MySqlToHiveOperator(BaseOperator):
         }
         return type_map.get(mysql_type, 'STRING')
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.sensors.base import BaseSensorOperator
@@ -44,7 +45,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         *,
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
-        account_id: Optional[int] = None,
+        account_id: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -52,7 +53,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         self.run_id = run_id
         self.account_id = account_id
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
         job_run_status = hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
 

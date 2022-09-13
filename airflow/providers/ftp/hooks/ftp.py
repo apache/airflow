@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 import ftplib
 import os.path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable
 
 from airflow.hooks.base import BaseHook
 
@@ -45,7 +45,7 @@ class FTPHook(BaseHook):
     def __init__(self, ftp_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.ftp_conn_id = ftp_conn_id
-        self.conn: Optional[ftplib.FTP] = None
+        self.conn: ftplib.FTP | None = None
 
     def __enter__(self):
         return self
@@ -85,7 +85,7 @@ class FTPHook(BaseHook):
         files = dict(conn.mlsd())
         return files
 
-    def list_directory(self, path: str) -> List[str]:
+    def list_directory(self, path: str) -> list[str]:
         """
         Returns a list of files on the remote system.
 
@@ -119,7 +119,7 @@ class FTPHook(BaseHook):
         self,
         remote_full_path: str,
         local_full_path_or_buffer: Any,
-        callback: Optional[Callable] = None,
+        callback: Callable | None = None,
         block_size: int = 8192,
     ) -> None:
         """
@@ -257,7 +257,7 @@ class FTPHook(BaseHook):
         except ValueError:
             return datetime.datetime.strptime(time_val, '%Y%m%d%H%M%S')
 
-    def get_size(self, path: str) -> Optional[int]:
+    def get_size(self, path: str) -> int | None:
         """
         Returns the size of a file (in bytes)
 
@@ -267,7 +267,7 @@ class FTPHook(BaseHook):
         size = conn.size(path)
         return int(size) if size else None
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         """Test the FTP connection by calling path with directory"""
         try:
             conn = self.get_conn()

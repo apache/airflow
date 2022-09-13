@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module allows connecting to a ArangoDB."""
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 from arango.result import Result
@@ -48,7 +49,7 @@ class ArangoDBHook(BaseHook):
         self.password = None
         self.db_conn = None
         self.arangodb_conn_id = arangodb_conn_id
-        self.client: Optional[ArangoDBClient] = None
+        self.client: ArangoDBClient | None = None
         self.get_conn()
 
     def get_conn(self) -> ArangoDBClient:
@@ -110,7 +111,7 @@ class ArangoDBHook(BaseHook):
             return False
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         return {
             "hidden_fields": ['port', 'extra'],
             "relabeling": {

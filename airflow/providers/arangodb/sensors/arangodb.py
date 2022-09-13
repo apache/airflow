@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
@@ -46,7 +48,7 @@ class AQLSensor(BaseSensorOperator):
         self.arangodb_conn_id = arangodb_conn_id
         self.query = query
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("Sensor running the following query: %s", self.query)
         hook = ArangoDBHook(self.arangodb_conn_id)
         records = hook.query(self.query, count=True).count()

@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Cloud Looker operators."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -53,11 +53,11 @@ class LookerStartPdtBuildOperator(BaseOperator):
         looker_conn_id: str,
         model: str,
         view: str,
-        query_params: Optional[Dict] = None,
+        query_params: dict | None = None,
         asynchronous: bool = False,
         cancel_on_kill: bool = True,
         wait_time: int = 10,
-        wait_timeout: Optional[int] = None,
+        wait_timeout: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -69,10 +69,10 @@ class LookerStartPdtBuildOperator(BaseOperator):
         self.cancel_on_kill = cancel_on_kill
         self.wait_time = wait_time
         self.wait_timeout = wait_timeout
-        self.hook: Optional[LookerHook] = None
-        self.materialization_id: Optional[str] = None
+        self.hook: LookerHook | None = None
+        self.materialization_id: str | None = None
 
-    def execute(self, context: "Context") -> str:
+    def execute(self, context: Context) -> str:
 
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage sensors.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

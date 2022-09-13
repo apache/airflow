@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import time
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
@@ -43,7 +44,7 @@ class AzureBatchHook(BaseHook):
     hook_name = 'Azure Batch Service'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -56,7 +57,7 @@ class AzureBatchHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -95,17 +96,17 @@ class AzureBatchHook(BaseHook):
     def configure_pool(
         self,
         pool_id: str,
-        vm_size: Optional[str] = None,
-        vm_publisher: Optional[str] = None,
-        vm_offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
-        vm_sku: Optional[str] = None,
-        vm_version: Optional[str] = None,
-        vm_node_agent_sku_id: Optional[str] = None,
-        os_family: Optional[str] = None,
-        os_version: Optional[str] = None,
-        display_name: Optional[str] = None,
-        target_dedicated_nodes: Optional[int] = None,
+        vm_size: str | None = None,
+        vm_publisher: str | None = None,
+        vm_offer: str | None = None,
+        sku_starts_with: str | None = None,
+        vm_sku: str | None = None,
+        vm_version: str | None = None,
+        vm_node_agent_sku_id: str | None = None,
+        os_family: str | None = None,
+        os_version: str | None = None,
+        display_name: str | None = None,
+        target_dedicated_nodes: int | None = None,
         use_latest_image_and_sku: bool = False,
         **kwargs,
     ) -> PoolAddParameter:
@@ -212,9 +213,9 @@ class AzureBatchHook(BaseHook):
 
     def _get_latest_verified_image_vm_and_sku(
         self,
-        publisher: Optional[str] = None,
-        offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
+        publisher: str | None = None,
+        offer: str | None = None,
+        sku_starts_with: str | None = None,
     ) -> tuple:
         """
         Get latest verified image vm and sku
@@ -240,7 +241,7 @@ class AzureBatchHook(BaseHook):
         agent_sku_id, image_ref_to_use = skus_to_use[0]
         return agent_sku_id, image_ref_to_use
 
-    def wait_for_all_node_state(self, pool_id: str, node_state: Set) -> list:
+    def wait_for_all_node_state(self, pool_id: str, node_state: set) -> list:
         """
         Wait for all nodes in a pool to reach given states
 
@@ -266,7 +267,7 @@ class AzureBatchHook(BaseHook):
         self,
         job_id: str,
         pool_id: str,
-        display_name: Optional[str] = None,
+        display_name: str | None = None,
         **kwargs,
     ) -> JobAddParameter:
         """
@@ -303,7 +304,7 @@ class AzureBatchHook(BaseHook):
         self,
         task_id: str,
         command_line: str,
-        display_name: Optional[str] = None,
+        display_name: str | None = None,
         container_settings=None,
         **kwargs,
     ) -> TaskAddParameter:
@@ -344,7 +345,7 @@ class AzureBatchHook(BaseHook):
             else:
                 self.log.info("Task %s already exists", task.id)
 
-    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> List[batch_models.CloudTask]:
+    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> list[batch_models.CloudTask]:
         """
         Wait for tasks in a particular job to complete
 

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS Lambda hook"""
-from typing import Any, List, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -50,11 +51,11 @@ class LambdaHook(AwsBaseHook):
         self,
         *,
         function_name: str,
-        invocation_type: Optional[str] = None,
-        log_type: Optional[str] = None,
-        client_context: Optional[str] = None,
-        payload: Optional[str] = None,
-        qualifier: Optional[str] = None,
+        invocation_type: str | None = None,
+        log_type: str | None = None,
+        client_context: str | None = None,
+        payload: str | None = None,
+        qualifier: str | None = None,
     ):
         """Invoke Lambda Function. Refer to the boto3 documentation for more info."""
         invoke_args = {
@@ -75,22 +76,22 @@ class LambdaHook(AwsBaseHook):
         role: str,
         handler: str,
         code: dict,
-        description: Optional[str] = None,
-        timeout: Optional[int] = None,
-        memory_size: Optional[int] = None,
-        publish: Optional[bool] = None,
-        vpc_config: Optional[Any] = None,
-        package_type: Optional[str] = None,
-        dead_letter_config: Optional[Any] = None,
-        environment: Optional[Any] = None,
-        kms_key_arn: Optional[str] = None,
-        tracing_config: Optional[Any] = None,
-        tags: Optional[Any] = None,
-        layers: Optional[list] = None,
-        file_system_configs: Optional[List[Any]] = None,
-        image_config: Optional[Any] = None,
-        code_signing_config_arn: Optional[str] = None,
-        architectures: Optional[List[str]] = None,
+        description: str | None = None,
+        timeout: int | None = None,
+        memory_size: int | None = None,
+        publish: bool | None = None,
+        vpc_config: Any | None = None,
+        package_type: str | None = None,
+        dead_letter_config: Any | None = None,
+        environment: Any | None = None,
+        kms_key_arn: str | None = None,
+        tracing_config: Any | None = None,
+        tags: Any | None = None,
+        layers: list | None = None,
+        file_system_configs: list[Any] | None = None,
+        image_config: Any | None = None,
+        code_signing_config_arn: str | None = None,
+        architectures: list[str] | None = None,
     ) -> dict:
         """Create a Lambda Function"""
         create_function_args = {

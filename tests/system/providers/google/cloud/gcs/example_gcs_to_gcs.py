@@ -19,6 +19,7 @@
 Example Airflow DAG for Google Cloud Storage GCSSynchronizeBucketsOperator and
 GCSToGCSOperator operators.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

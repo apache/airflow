@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Cloud Memorystore links."""
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -44,11 +46,11 @@ class MemcachedInstanceDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         instance_id: str,
         location_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -66,9 +68,9 @@ class MemcachedInstanceListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -86,11 +88,11 @@ class RedisInstanceDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         instance_id: str,
         location_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -108,9 +110,9 @@ class RedisInstanceListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,

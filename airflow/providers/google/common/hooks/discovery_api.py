@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module allows you to connect to the Google Discovery API Service and query it."""
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Optional, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -52,8 +53,8 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         api_service_name: str,
         api_version: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,

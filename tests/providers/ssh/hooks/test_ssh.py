@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import random
 import string
 import textwrap
 import unittest
 from io import StringIO
-from typing import Optional
 from unittest import mock
 
 import paramiko
@@ -47,7 +48,7 @@ conn.sendall(b'hello')
 """
 
 
-def generate_key_string(pkey: paramiko.PKey, passphrase: Optional[str] = None):
+def generate_key_string(pkey: paramiko.PKey, passphrase: str | None = None):
     key_fh = StringIO()
     pkey.write_private_key(key_fh, password=passphrase)
     key_fh.seek(0)

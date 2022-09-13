@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
+from __future__ import annotations
 
 import warnings
 

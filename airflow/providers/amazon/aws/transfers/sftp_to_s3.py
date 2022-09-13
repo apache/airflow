@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
@@ -77,7 +79,7 @@ class SFTPToS3Operator(BaseOperator):
         parsed_s3_key = urlparse(s3_key)
         return parsed_s3_key.path.lstrip('/')
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.s3_conn_id)

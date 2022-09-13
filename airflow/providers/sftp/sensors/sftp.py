@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP sensor."""
+from __future__ import annotations
+
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
@@ -49,18 +51,18 @@ class SFTPSensor(BaseSensorOperator):
         *,
         path: str,
         file_pattern: str = "",
-        newer_than: Optional[datetime] = None,
+        newer_than: datetime | None = None,
         sftp_conn_id: str = 'sftp_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.path = path
         self.file_pattern = file_pattern
-        self.hook: Optional[SFTPHook] = None
+        self.hook: SFTPHook | None = None
         self.sftp_conn_id = sftp_conn_id
-        self.newer_than: Optional[datetime] = newer_than
+        self.newer_than: datetime | None = newer_than
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
 

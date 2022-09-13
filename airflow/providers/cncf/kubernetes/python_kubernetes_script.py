@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Utilities for using the kubernetes decorator"""
+from __future__ import annotations
+
 import os
 from collections import deque
 

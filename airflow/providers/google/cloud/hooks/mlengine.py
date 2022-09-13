@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google ML Engine Hook."""
+from __future__ import annotations
+
 import logging
 import random
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
@@ -86,7 +88,7 @@ class MLEngineHook(GoogleBaseHook):
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(self, job: dict, project_id: str, use_existing_job_fn: Optional[Callable] = None) -> dict:
+    def create_job(self, job: dict, project_id: str, use_existing_job_fn: Callable | None = None) -> dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 
@@ -231,7 +233,7 @@ class MLEngineHook(GoogleBaseHook):
     def create_version(
         self,
         model_name: str,
-        version_spec: Dict,
+        version_spec: dict,
         project_id: str,
     ) -> dict:
         """
@@ -302,7 +304,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         project_id: str,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Lists all available versions of a model. Blocks until finished.
 
@@ -420,7 +422,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         project_id: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Gets a Model. Blocks until finished.
 

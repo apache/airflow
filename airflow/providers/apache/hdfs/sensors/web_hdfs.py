@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
@@ -33,7 +35,7 @@ class WebHdfsSensor(BaseSensorOperator):
         self.filepath = filepath
         self.webhdfs_conn_id = webhdfs_conn_id
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 
         hook = WebHDFSHook(self.webhdfs_conn_id)

@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
+from __future__ import annotations
+
 import copy
 import tempfile
 from abc import ABC, ABCMeta
 from contextlib import ExitStack
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -47,17 +49,17 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunGoPipelineOperator`.
     """
 
-    dataflow_hook: Optional[DataflowHook]
+    dataflow_hook: DataflowHook | None
     dataflow_config: DataflowConfiguration
     gcp_conn_id: str
-    delegate_to: Optional[str]
+    delegate_to: str | None
     dataflow_support_impersonation: bool = True
 
     def _set_dataflow(
         self,
         pipeline_options: dict,
-        job_name_variable_key: Optional[str] = None,
-    ) -> Tuple[str, dict, Callable[[str], None]]:
+        job_name_variable_key: str | None = None,
+    ) -> tuple[str, dict, Callable[[str], None]]:
         self.dataflow_hook = self.__set_dataflow_hook()
         self.dataflow_config.project_id = self.dataflow_config.project_id or self.dataflow_hook.project_id
         dataflow_job_name = self.__get_dataflow_job_name()
@@ -85,7 +87,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         )
 
     def __get_dataflow_pipeline_options(
-        self, pipeline_options: dict, job_name: str, job_name_key: Optional[str] = None
+        self, pipeline_options: dict, job_name: str, job_name_key: str | None = None
     ) -> dict:
         pipeline_options = copy.deepcopy(pipeline_options)
         if job_name_key is not None:
@@ -151,11 +153,11 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self,
         *,
         runner: str = "DirectRunner",
-        default_pipeline_options: Optional[dict] = None,
-        pipeline_options: Optional[dict] = None,
+        default_pipeline_options: dict | None = None,
+        pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        dataflow_config: Optional[Union[DataflowConfiguration, dict]] = None,
+        delegate_to: str | None = None,
+        dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -168,9 +170,9 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             self.dataflow_config = DataflowConfiguration(**dataflow_config)
         else:
             self.dataflow_config = dataflow_config or DataflowConfiguration()
-        self.beam_hook: Optional[BeamHook] = None
-        self.dataflow_hook: Optional[DataflowHook] = None
-        self.dataflow_job_id: Optional[str] = None
+        self.beam_hook: BeamHook | None = None
+        self.dataflow_hook: DataflowHook | None = None
+        self.dataflow_job_id: str | None = None
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
@@ -180,13 +182,13 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
     def _init_pipeline_options(
         self,
         format_pipeline_options: bool = False,
-        job_name_variable_key: Optional[str] = None,
-    ) -> Tuple[bool, Optional[str], dict, Optional[Callable[[str], None]]]:
+        job_name_variable_key: str | None = None,
+    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None]:
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
-        process_line_callback: Optional[Callable[[str], None]] = None
+        process_line_callback: Callable[[str], None] | None = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
-        dataflow_job_name: Optional[str] = None
+        dataflow_job_name: str | None = None
         if is_dataflow:
             dataflow_job_name, pipeline_options, process_line_callback = self._set_dataflow(
                 pipeline_options=pipeline_options,
@@ -255,15 +257,15 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         *,
         py_file: str,
         runner: str = "DirectRunner",
-        default_pipeline_options: Optional[dict] = None,
-        pipeline_options: Optional[dict] = None,
+        default_pipeline_options: dict | None = None,
+        pipeline_options: dict | None = None,
         py_interpreter: str = "python3",
-        py_options: Optional[List[str]] = None,
-        py_requirements: Optional[List[str]] = None,
+        py_options: list[str] | None = None,
+        py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        dataflow_config: Optional[Union[DataflowConfiguration, dict]] = None,
+        delegate_to: str | None = None,
+        dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -285,7 +287,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
         (
             is_dataflow,
@@ -396,12 +398,12 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         *,
         jar: str,
         runner: str = "DirectRunner",
-        job_class: Optional[str] = None,
-        default_pipeline_options: Optional[dict] = None,
-        pipeline_options: Optional[dict] = None,
+        job_class: str | None = None,
+        default_pipeline_options: dict | None = None,
+        pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        dataflow_config: Optional[Union[DataflowConfiguration, dict]] = None,
+        delegate_to: str | None = None,
+        dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -416,7 +418,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         self.jar = jar
         self.job_class = job_class
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
         (
             is_dataflow,
@@ -537,11 +539,11 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         *,
         go_file: str,
         runner: str = "DirectRunner",
-        default_pipeline_options: Optional[dict] = None,
-        pipeline_options: Optional[dict] = None,
+        default_pipeline_options: dict | None = None,
+        pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        dataflow_config: Optional[Union[DataflowConfiguration, dict]] = None,
+        delegate_to: str | None = None,
+        dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -567,7 +569,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
         (
             is_dataflow,

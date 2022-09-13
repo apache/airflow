@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow links."""
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
@@ -41,7 +43,7 @@ class DataformWorkflowInvocationLink(BaseGoogleLink):
     @staticmethod
     def persist(
         operator_instance: BaseOperator,
-        context: "Context",
+        context: Context,
         project_id: str,
         region: str,
         repository_id: str,

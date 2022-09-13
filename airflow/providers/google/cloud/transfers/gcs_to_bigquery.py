@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage to BigQuery operator."""
+from __future__ import annotations
 
 import json
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -174,7 +175,7 @@ class GCSToBigQueryOperator(BaseOperator):
         autodetect=True,
         encryption_configuration=None,
         location=None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         labels=None,
         description=None,
         **kwargs,
@@ -228,7 +229,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.labels = labels
         self.description = description
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

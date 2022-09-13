@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import collections
 import os
 import tarfile
@@ -22,7 +24,7 @@ import tempfile
 import time
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, cast
+from typing import Any, Callable, Generator, cast
 
 from botocore.exceptions import ClientError
 
@@ -51,7 +53,7 @@ class LogState:
 Position = collections.namedtuple('Position', ['timestamp', 'skip'])
 
 
-def argmin(arr, f: Callable) -> Optional[int]:
+def argmin(arr, f: Callable) -> int | None:
     """Return the index, i, in arr that minimizes f(arr[i])"""
     min_value = None
     min_idx = None
@@ -93,7 +95,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
 
 def secondary_training_status_message(
-    job_description: Dict[str, List[Any]], prev_description: Optional[dict]
+    job_description: dict[str, list[Any]], prev_description: dict | None
 ) -> str:
     """
     Returns a string contains start time and the secondary training job status message.
@@ -252,7 +254,7 @@ class SageMakerHook(AwsBaseHook):
             self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
             for s in streams
         ]
-        events: List[Optional[Any]] = []
+        events: list[Any | None] = []
         for event_stream in event_iters:
             if not event_stream:
                 events.append(None)
@@ -276,7 +278,7 @@ class SageMakerHook(AwsBaseHook):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         Starts a model training job. After training completes, Amazon SageMaker saves
@@ -324,7 +326,7 @@ class SageMakerHook(AwsBaseHook):
         config: dict,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         Starts a hyperparameter tuning job. A hyperparameter tuning job finds the
@@ -360,7 +362,7 @@ class SageMakerHook(AwsBaseHook):
         config: dict,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         Starts a transform job. A transform job uses a trained model to get inferences
@@ -394,7 +396,7 @@ class SageMakerHook(AwsBaseHook):
         config: dict,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         Use Amazon SageMaker Processing to analyze data and evaluate machine learning
@@ -455,7 +457,7 @@ class SageMakerHook(AwsBaseHook):
         config: dict,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         When you create a serverless endpoint, SageMaker provisions and manages
@@ -494,7 +496,7 @@ class SageMakerHook(AwsBaseHook):
         config: dict,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         Deploys the new EndpointConfig specified in the request, switches to using
@@ -650,8 +652,8 @@ class SageMakerHook(AwsBaseHook):
         key: str,
         describe_function: Callable,
         check_interval: int,
-        max_ingestion_time: Optional[int] = None,
-        non_terminal_states: Optional[Set] = None,
+        max_ingestion_time: int | None = None,
+        non_terminal_states: set | None = None,
     ):
         """
         Check status of a SageMaker job
@@ -710,7 +712,7 @@ class SageMakerHook(AwsBaseHook):
         failed_states: set,
         wait_for_completion: bool,
         check_interval: int,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
     ):
         """
         Display the logs for a given training job, optionally tailing them until the
@@ -794,8 +796,8 @@ class SageMakerHook(AwsBaseHook):
             self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)
 
     def list_training_jobs(
-        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
-    ) -> List[Dict]:
+        self, name_contains: str | None = None, max_results: int | None = None, **kwargs
+    ) -> list[dict]:
         """
         This method wraps boto3's `list_training_jobs`. The training job name and max results are configurable
         via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
@@ -821,8 +823,8 @@ class SageMakerHook(AwsBaseHook):
         return results
 
     def list_transform_jobs(
-        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
-    ) -> List[Dict]:
+        self, name_contains: str | None = None, max_results: int | None = None, **kwargs
+    ) -> list[dict]:
         """
         This method wraps boto3's `list_transform_jobs`.
         The transform job name and max results are configurable via arguments.
@@ -848,7 +850,7 @@ class SageMakerHook(AwsBaseHook):
         )
         return results
 
-    def list_processing_jobs(self, **kwargs) -> List[Dict]:
+    def list_processing_jobs(self, **kwargs) -> list[dict]:
         """
         This method wraps boto3's `list_processing_jobs`. All arguments should be provided via kwargs.
         Note boto3 expects these in CamelCase format, for example:
@@ -870,8 +872,8 @@ class SageMakerHook(AwsBaseHook):
         return results
 
     def _preprocess_list_request_args(
-        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
-    ) -> Tuple[Dict[str, Any], Optional[int]]:
+        self, name_contains: str | None = None, max_results: int | None = None, **kwargs
+    ) -> tuple[dict[str, Any], int | None]:
         """
         This method preprocesses the arguments to the boto3's list_* methods.
         It will turn arguments name_contains and max_results as boto3 compliant CamelCase format.
@@ -901,8 +903,8 @@ class SageMakerHook(AwsBaseHook):
         return config, max_results
 
     def _list_request(
-        self, partial_func: Callable, result_key: str, max_results: Optional[int] = None
-    ) -> List[Dict]:
+        self, partial_func: Callable, result_key: str, max_results: int | None = None
+    ) -> list[dict]:
         """
         All AWS boto3 list_* requests return results in batches (if the key "NextToken" is contained in the
         result, there are more results to fetch). The default AWS batch size is 10, and configurable up to
@@ -919,7 +921,7 @@ class SageMakerHook(AwsBaseHook):
         """
         sagemaker_max_results = 100  # Fixed number set by AWS
 
-        results: List[Dict] = []
+        results: list[dict] = []
         next_token = None
 
         while True:

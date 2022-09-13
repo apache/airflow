@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module allows to connect to a InfluxDB database.
 
@@ -23,8 +22,7 @@ This module allows to connect to a InfluxDB database.
 
     FluxTable
 """
-
-from typing import Dict, List
+from __future__ import annotations
 
 import pandas as pd
 from influxdb_client import InfluxDBClient
@@ -55,7 +53,7 @@ class InfluxDBHook(BaseHook):
         self.influxdb_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client = None
-        self.extras: Dict = {}
+        self.extras: dict = {}
         self.uri = None
         self.org_name = None
 
@@ -96,7 +94,7 @@ class InfluxDBHook(BaseHook):
 
         return self.client
 
-    def query(self, query) -> List[FluxTable]:
+    def query(self, query) -> list[FluxTable]:
         """
         Function to to run the query.
         Note: The bucket name

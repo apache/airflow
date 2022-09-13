@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Optional, Union
+from __future__ import annotations
+
+from typing import Any
 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSender
 from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
@@ -36,7 +38,7 @@ class BaseAzureServiceBusHook(BaseHook):
     hook_name = 'Azure Service Bus'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['port', 'host', 'extra', 'login', 'password'],
@@ -145,9 +147,7 @@ class MessageHook(BaseAzureServiceBusHook):
         self.log.info("Create and returns ServiceBusClient")
         return ServiceBusClient.from_connection_string(conn_str=connection_string, logging_enable=True)
 
-    def send_message(
-        self, queue_name: str, messages: Union[str, List[str]], batch_message_flag: bool = False
-    ):
+    def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
         """
         By using ServiceBusClient Send message(s) to a Service Bus Queue. By using
         batch_message_flag it enables and send message as batch message
@@ -178,19 +178,19 @@ class MessageHook(BaseAzureServiceBusHook):
                         self.send_batch_message(sender, messages)
 
     @staticmethod
-    def send_list_messages(sender: ServiceBusSender, messages: List[str]):
+    def send_list_messages(sender: ServiceBusSender, messages: list[str]):
         list_messages = [ServiceBusMessage(message) for message in messages]
         sender.send_messages(list_messages)  # type: ignore[arg-type]
 
     @staticmethod
-    def send_batch_message(sender: ServiceBusSender, messages: List[str]):
+    def send_batch_message(sender: ServiceBusSender, messages: list[str]):
         batch_message = sender.create_message_batch()
         for message in messages:
             batch_message.add_message(ServiceBusMessage(message))
         sender.send_messages(batch_message)
 
     def receive_message(
-        self, queue_name, max_message_count: Optional[int] = 1, max_wait_time: Optional[float] = None
+        self, queue_name, max_message_count: int | None = 1, max_wait_time: float | None = None
     ):
         """
         Receive a batch of messages at once in a specified Queue name
@@ -217,8 +217,8 @@ class MessageHook(BaseAzureServiceBusHook):
         self,
         topic_name: str,
         subscription_name: str,
-        max_message_count: Optional[int],
-        max_wait_time: Optional[float],
+        max_message_count: int | None,
+        max_wait_time: float | None,
     ):
         """
         Receive a batch of subscription message at once. This approach is optimal if you wish

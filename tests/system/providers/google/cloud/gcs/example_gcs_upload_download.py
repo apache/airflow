@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for testing interaction between Google Cloud Storage and local file system.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

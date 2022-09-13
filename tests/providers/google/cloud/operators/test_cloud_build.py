@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# pylint: disable=R0904, C0111
 """
 This module contains various unit tests for GCP Cloud Build Operators
 """
+from __future__ import annotations
 
 import json
 import tempfile
@@ -46,6 +45,9 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildRunBuildTriggerOperator,
     CloudBuildUpdateBuildTriggerOperator,
 )
+
+# pylint: disable=R0904, C0111
+
 
 GCP_CONN_ID = "google_cloud_default"
 PROJECT_ID = "cloud-build-project"

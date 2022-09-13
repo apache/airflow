@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage sensors."""
+from __future__ import annotations
 
 import os
 import textwrap
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -65,8 +66,8 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         bucket: str,
         object: str,
         google_cloud_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -77,7 +78,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
@@ -138,8 +139,8 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         object: str,
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -151,7 +152,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
@@ -199,8 +200,8 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         bucket: str,
         prefix: str,
         google_cloud_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -208,10 +209,10 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
-        self._matches: List[str] = []
+        self._matches: list[str] = []
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info('Sensor checks existence of objects: %s, %s', self.bucket, self.prefix)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
@@ -221,7 +222,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self._matches = hook.list(self.bucket, prefix=self.prefix)
         return bool(self._matches)
 
-    def execute(self, context: "Context") -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         """Overridden to allow matches to be passed"""
         super().execute(context)
         return self._matches
@@ -286,11 +287,11 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         prefix: str,
         inactivity_period: float = 60 * 60,
         min_objects: int = 1,
-        previous_objects: Optional[Set[str]] = None,
+        previous_objects: set[str] | None = None,
         allow_delete: bool = True,
         google_cloud_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -309,9 +310,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.last_activity_time = None
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[GCSHook] = None
+        self.hook: GCSHook | None = None
 
-    def _get_gcs_hook(self) -> Optional[GCSHook]:
+    def _get_gcs_hook(self) -> GCSHook | None:
         if not self.hook:
             self.hook = GCSHook(
                 gcp_conn_id=self.google_cloud_conn_id,
@@ -320,7 +321,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             )
         return self.hook
 
-    def is_bucket_updated(self, current_objects: Set[str]) -> bool:
+    def is_bucket_updated(self, current_objects: set[str]) -> bool:
         """
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
@@ -394,7 +395,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             return False
         return False
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         return self.is_bucket_updated(
             set(self._get_gcs_hook().list(self.bucket, prefix=self.prefix))  # type: ignore[union-attr]
         )

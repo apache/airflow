@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
 
 from packaging.version import Version
 
@@ -31,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def parse_boolean(val: str) -> Union[str, bool]:
+def parse_boolean(val: str) -> str | bool:
     """Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
@@ -98,9 +100,9 @@ class BaseSQLOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
-        hook_params: Optional[Dict] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
+        hook_params: dict | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -220,10 +222,10 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self,
         *,
         table: str,
-        column_mapping: Dict[str, Dict[str, Any]],
-        partition_clause: Optional[str] = None,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        column_mapping: dict[str, dict[str, Any]],
+        partition_clause: str | None = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -237,7 +239,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = self.get_db_hook()
         failed_tests = []
         for column in self.column_mapping:
@@ -405,10 +407,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self,
         *,
         table: str,
-        checks: Dict[str, Dict[str, Any]],
-        partition_clause: Optional[str] = None,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        checks: dict[str, dict[str, Any]],
+        partition_clause: str | None = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -419,7 +421,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = self.get_db_hook()
         checks_sql = " UNION ALL ".join(
             [
@@ -499,12 +501,12 @@ class SQLCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     def __init__(
-        self, *, sql: str, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs
+        self, *, sql: str, conn_id: str | None = None, database: str | None = None, **kwargs
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
         records = self.get_db_hook().get_first(self.sql)
 
@@ -544,8 +546,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -555,7 +557,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         self.tol = tol if isinstance(tol, float) else None
         self.has_tolerance = self.tol is not None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
         records = self.get_db_hook().get_first(self.sql)
 
@@ -648,13 +650,13 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         self,
         *,
         table: str,
-        metrics_thresholds: Dict[str, int],
-        date_filter_column: Optional[str] = "ds",
+        metrics_thresholds: dict[str, int],
+        date_filter_column: str | None = "ds",
         days_back: SupportsAbs[int] = -7,
-        ratio_formula: Optional[str] = "max_over_min",
+        ratio_formula: str | None = "max_over_min",
         ignore_zero: bool = True,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -677,7 +679,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         self.sql1 = sqlt + "'{{ ds }}'"
         self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = self.get_db_hook()
         self.log.info("Using ratio formula: %s", self.ratio_formula)
         self.log.info("Executing SQL check: %s", self.sql2)
@@ -693,7 +695,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         current = dict(zip(self.metrics_sorted, row1))
         reference = dict(zip(self.metrics_sorted, row2))
 
-        ratios: Dict[str, Optional[int]] = {}
+        ratios: dict[str, int | None] = {}
         test_results = {}
 
         for metric in self.metrics_sorted:
@@ -772,8 +774,8 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         sql: str,
         min_threshold: Any,
         max_threshold: Any,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -781,7 +783,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         self.min_threshold = _convert_to_float_if_possible(min_threshold)
         self.max_threshold = _convert_to_float_if_possible(max_threshold)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = self.get_db_hook()
         result = hook.get_first(self.sql)[0]
 
@@ -856,11 +858,11 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self,
         *,
         sql: str,
-        follow_task_ids_if_true: List[str],
-        follow_task_ids_if_false: List[str],
+        follow_task_ids_if_true: list[str],
+        follow_task_ids_if_false: list[str],
         conn_id: str = "default_conn_id",
-        database: Optional[str] = None,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        database: str | None = None,
+        parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -869,7 +871,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info(
             "Executing: %s (with parameters %s) with connection: %s",
             self.sql,

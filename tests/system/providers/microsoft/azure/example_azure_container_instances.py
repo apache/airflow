@@ -18,6 +18,8 @@
 """
 This is an example dag for using the AzureContainerInstancesOperator.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 

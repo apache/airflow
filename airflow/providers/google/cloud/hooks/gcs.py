@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Cloud Storage hook."""
+from __future__ import annotations
+
 import functools
 import gzip as gz
 import os
@@ -28,20 +29,7 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import (
-    IO,
-    Callable,
-    Generator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    TypeVar,
-    Union,
-    cast,
-    overload,
-)
+from typing import IO, Callable, Generator, List, Optional, Sequence, Set, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -80,7 +68,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
     def _wrapper(func: T):
         @functools.wraps(func)
-        def _inner_wrapper(self: "GCSHook", *args, **kwargs) -> RT:
+        def _inner_wrapper(self: GCSHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
@@ -144,8 +132,8 @@ class GCSHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -166,8 +154,8 @@ class GCSHook(GoogleBaseHook):
         self,
         source_bucket: str,
         source_object: str,
-        destination_bucket: Optional[str] = None,
-        destination_object: Optional[str] = None,
+        destination_bucket: str | None = None,
+        destination_object: str | None = None,
     ) -> None:
         """
         Copies an object from a bucket to another, with renaming if requested.
@@ -215,7 +203,7 @@ class GCSHook(GoogleBaseHook):
         source_bucket: str,
         source_object: str,
         destination_bucket: str,
-        destination_object: Optional[str] = None,
+        destination_object: str | None = None,
     ) -> None:
         """
         Has the same functionality as copy, except that will work on files
@@ -270,9 +258,9 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str,
         object_name: str,
         filename: None = None,
-        chunk_size: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
-        num_max_attempts: Optional[int] = 1,
+        chunk_size: int | None = None,
+        timeout: int | None = DEFAULT_TIMEOUT,
+        num_max_attempts: int | None = 1,
     ) -> bytes:
         ...
 
@@ -282,9 +270,9 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str,
         object_name: str,
         filename: str,
-        chunk_size: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
-        num_max_attempts: Optional[int] = 1,
+        chunk_size: int | None = None,
+        timeout: int | None = DEFAULT_TIMEOUT,
+        num_max_attempts: int | None = 1,
     ) -> str:
         ...
 
@@ -292,11 +280,11 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: str,
         object_name: str,
-        filename: Optional[str] = None,
-        chunk_size: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
-        num_max_attempts: Optional[int] = 1,
-    ) -> Union[str, bytes]:
+        filename: str | None = None,
+        chunk_size: int | None = None,
+        timeout: int | None = DEFAULT_TIMEOUT,
+        num_max_attempts: int | None = 1,
+    ) -> str | bytes:
         """
         Downloads a file from Google Cloud Storage.
 
@@ -351,9 +339,9 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: str,
         object_name: str,
-        chunk_size: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
-        num_max_attempts: Optional[int] = 1,
+        chunk_size: int | None = None,
+        timeout: int | None = DEFAULT_TIMEOUT,
+        num_max_attempts: int | None = 1,
     ) -> bytes:
         """
         Downloads a file from Google Cloud Storage.
@@ -383,9 +371,9 @@ class GCSHook(GoogleBaseHook):
     def provide_file(
         self,
         bucket_name: str = PROVIDE_BUCKET,
-        object_name: Optional[str] = None,
-        object_url: Optional[str] = None,
-        dir: Optional[str] = None,
+        object_name: str | None = None,
+        object_url: str | None = None,
+        dir: str | None = None,
     ) -> Generator[IO[bytes], None, None]:
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -412,8 +400,8 @@ class GCSHook(GoogleBaseHook):
     def provide_file_and_upload(
         self,
         bucket_name: str = PROVIDE_BUCKET,
-        object_name: Optional[str] = None,
-        object_url: Optional[str] = None,
+        object_name: str | None = None,
+        object_url: str | None = None,
     ) -> Generator[IO[bytes], None, None]:
         """
         Creates temporary file, returns a file handle and uploads the files content
@@ -440,15 +428,15 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: str,
         object_name: str,
-        filename: Optional[str] = None,
-        data: Optional[Union[str, bytes]] = None,
-        mime_type: Optional[str] = None,
+        filename: str | None = None,
+        data: str | bytes | None = None,
+        mime_type: str | None = None,
         gzip: bool = False,
         encoding: str = 'utf-8',
-        chunk_size: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        chunk_size: int | None = None,
+        timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -730,10 +718,10 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str,
         timespan_start: datetime,
         timespan_end: datetime,
-        versions: Optional[bool] = None,
-        max_results: Optional[int] = None,
-        prefix: Optional[str] = None,
-        delimiter: Optional[str] = None,
+        versions: bool | None = None,
+        max_results: int | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
     ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
@@ -838,11 +826,11 @@ class GCSHook(GoogleBaseHook):
     def create_bucket(
         self,
         bucket_name: str,
-        resource: Optional[dict] = None,
+        resource: dict | None = None,
         storage_class: str = 'MULTI_REGIONAL',
         location: str = 'US',
-        project_id: Optional[str] = None,
-        labels: Optional[dict] = None,
+        project_id: str | None = None,
+        labels: dict | None = None,
     ) -> str:
         """
         Creates a new bucket. Google Cloud Storage uses a flat namespace, so
@@ -900,7 +888,7 @@ class GCSHook(GoogleBaseHook):
         return bucket.id
 
     def insert_bucket_acl(
-        self, bucket_name: str, entity: str, role: str, user_project: Optional[str] = None
+        self, bucket_name: str, entity: str, role: str, user_project: str | None = None
     ) -> None:
         """
         Creates a new ACL entry on the specified bucket_name.
@@ -933,8 +921,8 @@ class GCSHook(GoogleBaseHook):
         object_name: str,
         entity: str,
         role: str,
-        generation: Optional[int] = None,
-        user_project: Optional[str] = None,
+        generation: int | None = None,
+        user_project: str | None = None,
     ) -> None:
         """
         Creates a new ACL entry on the specified object.
@@ -967,7 +955,7 @@ class GCSHook(GoogleBaseHook):
 
         self.log.info('A new ACL entry created for object: %s in bucket: %s', object_name, bucket_name)
 
-    def compose(self, bucket_name: str, source_objects: List, destination_object: str) -> None:
+    def compose(self, bucket_name: str, source_objects: List[str], destination_object: str) -> None:
         """
         Composes a list of existing object into a new object in the same storage bucket_name
 
@@ -1002,8 +990,8 @@ class GCSHook(GoogleBaseHook):
         self,
         source_bucket: str,
         destination_bucket: str,
-        source_object: Optional[str] = None,
-        destination_object: Optional[str] = None,
+        source_object: str | None = None,
+        destination_object: str | None = None,
         recursive: bool = True,
         allow_overwrite: bool = False,
         delete_extra_files: bool = False,
@@ -1104,7 +1092,7 @@ class GCSHook(GoogleBaseHook):
         self.log.info("Synchronization finished.")
 
     def _calculate_sync_destination_path(
-        self, blob: storage.Blob, destination_object: Optional[str], source_object_prefix_len: int
+        self, blob: storage.Blob, destination_object: str | None, source_object_prefix_len: int
     ) -> str:
         return (
             path.join(destination_object, blob.name[source_object_prefix_len:])
@@ -1116,10 +1104,10 @@ class GCSHook(GoogleBaseHook):
     def _prepare_sync_plan(
         source_bucket: storage.Bucket,
         destination_bucket: storage.Bucket,
-        source_object: Optional[str],
-        destination_object: Optional[str],
+        source_object: str | None,
+        destination_object: str | None,
         recursive: bool,
-    ) -> Tuple[Set[storage.Blob], Set[storage.Blob], Set[storage.Blob]]:
+    ) -> tuple[set[storage.Blob], set[storage.Blob], set[storage.Blob]]:
         # Calculate the number of characters that remove from the name, because they contain information
         # about the parent's path
         source_object_prefix_len = len(source_object) if source_object else 0
@@ -1164,7 +1152,7 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith('/')
 
 
-def _parse_gcs_url(gsurl: str) -> Tuple[str, str]:
+def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     """
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
     tuple containing the corresponding bucket and blob.

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This sample "listen to directory". move the new file and print it,
 using docker-containers.
@@ -24,6 +23,8 @@ BashOperator & ShortCircuitOperator.
 TODO: Review the workflow, change it accordingly to
 your environment & enable the code.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

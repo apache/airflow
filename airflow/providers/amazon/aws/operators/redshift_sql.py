@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -53,9 +54,9 @@ class RedshiftSQLOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         redshift_conn_id: str = 'redshift_default',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         **kwargs,
     ) -> None:
@@ -71,7 +72,7 @@ class RedshiftSQLOperator(BaseOperator):
         """
         return RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Execute a statement against Amazon Redshift"""
         self.log.info("Executing statement: %s", self.sql)
         hook = self.get_hook()

@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Compute Engine operators."""
+from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from googleapiclient.errors import HttpError
 from json_merge_patch import merge
@@ -41,10 +42,10 @@ class ComputeEngineBaseOperator(BaseOperator):
         *,
         zone: str,
         resource_id: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -64,7 +65,7 @@ class ComputeEngineBaseOperator(BaseOperator):
         if not self.resource_id:
             raise AirflowException("The required parameter 'resource_id' is missing")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         pass
 
 
@@ -106,7 +107,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_start_template_fields]
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -153,7 +154,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_stop_template_fields]
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -217,11 +218,11 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         zone: str,
         resource_id: str,
         body: dict,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.body = body
@@ -244,7 +245,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -370,12 +371,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         *,
         resource_id: str,
         body_patch: dict,
-        project_id: Optional[str] = None,
-        request_id: Optional[str] = None,
+        project_id: str | None = None,
+        request_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.body_patch = body_patch
@@ -405,7 +406,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body_patch)
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -499,12 +500,12 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         zone: str,
         source_template: str,
         destination_template: str,
-        project_id: Optional[str] = None,
-        update_policy: Optional[Dict[str, Any]] = None,
-        request_id: Optional[str] = None,
+        project_id: str | None = None,
+        update_policy: dict[str, Any] | None = None,
+        request_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version='beta',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.zone = zone
@@ -534,7 +535,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             dictionary['instanceTemplate'] = self.destination_template
             self._change_performed = True
 
-    def execute(self, context: 'Context') -> Optional[bool]:
+    def execute(self, context: Context) -> bool | None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

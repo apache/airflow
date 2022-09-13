@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Functions Hook."""
+from __future__ import annotations
+
 import time
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Optional, Sequence
 
 import requests
 from googleapiclient.discovery import build
@@ -43,8 +45,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -112,7 +114,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    def update_function(self, name: str, body: dict, update_mask: List[str]) -> None:
+    def update_function(self, name: str, body: dict, update_mask: list[str]) -> None:
         """
         Updates Cloud Functions according to the specified update mask.
 
@@ -184,7 +186,7 @@ class CloudFunctionsHook(GoogleBaseHook):
     def call_function(
         self,
         function_id: str,
-        input_data: Dict,
+        input_data: dict,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict:

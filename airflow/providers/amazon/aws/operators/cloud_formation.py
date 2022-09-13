@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains CloudFormation create/delete stack operators."""
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
@@ -51,7 +53,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
         self.cloudformation_parameters = cloudformation_parameters
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('CloudFormation parameters: %s', self.cloudformation_parameters)
 
         cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
@@ -81,7 +83,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         self,
         *,
         stack_name: str,
-        cloudformation_parameters: Optional[dict] = None,
+        cloudformation_parameters: dict | None = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
@@ -90,7 +92,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         self.stack_name = stack_name
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('CloudFormation Parameters: %s', self.cloudformation_parameters)
 
         cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)

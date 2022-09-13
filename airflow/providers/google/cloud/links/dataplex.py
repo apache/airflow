@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataplex links."""
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -38,7 +39,7 @@ class DataplexTaskLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -62,7 +63,7 @@ class DataplexTasksLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(

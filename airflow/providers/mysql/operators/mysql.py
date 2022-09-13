@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -59,11 +61,11 @@ class MySqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         mysql_conn_id: str = 'mysql_default',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         autocommit: bool = False,
-        database: Optional[str] = None,
+        database: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,7 +80,7 @@ class MySqlOperator(BaseOperator):
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

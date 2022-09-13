@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import subprocess
@@ -21,7 +22,7 @@ from functools import lru_cache
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import jmespath
 import jsonschema
@@ -142,7 +143,7 @@ def render_chart(
         return k8s_objects
 
 
-def prepare_k8s_lookup_dict(k8s_objects) -> Dict[Tuple[str, str], Dict[str, Any]]:
+def prepare_k8s_lookup_dict(k8s_objects) -> dict[tuple[str, str], dict[str, Any]]:
     """
     Helper to create a lookup dict from k8s_objects.
     The keys of the dict are the k8s object's kind and name

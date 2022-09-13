@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google CampaignManager operators."""
+from __future__ import annotations
+
 import json
 import tempfile
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient import http
 
@@ -76,12 +78,12 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         self,
         *,
         profile_id: str,
-        report_name: Optional[str] = None,
-        report_id: Optional[str] = None,
+        report_name: str | None = None,
+        report_id: str | None = None,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -98,7 +100,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -173,13 +175,13 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         report_id: str,
         file_id: str,
         bucket_name: str,
-        report_name: Optional[str] = None,
+        report_name: str | None = None,
         gzip: bool = True,
         chunk_size: int = 10 * 1024 * 1024,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -209,7 +211,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -295,11 +297,11 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         self,
         *,
         profile_id: str,
-        report: Dict[str, Any],
+        report: dict[str, Any],
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -316,7 +318,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
             with open(self.report) as file:
                 self.report = json.load(file)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -379,8 +381,8 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         synchronous: bool = False,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -392,7 +394,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -461,15 +463,15 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         self,
         *,
         profile_id: str,
-        conversions: List[Dict[str, Any]],
+        conversions: list[dict[str, Any]],
         encryption_entity_type: str,
         encryption_entity_id: int,
         encryption_source: str,
         max_failed_inserts: int = 0,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -484,7 +486,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -552,15 +554,15 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         self,
         *,
         profile_id: str,
-        conversions: List[Dict[str, Any]],
+        conversions: list[dict[str, Any]],
         encryption_entity_type: str,
         encryption_entity_id: int,
         encryption_source: str,
         max_failed_updates: int = 0,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -575,7 +577,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

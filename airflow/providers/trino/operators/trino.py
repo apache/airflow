@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains the Trino operator."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from trino.exceptions import TrinoQueryError
 
@@ -54,17 +55,17 @@ class TrinoOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: str | list[str],
         trino_conn_id: str = "trino_default",
         autocommit: bool = False,
-        parameters: Optional[tuple] = None,
-        handler: Optional[Callable] = None,
+        parameters: tuple | None = None,
+        handler: Callable | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.trino_conn_id = trino_conn_id
-        self.hook: Optional[TrinoHook] = None
+        self.hook: TrinoHook | None = None
         self.autocommit = autocommit
         self.parameters = parameters
         self.handler = handler
@@ -75,7 +76,7 @@ class TrinoOperator(BaseOperator):
             trino_conn_id=self.trino_conn_id,
         )
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Execute Trino SQL"""
         self.hook = self.get_hook()
         self.hook.run(

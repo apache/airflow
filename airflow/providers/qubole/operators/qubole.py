@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Qubole operator"""
+from __future__ import annotations
+
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -43,9 +45,9 @@ class QDSLink(BaseOperatorLink):
     def get_link(
         self,
         operator: BaseOperator,
-        dttm: Optional[datetime] = None,
+        dttm: datetime | None = None,
         *,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        ti_key: TaskInstanceKey | None = None,
     ) -> str:
         """
         Get link to qubole command result page.
@@ -237,7 +239,7 @@ class QuboleOperator(BaseOperator):
     def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
-        self.hook: Optional[QuboleHook] = None
+        self.hook: QuboleHook | None = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
         super().__init__(**filtered_base_kwargs)
 
@@ -256,7 +258,7 @@ class QuboleOperator(BaseOperator):
         )
         return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         return self.get_hook().execute(context)
 
     def on_kill(self, ti=None) -> None:

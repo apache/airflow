@@ -19,6 +19,8 @@ This module handles all xcom functionality for the KubernetesPodOperator
 by attaching a sidecar container that blocks the pod from completing until
 Airflow has pulled result data into the worker for xcom serialization.
 """
+from __future__ import annotations
+
 import copy
 
 from kubernetes.client import models as k8s

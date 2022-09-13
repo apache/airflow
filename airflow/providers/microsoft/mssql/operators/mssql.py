@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -57,11 +59,11 @@ class MsSqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         mssql_conn_id: str = 'mssql_default',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         autocommit: bool = False,
-        database: Optional[str] = None,
+        database: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -70,9 +72,9 @@ class MsSqlOperator(BaseOperator):
         self.parameters = parameters
         self.autocommit = autocommit
         self.database = database
-        self._hook: Optional[Union[MsSqlHook, 'DbApiHook']] = None
+        self._hook: MsSqlHook | DbApiHook | None = None
 
-    def get_hook(self) -> Optional[Union[MsSqlHook, 'DbApiHook']]:
+    def get_hook(self) -> MsSqlHook | DbApiHook | None:
         """
         Will retrieve hook as determined by :meth:`~.Connection.get_hook` if one is defined, and
         :class:`~.MsSqlHook` otherwise.
@@ -88,7 +90,7 @@ class MsSqlOperator(BaseOperator):
                 self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
         return self._hook
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
         hook.run(  # type: ignore[union-attr]

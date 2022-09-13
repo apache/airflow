@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -89,25 +90,25 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         destination_bucket: str,
         api_version: str,
         calendar_id: str = "primary",
-        i_cal_uid: Optional[str] = None,
-        max_attendees: Optional[int] = None,
-        max_results: Optional[int] = None,
-        order_by: Optional[str] = None,
-        private_extended_property: Optional[str] = None,
-        text_search_query: Optional[str] = None,
-        shared_extended_property: Optional[str] = None,
-        show_deleted: Optional[bool] = None,
-        show_hidden_invitation: Optional[bool] = None,
-        single_events: Optional[bool] = None,
-        sync_token: Optional[str] = None,
-        time_max: Optional[datetime] = None,
-        time_min: Optional[datetime] = None,
-        time_zone: Optional[str] = None,
-        updated_min: Optional[datetime] = None,
-        destination_path: Optional[str] = None,
+        i_cal_uid: str | None = None,
+        max_attendees: int | None = None,
+        max_results: int | None = None,
+        order_by: str | None = None,
+        private_extended_property: str | None = None,
+        text_search_query: str | None = None,
+        shared_extended_property: str | None = None,
+        show_deleted: bool | None = None,
+        show_hidden_invitation: bool | None = None,
+        single_events: bool | None = None,
+        sync_token: str | None = None,
+        time_max: datetime | None = None,
+        time_min: datetime | None = None,
+        time_zone: str | None = None,
+        updated_min: datetime | None = None,
+        destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -136,7 +137,7 @@ class GoogleCalendarToGCSOperator(BaseOperator):
 
     def _upload_data(
         self,
-        events: List[Any],
+        events: list[Any],
     ) -> str:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional, Union
+from __future__ import annotations
+
+from typing import Any, Callable
 
 import requests
 import tenacity
@@ -70,7 +72,7 @@ class HttpHook(BaseHook):
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
-    def get_conn(self, headers: Optional[Dict[Any, Any]] = None) -> requests.Session:
+    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
         """
         Returns http session for use with requests
 
@@ -105,10 +107,10 @@ class HttpHook(BaseHook):
 
     def run(
         self,
-        endpoint: Optional[str] = None,
-        data: Optional[Union[Dict[str, Any], str]] = None,
-        headers: Optional[Dict[str, Any]] = None,
-        extra_options: Optional[Dict[str, Any]] = None,
+        endpoint: str | None = None,
+        data: dict[str, Any] | str | None = None,
+        headers: dict[str, Any] | None = None,
+        extra_options: dict[str, Any] | None = None,
         **request_kwargs: Any,
     ) -> Any:
         r"""
@@ -166,7 +168,7 @@ class HttpHook(BaseHook):
         self,
         session: requests.Session,
         prepped_request: requests.PreparedRequest,
-        extra_options: Dict[Any, Any],
+        extra_options: dict[Any, Any],
     ) -> Any:
         """
         Grabs extra options like timeout and actually runs the request,
@@ -189,7 +191,7 @@ class HttpHook(BaseHook):
         )
 
         # Send the request.
-        send_kwargs: Dict[str, Any] = {
+        send_kwargs: dict[str, Any] = {
             "timeout": extra_options.get("timeout"),
             "allow_redirects": extra_options.get("allow_redirects", True),
         }
@@ -206,7 +208,7 @@ class HttpHook(BaseHook):
             self.log.warning('%s Tenacity will retry to execute the operation', ex)
             raise ex
 
-    def run_with_advanced_retry(self, _retry_args: Dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
+    def run_with_advanced_retry(self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
         """
         Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
         connectors which might be disturbed by intermittent issues and should not
@@ -231,7 +233,7 @@ class HttpHook(BaseHook):
 
         return self._retry_obj(self.run, *args, **kwargs)
 
-    def url_from_endpoint(self, endpoint: Optional[str]) -> str:
+    def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint"""
         if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
             return self.base_url + '/' + endpoint

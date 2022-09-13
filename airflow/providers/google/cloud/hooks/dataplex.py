@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Google Dataplex hook."""
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Any, Optional, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -54,8 +55,8 @@ class DataplexHook(GoogleBaseHook):
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -72,7 +73,7 @@ class DataplexHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: Optional[float], operation: Operation):
+    def wait_for_operation(self, timeout: float | None, operation: Operation):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -86,12 +87,12 @@ class DataplexHook(GoogleBaseHook):
         project_id: str,
         region: str,
         lake_id: str,
-        body: Union[Dict[str, Any], Task],
+        body: dict[str, Any] | Task,
         dataplex_task_id: str,
-        validate_only: Optional[bool] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        validate_only: bool | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Creates a task resource within a lake.
@@ -131,9 +132,9 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Delete the task resource.
@@ -167,13 +168,13 @@ class DataplexHook(GoogleBaseHook):
         project_id: str,
         region: str,
         lake_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Lists tasks under the given lake.
@@ -219,9 +220,9 @@ class DataplexHook(GoogleBaseHook):
         region: str,
         lake_id: str,
         dataplex_task_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
         Get task resource.

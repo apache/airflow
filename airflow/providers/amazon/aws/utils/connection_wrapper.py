@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
 from copy import deepcopy
 from dataclasses import MISSING, InitVar, dataclass, field, fields
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 from botocore.config import Config
 
@@ -60,40 +61,40 @@ class AwsConnectionWrapper(LoggingMixin):
         3. The wrapper's default value
     """
 
-    conn: InitVar[Optional[Union["Connection", "AwsConnectionWrapper"]]]
-    region_name: Optional[str] = field(default=None)
+    conn: InitVar[Connection | AwsConnectionWrapper | None]
+    region_name: str | None = field(default=None)
     # boto3 client/resource configs
-    botocore_config: Optional[Config] = field(default=None)
-    verify: Optional[Union[bool, str]] = field(default=None)
+    botocore_config: Config | None = field(default=None)
+    verify: bool | str | None = field(default=None)
 
     # Reference to Airflow Connection attributes
     # ``extra_config`` contains original Airflow Connection Extra.
-    conn_id: Optional[Union[str, ArgNotSet]] = field(init=False, default=NOTSET)
-    conn_type: Optional[str] = field(init=False, default=None)
-    login: Optional[str] = field(init=False, repr=False, default=None)
-    password: Optional[str] = field(init=False, repr=False, default=None)
-    extra_config: Dict[str, Any] = field(init=False, repr=False, default_factory=dict)
+    conn_id: str | ArgNotSet | None = field(init=False, default=NOTSET)
+    conn_type: str | None = field(init=False, default=None)
+    login: str | None = field(init=False, repr=False, default=None)
+    password: str | None = field(init=False, repr=False, default=None)
+    extra_config: dict[str, Any] = field(init=False, repr=False, default_factory=dict)
 
     # AWS Credentials from connection.
-    aws_access_key_id: Optional[str] = field(init=False, default=None)
-    aws_secret_access_key: Optional[str] = field(init=False, default=None)
-    aws_session_token: Optional[str] = field(init=False, default=None)
+    aws_access_key_id: str | None = field(init=False, default=None)
+    aws_secret_access_key: str | None = field(init=False, default=None)
+    aws_session_token: str | None = field(init=False, default=None)
 
     # AWS Shared Credential profile_name
-    profile_name: Optional[str] = field(init=False, default=None)
+    profile_name: str | None = field(init=False, default=None)
     # Custom endpoint_url for boto3.client and boto3.resource
-    endpoint_url: Optional[str] = field(init=False, default=None)
+    endpoint_url: str | None = field(init=False, default=None)
 
     # Assume Role Configurations
-    role_arn: Optional[str] = field(init=False, default=None)
-    assume_role_method: Optional[str] = field(init=False, default=None)
-    assume_role_kwargs: Dict[str, Any] = field(init=False, default_factory=dict)
+    role_arn: str | None = field(init=False, default=None)
+    assume_role_method: str | None = field(init=False, default=None)
+    assume_role_kwargs: dict[str, Any] = field(init=False, default_factory=dict)
 
     @cached_property
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
-    def __post_init__(self, conn: "Connection"):
+    def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
             # For every field with init=False we copy reference value from original wrapper
             # For every field with init=True we use init values if it not equal default
@@ -218,10 +219,10 @@ class AwsConnectionWrapper(LoggingMixin):
     @classmethod
     def from_connection_metadata(
         cls,
-        conn_id: Optional[str] = None,
-        login: Optional[str] = None,
-        password: Optional[str] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        conn_id: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        extra: dict[str, Any] | None = None,
     ):
         """
         Create config from connection metadata.
@@ -243,7 +244,7 @@ class AwsConnectionWrapper(LoggingMixin):
         return self.extra_config
 
     @property
-    def session_kwargs(self) -> Dict[str, Any]:
+    def session_kwargs(self) -> dict[str, Any]:
         """Additional kwargs passed to boto3.session.Session."""
         return trim_none_values(
             {
@@ -261,16 +262,16 @@ class AwsConnectionWrapper(LoggingMixin):
     def _get_credentials(
         self,
         *,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
-        aws_session_token: Optional[str] = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_session_token: str | None = None,
         # Deprecated Values
-        s3_config_file: Optional[str] = None,
-        s3_config_format: Optional[str] = None,
-        profile: Optional[str] = None,
-        session_kwargs: Optional[Dict[str, Any]] = None,
+        s3_config_file: str | None = None,
+        s3_config_format: str | None = None,
+        profile: str | None = None,
+        session_kwargs: dict[str, Any] | None = None,
         **kwargs,
-    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None, str | None]:
         """
         Get AWS credentials from connection login/password and extra.
 
@@ -323,15 +324,15 @@ class AwsConnectionWrapper(LoggingMixin):
     def _get_assume_role_configs(
         self,
         *,
-        role_arn: Optional[str] = None,
+        role_arn: str | None = None,
         assume_role_method: str = "assume_role",
-        assume_role_kwargs: Optional[Dict[str, Any]] = None,
+        assume_role_kwargs: dict[str, Any] | None = None,
         # Deprecated Values
-        aws_account_id: Optional[str] = None,
-        aws_iam_role: Optional[str] = None,
-        external_id: Optional[str] = None,
+        aws_account_id: str | None = None,
+        aws_iam_role: str | None = None,
+        external_id: str | None = None,
         **kwargs,
-    ) -> Tuple[Optional[str], Optional[str], Dict[Any, str]]:
+    ) -> tuple[str | None, str | None, dict[Any, str]]:
         """Get assume role configs from Connection extra."""
         if role_arn:
             self.log.debug("Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr)
@@ -377,8 +378,8 @@ class AwsConnectionWrapper(LoggingMixin):
 
 
 def _parse_s3_config(
-    config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
-) -> Tuple[Optional[str], Optional[str]]:
+    config_file_name: str, config_format: str | None = "boto", profile: str | None = None
+) -> tuple[str | None, str | None]:
     """
     Parses a config file for s3 credentials. Can currently
     parse boto, s3cmd.conf and AWS SDK config formats

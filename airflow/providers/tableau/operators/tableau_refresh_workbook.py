@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.tableau.operators.tableau import TableauOperator
@@ -54,7 +56,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         self,
         *,
         workbook_name: str,
-        site_id: Optional[str] = None,
+        site_id: str | None = None,
         blocking: bool = True,
         tableau_conn_id: str = 'tableau_default',
         check_interval: float = 20,
@@ -67,7 +69,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         self.tableau_conn_id = tableau_conn_id
         self.check_interval = check_interval
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         """
         Executes the Tableau Extract Refresh and pushes the job id to xcom.
 

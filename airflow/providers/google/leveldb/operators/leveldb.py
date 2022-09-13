@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
@@ -48,13 +50,13 @@ class LevelDBOperator(BaseOperator):
         *,
         command: str,
         key: bytes,
-        value: Optional[bytes] = None,
-        keys: Optional[List[bytes]] = None,
-        values: Optional[List[bytes]] = None,
+        value: bytes | None = None,
+        keys: list[bytes] | None = None,
+        values: list[bytes] | None = None,
         leveldb_conn_id: str = 'leveldb_default',
         name: str = '/tmp/testdb/',
         create_if_missing: bool = True,
-        create_db_extra_options: Optional[Dict[str, Any]] = None,
+        create_db_extra_options: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,7 +70,7 @@ class LevelDBOperator(BaseOperator):
         self.create_if_missing = create_if_missing
         self.create_db_extra_options = create_db_extra_options or {}
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         """
         Execute command in LevelDB
 

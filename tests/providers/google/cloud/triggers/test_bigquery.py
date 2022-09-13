@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
 import logging
 import sys
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from aiohttp import ClientResponseError, RequestInfo
@@ -58,13 +59,13 @@ TEST_PASS_VALUE = 2
 TEST_TOLERANCE = 1
 TEST_FIRST_JOB_ID = "5678"
 TEST_SECOND_JOB_ID = "6789"
-TEST_METRIC_THRESHOLDS: Dict[str, int] = {}
+TEST_METRIC_THRESHOLDS: dict[str, int] = {}
 TEST_DATE_FILTER_COLUMN = "ds"
 TEST_DAYS_BACK = -7
 TEST_RATIO_FORMULA = "max_over_min"
 TEST_IGNORE_ZERO = True
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
-TEST_HOOK_PARAMS: Dict[str, Any] = {}
+TEST_HOOK_PARAMS: dict[str, Any] = {}
 
 
 def test_bigquery_insert_job_op_trigger_serialization():

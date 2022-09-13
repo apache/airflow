@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import tempfile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
@@ -71,8 +73,8 @@ class GlacierToGCSOperator(BaseOperator):
         object_name: str,
         gzip: bool,
         chunk_size: int = 1024,
-        delegate_to: Optional[str] = None,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -86,7 +88,7 @@ class GlacierToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = google_impersonation_chain
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         glacier_hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

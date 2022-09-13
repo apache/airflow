@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -42,7 +44,7 @@ class RedisPublishOperator(BaseOperator):
         self.channel = channel
         self.message = message
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """
         Publish the message to Redis channel
 

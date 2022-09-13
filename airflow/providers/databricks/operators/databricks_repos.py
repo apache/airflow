@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Databricks operators."""
+from __future__ import annotations
+
 import re
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
 
 from airflow.compat.functools import cached_property
@@ -70,10 +71,10 @@ class DatabricksReposCreateOperator(BaseOperator):
         self,
         *,
         git_url: str,
-        git_provider: Optional[str] = None,
-        branch: Optional[str] = None,
-        tag: Optional[str] = None,
-        repo_path: Optional[str] = None,
+        git_provider: str | None = None,
+        branch: str | None = None,
+        tag: str | None = None,
+        repo_path: str | None = None,
         ignore_existing_repo: bool = False,
         databricks_conn_id: str = 'databricks_default',
         databricks_retry_limit: int = 3,
@@ -126,7 +127,7 @@ class DatabricksReposCreateOperator(BaseOperator):
             caller="DatabricksReposCreateOperator",
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Creates a Databricks Repo
 
@@ -188,10 +189,10 @@ class DatabricksReposUpdateOperator(BaseOperator):
     def __init__(
         self,
         *,
-        branch: Optional[str] = None,
-        tag: Optional[str] = None,
-        repo_id: Optional[str] = None,
-        repo_path: Optional[str] = None,
+        branch: str | None = None,
+        tag: str | None = None,
+        repo_id: str | None = None,
+        repo_path: str | None = None,
         databricks_conn_id: str = 'databricks_default',
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
@@ -224,7 +225,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
             caller="DatabricksReposUpdateOperator",
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if self.repo_path is not None:
             self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:
@@ -262,8 +263,8 @@ class DatabricksReposDeleteOperator(BaseOperator):
     def __init__(
         self,
         *,
-        repo_id: Optional[str] = None,
-        repo_path: Optional[str] = None,
+        repo_id: str | None = None,
+        repo_path: str | None = None,
         databricks_conn_id: str = 'databricks_default',
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
@@ -290,7 +291,7 @@ class DatabricksReposDeleteOperator(BaseOperator):
             caller="DatabricksReposDeleteOperator",
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if self.repo_path is not None:
             self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:

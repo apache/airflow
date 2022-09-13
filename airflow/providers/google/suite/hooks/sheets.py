@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Sheets API hook"""
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import build
 
@@ -51,8 +51,8 @@ class GSheetsHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v4',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -120,7 +120,7 @@ class GSheetsHook(GoogleBaseHook):
     def batch_get_values(
         self,
         spreadsheet_id: str,
-        ranges: List,
+        ranges: list,
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER',
@@ -161,7 +161,7 @@ class GSheetsHook(GoogleBaseHook):
         self,
         spreadsheet_id: str,
         range_: str,
-        values: List,
+        values: list,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
         include_values_in_response: bool = False,
@@ -211,8 +211,8 @@ class GSheetsHook(GoogleBaseHook):
     def batch_update_values(
         self,
         spreadsheet_id: str,
-        ranges: List,
-        values: List,
+        ranges: list,
+        values: list,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
         include_values_in_response: bool = False,
@@ -270,7 +270,7 @@ class GSheetsHook(GoogleBaseHook):
         self,
         spreadsheet_id: str,
         range_: str,
-        values: List,
+        values: list,
         major_dimension: str = 'ROWS',
         value_input_option: str = 'RAW',
         insert_data_option: str = 'OVERWRITE',
@@ -379,7 +379,7 @@ class GSheetsHook(GoogleBaseHook):
         )
         return response
 
-    def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: Optional[List[str]] = None):
+    def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: list[str] | None = None):
         """
         Retrieves the sheet titles from a spreadsheet matching the given id and sheet filter.
 
@@ -400,7 +400,7 @@ class GSheetsHook(GoogleBaseHook):
             titles = [sh['properties']['title'] for sh in response['sheets']]
         return titles
 
-    def create_spreadsheet(self, spreadsheet: Dict[str, Any]) -> Dict[str, Any]:
+    def create_spreadsheet(self, spreadsheet: dict[str, Any]) -> dict[str, Any]:
         """
         Creates a spreadsheet, returning the newly created spreadsheet.
 

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 import os
@@ -21,7 +22,7 @@ import pickle
 import uuid
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from kubernetes.client import models as k8s
 
@@ -78,7 +79,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         res = remove_task_decorator(res, "@task.kubernetes")
         return res
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             script_filename = os.path.join(tmp_dir, 'script.py')
             py_source = self._get_python_source()
@@ -101,8 +102,8 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
 
 def kubernetes_task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: Optional[bool] = None,
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """Kubernetes operator decorator.

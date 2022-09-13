@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator for uploading local file(s) to GCS."""
+from __future__ import annotations
+
 import os
 from glob import glob
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -73,7 +75,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         mime_type='application/octet-stream',
         delegate_to=None,
         gzip=False,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -87,7 +89,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

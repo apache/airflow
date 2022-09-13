@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Language operators."""
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -73,13 +75,13 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     def __init__(
         self,
         *,
-        document: Union[dict, Document],
-        encoding_type: Optional[enums.EncodingType] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        document: dict | Document,
+        encoding_type: enums.EncodingType | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,7 +93,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -147,13 +149,13 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     def __init__(
         self,
         *,
-        document: Union[dict, Document],
-        encoding_type: Optional[enums.EncodingType] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        document: dict | Document,
+        encoding_type: enums.EncodingType | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -165,7 +167,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -224,13 +226,13 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
     def __init__(
         self,
         *,
-        document: Union[dict, Document],
-        encoding_type: Optional[enums.EncodingType] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        document: dict | Document,
+        encoding_type: enums.EncodingType | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -242,7 +244,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -294,12 +296,12 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
     def __init__(
         self,
         *,
-        document: Union[dict, Document],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
+        document: dict | Document,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -310,7 +312,7 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudNaturalLanguageHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

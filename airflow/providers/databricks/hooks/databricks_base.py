@@ -22,10 +22,12 @@ This hook enable the submitting and running of jobs to the Databricks platform. 
 operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
+from __future__ import annotations
+
 import copy
 import platform
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -95,7 +97,7 @@ class BaseDatabricksHook(BaseHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
-        retry_args: Optional[Dict[Any, Any]] = None,
+        retry_args: dict[Any, Any] | None = None,
         caller: str = "Unknown",
     ) -> None:
         super().__init__()
@@ -105,7 +107,7 @@ class BaseDatabricksHook(BaseHook):
             raise ValueError('Retry limit must be greater than or equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
-        self.aad_tokens: Dict[str, dict] = {}
+        self.aad_tokens: dict[str, dict] = {}
         self.aad_timeout_seconds = 10
         self.caller = caller
 
@@ -132,7 +134,7 @@ class BaseDatabricksHook(BaseHook):
         return self.databricks_conn
 
     @cached_property
-    def user_agent_header(self) -> Dict[str, str]:
+    def user_agent_header(self) -> dict[str, str]:
         return {'user-agent': self.user_agent_value}
 
     @cached_property
@@ -418,7 +420,7 @@ class BaseDatabricksHook(BaseHook):
         except (requests_exceptions.RequestException, ValueError) as e:
             raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
 
-    def _get_token(self, raise_error: bool = False) -> Optional[str]:
+    def _get_token(self, raise_error: bool = False) -> str | None:
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info(
                 'Using token auth. For security reasons, please set token in Password field instead of extra'
@@ -441,7 +443,7 @@ class BaseDatabricksHook(BaseHook):
 
         return None
 
-    async def _a_get_token(self, raise_error: bool = False) -> Optional[str]:
+    async def _a_get_token(self, raise_error: bool = False) -> str | None:
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info(
                 'Using token auth. For security reasons, please set token in Password field instead of extra'
@@ -469,8 +471,8 @@ class BaseDatabricksHook(BaseHook):
 
     def _do_api_call(
         self,
-        endpoint_info: Tuple[str, str],
-        json: Optional[Dict[str, Any]] = None,
+        endpoint_info: tuple[str, str],
+        json: dict[str, Any] | None = None,
         wrap_http_errors: bool = True,
     ):
         """
@@ -534,7 +536,7 @@ class BaseDatabricksHook(BaseHook):
             else:
                 raise e
 
-    async def _a_do_api_call(self, endpoint_info: Tuple[str, str], json: Optional[Dict[str, Any]] = None):
+    async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
         """
         Async version of `_do_api_call()`.
         :param endpoint_info: Tuple of method and endpoint
@@ -636,7 +638,7 @@ class _TokenAuth(AuthBase):
 class BearerAuth(aiohttp.BasicAuth):
     """aiohttp only ships BasicAuth, for Bearer auth we need a subclass of BasicAuth."""
 
-    def __new__(cls, token: str) -> 'BearerAuth':
+    def __new__(cls, token: str) -> BearerAuth:
         return super().__new__(cls, token)  # type: ignore
 
     def __init__(self, token: str) -> None:

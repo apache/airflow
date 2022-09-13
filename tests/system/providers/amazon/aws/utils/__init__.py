@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 import json
@@ -21,7 +22,6 @@ import logging
 import os
 from os.path import basename, splitext
 from time import sleep
-from typing import List, Optional, Tuple
 from uuid import uuid4
 
 import boto3
@@ -84,7 +84,7 @@ def _validate_env_id(env_id: str) -> str:
     return env_id.lower()
 
 
-def _fetch_from_ssm(key: str, test_name: Optional[str] = None) -> str:
+def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     """
     Test values are stored in the SSM Value as a JSON-encoded dict of key/value pairs.
 
@@ -121,8 +121,8 @@ class Variable:
         self,
         name: str,
         to_split: bool = False,
-        delimiter: Optional[str] = None,
-        test_name: Optional[str] = None,
+        delimiter: str | None = None,
+        test_name: str | None = None,
     ):
         self.name = name
         self.test_name = test_name
@@ -173,7 +173,7 @@ class SystemTestContextBuilder:
         self,
         variable_name: str,
         split_string: bool = False,
-        delimiter: Optional[str] = None,
+        delimiter: str | None = None,
         **kwargs,
     ):
         """Register a variable to fetch from environment or cloud parameter store"""
@@ -212,7 +212,7 @@ class SystemTestContextBuilder:
         return variable_fetcher
 
 
-def fetch_variable(key: str, default_value: Optional[str] = None, test_name: Optional[str] = None) -> str:
+def fetch_variable(key: str, default_value: str | None = None, test_name: str | None = None) -> str:
     """
     Given a Parameter name: first check for an existing Environment Variable,
     then check SSM for a value. If neither are available, fall back on the
@@ -224,7 +224,7 @@ def fetch_variable(key: str, default_value: Optional[str] = None, test_name: Opt
     :return: The value of the parameter.
     """
 
-    value: Optional[str] = os.getenv(key, _fetch_from_ssm(key, test_name)) or default_value
+    value: str | None = os.getenv(key, _fetch_from_ssm(key, test_name)) or default_value
     if not value:
         raise ValueError(NO_VALUE_MSG.format(key=key))
     return value
@@ -249,7 +249,7 @@ def set_env_id() -> str:
 
 
 def purge_logs(
-    test_logs: List[Tuple[str, Optional[str]]],
+    test_logs: list[tuple[str, str | None]],
     force_delete: bool = False,
     retry: bool = False,
     retry_times: int = 3,

@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Bigquery sensor."""
+from __future__ import annotations
+
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -67,8 +69,8 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -80,7 +82,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
@@ -135,8 +137,8 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         table_id: str,
         partition_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -149,7 +151,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
@@ -202,7 +204,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
         self.polling_interval = polling_interval
         self.gcp_conn_id = gcp_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
         self.defer(
             timeout=timedelta(seconds=self.timeout),
@@ -220,7 +222,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: Dict[str, Any], event: Optional[Dict[str, str]] = None) -> str:
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
         Callback for when the trigger fires - returns immediately.
         Relies on trigger to throw an exception, otherwise it assumes execution was

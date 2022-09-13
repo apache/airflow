@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains abstract operator that child classes implements
 COPY INTO <TABLE> SQL in Snowflake
 """
+from __future__ import annotations
 
-
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -73,23 +72,23 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        files: Optional[list] = None,
+        files: list | None = None,
         table: str,
         stage: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         file_format: str,
-        schema: Optional[str] = None,
-        columns_array: Optional[list] = None,
-        pattern: Optional[str] = None,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
+        schema: str | None = None,
+        columns_array: list | None = None,
+        pattern: str | None = None,
+        warehouse: str | None = None,
+        database: str | None = None,
         autocommit: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
-        role: Optional[str] = None,
-        authenticator: Optional[str] = None,
-        session_parameters: Optional[dict] = None,
-        copy_options: Optional[str] = None,
-        validation_mode: Optional[str] = None,
+        role: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
+        copy_options: str | None = None,
+        validation_mode: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)

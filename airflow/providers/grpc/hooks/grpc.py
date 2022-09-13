@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """GRPC Hook"""
-from typing import Any, Callable, Dict, Generator, List, Optional
+from __future__ import annotations
+
+from typing import Any, Callable, Generator
 
 import grpc
 from google import auth as google_auth
@@ -51,7 +52,7 @@ class GrpcHook(BaseHook):
     hook_name = 'GRPC Connection'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -72,8 +73,8 @@ class GrpcHook(BaseHook):
     def __init__(
         self,
         grpc_conn_id: str = default_conn_name,
-        interceptors: Optional[List[Callable]] = None,
-        custom_connection_func: Optional[Callable] = None,
+        interceptors: list[Callable] | None = None,
+        custom_connection_func: Callable | None = None,
     ) -> None:
         super().__init__()
         self.grpc_conn_id = grpc_conn_id
@@ -125,7 +126,7 @@ class GrpcHook(BaseHook):
         return channel
 
     def run(
-        self, stub_class: Callable, call_func: str, streaming: bool = False, data: Optional[dict] = None
+        self, stub_class: Callable, call_func: str, streaming: bool = False, data: dict | None = None
     ) -> Generator:
         """Call gRPC function and yield response to caller"""
         if data is None:

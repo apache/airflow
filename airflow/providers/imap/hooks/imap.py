@@ -20,11 +20,13 @@ This module provides everything to be able to search in mails for a specific att
 and also to download it.
 It uses the imaplib library that is already integrated in python 3.
 """
+from __future__ import annotations
+
 import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable, List, Optional, Tuple, Type, Union
+from typing import Any, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -51,15 +53,15 @@ class ImapHook(BaseHook):
     def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.imap_conn_id = imap_conn_id
-        self.mail_client: Optional[Union[imaplib.IMAP4_SSL, imaplib.IMAP4]] = None
+        self.mail_client: imaplib.IMAP4_SSL | imaplib.IMAP4 | None = None
 
-    def __enter__(self) -> 'ImapHook':
+    def __enter__(self) -> ImapHook:
         return self.get_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.mail_client.logout()
 
-    def get_conn(self) -> 'ImapHook':
+    def get_conn(self) -> ImapHook:
         """
         Login to the mail server.
 
@@ -76,8 +78,8 @@ class ImapHook(BaseHook):
 
         return self
 
-    def _build_client(self, conn: Connection) -> Union[imaplib.IMAP4_SSL, imaplib.IMAP4]:
-        IMAP: Union[Type[imaplib.IMAP4_SSL], Type[imaplib.IMAP4]]
+    def _build_client(self, conn: Connection) -> imaplib.IMAP4_SSL | imaplib.IMAP4:
+        IMAP: type[imaplib.IMAP4_SSL] | type[imaplib.IMAP4]
         if conn.extra_dejson.get('use_ssl', True):
             IMAP = imaplib.IMAP4_SSL
         else:
@@ -118,7 +120,7 @@ class ImapHook(BaseHook):
         mail_folder: str = 'INBOX',
         mail_filter: str = 'All',
         not_found_mode: str = 'raise',
-    ) -> List[Tuple]:
+    ) -> list[tuple]:
         """
         Retrieves mail's attachments in the mail folder by its name.
 
@@ -194,7 +196,7 @@ class ImapHook(BaseHook):
 
     def _retrieve_mails_attachments_by_name(
         self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
-    ) -> List:
+    ) -> list:
         if not self.mail_client:
             raise Exception("The 'mail_client' should be initialized before!")
 
@@ -232,13 +234,13 @@ class ImapHook(BaseHook):
 
     def _check_mail_body(
         self, response_mail_body: str, name: str, check_regex: bool, latest_only: bool
-    ) -> List[Tuple[Any, Any]]:
+    ) -> list[tuple[Any, Any]]:
         mail = Mail(response_mail_body)
         if mail.has_attachments():
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: List, local_output_directory: str) -> None:
+    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error('Can not create file because it is a symlink!')
@@ -291,7 +293,7 @@ class Mail(LoggingMixin):
 
     def get_attachments_by_name(
         self, name: str, check_regex: bool, find_first: bool = False
-    ) -> List[Tuple[Any, Any]]:
+    ) -> list[tuple[Any, Any]]:
         """
         Gets all attachments by name for the mail.
 
@@ -317,7 +319,7 @@ class Mail(LoggingMixin):
 
         return attachments
 
-    def _iterate_attachments(self) -> Iterable['MailPart']:
+    def _iterate_attachments(self) -> Iterable[MailPart]:
         for part in self.mail.walk():
             mail_part = MailPart(part)
             if mail_part.is_attachment():
@@ -343,7 +345,7 @@ class MailPart:
         """
         return self.part.get_content_maintype() != 'multipart' and self.part.get('Content-Disposition')
 
-    def has_matching_name(self, name: str) -> Optional[Tuple[Any, Any]]:
+    def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
         Checks if the given name matches the part's name.
 
@@ -363,7 +365,7 @@ class MailPart:
         """
         return self.part.get_filename() == name
 
-    def get_file(self) -> Tuple:
+    def get_file(self) -> tuple:
         """
         Gets the file including name and payload.
 

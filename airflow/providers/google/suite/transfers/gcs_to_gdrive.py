@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage to Google Drive transfer operator."""
+from __future__ import annotations
+
 import tempfile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -90,11 +92,11 @@ class GCSToGoogleDriveOperator(BaseOperator):
         *,
         source_bucket: str,
         source_object: str,
-        destination_object: Optional[str] = None,
+        destination_object: str | None = None,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -109,7 +111,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gcs_hook = None  # type: Optional[GCSHook]
         self.gdrive_hook = None  # type: Optional[GoogleDriveHook]
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
 
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

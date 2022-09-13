@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """This module contains the AWS DynamoDB hook"""
-from typing import Iterable, List, Optional
+from __future__ import annotations
+
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -39,7 +39,7 @@ class DynamoDBHook(AwsBaseHook):
     """
 
     def __init__(
-        self, *args, table_keys: Optional[List] = None, table_name: Optional[str] = None, **kwargs
+        self, *args, table_keys: list | None = None, table_name: str | None = None, **kwargs
     ) -> None:
         self.table_keys = table_keys
         self.table_name = table_name

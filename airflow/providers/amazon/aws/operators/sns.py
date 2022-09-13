@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """Publish message to SNS queue"""
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
@@ -51,8 +52,8 @@ class SnsPublishOperator(BaseOperator):
         *,
         target_arn: str,
         message: str,
-        subject: Optional[str] = None,
-        message_attributes: Optional[dict] = None,
+        subject: str | None = None,
+        message_attributes: dict | None = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
@@ -63,7 +64,7 @@ class SnsPublishOperator(BaseOperator):
         self.message_attributes = message_attributes
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         sns = SnsHook(aws_conn_id=self.aws_conn_id)
 
         self.log.info(

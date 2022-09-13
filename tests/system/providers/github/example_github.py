@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from github import GithubException
 
@@ -52,7 +53,7 @@ with DAG(
 
     # [START howto_sensor_github]
 
-    def tag_checker(repo: Any, tag_name: str) -> Optional[bool]:
+    def tag_checker(repo: Any, tag_name: str) -> bool | None:
         result = None
         try:
             if repo is not None and tag_name is not None:

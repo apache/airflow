@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Sequence, Tuple, Union
+from typing import Sequence
 from unittest import TestCase, mock
 
 from google.api_core.exceptions import AlreadyExists
@@ -53,9 +54,9 @@ TEST_PROJECT_ID: str = "example_id"
 TEST_LOCATION: str = "en-west-3"
 TEST_ENTRY_ID: str = "test-entry-id"
 TEST_TAG_ID: str = "test-tag-id"
-TEST_RETRY: Union[Retry, _MethodDefault] = Retry()
+TEST_RETRY: Retry | _MethodDefault = Retry()
 TEST_TIMEOUT: float = 0.5
-TEST_METADATA: Sequence[Tuple[str, str]] = []
+TEST_METADATA: Sequence[tuple[str, str]] = []
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_IMPERSONATION_CHAIN: Sequence[str] = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_ENTRY_GROUP_ID: str = "test-entry-group-id"
@@ -65,15 +66,15 @@ TEST_TAG_TEMPLATE_NAME: str = "test-tag-template-field-name"
 TEST_FORCE: bool = False
 TEST_READ_MASK: FieldMask = FieldMask(paths=["name"])
 TEST_RESOURCE: str = "test-resource"
-TEST_OPTIONS_: Dict = {}
+TEST_OPTIONS_: dict = {}
 TEST_PAGE_SIZE: int = 50
 TEST_LINKED_RESOURCE: str = "test-linked-resource"
 TEST_SQL_RESOURCE: str = "test-sql-resource"
 TEST_NEW_TAG_TEMPLATE_FIELD_ID: str = "test-new-tag-template-field-id"
-TEST_SCOPE: Dict = dict(include_project_ids=["example-scope-project"])
+TEST_SCOPE: dict = dict(include_project_ids=["example-scope-project"])
 TEST_QUERY: str = "test-query"
 TEST_ORDER_BY: str = "test-order-by"
-TEST_UPDATE_MASK: Dict = {"fields": ["name"]}
+TEST_UPDATE_MASK: dict = {"fields": ["name"]}
 TEST_ENTRY_PATH: str = (
     f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}"
     f"/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}"
@@ -90,7 +91,7 @@ TEST_TAG_PATH: str = (
 )
 
 TEST_ENTRY: Entry = Entry(name=TEST_ENTRY_PATH)
-TEST_ENTRY_DICT: Dict = {
+TEST_ENTRY_DICT: dict = {
     'description': '',
     'display_name': '',
     'linked_resource': '',
@@ -99,18 +100,18 @@ TEST_ENTRY_DICT: Dict = {
     'name': TEST_ENTRY_PATH,
 }
 TEST_ENTRY_GROUP: EntryGroup = EntryGroup(name=TEST_ENTRY_GROUP_PATH)
-TEST_ENTRY_GROUP_DICT: Dict = {'description': '', 'display_name': '', 'name': TEST_ENTRY_GROUP_PATH}
+TEST_ENTRY_GROUP_DICT: dict = {'description': '', 'display_name': '', 'name': TEST_ENTRY_GROUP_PATH}
 TEST_TAG: Tag = Tag(name=TEST_TAG_PATH)
-TEST_TAG_DICT: Dict = {'fields': {}, 'name': TEST_TAG_PATH, 'template': '', 'template_display_name': ''}
+TEST_TAG_DICT: dict = {'fields': {}, 'name': TEST_TAG_PATH, 'template': '', 'template_display_name': ''}
 TEST_TAG_TEMPLATE: TagTemplate = TagTemplate(name=TEST_TAG_TEMPLATE_PATH)
-TEST_TAG_TEMPLATE_DICT: Dict = {
+TEST_TAG_TEMPLATE_DICT: dict = {
     'display_name': '',
     'fields': {},
     'is_publicly_readable': False,
     'name': TEST_TAG_TEMPLATE_PATH,
 }
 TEST_TAG_TEMPLATE_FIELD: TagTemplateField = TagTemplateField(name=TEST_TAG_TEMPLATE_FIELD_ID)
-TEST_TAG_TEMPLATE_FIELD_DICT: Dict = {
+TEST_TAG_TEMPLATE_FIELD_DICT: dict = {
     'description': '',
     'display_name': '',
     'is_required': False,

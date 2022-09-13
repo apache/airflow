@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Tasks links."""
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -37,7 +39,7 @@ class CloudTasksQueueLink(BaseGoogleLink):
     format_str = CLOUD_TASKS_QUEUE_LINK
 
     @staticmethod
-    def extract_parts(queue_name: Optional[str]):
+    def extract_parts(queue_name: str | None):
         """
         Extract project_id, location and queue id from queue name:
         projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID
@@ -50,8 +52,8 @@ class CloudTasksQueueLink(BaseGoogleLink):
     @staticmethod
     def persist(
         operator_instance: BaseOperator,
-        context: "Context",
-        queue_name: Optional[str],
+        context: Context,
+        queue_name: str | None,
     ):
         project_id, location, queue_id = CloudTasksQueueLink.extract_parts(queue_name)
         operator_instance.xcom_push(
@@ -71,8 +73,8 @@ class CloudTasksLink(BaseGoogleLink):
     @staticmethod
     def persist(
         operator_instance: BaseOperator,
-        context: "Context",
-        project_id: Optional[str],
+        context: Context,
+        project_id: str | None,
     ):
         operator_instance.xcom_push(
             context,

@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Cloud Life Sciences service"""
+from __future__ import annotations
 
 import time
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Sequence
 
 import google.api_core.path_template
 from googleapiclient.discovery import build
@@ -58,8 +59,8 @@ class LifeSciencesHook(GoogleBaseHook):
         self,
         api_version: str = "v2beta",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,

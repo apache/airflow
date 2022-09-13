@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataflow sensor."""
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, Set, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -67,12 +69,12 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        expected_statuses: Union[Set[str], str],
-        project_id: Optional[str] = None,
+        expected_statuses: set[str] | str,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -85,9 +87,9 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info(
             "Waiting for job %s to be in one of the states: %s.",
             self.job_id,
@@ -156,11 +158,11 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         job_id: str,
         callback: Callable[[dict], bool],
         fail_on_terminal_state: bool = True,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -172,9 +174,9 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -241,11 +243,11 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         job_id: str,
         callback: Callable,
         fail_on_terminal_state: bool = True,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -257,9 +259,9 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -326,11 +328,11 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         job_id: str,
         callback: Callable,
         fail_on_terminal_state: bool = True,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -342,9 +344,9 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

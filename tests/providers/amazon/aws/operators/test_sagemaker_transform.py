@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
@@ -27,13 +27,13 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ['Transform', 'TransformResources', 'InstanceCount'],
     ['Transform', 'MaxConcurrentTransforms'],
     ['Transform', 'MaxPayloadInMB'],
 ]
 
-CREATE_TRANSFORM_PARAMS: Dict = {
+CREATE_TRANSFORM_PARAMS: dict = {
     'TransformJobName': 'job_name',
     'ModelName': 'model_name',
     'MaxConcurrentTransforms': '12',
@@ -44,13 +44,13 @@ CREATE_TRANSFORM_PARAMS: Dict = {
     'TransformResources': {'InstanceType': 'ml.m4.xlarge', 'InstanceCount': '3'},
 }
 
-CREATE_MODEL_PARAMS: Dict = {
+CREATE_MODEL_PARAMS: dict = {
     'ModelName': 'model_name',
     'PrimaryContainer': {'Image': 'test_image', 'ModelDataUrl': 'output_path'},
     'ExecutionRoleArn': 'arn:aws:iam:role/test-role',
 }
 
-CONFIG: Dict = {'Model': CREATE_MODEL_PARAMS, 'Transform': CREATE_TRANSFORM_PARAMS}
+CONFIG: dict = {'Model': CREATE_MODEL_PARAMS, 'Transform': CREATE_TRANSFORM_PARAMS}
 
 
 class TestSageMakerTransformOperator(unittest.TestCase):

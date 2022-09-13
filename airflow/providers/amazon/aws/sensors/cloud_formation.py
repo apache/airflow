@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -49,7 +51,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status == 'CREATE_COMPLETE':
             return True
@@ -85,7 +87,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         *,
         stack_name: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,7 +95,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         self.region_name = region_name
         self.stack_name = stack_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status in ('DELETE_COMPLETE', None):
             return True

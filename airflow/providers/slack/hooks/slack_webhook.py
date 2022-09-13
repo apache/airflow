@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import warnings
-from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -87,7 +87,7 @@ class SlackWebhookHook(HttpHook):
         self.link_names = link_names
         self.proxy = proxy
 
-    def _get_token(self, token: str, http_conn_id: Optional[str]) -> str:
+    def _get_token(self, token: str, http_conn_id: str | None) -> str:
         """
         Given either a manually set token or a conn_id, return the webhook_token to use.
 

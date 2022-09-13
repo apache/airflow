@@ -15,15 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from typing import Union
+from __future__ import annotations
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 
 
-def normalise_json_content(content, json_path: str = 'json') -> Union[str, bool, list, dict]:
+def normalise_json_content(content, json_path: str = 'json') -> str | bool | list | dict:
     """
     Normalize content or all values of content if it is a dict to a string. The
     function will throw if content contains non-string or non-numeric non-boolean types.

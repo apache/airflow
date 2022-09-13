@@ -33,6 +33,7 @@ https://developers.google.com/youtube/v3/docs/videos/list#parameters for more in
 YOUTUBE_CONN_ID is optional for public videos. It does only need to authenticate when there are private videos
 on a YouTube channel you want to retrieve.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv

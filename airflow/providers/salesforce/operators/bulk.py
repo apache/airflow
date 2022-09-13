@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
@@ -76,7 +78,7 @@ class SalesforceBulkOperator(BaseOperator):
                 f"Available operations are {self.available_operations}."
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Makes an HTTP request to Salesforce Bulk API.
 

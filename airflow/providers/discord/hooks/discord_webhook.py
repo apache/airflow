@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -54,13 +55,13 @@ class DiscordWebhookHook(HttpHook):
 
     def __init__(
         self,
-        http_conn_id: Optional[str] = None,
-        webhook_endpoint: Optional[str] = None,
+        http_conn_id: str | None = None,
+        webhook_endpoint: str | None = None,
         message: str = "",
-        username: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        username: str | None = None,
+        avatar_url: str | None = None,
         tts: bool = False,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -73,7 +74,7 @@ class DiscordWebhookHook(HttpHook):
         self.tts = tts
         self.proxy = proxy
 
-    def _get_webhook_endpoint(self, http_conn_id: Optional[str], webhook_endpoint: Optional[str]) -> str:
+    def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
         """
         Given a Discord http_conn_id, return the default webhook endpoint or override if a
         webhook_endpoint is manually supplied.
@@ -108,7 +109,7 @@ class DiscordWebhookHook(HttpHook):
 
         :return: Discord payload (str) to send
         """
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
 
         if self.username:
             payload['username'] = self.username

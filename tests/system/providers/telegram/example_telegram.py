@@ -18,6 +18,7 @@
 """
 Example use of Telegram operator.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

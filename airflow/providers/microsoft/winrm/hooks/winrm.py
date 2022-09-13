@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Hook for winrm remote execution."""
-from typing import Optional
+from __future__ import annotations
 
 from winrm.protocol import Protocol
 
@@ -76,24 +75,24 @@ class WinRMHook(BaseHook):
 
     def __init__(
         self,
-        ssh_conn_id: Optional[str] = None,
-        endpoint: Optional[str] = None,
-        remote_host: Optional[str] = None,
+        ssh_conn_id: str | None = None,
+        endpoint: str | None = None,
+        remote_host: str | None = None,
         remote_port: int = 5985,
         transport: str = 'plaintext',
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        username: str | None = None,
+        password: str | None = None,
         service: str = 'HTTP',
-        keytab: Optional[str] = None,
-        ca_trust_path: Optional[str] = None,
-        cert_pem: Optional[str] = None,
-        cert_key_pem: Optional[str] = None,
+        keytab: str | None = None,
+        ca_trust_path: str | None = None,
+        cert_pem: str | None = None,
+        cert_key_pem: str | None = None,
         server_cert_validation: str = 'validate',
         kerberos_delegation: bool = False,
         read_timeout_sec: int = 30,
         operation_timeout_sec: int = 20,
-        kerberos_hostname_override: Optional[str] = None,
-        message_encryption: Optional[str] = 'auto',
+        kerberos_hostname_override: str | None = None,
+        message_encryption: str | None = 'auto',
         credssp_disable_tlsv1_2: bool = False,
         send_cbt: bool = True,
     ) -> None:

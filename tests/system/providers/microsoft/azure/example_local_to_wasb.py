@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -24,6 +22,10 @@ from datetime import datetime
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
+
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 
 PATH_TO_UPLOAD_FILE = os.environ.get('AZURE_PATH_TO_UPLOAD_FILE', 'example-text.txt')
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

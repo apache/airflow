@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google BigQuery Data Transfer Service sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -76,16 +78,16 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         *,
         run_id: str,
         transfer_config_id: str,
-        expected_statuses: Union[
-            Set[Union[str, TransferState, int]], str, TransferState, int
-        ] = TransferState.SUCCEEDED,
-        project_id: Optional[str] = None,
+        expected_statuses: (
+            set[str | TransferState | int] | str | TransferState | int
+        ) = TransferState.SUCCEEDED,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        request_timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-        location: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        request_timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -100,7 +102,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.location = location
 
-    def _normalize_state_list(self, states) -> Set[TransferState]:
+    def _normalize_state_list(self, states) -> set[TransferState]:
         states = {states} if isinstance(states, (str, TransferState, int)) else states
         result = set()
         for state in states:
@@ -120,7 +122,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
                 )
         return result
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

@@ -17,6 +17,8 @@
 """
 Example Airflow DAG that shows how to use Google Analytics 360.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

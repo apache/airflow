@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataprep hook."""
+from __future__ import annotations
+
 import json
 import os
-from typing import Any, Dict
+from typing import Any
 
 import requests
 from requests import HTTPError
@@ -51,7 +53,7 @@ class GoogleDataprepHook(BaseHook):
         self._base_url = extra_dejson.get("extra__dataprep__base_url", "https://api.clouddataprep.com")
 
     @property
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._token}",
@@ -59,7 +61,7 @@ class GoogleDataprepHook(BaseHook):
         return headers
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
-    def get_jobs_for_job_group(self, job_id: int) -> Dict[str, Any]:
+    def get_jobs_for_job_group(self, job_id: int) -> dict[str, Any]:
         """
         Get information about the batch jobs within a Cloud Dataprep job.
 
@@ -72,7 +74,7 @@ class GoogleDataprepHook(BaseHook):
         return response.json()
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
-    def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> Dict[str, Any]:
+    def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> dict[str, Any]:
         """
         Get the specified job group.
         A job group is a job that is executed from a specific node in a flow.
@@ -81,7 +83,7 @@ class GoogleDataprepHook(BaseHook):
         :param embed: Comma-separated list of objects to pull in as part of the response
         :param include_deleted: if set to "true", will include deleted objects
         """
-        params: Dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
+        params: dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
         endpoint_path = f"v4/jobGroups/{job_group_id}"
         url: str = os.path.join(self._base_url, endpoint_path)
         response = requests.get(url, headers=self._headers, params=params)
@@ -89,7 +91,7 @@ class GoogleDataprepHook(BaseHook):
         return response.json()
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
-    def run_job_group(self, body_request: dict) -> Dict[str, Any]:
+    def run_job_group(self, body_request: dict) -> dict[str, Any]:
         """
         Creates a ``jobGroup``, which launches the specified job as the authenticated user.
         This performs the same action as clicking on the Run Job button in the application.

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
@@ -40,7 +41,7 @@ class AzureBaseHook(BaseHook):
     hook_name = 'Azure'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -56,7 +57,7 @@ class AzureBaseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         import json
 

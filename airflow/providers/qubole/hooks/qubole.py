@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Qubole hook"""
+from __future__ import annotations
+
 import datetime
 import logging
 import os
 import pathlib
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from qds_sdk.commands import (
     Command,
@@ -86,7 +87,7 @@ def get_options_list(command_class) -> list:
     return filter_options(options_list)
 
 
-def build_command_args() -> Tuple[Dict[str, list], list]:
+def build_command_args() -> tuple[dict[str, list], list]:
     """Build Command argument from command and options"""
     command_args, hyphen_args = {}, set()
     for cmd in COMMAND_CLASSES:
@@ -120,7 +121,7 @@ class QuboleHook(BaseHook):
     hook_name = 'Qubole'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['login', 'schema', 'port', 'extra'],
@@ -139,8 +140,8 @@ class QuboleHook(BaseHook):
         self.dag_id = kwargs['dag'].dag_id
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
-        self.cmd: Optional[Command] = None
-        self.task_instance: Optional["TaskInstance"] = None
+        self.cmd: Command | None = None
+        self.task_instance: TaskInstance | None = None
 
     @staticmethod
     def handle_failure_retry(context) -> None:
@@ -158,7 +159,7 @@ class QuboleHook(BaseHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Execute call"""
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
@@ -270,7 +271,7 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(cmd_id)
 
-    def create_cmd_args(self, context) -> List[str]:
+    def create_cmd_args(self, context) -> list[str]:
         """Creates command arguments"""
         args = []
         cmd_type = self.kwargs['command_type']

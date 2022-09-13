@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Dataproc Job sensor."""
+from __future__ import annotations
+
 # pylint: disable=C0302
 import time
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
@@ -51,9 +53,9 @@ class DataprocJobSensor(BaseSensorOperator):
         *,
         dataproc_job_id: str,
         region: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        wait_timeout: Optional[int] = None,
+        wait_timeout: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,16 +64,16 @@ class DataprocJobSensor(BaseSensorOperator):
         self.dataproc_job_id = dataproc_job_id
         self.region = region
         self.wait_timeout = wait_timeout
-        self.start_sensor_time: Optional[float] = None
+        self.start_sensor_time: float | None = None
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self.start_sensor_time = time.monotonic()
         super().execute(context)
 
     def _duration(self):
         return time.monotonic() - self.start_sensor_time
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         if self.wait_timeout:
             try:

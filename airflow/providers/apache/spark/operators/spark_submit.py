@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -94,31 +95,31 @@ class SparkSubmitOperator(BaseOperator):
         self,
         *,
         application: str = '',
-        conf: Optional[Dict[str, Any]] = None,
+        conf: dict[str, Any] | None = None,
         conn_id: str = 'spark_default',
-        files: Optional[str] = None,
-        py_files: Optional[str] = None,
-        archives: Optional[str] = None,
-        driver_class_path: Optional[str] = None,
-        jars: Optional[str] = None,
-        java_class: Optional[str] = None,
-        packages: Optional[str] = None,
-        exclude_packages: Optional[str] = None,
-        repositories: Optional[str] = None,
-        total_executor_cores: Optional[int] = None,
-        executor_cores: Optional[int] = None,
-        executor_memory: Optional[str] = None,
-        driver_memory: Optional[str] = None,
-        keytab: Optional[str] = None,
-        principal: Optional[str] = None,
-        proxy_user: Optional[str] = None,
+        files: str | None = None,
+        py_files: str | None = None,
+        archives: str | None = None,
+        driver_class_path: str | None = None,
+        jars: str | None = None,
+        java_class: str | None = None,
+        packages: str | None = None,
+        exclude_packages: str | None = None,
+        repositories: str | None = None,
+        total_executor_cores: int | None = None,
+        executor_cores: int | None = None,
+        executor_memory: str | None = None,
+        driver_memory: str | None = None,
+        keytab: str | None = None,
+        principal: str | None = None,
+        proxy_user: str | None = None,
         name: str = 'arrow-spark',
-        num_executors: Optional[int] = None,
+        num_executors: int | None = None,
         status_poll_interval: int = 1,
-        application_args: Optional[List[Any]] = None,
-        env_vars: Optional[Dict[str, Any]] = None,
+        application_args: list[Any] | None = None,
+        env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
-        spark_binary: Optional[str] = None,
+        spark_binary: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -147,10 +148,10 @@ class SparkSubmitOperator(BaseOperator):
         self._env_vars = env_vars
         self._verbose = verbose
         self._spark_binary = spark_binary
-        self._hook: Optional[SparkSubmitHook] = None
+        self._hook: SparkSubmitHook | None = None
         self._conn_id = conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job"""
         if self._hook is None:
             self._hook = self._get_hook()

@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """MsSQL to GCS operator."""
+from __future__ import annotations
+
 import datetime
 import decimal
-from typing import Dict
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -72,7 +73,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         return {
             'name': field[0].replace(" ", "_"),
             'type': self.type_map.get(field[1], "STRING"),

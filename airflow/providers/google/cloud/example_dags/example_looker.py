@@ -19,6 +19,7 @@
 Example Airflow DAG that show how to use various Looker
 operators to submit PDT materialization job and manage it.
 """
+from __future__ import annotations
 
 from datetime import datetime
 

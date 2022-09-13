@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -84,16 +86,16 @@ class RedshiftToS3Operator(BaseOperator):
         *,
         s3_bucket: str,
         s3_key: str,
-        schema: Optional[str] = None,
-        table: Optional[str] = None,
-        select_query: Optional[str] = None,
+        schema: str | None = None,
+        table: str | None = None,
+        select_query: str | None = None,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[bool, str]] = None,
-        unload_options: Optional[List] = None,
+        verify: bool | str | None = None,
+        unload_options: list | None = None,
         autocommit: bool = False,
         include_header: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
         **kwargs,
     ) -> None:
@@ -136,7 +138,7 @@ class RedshiftToS3Operator(BaseOperator):
                     {unload_options};
         """
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
         if conn.extra_dejson.get('role_arn', False):

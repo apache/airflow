@@ -18,6 +18,7 @@
 This module is deprecated.
 Please use :mod:`airflow.providers.microsoft.azure.operators.container_instances`.
 """
+from __future__ import annotations
 
 import warnings
 

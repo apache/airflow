@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Classes for interacting with Kubernetes API"""
+from __future__ import annotations
 
 import warnings
 

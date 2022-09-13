@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Stackdriver links."""
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -39,8 +41,8 @@ class StackdriverNotificationsLink(BaseGoogleLink):
     @staticmethod
     def persist(
         operator_instance: BaseOperator,
-        context: "Context",
-        project_id: Optional[str],
+        context: Context,
+        project_id: str | None,
     ):
         operator_instance.xcom_push(
             context,
@@ -59,8 +61,8 @@ class StackdriverPoliciesLink(BaseGoogleLink):
     @staticmethod
     def persist(
         operator_instance: BaseOperator,
-        context: "Context",
-        project_id: Optional[str],
+        context: Context,
+        project_id: str | None,
     ):
         operator_instance.xcom_push(
             context,

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
 
 import watchtower
 
@@ -38,7 +39,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param filename_template: template for file name (local storage) or log stream name (remote)
     """
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str | None = None):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 

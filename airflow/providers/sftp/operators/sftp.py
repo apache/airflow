@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP operator."""
+from __future__ import annotations
+
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -79,10 +81,10 @@ class SFTPOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ssh_hook: Optional[SSHHook] = None,
-        sftp_hook: Optional[SFTPHook] = None,
-        ssh_conn_id: Optional[str] = None,
-        remote_host: Optional[str] = None,
+        ssh_hook: SSHHook | None = None,
+        sftp_hook: SFTPHook | None = None,
+        ssh_conn_id: str | None = None,
+        remote_host: str | None = None,
         local_filepath: str,
         remote_filepath: str,
         operation: str = SFTPOperation.PUT,
@@ -127,7 +129,7 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)
 
-    def execute(self, context: Any) -> Optional[str]:
+    def execute(self, context: Any) -> str | None:
         file_msg = None
         try:
             if self.ssh_conn_id:

@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataform sensor."""
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Set, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
@@ -63,11 +65,11 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         region: str,
         repository_id: str,
         workflow_invocation_id: str,
-        expected_statuses: Union[Set[int], int],
-        failure_statuses: Optional[Iterable[int]] = None,
+        expected_statuses: set[int] | int,
+        failure_statuses: Iterable[int] | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -82,9 +84,9 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook: Optional[DataformHook] = None
+        self.hook: DataformHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

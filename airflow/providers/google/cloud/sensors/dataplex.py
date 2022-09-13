@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Google Dataplex sensors."""
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -73,11 +74,11 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         lake_id: str,
         dataplex_task_id: str,
         api_version: str = "v1",
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -93,7 +94,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("Waiting for task %s to be %s", self.dataplex_task_id, TaskState.ACTIVE)
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,

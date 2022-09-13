@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
@@ -28,12 +28,12 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointOperator
 
-CREATE_MODEL_PARAMS: Dict = {
+CREATE_MODEL_PARAMS: dict = {
     'ModelName': 'model_name',
     'PrimaryContainer': {'Image': 'image_name', 'ModelDataUrl': 'output_path'},
     'ExecutionRoleArn': 'arn:aws:iam:role/test-role',
 }
-CREATE_ENDPOINT_CONFIG_PARAMS: Dict = {
+CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
     'EndpointConfigName': 'config_name',
     'ProductionVariants': [
         {
@@ -44,15 +44,15 @@ CREATE_ENDPOINT_CONFIG_PARAMS: Dict = {
         }
     ],
 }
-CREATE_ENDPOINT_PARAMS: Dict = {'EndpointName': 'endpoint_name', 'EndpointConfigName': 'config_name'}
+CREATE_ENDPOINT_PARAMS: dict = {'EndpointName': 'endpoint_name', 'EndpointConfigName': 'config_name'}
 
-CONFIG: Dict = {
+CONFIG: dict = {
     'Model': CREATE_MODEL_PARAMS,
     'EndpointConfig': CREATE_ENDPOINT_CONFIG_PARAMS,
     'Endpoint': CREATE_ENDPOINT_PARAMS,
 }
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']]
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']]
 
 
 class TestSageMakerEndpointOperator(unittest.TestCase):

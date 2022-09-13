@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """This module contains Azure Data Explorer operators"""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from azure.kusto.data._models import KustoResultTable
 
@@ -51,7 +51,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         *,
         query: str,
         database: str,
-        options: Optional[dict] = None,
+        options: dict | None = None,
         azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
         **kwargs,
     ) -> None:
@@ -65,7 +65,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Returns new instance of AzureDataExplorerHook"""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    def execute(self, context: "Context") -> Union[KustoResultTable, str]:
+    def execute(self, context: Context) -> KustoResultTable | str:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
         Returns `PrimaryResult` of Query v2 HTTP response contents

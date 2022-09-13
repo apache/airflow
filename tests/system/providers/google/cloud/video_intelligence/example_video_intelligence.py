@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that demonstrates operators for the Google Cloud Video Intelligence service in the Google
 Cloud Platform.
@@ -24,6 +23,8 @@ This DAG relies on the following OS environment variables:
 
 * BUCKET_NAME - Google Cloud Storage bucket where the file exists.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

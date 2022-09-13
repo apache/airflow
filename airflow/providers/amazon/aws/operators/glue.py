@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os.path
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
@@ -72,17 +73,17 @@ class GlueJobOperator(BaseOperator):
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: Optional[str] = None,
-        concurrent_run_limit: Optional[int] = None,
-        script_args: Optional[dict] = None,
+        script_location: str | None = None,
+        concurrent_run_limit: int | None = None,
+        script_args: dict | None = None,
         retry_limit: int = 0,
-        num_of_dpus: Optional[int] = None,
+        num_of_dpus: int | None = None,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
-        s3_bucket: Optional[str] = None,
-        iam_role_name: Optional[str] = None,
-        create_job_kwargs: Optional[dict] = None,
-        run_job_kwargs: Optional[dict] = None,
+        region_name: str | None = None,
+        s3_bucket: str | None = None,
+        iam_role_name: str | None = None,
+        create_job_kwargs: dict | None = None,
+        run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
         verbose: bool = False,
         **kwargs,
@@ -106,7 +107,7 @@ class GlueJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Executes AWS Glue Job from Airflow
 

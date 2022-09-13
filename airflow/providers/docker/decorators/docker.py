@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import inspect
@@ -21,7 +22,7 @@ import os
 import pickle
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
 
@@ -105,7 +106,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             f'{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out\''
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             input_filename = os.path.join(tmp_dir, 'script.in')
             script_filename = os.path.join(tmp_dir, 'script.py')
@@ -147,10 +148,10 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
 
 def docker_task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: Optional[bool] = None,
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
     **kwargs,
-) -> "TaskDecorator":
+) -> TaskDecorator:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
