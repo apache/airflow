@@ -221,7 +221,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
     def test_should_respond_200_with_task_state_in_deferred(self, session):
         now = pendulum.now('UTC')
-        now_iso = now.isoformat()
         ti = self.create_task_instances(
             session, task_instances=[{"state": State.DEFERRED}], update_extras=True
         )[0]
