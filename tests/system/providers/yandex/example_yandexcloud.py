@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Optional
 
 import yandex.cloud.dataproc.v1.cluster_pb2 as cluster_pb
 import yandex.cloud.dataproc.v1.cluster_service_pb2 as cluster_service_pb
@@ -87,16 +88,16 @@ def create_cluster_request(
 
 @task
 def create_cluster(
-    yandex_conn_id: Optional[str] = None,
-    folder_id: Optional[str] = None,
-    network_id: Optional[str] = None,
-    subnet_id: Optional[str] = None,
+    yandex_conn_id: str | None = None,
+    folder_id: str | None = None,
+    network_id: str | None = None,
+    subnet_id: str | None = None,
     zone: str = YC_ZONE_NAME,
-    service_account_id: Optional[str] = None,
-    ssh_public_key: Optional[str] = None,
+    service_account_id: str | None = None,
+    ssh_public_key: str | None = None,
     *,
-    dag: Optional[DAG] = None,
-    ts_nodash: Optional[str] = None,
+    dag: DAG | None = None,
+    ts_nodash: str | None = None,
 ) -> str:
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
     folder_id = folder_id or hook.default_folder_id
@@ -131,7 +132,7 @@ def create_cluster(
 @task
 def run_spark_job(
     cluster_id: str,
-    yandex_conn_id: Optional[str] = None,
+    yandex_conn_id: str | None = None,
 ):
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
 
@@ -154,7 +155,7 @@ def run_spark_job(
 @task(trigger_rule='all_done')
 def delete_cluster(
     cluster_id: str,
-    yandex_conn_id: Optional[str] = None,
+    yandex_conn_id: str | None = None,
 ):
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
 

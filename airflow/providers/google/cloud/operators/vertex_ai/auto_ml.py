@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Vertex AI operators."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -44,18 +44,18 @@ class AutoMLTrainingJobBaseOperator(BaseOperator):
         project_id: str,
         region: str,
         display_name: str,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
         # RUN
-        training_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
+        training_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
         sync: bool = True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -102,24 +102,24 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         target_column: str,
         time_column: str,
         time_series_identifier_column: str,
-        unavailable_at_forecast_columns: List[str],
-        available_at_forecast_columns: List[str],
+        unavailable_at_forecast_columns: list[str],
+        available_at_forecast_columns: list[str],
         forecast_horizon: int,
         data_granularity_unit: str,
         data_granularity_count: int,
-        optimization_objective: Optional[str] = None,
-        column_specs: Optional[Dict[str, str]] = None,
-        column_transformations: Optional[List[Dict[str, Dict[str, str]]]] = None,
-        validation_fraction_split: Optional[float] = None,
-        predefined_split_column_name: Optional[str] = None,
-        weight_column: Optional[str] = None,
-        time_series_attribute_columns: Optional[List[str]] = None,
-        context_window: Optional[int] = None,
+        optimization_objective: str | None = None,
+        column_specs: dict[str, str] | None = None,
+        column_transformations: list[dict[str, dict[str, str]]] | None = None,
+        validation_fraction_split: float | None = None,
+        predefined_split_column_name: str | None = None,
+        weight_column: str | None = None,
+        time_series_attribute_columns: list[str] | None = None,
+        context_window: int | None = None,
         export_evaluated_data_items: bool = False,
-        export_evaluated_data_items_bigquery_destination_uri: Optional[str] = None,
+        export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
-        quantiles: Optional[List[float]] = None,
-        validation_options: Optional[str] = None,
+        quantiles: list[float] | None = None,
+        validation_options: str | None = None,
         budget_milli_node_hours: int = 1000,
         **kwargs,
     ) -> None:
@@ -152,7 +152,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.validation_options = validation_options
         self.budget_milli_node_hours = budget_milli_node_hours
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -221,12 +221,12 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         prediction_type: str = "classification",
         multi_label: bool = False,
         model_type: str = "CLOUD",
-        base_model: Optional[Model] = None,
-        validation_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        budget_milli_node_hours: Optional[int] = None,
+        base_model: Model | None = None,
+        validation_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        budget_milli_node_hours: int | None = None,
         disable_early_stopping: bool = False,
         **kwargs,
     ) -> None:
@@ -243,7 +243,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.budget_milli_node_hours = budget_milli_node_hours
         self.disable_early_stopping = disable_early_stopping
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -295,19 +295,19 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         dataset_id: str,
         target_column: str,
         optimization_prediction_type: str,
-        optimization_objective: Optional[str] = None,
-        column_specs: Optional[Dict[str, str]] = None,
-        column_transformations: Optional[List[Dict[str, Dict[str, str]]]] = None,
-        optimization_objective_recall_value: Optional[float] = None,
-        optimization_objective_precision_value: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        weight_column: Optional[str] = None,
+        optimization_objective: str | None = None,
+        column_specs: dict[str, str] | None = None,
+        column_transformations: list[dict[str, dict[str, str]]] | None = None,
+        optimization_objective_recall_value: float | None = None,
+        optimization_objective_precision_value: float | None = None,
+        validation_fraction_split: float | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        weight_column: str | None = None,
         budget_milli_node_hours: int = 1000,
         disable_early_stopping: bool = False,
         export_evaluated_data_items: bool = False,
-        export_evaluated_data_items_bigquery_destination_uri: Optional[str] = None,
+        export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
         **kwargs,
     ) -> None:
@@ -334,7 +334,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             export_evaluated_data_items_override_destination
         )
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -397,10 +397,10 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         prediction_type: str,
         multi_label: bool = False,
         sentiment_max: int = 10,
-        validation_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
+        validation_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -413,7 +413,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.validation_filter_split = validation_filter_split
         self.test_filter_split = test_filter_split
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -462,8 +462,8 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         dataset_id: str,
         prediction_type: str = "classification",
         model_type: str = "CLOUD",
-        training_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
+        training_filter_split: str | None = None,
+        test_filter_split: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -473,7 +473,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.training_filter_split = training_filter_split
         self.test_filter_split = test_filter_split
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -517,12 +517,12 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         training_pipeline_id: str,
         region: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -536,7 +536,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -577,16 +577,16 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         *,
         region: str,
         project_id: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        read_mask: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -603,7 +603,7 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

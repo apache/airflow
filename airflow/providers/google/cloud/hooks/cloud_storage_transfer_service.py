@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Storage Transfer Service Hook."""
+from __future__ import annotations
 
 import json
 import logging
@@ -23,7 +24,7 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import List, Optional, Sequence, Set, Union
+from typing import Sequence
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
@@ -126,8 +127,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         self,
         api_version: str = 'v1',
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -215,7 +216,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def list_transfer_job(self, request_filter: Optional[dict] = None, **kwargs) -> List[dict]:
+    def list_transfer_job(self, request_filter: dict | None = None, **kwargs) -> list[dict]:
         """
         Lists long-running operations in Google Storage Transfer
         Service that match the specified filter.
@@ -239,7 +240,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         conn = self.get_conn()
         request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
         request = conn.transferJobs().list(filter=json.dumps(request_filter))
-        jobs: List[dict] = []
+        jobs: list[dict] = []
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
@@ -347,7 +348,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def list_transfer_operations(self, request_filter: Optional[dict] = None, **kwargs) -> List[dict]:
+    def list_transfer_operations(self, request_filter: dict | None = None, **kwargs) -> list[dict]:
         """
         Gets an transfer operation in Google Storage Transfer Service.
 
@@ -379,7 +380,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
 
-        operations: List[dict] = []
+        operations: list[dict] = []
 
         request = conn.transferOperations().list(name=TRANSFER_OPERATIONS, filter=json.dumps(request_filter))
 
@@ -415,8 +416,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
     def wait_for_transfer_job(
         self,
         job: dict,
-        expected_statuses: Optional[Set[str]] = None,
-        timeout: Optional[Union[float, timedelta]] = None,
+        expected_statuses: set[str] | None = None,
+        timeout: float | timedelta | None = None,
     ) -> None:
         """
         Waits until the job reaches the expected state.
@@ -464,7 +465,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
     @staticmethod
     def operations_contain_expected_statuses(
-        operations: List[dict], expected_statuses: Union[Set[str], str]
+        operations: list[dict], expected_statuses: set[str] | str
     ) -> bool:
         """
         Checks whether the operation list has an operation with the

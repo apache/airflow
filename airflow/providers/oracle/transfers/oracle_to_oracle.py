@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -49,7 +51,7 @@ class OracleToOracleOperator(BaseOperator):
         destination_table: str,
         oracle_source_conn_id: str,
         source_sql: str,
-        source_sql_params: Optional[dict] = None,
+        source_sql_params: dict | None = None,
         rows_chunk: int = 5000,
         **kwargs,
     ) -> None:
@@ -83,7 +85,7 @@ class OracleToOracleOperator(BaseOperator):
             self.log.info("Finished data transfer.")
             cursor.close()
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         src_hook = OracleHook(oracle_conn_id=self.oracle_source_conn_id)
         dest_hook = OracleHook(oracle_conn_id=self.oracle_destination_conn_id)
         self._execute(src_hook, dest_hook, context)

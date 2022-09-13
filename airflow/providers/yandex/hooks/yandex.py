@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import warnings
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yandexcloud
 
@@ -38,7 +39,7 @@ class YandexCloudBaseHook(BaseHook):
     hook_name = 'Yandex Cloud'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -80,7 +81,7 @@ class YandexCloudBaseHook(BaseHook):
         }
 
     @classmethod
-    def provider_user_agent(cls) -> Optional[str]:
+    def provider_user_agent(cls) -> str | None:
         """Construct User-Agent from Airflow core & provider package versions"""
         import airflow
         from airflow.providers_manager import ProvidersManager
@@ -95,7 +96,7 @@ class YandexCloudBaseHook(BaseHook):
             return None
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -105,10 +106,10 @@ class YandexCloudBaseHook(BaseHook):
     def __init__(
         self,
         # Connection id is deprecated. Use yandex_conn_id instead
-        connection_id: Optional[str] = None,
-        yandex_conn_id: Optional[str] = None,
-        default_folder_id: Optional[str] = None,
-        default_public_ssh_key: Optional[str] = None,
+        connection_id: str | None = None,
+        yandex_conn_id: str | None = None,
+        default_folder_id: str | None = None,
+        default_public_ssh_key: str | None = None,
     ) -> None:
         super().__init__()
         if connection_id:
@@ -126,7 +127,7 @@ class YandexCloudBaseHook(BaseHook):
         self.default_public_ssh_key = default_public_ssh_key or self._get_field('public_ssh_key', False)
         self.client = self.sdk.client
 
-    def _get_credentials(self) -> Dict[str, Any]:
+    def _get_credentials(self) -> dict[str, Any]:
         service_account_json_path = self._get_field('service_account_json_path', False)
         service_account_json = self._get_field('service_account_json', False)
         oauth_token = self._get_field('oauth', False)

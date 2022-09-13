@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import datetime
 import logging
 import numbers
 from contextlib import closing
-from typing import Any, Iterable, Mapping, Optional, Sequence, Union
+from typing import Any, Iterable, Mapping, Sequence
 
 from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
@@ -68,12 +68,12 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         sql: str,
         spreadsheet_id: str,
         sql_conn_id: str,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        database: Optional[str] = None,
+        parameters: Iterable | Mapping | None = None,
+        database: str | None = None,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
@@ -62,7 +63,7 @@ class WasbDeleteBlobOperator(BaseOperator):
         self.is_prefix = is_prefix
         self.ignore_if_missing = ignore_if_missing
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Deleting blob: %s\n in wasb://%s', self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
 

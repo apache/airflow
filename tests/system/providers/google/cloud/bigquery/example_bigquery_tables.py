@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google BigQuery service testing tables.
 """
+from __future__ import annotations
+
 import os
 import time
 from datetime import datetime

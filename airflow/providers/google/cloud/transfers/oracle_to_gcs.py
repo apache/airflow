@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import calendar
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Dict
 
 import oracledb
 
@@ -75,7 +75,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
 
         field_mode = "NULLABLE" if not field[6] or field_type == "TIMESTAMP" else "REQUIRED"

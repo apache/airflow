@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
 
-CREATE_ENDPOINT_CONFIG_PARAMS: Dict = {
+CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
     'EndpointConfigName': 'config_name',
     'ProductionVariants': [
         {
@@ -38,7 +38,7 @@ CREATE_ENDPOINT_CONFIG_PARAMS: Dict = {
     ],
 }
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [['ProductionVariants', 'InitialInstanceCount']]
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [['ProductionVariants', 'InitialInstanceCount']]
 
 
 class TestSageMakerEndpointConfigOperator(unittest.TestCase):

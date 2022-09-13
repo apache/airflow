@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google BigQuery service.
 Uses Async version of the Big Query Operators
-
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 

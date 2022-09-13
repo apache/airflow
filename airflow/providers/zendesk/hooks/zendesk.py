@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 from zenpy import Zenpy
 from zenpy.lib.api import BaseApi
@@ -40,13 +40,13 @@ class ZendeskHook(BaseHook):
     def __init__(self, zendesk_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.zendesk_conn_id = zendesk_conn_id
-        self.base_api: Optional[BaseApi] = None
+        self.base_api: BaseApi | None = None
         zenpy_client, url = self._init_conn()
         self.zenpy_client = zenpy_client
         self.__url = url
         self.get = self.zenpy_client.users._get
 
-    def _init_conn(self) -> Tuple[Zenpy, str]:
+    def _init_conn(self) -> tuple[Zenpy, str]:
         """
         Create the Zenpy Client for our Zendesk connection.
 
@@ -55,7 +55,7 @@ class ZendeskHook(BaseHook):
         conn = self.get_connection(self.zendesk_conn_id)
         url = "https://" + conn.host
         domain = conn.host
-        subdomain: Optional[str] = None
+        subdomain: str | None = None
         if conn.host.count(".") >= 2:
             dot_splitted_string = conn.host.rsplit(".", 2)
             subdomain = dot_splitted_string[0]
@@ -87,7 +87,7 @@ class ZendeskHook(BaseHook):
         """
         return self.zenpy_client.search(type='ticket', **kwargs)
 
-    def create_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> Union[TicketAudit, JobStatus]:
+    def create_tickets(self, tickets: Ticket | list[Ticket], **kwargs) -> TicketAudit | JobStatus:
         """
         Create tickets.
 
@@ -98,7 +98,7 @@ class ZendeskHook(BaseHook):
         """
         return self.zenpy_client.tickets.create(tickets, **kwargs)
 
-    def update_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> Union[TicketAudit, JobStatus]:
+    def update_tickets(self, tickets: Ticket | list[Ticket], **kwargs) -> TicketAudit | JobStatus:
         """
         Update tickets.
 
@@ -109,7 +109,7 @@ class ZendeskHook(BaseHook):
         """
         return self.zenpy_client.tickets.update(tickets, **kwargs)
 
-    def delete_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> None:
+    def delete_tickets(self, tickets: Ticket | list[Ticket], **kwargs) -> None:
         """
         Delete tickets, returns nothing on success and raises APIException on failure.
 

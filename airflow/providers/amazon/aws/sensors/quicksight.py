@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -61,10 +62,10 @@ class QuickSightSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_status = "COMPLETED"
         self.errored_statuses = ("FAILED", "CANCELLED")
-        self.quicksight_hook: Optional[QuickSightHook] = None
-        self.sts_hook: Optional[StsHook] = None
+        self.quicksight_hook: QuickSightHook | None = None
+        self.sts_hook: StsHook | None = None
 
-    def poke(self, context: "Context"):
+    def poke(self, context: Context):
         """
         Pokes until the QuickSight Ingestion has successfully finished.
 

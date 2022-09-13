@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to Presto operator."""
+from __future__ import annotations
 
 import csv
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -71,10 +72,10 @@ class GCSToPrestoOperator(BaseOperator):
         presto_table: str,
         presto_conn_id: str = "presto_default",
         gcp_conn_id: str = "google_cloud_default",
-        schema_fields: Optional[Iterable[str]] = None,
-        schema_object: Optional[str] = None,
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        schema_fields: Iterable[str] | None = None,
+        schema_object: str | None = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,7 +89,7 @@ class GCSToPrestoOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

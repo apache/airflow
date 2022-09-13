@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google ML Engine service.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -64,7 +65,7 @@ with models.DAG(
     tags=['example'],
     params={"model_name": MODEL_NAME},
 ) as dag:
-    hyperparams: Dict[str, Any] = {
+    hyperparams: dict[str, Any] = {
         'goal': 'MAXIMIZE',
         'hyperparameterMetricTag': 'metric1',
         'maxTrials': 30,
@@ -244,7 +245,7 @@ with models.DAG(
         Gets metric function and keys used to generate summary
         """
 
-        def normalize_value(inst: Dict):
+        def normalize_value(inst: dict):
             val = float(inst['dense_4'][0])
             return tuple([val])  # returns a tuple.
 
@@ -253,7 +254,7 @@ with models.DAG(
     # [END howto_operator_gcp_mlengine_get_metric]
 
     # [START howto_operator_gcp_mlengine_validate_error]
-    def validate_err_and_count(summary: Dict) -> Dict:
+    def validate_err_and_count(summary: dict) -> dict:
         """
         Validate summary result
         """

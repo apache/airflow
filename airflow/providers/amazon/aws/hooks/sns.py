@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS SNS hook"""
+from __future__ import annotations
+
 import json
-from typing import Dict, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -55,8 +55,8 @@ class SnsHook(AwsBaseHook):
         self,
         target_arn: str,
         message: str,
-        subject: Optional[str] = None,
-        message_attributes: Optional[dict] = None,
+        subject: str | None = None,
+        message_attributes: dict | None = None,
     ):
         """
         Publish a message to a topic or an endpoint.
@@ -74,7 +74,7 @@ class SnsHook(AwsBaseHook):
             - iterable = String.Array
 
         """
-        publish_kwargs: Dict[str, Union[str, dict]] = {
+        publish_kwargs: dict[str, str | dict] = {
             'TargetArn': target_arn,
             'MessageStructure': 'json',
             'Message': json.dumps({'default': message}),

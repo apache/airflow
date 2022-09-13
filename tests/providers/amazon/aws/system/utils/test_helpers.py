@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains the unit tests for the helper methods included in the Amazon System Tests found at
 tests/system/providers/amazon/aws/utils/__init__.py
 """
+from __future__ import annotations
+
 import io
 import os
 import sys

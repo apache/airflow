@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
@@ -61,13 +62,13 @@ class AthenaOperator(BaseOperator):
         database: str,
         output_location: str,
         aws_conn_id: str = "aws_default",
-        client_request_token: Optional[str] = None,
+        client_request_token: str | None = None,
         workgroup: str = "primary",
-        query_execution_context: Optional[Dict[str, str]] = None,
-        result_configuration: Optional[Dict[str, Any]] = None,
+        query_execution_context: dict[str, str] | None = None,
+        result_configuration: dict[str, Any] | None = None,
         sleep_time: int = 30,
-        max_tries: Optional[int] = None,
-        max_polling_attempts: Optional[int] = None,
+        max_tries: int | None = None,
+        max_polling_attempts: int | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -100,7 +101,7 @@ class AthenaOperator(BaseOperator):
         """Create and return an AthenaHook."""
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         """Run Presto Query on Athena"""
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location

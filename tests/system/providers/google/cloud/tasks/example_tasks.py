@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that creates and deletes Queues and creates, gets, lists,
 runs and deletes Tasks in the Google Cloud Tasks service in the Google Cloud.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 

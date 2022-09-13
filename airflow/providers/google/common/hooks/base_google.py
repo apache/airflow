@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains a Google Cloud API base hook."""
+from __future__ import annotations
+
 import functools
 import json
 import logging
@@ -25,7 +26,7 @@ import tempfile
 import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import Any, Callable, Dict, Generator, Optional, Sequence, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Generator, Optional, Sequence, TypeVar, cast
 
 import google.auth
 import google.auth.credentials
@@ -170,7 +171,7 @@ class GoogleBaseHook(BaseHook):
     hook_name = 'Google Cloud'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -205,7 +206,7 @@ class GoogleBaseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -215,32 +216,32 @@ class GoogleBaseHook(BaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
-        self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
-        self._cached_project_id: Optional[str] = None
+        self._cached_credentials: google.auth.credentials.Credentials | None = None
+        self._cached_project_id: str | None = None
 
-    def get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
+    def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
         """Returns the Credentials object for Google API and the associated project_id"""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
-        key_path: Optional[str] = self._get_field('key_path', None)
+        key_path: str | None = self._get_field('key_path', None)
         try:
-            keyfile_dict: Optional[str] = self._get_field('keyfile_dict', None)
-            keyfile_dict_json: Optional[Dict[str, str]] = None
+            keyfile_dict: str | None = self._get_field('keyfile_dict', None)
+            keyfile_dict_json: dict[str, str] | None = None
             if keyfile_dict:
                 keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
             raise AirflowException('Invalid key JSON.')
-        key_secret_name: Optional[str] = self._get_field('key_secret_name', None)
-        key_secret_project_id: Optional[str] = self._get_field('key_secret_project_id', None)
+        key_secret_name: str | None = self._get_field('key_secret_name', None)
+        key_secret_project_id: str | None = self._get_field('key_secret_project_id', None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
@@ -331,7 +332,7 @@ class GoogleBaseHook(BaseHook):
             return default
 
     @property
-    def project_id(self) -> Optional[str]:
+    def project_id(self) -> str | None:
         """
         Returns project id.
 
@@ -483,7 +484,7 @@ class GoogleBaseHook(BaseHook):
         return cast(T, wrapper)
 
     @contextmanager
-    def provide_gcp_credential_file_as_context(self) -> Generator[Optional[str], None, None]:
+    def provide_gcp_credential_file_as_context(self) -> Generator[str | None, None, None]:
         """
         Context manager that provides a Google Cloud credentials for application supporting `Application
         Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
@@ -491,8 +492,8 @@ class GoogleBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        key_path: Optional[str] = self._get_field('key_path', None)
-        keyfile_dict: Optional[str] = self._get_field('keyfile_dict', None)
+        key_path: str | None = self._get_field('key_path', None)
+        keyfile_dict: str | None = self._get_field('keyfile_dict', None)
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -253,7 +254,7 @@ class TestSlackHook:
     )
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
     def test_client_configuration(
-        self, mock_webclient_cls, hook_config, conn_extra, expected: Dict[str, Any]
+        self, mock_webclient_cls, hook_config, conn_extra, expected: dict[str, Any]
     ):
         """Test read/parse/merge WebClient config from connection and hook arguments."""
         expected["token"] = MOCK_SLACK_API_TOKEN
