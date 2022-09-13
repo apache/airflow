@@ -3501,7 +3501,7 @@ class Airflow(AirflowBaseView):
                     isouter=True,
                 )
                 .filter(DagScheduleDatasetReference.dag_id == dag_id)
-                .group_by(DatasetModel.id)
+                .group_by(DatasetModel.id, DatasetModel.uri)
                 .order_by(DatasetModel.uri)
                 .all()
             ]
