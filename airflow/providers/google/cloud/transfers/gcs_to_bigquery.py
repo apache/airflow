@@ -56,6 +56,8 @@ class GCSToBigQueryOperator(BaseOperator):
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
         Parameter must be defined if 'schema_fields' is null and autodetect is False.
+    :param schema_object_bucket: [Optional] If set, the GCS bucket where the schema object
+        template is stored. (templated) (Default: the value of ``bucket``)
     :param source_format: File format to export.
     :param compression: [Optional] The compression type of the data source.
         Possible values include GZIP and NONE.
@@ -133,6 +135,7 @@ class GCSToBigQueryOperator(BaseOperator):
         'bucket',
         'source_objects',
         'schema_object',
+        'schema_object_bucket',
         'destination_project_dataset_table',
         'impersonation_chain',
     )
@@ -147,6 +150,7 @@ class GCSToBigQueryOperator(BaseOperator):
         destination_project_dataset_table,
         schema_fields=None,
         schema_object=None,
+        schema_object_bucket=None,
         source_format='CSV',
         compression='NONE',
         create_disposition='CREATE_IF_NEEDED',
@@ -186,6 +190,10 @@ class GCSToBigQueryOperator(BaseOperator):
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
+
+        if schema_object_bucket is None:
+            schema_object_bucket = bucket
+        self.schema_object_bucket = schema_object_bucket
 
         # BQ config
         self.destination_project_dataset_table = destination_project_dataset_table
@@ -236,7 +244,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     impersonation_chain=self.impersonation_chain,
                 )
                 blob = gcs_hook.download(
-                    bucket_name=self.bucket,
+                    bucket_name=self.schema_object_bucket,
                     object_name=self.schema_object,
                 )
                 schema_fields = json.loads(blob.decode("utf-8"))

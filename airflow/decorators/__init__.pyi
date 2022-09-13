@@ -26,6 +26,7 @@ from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
+from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
@@ -41,7 +42,9 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
+    "external_python_task",
     "branch_task",
+    "short_circuit_task",
 ]
 
 class TaskDecoratorCollection:
@@ -126,6 +129,37 @@ class TaskDecoratorCollection:
         """
     @overload
     def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def external_python(
+        self,
+        *,
+        python: str,
+        multiple_outputs: Optional[bool] = None,
+        # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
+        # _PythonVirtualenvDecoratedOperator.
+        use_dill: bool = False,
+        templates_dict: Optional[Mapping[str, Any]] = None,
+        show_return_value_in_logs: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to convert the decorated callable to a virtual environment task.
+
+        :param python: Full path string (file-system specific) that points to a Python binary inside
+            a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+            (so usually start with "/" or "X:/" depending on the filesystem/os used).
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param use_dill: Whether to use dill to serialize
+            the args and result (pickle is default). This allow more complex types
+            but requires you to include dill in your requirements.
+        :param templates_dict: a dictionary where the values are templates that
+            will get templated by the Airflow engine sometime between
+            ``__init__`` and ``execute`` takes place and are made available
+            in your callable's context after the template has been applied.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        """
     @overload
     def branch(self, *, multiple_outputs: Optional[bool] = None, **kwargs) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
@@ -138,6 +172,25 @@ class TaskDecoratorCollection:
         """
     @overload
     def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def short_circuit(
+        self,
+        *,
+        multiple_outputs: Optional[bool] = None,
+        ignore_downstream_trigger_rules: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a ShortCircuitOperator.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task
+            will be skipped. This is the default behavior. If set to False, the direct, downstream task(s)
+            will be skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+            Defaults to True.
+        """
+    @overload
+    def short_circuit(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     # [START decorator_signature]
     def docker(
         self,

@@ -167,4 +167,10 @@ so coding will always be required.
     deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
+
+.. toctree::
+    :hidden:
+    :caption: Internal DB details
+
     Database Migrations <migrations-ref>
+    Database ERD Schema <database-erd-ref>

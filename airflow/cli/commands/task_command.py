@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import textwrap
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from typing import Dict, Generator, List, Optional, Tuple, Union
 
 from pendulum.parsing.exceptions import ParserError
@@ -75,8 +75,8 @@ def _generate_temporary_run_id() -> str:
 def _get_dag_run(
     *,
     dag: DAG,
-    exec_date_or_run_id: str,
     create_if_necessary: CreateIfNecessary,
+    exec_date_or_run_id: Optional[str] = None,
     session: Session,
 ) -> Tuple[DagRun, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
@@ -92,33 +92,35 @@ def _get_dag_run(
        the logical date; otherwise use it as a run ID and set the logical date
        to the current time.
     """
-    dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
-    if dag_run:
-        return dag_run, False
-
-    try:
-        execution_date: Optional[datetime.datetime] = timezone.parse(exec_date_or_run_id)
-    except (ParserError, TypeError):
-        execution_date = None
-
-    try:
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
-            .one()
-        )
-    except NoResultFound:
-        if not create_if_necessary:
-            raise DagRunNotFound(
-                f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
-            ) from None
-    else:
-        return dag_run, False
+    if not exec_date_or_run_id and not create_if_necessary:
+        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
+    execution_date: Optional[datetime.datetime] = None
+    if exec_date_or_run_id:
+        dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
+        if dag_run:
+            return dag_run, False
+        with suppress(ParserError, TypeError):
+            execution_date = timezone.parse(exec_date_or_run_id)
+        try:
+            dag_run = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+                .one()
+            )
+        except NoResultFound:
+            if not create_if_necessary:
+                raise DagRunNotFound(
+                    f"DagRun for {dag.dag_id} with run_id or execution_date "
+                    f"of {exec_date_or_run_id!r} not found"
+                ) from None
+        else:
+            return dag_run, False
 
     if execution_date is not None:
         dag_run_execution_date = execution_date
     else:
         dag_run_execution_date = timezone.utcnow()
+
     if create_if_necessary == "memory":
         dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)
         return dag_run, True
@@ -136,14 +138,16 @@ def _get_dag_run(
 @provide_session
 def _get_ti(
     task: BaseOperator,
-    exec_date_or_run_id: str,
     map_index: int,
     *,
+    exec_date_or_run_id: Optional[str] = None,
     pool: Optional[str] = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
 ) -> Tuple[TaskInstance, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
+    if not exec_date_or_run_id and not create_if_necessary:
+        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     if task.is_mapped:
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
@@ -370,7 +374,7 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, pool=args.pool)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -398,7 +402,7 @@ def task_failed_deps(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -421,7 +425,7 @@ def task_state(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
     print(ti.current_state())
 
 
@@ -544,7 +548,9 @@ def task_test(args, dag=None):
     if task.params:
         task.params.validate()
 
-    ti, dr_created = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary="db")
+    ti, dr_created = _get_ti(
+        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
+    )
 
     try:
         with redirect_stdout(RedactedIO()):
@@ -574,7 +580,9 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary="memory")
+    ti, _ = _get_ti(
+        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
+    )
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

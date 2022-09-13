@@ -28,6 +28,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.0
+.....
+
+Latest change: 2022-08-30
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`27e2101f6e <https://github.com/apache/airflow/commit/27e2101f6ee5567b2843cbccf1dca0b0e7c96186>`_  2022-08-30   ``Better error messsage for pre-common-sql providers (#26051)``
+`a74d934991 <https://github.com/apache/airflow/commit/a74d9349919b340638f0db01bc3abb86f71c6093>`_  2022-08-27   ``Fix placeholders in 'TrinoHook', 'PrestoHook', 'SqliteHook' (#25939)``
+`874a95cc17 <https://github.com/apache/airflow/commit/874a95cc17c3578a0d81c5e034cb6590a92ea310>`_  2022-08-22   ``Discard semicolon stripping in SQL hook (#25855)``
+`dd72e67524 <https://github.com/apache/airflow/commit/dd72e67524c99e34ba4c62bfb554e4caf877d5ec>`_  2022-08-19   ``Fix (and test) SQLTableCheckOperator on postgresql (#25821)``
+`5b3d579a42 <https://github.com/apache/airflow/commit/5b3d579a42bcf21c43fa648c473dad3228cb37e8>`_  2022-08-19   ``Don't use Pandas for SQLTableCheckOperator (#25822)``
+=================================================================================================  ===========  ========================================================================
+
 1.1.0
 .....
 
@@ -36,6 +51,7 @@ Latest change: 2022-08-15
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`7d0525a55b <https://github.com/apache/airflow/commit/7d0525a55b93e5c8de8a9ef0c8dde0f9c93bb80c>`_  2022-08-15   ``Prepare documentation for RC4 release of providers (#25720)``
 `7a19651369 <https://github.com/apache/airflow/commit/7a19651369790e2abb563d96a42f41ec31ebfb85>`_  2022-08-15   ``Fix SQL split string to include ';-less' statements (#25713)``
 `5923788143 <https://github.com/apache/airflow/commit/5923788143e7871b56de5164b96a407b2fba75b8>`_  2022-08-10   ``Fix CHANGELOG for common.sql provider and add amazon commit (#25636)``
 `d82436b382 <https://github.com/apache/airflow/commit/d82436b382c41643a7385af8a58c50c106b0d01a>`_  2022-08-05   ``Fix fetch_all_handler & db-api tests for it (#25430)``

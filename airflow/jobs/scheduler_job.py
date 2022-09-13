@@ -26,6 +26,7 @@ import time
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
 
 from sqlalchemy import func, not_, or_, text
@@ -33,18 +34,14 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
-from airflow import models, settings
+from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import DAG
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent
@@ -71,9 +68,11 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from types import FrameType
 
-TI = models.TaskInstance
-DR = models.DagRun
-DM = models.DagModel
+    from airflow.dag_processing.manager import DagFileProcessorAgent
+
+TI = TaskInstance
+DR = DagRun
+DM = DagModel
 
 
 def _is_parent_process() -> bool:
@@ -141,6 +140,7 @@ class SchedulerJob(BaseJob):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
@@ -152,7 +152,7 @@ class SchedulerJob(BaseJob):
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
-        self.processor_agent: Optional[DagFileProcessorAgent] = None
+        self.processor_agent: Optional["DagFileProcessorAgent"] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
         self._paused_dag_without_running_dagruns: Set = set()
@@ -242,6 +242,7 @@ class SchedulerJob(BaseJob):
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
         """
+        from airflow.models.pool import Pool
         from airflow.utils.db import DBLocks
 
         executable_tis: List[TI] = []
@@ -263,7 +264,7 @@ class SchedulerJob(BaseJob):
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = models.Pool.slots_stats(lock_rows=True, session=session)
+        pools = Pool.slots_stats(lock_rows=True, session=session)
 
         # If the pools are full, there is no point doing anything!
         # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
@@ -685,6 +686,7 @@ class SchedulerJob(BaseJob):
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
+                        processor_subdir=ti.dag_model.processor_subdir,
                     )
                     self.executor.send_callback(request)
                 else:
@@ -693,6 +695,8 @@ class SchedulerJob(BaseJob):
         return len(event_buffer)
 
     def _execute(self) -> None:
+        from airflow.dag_processing.manager import DagFileProcessorAgent
+
         self.log.info("Starting the scheduler")
 
         # DAGs can be pickled for easier remote execution by some executors
@@ -708,7 +712,7 @@ class SchedulerJob(BaseJob):
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         if not self._standalone_dag_processor:
             self.processor_agent = DagFileProcessorAgent(
-                dag_directory=self.subdir,
+                dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],
@@ -724,6 +728,8 @@ class SchedulerJob(BaseJob):
                     get_sink_pipe=self.processor_agent.get_callbacks_pipe
                 )
             else:
+                from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
                 self.executor.callback_sink = DatabaseCallbackSink()
 
@@ -749,7 +755,7 @@ class SchedulerJob(BaseJob):
                     self.log.info(
                         "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
                     )
-                    models.DAG.deactivate_stale_dags(execute_start_time)
+                    DAG.deactivate_stale_dags(execute_start_time)
 
             settings.Session.remove()  # type: ignore
         except Exception:
@@ -833,6 +839,12 @@ class SchedulerJob(BaseJob):
             self._find_zombies,
         )
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
+
+        if self._standalone_dag_processor:
+            timers.call_regular_interval(
+                conf.getfloat('scheduler', 'deactivate_stale_dags_interval', fallback=60.0),
+                self._cleanup_stale_dags,
+            )
 
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
@@ -1123,6 +1135,7 @@ class SchedulerJob(BaseJob):
                 ]
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
+
                 dataset_events = (
                     session.query(DatasetEvent)
                     .join(
@@ -1260,6 +1273,7 @@ class SchedulerJob(BaseJob):
                 dag_id=dag.dag_id,
                 run_id=dag_run.run_id,
                 is_failure_callback=True,
+                processor_subdir=dag_model.processor_subdir,
                 msg='timed_out',
             )
 
@@ -1322,12 +1336,19 @@ class SchedulerJob(BaseJob):
             self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
             return
 
-        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+        request = SlaCallbackRequest(
+            full_filepath=dag.fileloc,
+            dag_id=dag.dag_id,
+            processor_subdir=dag_model.processor_subdir,
+        )
         self.executor.send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
-        pools = models.Pool.slots_stats(session=session)
+        from airflow.models.pool import Pool
+
+        pools = Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
             Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
@@ -1458,6 +1479,8 @@ class SchedulerJob(BaseJob):
         or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
         to be handled by the DAG processor.
         """
+        from airflow.jobs.local_task_job import LocalTaskJob
+
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 
@@ -1485,11 +1508,11 @@ class SchedulerJob(BaseJob):
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
+                processor_subdir=ti.dag_model.processor_subdir,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )
-
-            self.log.error("Detected zombie job: %s", request.msg)
+            self.log.error("Detected zombie job: %s", request)
             self.executor.send_callback(request)
             Stats.incr('zombies_killed')
 
@@ -1509,3 +1532,28 @@ class SchedulerJob(BaseJob):
             zombie_message_details["External Executor Id"] = ti.external_executor_id
 
         return zombie_message_details
+
+    @provide_session
+    def _cleanup_stale_dags(self, session: Session = NEW_SESSION) -> None:
+        """
+        Find all dags that were not updated by Dag Processor recently and mark them as inactive.
+
+        In case one of DagProcessors is stopped (in case there are multiple of them
+        for different dag folders), it's dags are never marked as inactive.
+        Also remove dags from SerializedDag table.
+        Executed on schedule only if [scheduler]standalone_dag_processor is True.
+        """
+        self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
+        limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
+        stale_dags = (
+            session.query(DagModel).filter(DagModel.is_active, DagModel.last_parsed_time < limit_lpt).all()
+        )
+        if not stale_dags:
+            self.log.debug("Not stale dags found.")
+            return
+
+        self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
+        for dag in stale_dags:
+            dag.is_active = False
+            SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
+        session.flush()

@@ -28,6 +28,7 @@ import sys
 import traceback
 import warnings
 import weakref
+from collections import deque
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -35,12 +36,12 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Deque,
     Dict,
     FrozenSet,
     Iterable,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -75,7 +76,6 @@ from airflow.exceptions import (
 )
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
-from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -101,8 +101,11 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
+    from airflow.models.dagbag import DagBag
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
@@ -329,6 +332,7 @@ class DAG(LoggingMixin):
     :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
+    :param auto_register: Automatically register this DAG when it is used in a ``with`` block
     """
 
     _comps = {
@@ -390,6 +394,7 @@ class DAG(LoggingMixin):
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
         owner_links: Optional[Dict[str, str]] = None,
+        auto_register: bool = True,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -565,6 +570,7 @@ class DAG(LoggingMixin):
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
+        self.auto_register = auto_register
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
@@ -1712,6 +1718,8 @@ class DAG(LoggingMixin):
 
                 for tii in external_tis:
                     if not dag_bag:
+                        from airflow.models.dagbag import DagBag
+
                         dag_bag = DagBag(read_dags_from_db=True)
                     external_dag = dag_bag.get_dag(tii.dag_id, session=session)
                     if not external_dag:
@@ -2532,18 +2540,27 @@ class DAG(LoggingMixin):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
+    def bulk_sync_to_db(
+        cls,
+        dags: Collection["DAG"],
+        session=NEW_SESSION,
+    ):
         """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
-        return cls.bulk_write_to_db(dags, session)
+        return cls.bulk_write_to_db(dags=dags, session=session)
 
     @classmethod
     @provide_session
-    def bulk_write_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
+    def bulk_write_to_db(
+        cls,
+        dags: Collection["DAG"],
+        processor_subdir: Optional[str] = None,
+        session=NEW_SESSION,
+    ):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
         calculated fields.
@@ -2564,11 +2581,12 @@ class DAG(LoggingMixin):
             session.query(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
             .filter(DagModel.dag_id.in_(dag_ids))
+            .options(joinedload(DagModel.schedule_dataset_references))
+            .options(joinedload(DagModel.task_outlet_dataset_references))
         )
         orm_dags: List[DagModel] = with_row_locks(query, of=DagModel, session=session).all()
-
-        existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
-        missing_dag_ids = dag_ids.difference(existing_dag_ids)
+        existing_dags = {orm_dag.dag_id: orm_dag for orm_dag in orm_dags}
+        missing_dag_ids = dag_ids.difference(existing_dags)
 
         for missing_dag_id in missing_dag_ids:
             orm_dag = DagModel(dag_id=missing_dag_id)
@@ -2584,7 +2602,7 @@ class DAG(LoggingMixin):
         most_recent_subq = (
             session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
             .filter(
-                DagRun.dag_id.in_(existing_dag_ids),
+                DagRun.dag_id.in_(existing_dags),
                 or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
             )
             .group_by(DagRun.dag_id)
@@ -2598,7 +2616,7 @@ class DAG(LoggingMixin):
 
         # Get number of active dagruns for all dags we are processing as a single query.
 
-        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dag_ids, session=session)
+        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
 
         filelocs = []
 
@@ -2624,6 +2642,7 @@ class DAG(LoggingMixin):
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
+            orm_dag.processor_subdir = processor_subdir
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2665,29 +2684,39 @@ class DAG(LoggingMixin):
             TaskOutletDatasetReference,
         )
 
-        class OutletRef(NamedTuple):
-            dag_id: str
-            task_id: str
-            uri: str
-
-        class InletRef(NamedTuple):
-            dag_id: str
-            uri: str
-
-        dag_references = set()
-        outlet_references = set()
+        dag_references = collections.defaultdict(set)
+        outlet_references = collections.defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_datasets: Dict[Dataset, None] = {}
         input_datasets: Dict[Dataset, None] = {}
+
+        # here we go through dags and tasks to check for dataset references
+        # if there are now None and previously there were some, we delete them
+        # if there are now *any*, we add them to the above data structures and
+        # later we'll persist them to the database.
         for dag in dags:
+            curr_orm_dag = existing_dags.get(dag.dag_id)
+            if not dag.dataset_triggers:
+                if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
+                    curr_orm_dag.schedule_dataset_references = []
             for dataset in dag.dataset_triggers:
-                dag_references.add(InletRef(dag.dag_id, dataset.uri))
+                dag_references[dag.dag_id].add(dataset.uri)
                 input_datasets[DatasetModel.from_public(dataset)] = None
+            curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
-                for obj in task.outlets or []:
-                    if isinstance(obj, Dataset):
-                        outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
-                        outlet_datasets[DatasetModel.from_public(obj)] = None
+                dataset_outlets = [x for x in task.outlets or [] if isinstance(x, Dataset)]
+                if not dataset_outlets:
+                    if curr_outlet_references:
+                        this_task_outlet_refs = [
+                            x
+                            for x in curr_outlet_references
+                            if x.dag_id == dag.dag_id and x.task_id == task.task_id
+                        ]
+                        for ref in this_task_outlet_refs:
+                            curr_outlet_references.remove(ref)
+                for d in dataset_outlets:
+                    outlet_references[(task.dag_id, task.task_id)].add(d.uri)
+                    outlet_datasets[DatasetModel.from_public(d)] = None
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 
@@ -2705,34 +2734,48 @@ class DAG(LoggingMixin):
 
         del all_datasets
 
-        # store dag-schedule-on-dataset references
-        for dag_ref in dag_references:
-            session.merge(
-                DagScheduleDatasetReference(
-                    dataset_id=stored_datasets[dag_ref.uri].id,
-                    dag_id=dag_ref.dag_id,
-                )
+        # reconcile dag-schedule-on-dataset references
+        for dag_id, uri_list in dag_references.items():
+            dag_refs_needed = {
+                DagScheduleDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id)
+                for uri in uri_list
+            }
+            dag_refs_stored = set(
+                existing_dags.get(dag_id)
+                and existing_dags.get(dag_id).schedule_dataset_references  # type: ignore
+                or []
             )
+            dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
+            session.bulk_save_objects(dag_refs_to_add)
+            for obj in dag_refs_stored - dag_refs_needed:
+                session.delete(obj)
 
-        # store task-outlet-dataset references
-        for outlet_ref in outlet_references:
-            session.merge(
-                TaskOutletDatasetReference(
-                    dataset_id=stored_datasets[outlet_ref.uri].id,
-                    dag_id=outlet_ref.dag_id,
-                    task_id=outlet_ref.task_id,
-                )
-            )
+        existing_task_outlet_refs_dict = collections.defaultdict(set)
+        for dag_id, orm_dag in existing_dags.items():
+            for todr in orm_dag.task_outlet_dataset_references:
+                existing_task_outlet_refs_dict[(dag_id, todr.task_id)].add(todr)
+
+        # reconcile task-outlet-dataset references
+        for (dag_id, task_id), uri_list in outlet_references.items():
+            task_refs_needed = {
+                TaskOutletDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id, task_id=task_id)
+                for uri in uri_list
+            }
+            task_refs_stored = existing_task_outlet_refs_dict[(dag_id, task_id)]
+            task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}
+            session.bulk_save_objects(task_refs_to_add)
+            for obj in task_refs_stored - task_refs_needed:
+                session.delete(obj)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
         session.flush()
 
         for dag in dags:
-            cls.bulk_write_to_db(dag.subdags, session=session)
+            cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @provide_session
-    def sync_to_db(self, session=NEW_SESSION):
+    def sync_to_db(self, processor_subdir: Optional[str] = None, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
@@ -2740,7 +2783,7 @@ class DAG(LoggingMixin):
 
         :return: None
         """
-        self.bulk_write_to_db([self], session)
+        self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
 
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
@@ -2831,6 +2874,8 @@ class DAG(LoggingMixin):
         if not cls.__serialized_fields:
             exclusion_list = {
                 'parent_dag',
+                'schedule_dataset_references',
+                'task_outlet_dataset_references',
                 '_old_context_manager_dags',
                 'safe_dag_id',
                 'last_loaded',
@@ -2850,6 +2895,7 @@ class DAG(LoggingMixin):
                 # has_on_*_callback are only stored if the value is True, as the default is False
                 'has_on_success_callback',
                 'has_on_failure_callback',
+                'auto_register',
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - exclusion_list
         return cls.__serialized_fields
@@ -2977,6 +3023,8 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
+    # The base directory used by Dag Processor that parsed this dag.
+    processor_subdir = Column(String(2000), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Description of the dag
@@ -3018,7 +3066,14 @@ class DagModel(Base):
     parent_dag = relationship(
         "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
     )
-
+    schedule_dataset_references = relationship(
+        "DagScheduleDatasetReference",
+        cascade='all, delete, delete-orphan',
+    )
+    task_outlet_dataset_references = relationship(
+        "TaskOutletDatasetReference",
+        cascade='all, delete, delete-orphan',
+    )
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
     def __init__(self, concurrency=None, **kwargs):
@@ -3183,15 +3238,13 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
-        from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
-
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info_list = {
-            x.dag_id: (x.first_event_time, x.last_event_time)
+            x.dag_id: (x.first_queued_time, x.last_queued_time)
             for x in session.query(
                 DagScheduleDatasetReference.dag_id,
-                func.max(DDRQ.created_at).label('last_event_time'),
-                func.max(DDRQ.created_at).label('first_event_time'),
+                func.max(DDRQ.created_at).label('last_queued_time'),
+                func.min(DDRQ.created_at).label('first_queued_time'),
             )
             .join(DagScheduleDatasetReference.queue_records, isouter=True)
             .group_by(DagScheduleDatasetReference.dag_id)
@@ -3303,6 +3356,7 @@ def dag(
     render_template_as_native_obj: bool = False,
     tags: Optional[List[str]] = None,
     owner_links: Optional[Dict[str, str]] = None,
+    auto_register: bool = True,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3355,6 +3409,7 @@ def dag(
                 tags=tags,
                 schedule=schedule,
                 owner_links=owner_links,
+                auto_register=auto_register,
             ) as dag_obj:
                 # Set DAG documentation from function documentation.
                 if f.__doc__:
@@ -3412,24 +3467,28 @@ class DagContext:
 
     """
 
-    _context_managed_dag: Optional[DAG] = None
-    _previous_context_managed_dags: List[DAG] = []
+    _context_managed_dags: Deque[DAG] = deque()
+    autoregistered_dags: Set[Tuple[DAG, "ModuleType"]] = set()
+    current_autoregister_module_name: Optional[str] = None
 
     @classmethod
     def push_context_managed_dag(cls, dag: DAG):
-        if cls._context_managed_dag:
-            cls._previous_context_managed_dags.append(cls._context_managed_dag)
-        cls._context_managed_dag = dag
+        cls._context_managed_dags.appendleft(dag)
 
     @classmethod
     def pop_context_managed_dag(cls) -> Optional[DAG]:
-        old_dag = cls._context_managed_dag
-        if cls._previous_context_managed_dags:
-            cls._context_managed_dag = cls._previous_context_managed_dags.pop()
-        else:
-            cls._context_managed_dag = None
-        return old_dag
+        dag = cls._context_managed_dags.popleft()
+
+        # In a few cases around serialization we explicitly push None in to the stack
+        if cls.current_autoregister_module_name is not None and dag and dag.auto_register:
+            mod = sys.modules[cls.current_autoregister_module_name]
+            cls.autoregistered_dags.add((dag, mod))
+
+        return dag
 
     @classmethod
     def get_current_dag(cls) -> Optional[DAG]:
-        return cls._context_managed_dag
+        try:
+            return cls._context_managed_dags[0]
+        except IndexError:
+            return None

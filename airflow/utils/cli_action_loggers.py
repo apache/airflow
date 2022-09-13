@@ -21,10 +21,9 @@ An Action Logger module. Singleton pattern has been applied into this module
 so that registered callbacks can be used all through the same python process.
 """
 
+import json
 import logging
 from typing import Callable, List
-
-from airflow.utils.session import create_session
 
 
 def register_pre_exec_callback(action_logger):
@@ -89,7 +88,7 @@ def on_post_execution(**kwargs):
             logging.exception('Failed on post-execution callback using %s', callback)
 
 
-def default_action_log(log, **_):
+def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_name, full_command, **_):
     """
     A default action logger callback that behave same as www.utils.action_logging
     which uses global session and pushes log ORM object.
@@ -98,9 +97,30 @@ def default_action_log(log, **_):
     :param **_: other keyword arguments that is not being used by this function
     :return: None
     """
+    from airflow.models.log import Log
+    from airflow.utils import timezone
+    from airflow.utils.session import create_session
+
     try:
         with create_session() as session:
-            session.add(log)
+            extra = json.dumps({'host_name': host_name, 'full_command': full_command})
+            # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
+            # on in the CLI
+            session.bulk_insert_mappings(
+                Log,
+                [
+                    {
+                        'event': f'cli_{sub_command}',
+                        'task_instance': None,
+                        'owner': user,
+                        'extra': extra,
+                        'task_id': task_id,
+                        'dag_id': dag_id,
+                        'execution_date': execution_date,
+                        'dttm': timezone.utcnow(),
+                    }
+                ],
+            )
     except Exception as error:
         logging.warning("Failed to log action with %s", error)
 

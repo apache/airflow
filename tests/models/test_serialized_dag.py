@@ -90,7 +90,7 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
-    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
+    def test_serialized_dag_is_updated_if_dag_is_changed(self):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
@@ -119,6 +119,33 @@ class SerializedDagModelTest(unittest.TestCase):
             assert s_dag.last_updated != s_dag_2.last_updated
             assert s_dag.dag_hash != s_dag_2.dag_hash
             assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
+            assert dag_updated is True
+
+    def test_serialized_dag_is_updated_if_processor_subdir_changed(self):
+        """Test Serialized DAG is updated if processor_subdir is changed"""
+        example_dags = make_example_dags(example_dags_module)
+        example_bash_op_dag = example_dags.get("example_bash_operator")
+        dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/test')
+        assert dag_updated is True
+
+        with create_session() as session:
+            s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
+            # column is not updated
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/test')
+            s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            assert s_dag_1.dag_hash == s_dag.dag_hash
+            assert s_dag.last_updated == s_dag_1.last_updated
+            assert dag_updated is False
+            session.flush()
+
+            # Update DAG
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/other')
+            s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
 
     def test_read_dags(self):

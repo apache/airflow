@@ -31,8 +31,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
-from airflow.www.utils import CustomSQLAInterface
-from airflow.www.views import (
+from airflow.www.fab_security.views import (
     ActionModelView,
     CustomResetMyPasswordView,
     CustomResetPasswordView,
@@ -47,6 +46,7 @@ from airflow.www.views import (
     PermissionPairModelView,
     ResourceModelView,
 )
+from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
     'Admin',
@@ -71,6 +71,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
@@ -85,8 +86,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
