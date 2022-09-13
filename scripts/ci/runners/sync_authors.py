@@ -22,7 +22,6 @@ import re
 import requests
 import toml
 
-
 # The list of users in the 'build-info' job looks like:
 #
 #       contains(fromJSON('[
@@ -52,7 +51,6 @@ for author in sorted(author_set):
 authors = authors[:-2]
 
 with open('ci.yml') as handle:
-
 
     new_ci = re.sub(
         r'''
