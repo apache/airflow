@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 from typing import Optional
 
 from flask import g
@@ -68,7 +69,7 @@ def get_xcom_entries(
     query = query.order_by(DR.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
     total_entries = query.count()
     query = query.offset(offset).limit(limit)
-    return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
+    return xcom_collection_schema.dump(XComCollection(xcom_entries=query, total_entries=total_entries))
 
 
 @security.requires_access(
@@ -86,14 +87,28 @@ def get_xcom_entry(
     task_id: str,
     dag_run_id: str,
     xcom_key: str,
+    deserialize: bool = False,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get an XCom entry"""
-    query = session.query(XCom).filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
+    if deserialize:
+        query = session.query(XCom, XCom.value)
+    else:
+        query = session.query(XCom)
+
+    query = query.filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     query = query.filter(DR.run_id == dag_run_id)
 
-    query_object = query.one_or_none()
-    if not query_object:
+    item = query.one_or_none()
+    if item is None:
         raise NotFound("XCom entry not found")
-    return xcom_schema.dump(query_object)
+
+    if deserialize:
+        xcom, value = item
+        stub = copy.copy(xcom)
+        stub.value = value
+        stub.value = XCom.deserialize_value(stub)
+        item = stub
+
+    return xcom_schema.dump(item)
