@@ -95,8 +95,6 @@ class DatasetManager(LoggingMixin):
             except exc.IntegrityError:
                 self.log.debug("Skipping record %s", item, exc_info=True)
 
-        session.flush()
-
     def _queue_dagruns_fast_path(self, dataset: DatasetModel, session: Session) -> None:
         prefix = None
         if session.bind.dialect.name == "postgresql":
@@ -117,7 +115,6 @@ class DatasetManager(LoggingMixin):
             else:
                 stmt = stmt.on_conflict_do_nothing()
             session.execute(stmt, params)
-            session.flush()
 
 
 def resolve_dataset_manager() -> "DatasetManager":
