@@ -28,6 +28,9 @@ from typing import Optional
 from graphviz.dot import Dot
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import func
+from airflow.utils.types import DagRunType
+from airflow.utils.state import State
+from airflow.models.xcom import XCOM_RETURN_KEY
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
@@ -451,6 +454,24 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
 @cli_utils.action_cli
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+
+    def add_logger_if_needed(ti: TaskInstance):
+        """
+        Add a formatted logger to the taskinstance so all logs are surfaced to the command line
+        Args:
+            ti:
+
+        Returns:
+
+        """
+        format = logging.Formatter(
+            "\t[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
+        )
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(format)
+        if not ti.log.handlers:  # only add log handler once
+            ti.log.addHandler(handler)
+
     run_conf = None
     if args.conf:
         try:
@@ -460,19 +481,24 @@ def dag_test(args, session=None):
     execution_date = args.execution_date or timezone.utcnow()
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=execution_date, end_date=execution_date, dag_run_state=False)
-    try:
-        dag.run(
-            executor=DebugExecutor(),
-            start_date=execution_date,
-            end_date=execution_date,
-            conf=run_conf,
-            # Always run the DAG at least once even if no logical runs are
-            # available. This does not make a lot of sense, but Airflow has
-            # been doing this prior to 2.2 so we keep compatibility.
-            run_at_least_once=True,
-        )
-    except BackfillUnfinished as e:
-        print(str(e))
+
+    dr: DagRun = _get_or_create_dagrun(
+        dag=dag,
+        start_date=args.execution_date,
+        execution_date=args.execution_date,
+        run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+        session=session,
+        conf=run_conf,
+    )
+
+    tasks = dag.task_dict
+    log.info("starting dagrun")
+    while dr.state == State.RUNNING:
+        schedulable_tis, _ = dr.update_state(session=session)
+        for ti in schedulable_tis:
+            add_logger_if_needed(ti)
+            ti.task = tasks[ti.task_id]
+            _run_task(ti)
 
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
@@ -498,6 +524,52 @@ def dag_test(args, session=None):
 
 
 @provide_session
+def _run_task(ti: TaskInstance, session=None):
+    """
+    Run a single task instance, write log output to the command-line, and push result to Xcom for downstream tasks
+    Args:
+        ti:
+
+    Returns:
+
+    """
+    current_task = ti.render_templates(ti.get_template_context())
+    log.info(f"Running task {current_task.task_id}")
+    xcom_value = current_task.execute(context=ti.get_template_context())
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+    log.info(f"{current_task.task_id} ran successfully!")
+
+    ti.set_state(State.SUCCESS)
+
+def _get_or_create_dagrun(dag: DAG, conf, start_date, execution_date, run_id, session):
+
+    log.info("dagrun id:" + dag.dag_id)
+    dr: DagRun = (
+        session.query(DagRun)
+        .filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
+        .first()
+    )
+    if dr:
+        session.delete(dr)
+        session.flush()
+    dr: DagRun = dag.create_dagrun(
+        state=DagRunState.RUNNING,
+        execution_date=execution_date,
+        run_id=run_id,
+
+
+        start_date=start_date or execution_date,
+        session=session,
+        conf=conf,
+    )
+    session.add(dr)
+    session.flush()
+    print("created dagrun " + str(dr))
+    return dr
+
+
+
+@provide_session
 @cli_utils.action_cli
 def dag_reserialize(args, session: Session = NEW_SESSION):
     session.query(SerializedDagModel).delete(synchronize_session=False)
@@ -505,3 +577,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION):
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))
         dagbag.sync_to_db(session=session)
+
+
