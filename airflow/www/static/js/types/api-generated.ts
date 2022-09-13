@@ -1153,7 +1153,7 @@ export interface components {
       kwargs?: string;
       /** Format: datetime */
       created_date?: string;
-      triggerer_id?: number;
+      triggerer_id?: number | null;
     };
     Job: {
       id?: number;

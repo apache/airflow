@@ -24,7 +24,7 @@ import {
   Table,
   Tbody,
   Tr,
-  Td,
+  Td, Heading, Thead,
 } from '@chakra-ui/react';
 
 import { finalStatesMap } from 'src/utils';
@@ -115,6 +115,32 @@ const Details = ({ instance, group, dagId }: Props) => {
               <Td colSpan={2}>{tooltip}</Td>
             </Tr>
           )}
+          {state === 'deferred' && (
+            <>
+              <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+                <Thead><Heading size="sm">Triggerer info</Heading></Thead>
+              </Tr>
+              <Tr>
+                <Td>Trigger class</Td>
+                <Td>{`${apiTI?.trigger?.classpath}`}</Td>
+              </Tr>
+              <Tr>
+                <Td>Trigger creation time</Td>
+                <Td>{`${apiTI?.trigger?.createdDate}`}</Td>
+              </Tr>
+              <Tr>
+                <Td>Assigned triggerer</Td>
+                <Td>{`${apiTI?.triggererJob?.hostname}`}</Td>
+              </Tr>
+              <Tr>
+                <Td>Latest triggerer heartbeat</Td>
+                <Td>{`${apiTI?.triggererJob?.latestHeartbeat}`}</Td>
+              </Tr>
+            </>
+          )}
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+            <Thead><Heading size="sm">Task Instance Details</Heading></Thead>
+          </Tr>
           <Tr>
             <Td>
               {isOverall}
@@ -143,14 +169,6 @@ const Details = ({ instance, group, dagId }: Props) => {
           <Tr>
             <Td>{taskIdTitle}</Td>
             <Td><ClipboardText value={taskId} /></Td>
-          </Tr>
-          <Tr>
-            <Td>Assigned triggerer</Td>
-            <Td>{`${apiTI?.triggererJob?.hostname}`}</Td>
-          </Tr>
-          <Tr>
-            <Td>Latest triggerer heartbeat</Td>
-            <Td>{`${apiTI?.triggererJob?.latestHeartbeat}`}</Td>
           </Tr>
           <Tr>
             <Td>Run ID</Td>

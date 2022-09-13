@@ -36,6 +36,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=10))
+    wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=120))
     finish = EmptyOperator(task_id="finish")
     wait >> finish

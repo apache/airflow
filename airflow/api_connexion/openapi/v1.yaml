@@ -2943,6 +2943,7 @@ components:
           format: datetime
         triggerer_id:
           type: integer
+          nullable: true
 
     Job:
       type: object
