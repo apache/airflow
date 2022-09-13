@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import ast
 import os
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, NamedTuple
+from typing import NamedTuple
 
 from jinja2 import BaseLoader, Environment
 from rich.console import Console
@@ -75,10 +76,10 @@ class ImportedClass(NamedTuple):
 
 def get_imports(path: Path):
     root = ast.parse(path.read_text())
-    imports: Dict[str, ImportedClass] = {}
+    imports: dict[str, ImportedClass] = {}
     for node in ast.iter_child_nodes(root):
         if isinstance(node, ast.Import):
-            module_array: List[str] = []
+            module_array: list[str] = []
         elif isinstance(node, ast.ImportFrom) and node.module:
             module_array = node.module.split('.')
         elif isinstance(node, ast.ClassDef):
@@ -194,7 +195,7 @@ CONTRIB_FILES = (AIRFLOW_SOURCES_ROOT / "airflow" / "contrib").rglob("*.py")
 
 if __name__ == '__main__':
     console = Console(color_system="standard", width=300)
-    all_deprecated_imports: Dict[str, Dict[str, List[Import]]] = defaultdict(lambda: defaultdict(list))
+    all_deprecated_imports: dict[str, dict[str, list[Import]]] = defaultdict(lambda: defaultdict(list))
     # delete = True
     delete = False
     # for file in DEPRECATED_MODULES:

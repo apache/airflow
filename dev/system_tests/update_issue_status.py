@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import rich_click as click
 from github import Github, Issue
@@ -86,7 +87,7 @@ option_start_from = click.option(
 )
 
 
-def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> Tuple[str, int, int, int, int]:
+def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> tuple[str, int, int, int, int]:
     count_re_added = 0
     count_completed = 0
     count_done = 0
@@ -130,7 +131,7 @@ def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> Tuple[st
 @click.command()
 def update_issue_status(
     github_token: str,
-    max_issues: Optional[int],
+    max_issues: int | None,
     dry_run: bool,
     repository: str,
     start_from: int,
@@ -147,12 +148,12 @@ def update_issue_status(
     total_count_done = 0
     total_count_all = 0
     num_issues = 0
-    completed_open_issues: List[Issue.Issue] = []
-    completed_closed_issues: List[Issue.Issue] = []
-    not_completed_closed_issues: List[Issue.Issue] = []
-    not_completed_opened_issues: List[Issue.Issue] = []
-    per_issue_num_done: Dict[int, int] = {}
-    per_issue_num_all: Dict[int, int] = {}
+    completed_open_issues: list[Issue.Issue] = []
+    completed_closed_issues: list[Issue.Issue] = []
+    not_completed_closed_issues: list[Issue.Issue] = []
+    not_completed_opened_issues: list[Issue.Issue] = []
+    per_issue_num_done: dict[int, int] = {}
+    per_issue_num_all: dict[int, int] = {}
     for issue in issues[start_from : start_from + max_issues]:
         console.print(f"[blue] {issue.id}: {issue.title}")
         new_body, count_re_added, count_completed, count_done, count_all = process_paths_from_body(

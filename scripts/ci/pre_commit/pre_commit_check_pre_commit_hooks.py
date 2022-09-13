@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Module to check pre-commit hook names for length
 """
+from __future__ import annotations
 
 import argparse
 import sys
@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 
 from collections import defaultdict  # noqa: E402
 from functools import lru_cache  # noqa: E402
-from typing import Any, Dict, List, Tuple  # noqa: E402
+from typing import Any  # noqa: E402
 
 import yaml  # noqa: E402
 from common_precommit_utils import insert_documentation  # noqa: E402
@@ -44,9 +44,9 @@ PRE_COMMIT_IDS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "
 PRE_COMMIT_YAML_FILE = AIRFLOW_SOURCES_PATH / ".pre-commit-config.yaml"
 
 
-def get_errors_and_hooks(content: Any, max_length: int) -> Tuple[List[str], Dict[str, List[str]], List[str]]:
+def get_errors_and_hooks(content: Any, max_length: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
     errors = []
-    hooks: Dict[str, List[str]] = defaultdict(list)
+    hooks: dict[str, list[str]] = defaultdict(list)
     needs_image = False
     image_hooks = []
     for repo in content['repos']:
@@ -78,7 +78,7 @@ def get_errors_and_hooks(content: Any, max_length: int) -> Tuple[List[str], Dict
 def render_template(
     searchpath: Path,
     template_name: str,
-    context: Dict[str, Any],
+    context: dict[str, Any],
     extension: str,
     autoescape: bool = True,
     keep_trailing_newline: bool = False,
@@ -147,7 +147,7 @@ def prepare_pre_commit_ids_py_file(pre_commit_ids):
     )
 
 
-def update_static_checks_array(hooks: Dict[str, List[str]], image_hooks: List[str]):
+def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[str]):
     rows = []
     hook_ids = list(hooks.keys())
     hook_ids.sort()

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Processes DAGs."""
+from __future__ import annotations
+
 import enum
 import importlib
 import inspect
@@ -32,7 +34,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Union, cast
+from typing import Any, NamedTuple, cast
 
 from setproctitle import setproctitle
 from sqlalchemy.orm import Session
@@ -74,8 +76,8 @@ class DagFileStat(NamedTuple):
 
     num_dags: int
     import_errors: int
-    last_finish_time: Optional[datetime]
-    last_duration: Optional[timedelta]
+    last_finish_time: datetime | None
+    last_duration: timedelta | None
     run_count: int
 
 
@@ -111,12 +113,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
-        dag_ids: Optional[List[str]],
+        dag_ids: list[str] | None,
         pickle_dags: bool,
         async_mode: bool,
     ):
         super().__init__()
-        self._file_path_queue: List[str] = []
+        self._file_path_queue: list[str] = []
         self._dag_directory: os.PathLike = dag_directory
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
@@ -124,14 +126,14 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
-        self._processors: Dict[str, DagFileProcessorProcess] = {}
+        self._processors: dict[str, DagFileProcessorProcess] = {}
         # Pipe for communicating signals
-        self._process: Optional[multiprocessing.process.BaseProcess] = None
+        self._process: multiprocessing.process.BaseProcess | None = None
         self._done: bool = False
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
         self._all_files_processed = True
 
-        self._parent_signal_conn: Optional[MultiprocessingConnection] = None
+        self._parent_signal_conn: MultiprocessingConnection | None = None
 
         self._last_parsing_stat_received_at: float = time.monotonic()
 
@@ -210,7 +212,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         max_runs: int,
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
-        dag_ids: Optional[List[str]],
+        dag_ids: list[str] | None,
         pickle_dags: bool,
         async_mode: bool,
     ) -> None:
@@ -372,21 +374,21 @@ class DagFileProcessorManager(LoggingMixin):
         dag_directory: os.PathLike,
         max_runs: int,
         processor_timeout: timedelta,
-        dag_ids: Optional[List[str]],
+        dag_ids: list[str] | None,
         pickle_dags: bool,
-        signal_conn: Optional[MultiprocessingConnection] = None,
+        signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
     ):
         super().__init__()
-        self._file_paths: List[str] = []
-        self._file_path_queue: List[str] = []
+        self._file_paths: list[str] = []
+        self._file_path_queue: list[str] = []
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
-        self._parsing_start_time: Optional[int] = None
+        self._parsing_start_time: int | None = None
         self._dag_directory = dag_directory
 
         # Set the signal conn in to non-blocking mode, so that attempting to
@@ -418,12 +420,12 @@ class DagFileProcessorManager(LoggingMixin):
         self.print_stats_interval = conf.getint('scheduler', 'print_stats_interval')
 
         # Map from file path to the processor
-        self._processors: Dict[str, DagFileProcessorProcess] = {}
+        self._processors: dict[str, DagFileProcessorProcess] = {}
 
         self._num_run = 0
 
         # Map from file path to stats about the file
-        self._file_stats: Dict[str, DagFileStat] = {}
+        self._file_stats: dict[str, DagFileStat] = {}
 
         # Last time that the DAG dir was traversed to look for files
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
@@ -439,11 +441,11 @@ class DagFileProcessorManager(LoggingMixin):
         self.dag_dir_list_interval = conf.getint('scheduler', 'dag_dir_list_interval')
 
         # Mapping file name and callbacks requests
-        self._callback_to_execute: Dict[str, List[CallbackRequest]] = defaultdict(list)
+        self._callback_to_execute: dict[str, list[CallbackRequest]] = defaultdict(list)
 
         self._log = logging.getLogger('airflow.processor_manager')
 
-        self.waitables: Dict[Any, Union[MultiprocessingConnection, DagFileProcessorProcess]] = (
+        self.waitables: dict[Any, MultiprocessingConnection | DagFileProcessorProcess] = (
             {
                 self._direct_scheduler_conn: self._direct_scheduler_conn,
             }

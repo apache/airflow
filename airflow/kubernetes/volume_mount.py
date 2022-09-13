@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1VolumeMount`."""
+from __future__ import annotations
+
 import warnings
 
 from airflow.exceptions import RemovedInAirflow3Warning

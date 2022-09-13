@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 try:
     import importlib_metadata
@@ -23,7 +22,7 @@ except ImportError:
     from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
 
 
-def get_docs_url(page: Optional[str] = None) -> str:
+def get_docs_url(page: str | None = None) -> str:
     """Prepare link to Airflow documentation."""
     from airflow.version import version
 
