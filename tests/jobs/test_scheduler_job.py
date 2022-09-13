@@ -2985,10 +2985,18 @@ class TestSchedulerJob:
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
             self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, dag_maker):
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            "@daily",
+            "0 10 * * *",
+            timedelta(hours=2),
+        ],
+    )
+    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, schedule, dag_maker):
         """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
         dag_id = 'test_send_sla_callbacks_to_processor_sla_with_task_slas'
-        with dag_maker(dag_id=dag_id, schedule='@daily') as dag:
+        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
             EmptyOperator(task_id='task1', sla=timedelta(seconds=60))
 
         with patch.object(settings, "CHECK_SLAS", True):
@@ -2999,6 +3007,26 @@ class TestSchedulerJob:
 
             expected_callback = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
             self.scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            None,
+            [Dataset("foo")],
+        ],
+    )
+    def test_send_sla_callbacks_to_processor_sla_dag_not_scheduled(self, schedule, dag_maker):
+        """Test SLA Callbacks are not sent when DAG isn't scheduled"""
+        dag_id = 'test_send_sla_callbacks_to_processor_sla_no_task_slas'
+        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
+            EmptyOperator(task_id='task1', sla=timedelta(seconds=5))
+
+        with patch.object(settings, "CHECK_SLAS", True):
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.executor = MockExecutor()
+
+            self.scheduler_job._send_sla_callbacks_to_processor(dag)
+            self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -4016,7 +4044,7 @@ class TestSchedulerJob:
             requests = self.scheduler_job.executor.callback_sink.send.call_args[0]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.fileloc
-            assert requests[0].msg == f"Detected {ti} as zombie"
+            assert requests[0].msg == str(self.scheduler_job._generate_zombie_message_details(ti))
             assert requests[0].is_failure_callback is True
             assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
             assert ti.dag_id == requests[0].simple_task_instance.dag_id
@@ -4026,6 +4054,72 @@ class TestSchedulerJob:
 
             session.query(TaskInstance).delete()
             session.query(LocalTaskJob).delete()
+
+    def test_zombie_message(self):
+        """
+        Check that the zombie message comes out as expected
+        """
+
+        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
+        with create_session() as session:
+            session.query(LocalTaskJob).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            dag.sync_to_db()
+
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job.executor = MockExecutor()
+            self.scheduler_job.processor_agent = mock.MagicMock()
+
+            # We will provision 2 tasks so we can check we only find zombies from this scheduler
+            tasks_to_setup = ['branching', 'run_this_first']
+
+            for task_id in tasks_to_setup:
+                task = dag.get_task(task_id=task_id)
+                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+                ti.queued_by_job_id = 999
+
+                local_job = LocalTaskJob(ti)
+                local_job.state = State.SHUTDOWN
+
+                session.add(local_job)
+                session.flush()
+
+                ti.job_id = local_job.id
+                session.add(ti)
+                session.flush()
+
+            assert task.task_id == 'run_this_first'  # Make sure we have the task/ti we expect
+
+            ti.queued_by_job_id = self.scheduler_job.id
+            session.flush()
+
+            zombie_message = self.scheduler_job._generate_zombie_message_details(ti)
+            assert zombie_message == {
+                'DAG Id': 'example_branch_operator',
+                'Task Id': 'run_this_first',
+                'Run Id': 'scheduled__2016-01-01T00:00:00+00:00',
+            }
+
+            ti.hostname = "10.10.10.10"
+            ti.map_index = 2
+            ti.external_executor_id = "abcdefg"
+
+            zombie_message = self.scheduler_job._generate_zombie_message_details(ti)
+            assert zombie_message == {
+                'DAG Id': 'example_branch_operator',
+                'Task Id': 'run_this_first',
+                'Run Id': 'scheduled__2016-01-01T00:00:00+00:00',
+                "Hostname": "10.10.10.10",
+                "Map Index": 2,
+                "External Executor Id": "abcdefg",
+            }
 
     def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(self):
         """
@@ -4198,13 +4292,14 @@ class TestSchedulerJob:
 
         dags = self.scheduler_job.dagbag.dags.values()
         assert ['test_only_empty_tasks'] == [dag.dag_id for dag in dags]
-        assert 5 == len(tis)
+        assert 6 == len(tis)
         assert {
             ('test_task_a', 'success'),
             ('test_task_b', None),
             ('test_task_c', 'success'),
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
+            ('test_task_outlets', 'scheduled'),
         } == {(ti.task_id, ti.state) for ti in tis}
         for state, start_date, end_date, duration in [
             (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis
@@ -4222,13 +4317,14 @@ class TestSchedulerJob:
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        assert 5 == len(tis)
+        assert 6 == len(tis)
         assert {
             ('test_task_a', 'success'),
             ('test_task_b', 'success'),
             ('test_task_c', 'success'),
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
+            ('test_task_outlets', 'scheduled'),
         } == {(ti.task_id, ti.state) for ti in tis}
         for state, start_date, end_date, duration in [
             (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis

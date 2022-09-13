@@ -22,7 +22,7 @@ import {
 } from '@chakra-ui/react';
 
 import {
-  DatasetLink, Table, TimeCell,
+  DatasetLink, Table, TimeCell, TriggeredRuns,
 } from 'src/components/Table';
 import { useDatasetEvents } from 'src/api';
 import type { DagRun as DagRunType } from 'src/types';
@@ -36,7 +36,13 @@ interface Props {
 const dagId = getMetaValue('dag_id') || undefined;
 
 const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
-  const { data: { datasetEvents }, isLoading } = useDatasetEvents({ runId, taskId, dagId });
+  const { data: { datasetEvents = [] }, isLoading } = useDatasetEvents(
+    {
+      sourceDagId: dagId,
+      sourceRunId: runId,
+      sourceTaskId: taskId,
+    },
+  );
 
   const columns = useMemo(
     () => [
@@ -49,6 +55,11 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
         Header: 'When',
         accessor: 'timestamp',
         Cell: TimeCell,
+      },
+      {
+        Header: 'Triggered Runs',
+        accessor: 'createdDagruns',
+        Cell: TriggeredRuns,
       },
     ],
     [],

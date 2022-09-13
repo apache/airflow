@@ -16,95 +16,267 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
 from slack_sdk.errors import SlackApiError
+from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
+from slack_sdk.web.slack_response import SlackResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack import SlackHook
 
+MOCK_SLACK_API_TOKEN = "xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx"
+SLACK_API_DEFAULT_CONN_ID = SlackHook.default_conn_name
+SLACK_CONN_TYPE = "slack"
+TEST_CONN_ERROR_RETRY_HANDLER = ConnectionErrorRetryHandler(max_retry_count=42)
+TEST_RATE_LIMIT_RETRY_HANDLER = RateLimitErrorRetryHandler()
 
-class TestSlackHook(unittest.TestCase):
+CONN_TYPE = "slack-incoming-webhook"
+VALID_CONN_IDS = [
+    SlackHook.default_conn_name,
+    "conn_full_url_connection",
+    "conn_host_with_schema",
+    "conn_parts",
+]
+
+
+def conn_error_retry_handler():
+    return TEST_CONN_ERROR_RETRY_HANDLER
+
+
+def rate_limit_retry_handler():
+    return TEST_RATE_LIMIT_RETRY_HANDLER
+
+
+@pytest.fixture(scope="module", autouse=True)
+def slack_api_connections():
+    """Create tests connections."""
+    connections = [
+        Connection(
+            conn_id=SLACK_API_DEFAULT_CONN_ID,
+            conn_type=CONN_TYPE,
+            password=MOCK_SLACK_API_TOKEN,
+        ),
+        Connection(
+            conn_id="compat_http_type",
+            conn_type="http",
+            password=MOCK_SLACK_API_TOKEN,
+        ),
+        Connection(
+            conn_id="empty_slack_connection",
+            conn_type=CONN_TYPE,
+        ),
+    ]
+
+    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
+
+    with mock.patch.dict("os.environ", values=conn_uris):
+        yield
+
+
+class TestSlackHook:
+    def test_token_arg_deprecated(self):
+        """Test deprecation warning if token provided as hook argument."""
+        warning_message = (
+            "Provide token as hook argument deprecated by security reason and will be removed "
+            r"in a future releases. Please specify token in `Slack API` connection\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token="foo-bar")
+
+    def test_token_property_deprecated(self):
+        """Test deprecation warning if access to ``SlackHook.token`` property."""
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        warning_message = r"`SlackHook.token` property deprecated and will be removed in a future releases\."
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            assert hook.token == MOCK_SLACK_API_TOKEN
+
+    def test_optional_conn_id_deprecated(self):
+        """Test deprecation warning if not set connection ID."""
+        warning_message = (
+            r"You have not set parameter `slack_conn_id`\. Currently `Slack API` connection id optional "
+            r"but in a future release it will mandatory\."
+        )
+        with pytest.warns(FutureWarning, match=warning_message):
+            SlackHook(token="foo-bar")
+
+    def test_use_session_has_no_affect(self):
+        """Test that specified previously in docstring `use_session` take no affect."""
+        warning_message = r"`use_session` has no affect in slack_sdk\.WebClient\."
+        with pytest.warns(UserWarning, match=warning_message):
+            hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, use_session="foo-bar")
+        assert "use_session" not in hook.extra_client_args
+
     def test_get_token_with_token_only(self):
-        """tests `__get_token` method when only token is provided"""
-        # Given
-        test_token = 'test_token'
-        test_conn_id = None
+        """Test retrieve token when only hook arg provided without Slack API Connection ID."""
+        test_hook_arg_token = 'xapp-1-arg-token'
+        assert SlackHook(test_hook_arg_token, None)._get_conn_params()["token"] == test_hook_arg_token
 
-        # Run
-        hook = SlackHook(test_token, test_conn_id)
+    @pytest.mark.parametrize(
+        "conn_id",
+        [
+            SLACK_API_DEFAULT_CONN_ID,
+            "compat_http_type",  # In case if users use Slack Webhook Connection ID from UI for Slack API
+        ],
+    )
+    def test_get_token_from_connection(self, conn_id):
+        """Test retrieve token from Slack API Connection ID."""
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        assert hook._get_conn_params()["token"] == MOCK_SLACK_API_TOKEN
 
-        # Assert
-        output = hook.token
-        expected = test_token
-        assert output == expected
+    def test_resolve_token(self):
+        """Test retrieve token when both hook arg and Slack API Connection ID provided."""
+        test_hook_arg_token = 'xapp-1-arg-token'
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token=test_hook_arg_token)
+        assert hook._get_conn_params()["token"] == test_hook_arg_token
 
+    def test_nor_token_and_nor_conn_id_provided(self):
+        """Test neither hook arg and Slack API Connection ID provided."""
+        with pytest.raises(AirflowException, match=r"Either `slack_conn_id` or `token` should be provided\."):
+            SlackHook(slack_conn_id=None, token=None)
+
+    def test_empty_password(self):
+        """Test password field defined in the connection."""
+        hook = SlackHook(slack_conn_id="empty_slack_connection")
+        error_message = r"Connection ID '.*' does not contain password \(Slack API Token\)\."
+        with pytest.raises(AirflowNotFoundException, match=error_message):
+            hook._get_conn_params()
+
+    @pytest.mark.parametrize(
+        "hook_config,conn_extra,expected",
+        [
+            (  # Test Case: hook config
+                {
+                    "timeout": 42,
+                    "base_url": "http://hook-base-url:1234",
+                    "proxy": "https://hook-proxy:1234",
+                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER, TEST_RATE_LIMIT_RETRY_HANDLER],
+                },
+                {},
+                {
+                    "timeout": 42,
+                    "base_url": "http://hook-base-url:1234",
+                    "proxy": "https://hook-proxy:1234",
+                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER, TEST_RATE_LIMIT_RETRY_HANDLER],
+                },
+            ),
+            (  # Test Case: connection config
+                {},
+                {
+                    "timeout": "9000",
+                    "base_url": "http://conn-base-url:4321",
+                    "proxy": "https://conn-proxy:4321",
+                    "retry_handlers": (
+                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
+                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
+                    ),
+                },
+                {
+                    "timeout": 9000,
+                    "base_url": "http://conn-base-url:4321",
+                    "proxy": "https://conn-proxy:4321",
+                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER, TEST_CONN_ERROR_RETRY_HANDLER],
+                },
+            ),
+            (  # Test Case: Connection from the UI
+                {},
+                {
+                    "extra__slack__timeout": 9000,
+                    "extra__slack__base_url": "http://conn-base-url:4321",
+                    "extra__slack__proxy": "https://conn-proxy:4321",
+                    "extra__slack__retry_handlers": (
+                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
+                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
+                    ),
+                },
+                {
+                    "timeout": 9000,
+                    "base_url": "http://conn-base-url:4321",
+                    "proxy": "https://conn-proxy:4321",
+                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER, TEST_CONN_ERROR_RETRY_HANDLER],
+                },
+            ),
+            (  # Test Case: Merge configs - hook args overwrite conn config
+                {
+                    "timeout": 1,
+                    "proxy": "https://hook-proxy:777",
+                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER],
+                },
+                {
+                    "timeout": 9000,
+                    "proxy": "https://conn-proxy:4321",
+                    "retry_handlers": (
+                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
+                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
+                    ),
+                },
+                {
+                    "timeout": 1,
+                    "proxy": "https://hook-proxy:777",
+                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER],
+                },
+            ),
+            (  # Test Case: Merge configs - resolve config
+                {
+                    "timeout": 1,
+                },
+                {
+                    "timeout": 9000,
+                    "proxy": "https://conn-proxy:4334",
+                    "retry_handlers": ("tests.providers.slack.hooks.test_slack.conn_error_retry_handler"),
+                },
+                {
+                    "timeout": 1,
+                    "proxy": "https://conn-proxy:4334",
+                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER],
+                },
+            ),
+            (  # Test Case: empty configs
+                {},
+                {},
+                {},
+            ),
+            (  # Test Case: extra_client_args
+                {"foo": "bar"},
+                {},
+                {"foo": "bar"},
+            ),
+            (  # Test Case: ignored not expected connection extra
+                {},
+                {"spam": "egg"},
+                {},
+            ),
+        ],
+    )
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
-    @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
-    def test_get_token_with_valid_slack_conn_id_only(self, get_connection_mock, mock_slack_client):
-        """tests `__get_token` method when only connection is provided"""
-        # Given
-        test_token = None
-        test_conn_id = 'x'
-        test_password = 'test_password'
+    def test_client_configuration(
+        self, mock_webclient_cls, hook_config, conn_extra, expected: Dict[str, Any]
+    ):
+        """Test read/parse/merge WebClient config from connection and hook arguments."""
+        expected["token"] = MOCK_SLACK_API_TOKEN
+        test_conn = Connection(
+            conn_id="test-slack-conn",
+            conn_type=CONN_TYPE,
+            password=MOCK_SLACK_API_TOKEN,
+            extra=conn_extra,
+        )
+        test_conn_env = f"AIRFLOW_CONN_{test_conn.conn_id.upper()}"
+        mock_webclient = mock_webclient_cls.return_value
 
-        # Mock
-        get_connection_mock.return_value = mock.Mock(password=test_password)
+        with mock.patch.dict("os.environ", values={test_conn_env: test_conn.get_uri()}):
+            hook = SlackHook(slack_conn_id=test_conn.conn_id, **hook_config)
+            expected["logger"] = hook.log
+            conn_params = hook._get_conn_params()
+            assert conn_params == expected
 
-        # Run
-        hook = SlackHook(test_token, test_conn_id)
-
-        # Assert
-        output = hook.token
-        expected = test_password
-        assert output == expected
-        mock_slack_client.assert_called_once_with(test_password)
-
-    @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
-    def test_get_token_with_no_password_slack_conn_id_only(self, get_connection_mock):
-        """tests `__get_token` method when only connection is provided"""
-
-        # Mock
-        conn = mock.Mock()
-        del conn.password
-        get_connection_mock.return_value = conn
-
-        # Assert
-        with pytest.raises(AirflowException):
-            SlackHook(token=None, slack_conn_id='x')
-
-    @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
-    def test_get_token_with_empty_password_slack_conn_id_only(self, get_connection_mock):
-        """tests `__get_token` method when only connection is provided"""
-
-        # Mock
-        get_connection_mock.return_value = mock.Mock(password=None)
-
-        # Assert
-        with pytest.raises(AirflowException):
-            SlackHook(token=None, slack_conn_id='x')
-
-    def test_get_token_with_token_and_slack_conn_id(self):
-        """tests `__get_token` method when both arguments are provided"""
-        # Given
-        test_token = 'test_token'
-        test_conn_id = 'x'
-
-        # Run
-        hook = SlackHook(test_token, test_conn_id)
-
-        # Assert
-        output = hook.token
-        expected = test_token
-        assert output == expected
-
-    def test_get_token_with_out_token_nor_slack_conn_id(self):
-        """tests `__get_token` method when no arguments are provided"""
-
-        with pytest.raises(AirflowException):
-            SlackHook(token=None, slack_conn_id=None)
+            client = hook.client
+            assert client == mock_webclient
+            assert hook.get_conn() == mock_webclient
+            assert hook.get_conn() is client  # cached
+            mock_webclient_cls.assert_called_once_with(**expected)
 
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
     def test_call_with_failure(self, slack_client_class_mock):
@@ -113,9 +285,7 @@ class TestSlackHook(unittest.TestCase):
         expected_exception = SlackApiError(message='foo', response='bar')
         slack_client_mock.api_call = mock.Mock(side_effect=expected_exception)
 
-        test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
-        slack_hook = SlackHook(token=test_token, slack_conn_id=test_slack_conn_id)
+        slack_hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         test_method = 'test_method'
         test_api_params = {'key1': 'value1', 'key2': 'value2'}
 
@@ -128,8 +298,71 @@ class TestSlackHook(unittest.TestCase):
         slack_client_class_mock.return_value = slack_client_mock
         slack_client_mock.api_call.return_value = {'ok': True}
 
-        slack_hook = SlackHook(token='test_token')
+        slack_hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         test_api_json = {'channel': 'test_channel'}
 
         slack_hook.call("chat.postMessage", json=test_api_json)
         slack_client_mock.api_call.assert_called_with("chat.postMessage", json=test_api_json)
+
+    @pytest.mark.parametrize(
+        "response_data",
+        [
+            {
+                "ok": True,
+                "url": "https://subarachnoid.slack.com/",
+                "team": "Subarachnoid Workspace",
+                "user": "grace",
+                "team_id": "T12345678",
+                "user_id": "W12345678",
+            },
+            {
+                "ok": True,
+                "url": "https://subarachnoid.slack.com/",
+                "team": "Subarachnoid Workspace",
+                "user": "bot",
+                "team_id": "T0G9PQBBK",
+                "user_id": "W23456789",
+                "bot_id": "BZYBOTHED",
+            },
+            b"some-binary-data",
+        ],
+    )
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    def test_hook_connection_success(self, mock_webclient_cls, response_data):
+        """Test SlackHook success connection."""
+        mock_webclient = mock_webclient_cls.return_value
+        mock_webclient_call = mock_webclient.api_call
+        mock_webclient_call.return_value = SlackResponse(
+            status_code=200,
+            data=response_data,
+            # Mock other mandatory SlackResponse arguments
+            **{ma: mock.MagicMock for ma in ("client", "http_verb", "api_url", "req_args", "headers")},
+        )
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        conn_test = hook.test_connection()
+        mock_webclient_call.assert_called_once_with("auth.test")
+        assert conn_test[0]
+
+    @pytest.mark.parametrize(
+        "response_data",
+        [
+            {"ok": False, "error": "invalid_auth"},
+            {"ok": False, "error": "not_authed"},
+            b"some-binary-data",
+        ],
+    )
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    def test_hook_connection_failed(self, mock_webclient_cls, response_data):
+        """Test SlackHook failure connection."""
+        mock_webclient = mock_webclient_cls.return_value
+        mock_webclient_call = mock_webclient.api_call
+        mock_webclient_call.return_value = SlackResponse(
+            status_code=401,
+            data=response_data,
+            # Mock other mandatory SlackResponse arguments
+            **{ma: mock.MagicMock for ma in ("client", "http_verb", "api_url", "req_args", "headers")},
+        )
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        conn_test = hook.test_connection()
+        mock_webclient_call.assert_called_once_with("auth.test")
+        assert not conn_test[0]

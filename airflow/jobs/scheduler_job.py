@@ -47,7 +47,7 @@ from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRef, DatasetDagRunQueue, DatasetEvent
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -1118,14 +1118,17 @@ class SchedulerJob(BaseJob):
                     .first()
                 )
                 dataset_event_filters = [
-                    DatasetDagRef.dag_id == dag.dag_id,
+                    DagScheduleDatasetReference.dag_id == dag.dag_id,
                     DatasetEvent.timestamp <= exec_date,
                 ]
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
                 dataset_events = (
                     session.query(DatasetEvent)
-                    .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
+                    .join(
+                        DagScheduleDatasetReference,
+                        DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
+                    )
                     .join(DatasetEvent.source_dag_run)
                     .filter(*dataset_event_filters)
                     .all()
@@ -1315,6 +1318,10 @@ class SchedulerJob(BaseJob):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
+        if not dag.timetable.periodic:
+            self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
+            return
+
         request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
         self.executor.send_callback(request)
 
@@ -1474,11 +1481,31 @@ class SchedulerJob(BaseJob):
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
         for ti, file_loc in zombies:
+
+            zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
                 full_filepath=file_loc,
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                msg=f"Detected {ti} as zombie",
+                msg=str(zombie_message_details),
             )
-            self.log.error("Detected zombie job: %s", request)
+
+            self.log.error("Detected zombie job: %s", request.msg)
             self.executor.send_callback(request)
             Stats.incr('zombies_killed')
+
+    @staticmethod
+    def _generate_zombie_message_details(ti: TaskInstance):
+        zombie_message_details = {
+            "DAG Id": ti.dag_id,
+            "Task Id": ti.task_id,
+            "Run Id": ti.run_id,
+        }
+
+        if ti.map_index != -1:
+            zombie_message_details["Map Index"] = ti.map_index
+        if ti.hostname:
+            zombie_message_details["Hostname"] = ti.hostname
+        if ti.external_executor_id:
+            zombie_message_details["External Executor Id"] = ti.external_executor_id
+
+        return zombie_message_details

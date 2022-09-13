@@ -22,6 +22,7 @@ from datetime import datetime
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogCreateEntryGroupOperator,
@@ -69,7 +70,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_entry_group_result]
     create_entry_group_result = BashOperator(
         task_id="create_entry_group_result",
-        bash_command=f"echo {create_entry_group.output['entry_group_id']}",
+        bash_command=f"echo {XComArg(create_entry_group, key='entry_group_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_group_result]
 
@@ -90,7 +91,7 @@ with models.DAG(
     # [START howto_operator_gcp_datacatalog_create_entry_gcs_result]
     create_entry_gcs_result = BashOperator(
         task_id="create_entry_gcs_result",
-        bash_command=f"echo {create_entry_gcs.output['entry_id']}",
+        bash_command=f"echo {XComArg(create_entry_gcs, key='entry_id')}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_gcs_result]
 

@@ -98,6 +98,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -834,7 +835,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
-        self.trigger_rule = TriggerRule(trigger_rule)
+        self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_downstream: bool = wait_for_downstream
@@ -1365,7 +1366,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return [self]
 
     @property
-    def output(self):
+    def output(self) -> "XComArg":
         """Returns reference to XCom pushed by current operator"""
         from airflow.models.xcom_arg import XComArg
 

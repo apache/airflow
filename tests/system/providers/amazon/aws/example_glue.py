@@ -66,7 +66,7 @@ datasource.toDF().write.format('csv').mode("append").save('s3://{bucket_name}/ou
 
 
 @task
-def get_role_name(arn):
+def get_role_name(arn: str) -> str:
     return arn.split('/')[-1]
 
 

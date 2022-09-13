@@ -533,7 +533,7 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/local_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.local_to_s3
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3

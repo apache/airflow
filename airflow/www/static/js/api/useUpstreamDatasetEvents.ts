@@ -27,11 +27,6 @@ interface Props {
   runId: string;
 }
 
-interface UpstreamEventsData {
-  datasetEvents: API.DatasetEvent[];
-  totalEntries: number;
-}
-
 export default function useUpstreamDatasetEvents({ runId }: Props) {
   const query = useQuery(
     ['upstreamDatasetEvents', runId],
@@ -41,7 +36,7 @@ export default function useUpstreamDatasetEvents({ runId }: Props) {
         getMetaValue('upstream_dataset_events_api')
           || `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
       ).replace('_DAG_RUN_ID_', runId);
-      return axios.get<AxiosResponse, UpstreamEventsData>(upstreamEventsUrl);
+      return axios.get<AxiosResponse, API.DatasetEventCollection>(upstreamEventsUrl);
     },
   );
   return {
