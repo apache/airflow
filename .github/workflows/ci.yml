@@ -60,13 +60,11 @@ jobs:
     # is checked again by the runner using it's own list, so a PR author cannot
     # change this and get access to our self-hosted runners
     #
-    # When changing this list, ensure that it is kept in sync with the
-    # /runners/apache/airflow/configOverlay
-    # parameter in AWS SSM ParameterStore (which is what the runner uses)
-    # and restart the self-hosted runners.
-    #
-    # This list of committers can be generated with:
-    #   https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers
+    # This list is kept up-to-date from the list of authors found in the
+    # 'airflow-ci-infra' by the 'sync_authors' Github workflow. It uses a regexp
+    # to find the list of authors and replace them, so any changes to the
+    # formatting of the contains(fromJSON()) structure below will need to be
+    # reflected in that workflow too.
     runs-on: >-
       ${{ (
         (
