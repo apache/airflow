@@ -162,6 +162,12 @@ def is_core_commit(files: List[str]) -> bool:
         "docker_tests/",
         ".asf.yaml",
         ".mailmap",
+        "breeze-legacy",
+        "breeze-complete",
+        ".rat-excludes",
+        ".gitattributes",
+        ".gitpod.yml",
+        "generated/",
     ]
 
     for file in files:
