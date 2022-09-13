@@ -168,7 +168,7 @@ class DagRun(Base, LoggingMixin):
         TI, back_populates="dag_run", cascade='save-update, merge, delete, delete-orphan'
     )
     dag_model = relationship(
-        "DagModel", primaryjoin="DagRun.dag_id == foreign(DagModel.dag_id)", uselist=False
+        "DagModel", primaryjoin="foreign(DagRun.dag_id) == DagModel.dag_id", uselist=False
     )
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
