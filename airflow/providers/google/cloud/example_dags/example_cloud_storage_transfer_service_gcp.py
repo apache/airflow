@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 
@@ -27,6 +26,7 @@ This DAG relies on the following OS environment variables
   It is also a source bucket in next step
 * GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta

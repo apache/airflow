@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -62,7 +64,7 @@ CREATE_NODEGROUP_KWARGS = {
 class ClusterParams(TypedDict):
     cluster_name: str
     cluster_role_arn: str
-    resources_vpc_config: Dict[Any, Any]
+    resources_vpc_config: dict[Any, Any]
 
 
 class NodeGroupParams(TypedDict):
@@ -73,20 +75,20 @@ class NodeGroupParams(TypedDict):
 class BaseFargateProfileParams(TypedDict):
     fargate_profile_name: str
     fargate_pod_execution_role_arn: str
-    fargate_selectors: List[Any]
+    fargate_selectors: list[Any]
 
 
 class CreateFargateProfileParams(TypedDict):
     cluster_name: str
     pod_execution_role_arn: str
-    selectors: List[Any]
+    selectors: list[Any]
     fargate_profile_name: str
 
 
 class CreateNodegroupParams(TypedDict):
     cluster_name: str
     nodegroup_name: str
-    nodegroup_subnets: List[str]
+    nodegroup_subnets: list[str]
     nodegroup_role_arn: str
 
 

@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -99,12 +100,12 @@ class SqlToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         sql_conn_id: str,
-        parameters: Union[None, Mapping, Iterable] = None,
+        parameters: None | Mapping | Iterable = None,
         replace: bool = False,
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[bool, str]] = None,
+        verify: bool | str | None = None,
         file_format: Literal['csv', 'json', 'parquet'] = 'csv',
-        pd_kwargs: Optional[dict] = None,
+        pd_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -151,7 +152,7 @@ class SqlToS3Operator(BaseOperator):
                     df[col] = np.where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(pd.Float64Dtype())
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)

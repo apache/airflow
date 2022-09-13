@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Vertex AI operators.
 
 .. spelling::
@@ -25,8 +24,9 @@
     aiplatform
     gapic
 """
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -165,28 +165,28 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         region: str,
         project_id: str,
         job_display_name: str,
-        model_name: Union[str, "Model"],
+        model_name: str | Model,
         instances_format: str = "jsonl",
         predictions_format: str = "jsonl",
-        gcs_source: Optional[Union[str, Sequence[str]]] = None,
-        bigquery_source: Optional[str] = None,
-        gcs_destination_prefix: Optional[str] = None,
-        bigquery_destination_prefix: Optional[str] = None,
-        model_parameters: Optional[Dict] = None,
-        machine_type: Optional[str] = None,
-        accelerator_type: Optional[str] = None,
-        accelerator_count: Optional[int] = None,
-        starting_replica_count: Optional[int] = None,
-        max_replica_count: Optional[int] = None,
-        generate_explanation: Optional[bool] = False,
-        explanation_metadata: Optional["explain.ExplanationMetadata"] = None,
-        explanation_parameters: Optional["explain.ExplanationParameters"] = None,
-        labels: Optional[Dict[str, str]] = None,
-        encryption_spec_key_name: Optional[str] = None,
+        gcs_source: str | Sequence[str] | None = None,
+        bigquery_source: str | None = None,
+        gcs_destination_prefix: str | None = None,
+        bigquery_destination_prefix: str | None = None,
+        model_parameters: dict | None = None,
+        machine_type: str | None = None,
+        accelerator_type: str | None = None,
+        accelerator_count: int | None = None,
+        starting_replica_count: int | None = None,
+        max_replica_count: int | None = None,
+        generate_explanation: bool | None = False,
+        explanation_metadata: explain.ExplanationMetadata | None = None,
+        explanation_parameters: explain.ExplanationParameters | None = None,
+        labels: dict[str, str] | None = None,
+        encryption_spec_key_name: str | None = None,
         sync: bool = True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -217,7 +217,7 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.hook = None  # type: Optional[BatchPredictionJobHook]
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info("Creating Batch prediction job")
         self.hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -300,12 +300,12 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         region: str,
         project_id: str,
         batch_prediction_job_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -319,7 +319,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -375,12 +375,12 @@ class GetBatchPredictionJobOperator(BaseOperator):
         region: str,
         project_id: str,
         batch_prediction_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -394,7 +394,7 @@ class GetBatchPredictionJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -464,16 +464,16 @@ class ListBatchPredictionJobsOperator(BaseOperator):
         *,
         region: str,
         project_id: str,
-        filter: Optional[str] = None,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        read_mask: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -490,7 +490,7 @@ class ListBatchPredictionJobsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = BatchPredictionJobHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

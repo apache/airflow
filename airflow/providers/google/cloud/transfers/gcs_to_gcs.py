@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage operator."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -189,7 +191,7 @@ class GCSToGCSOperator(BaseOperator):
         last_modified_time=None,
         maximum_modified_time=None,
         is_older_than=None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         source_object_required=False,
         exact_match=False,
         **kwargs,
@@ -213,7 +215,7 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
 
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

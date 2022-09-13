@@ -15,16 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
 This DAG relies on the following OS environment variables:
 * PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -70,7 +70,7 @@ update_build_trigger_body = {
 # [END START howto_operator_gcp_update_build_trigger_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body: Dict[str, Any] = {
+create_build_from_repo_body: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
     "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
 }

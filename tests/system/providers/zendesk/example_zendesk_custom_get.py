@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Dict, List
 
 from airflow import DAG
 from airflow.decorators import task
@@ -28,7 +28,7 @@ DAG_ID = "zendesk_custom_get_dag"
 
 
 @task
-def fetch_organizations() -> List[Dict]:
+def fetch_organizations() -> list[dict]:
     hook = ZendeskHook()
     response = hook.get(
         url="https://yourdomain.zendesk.com/api/v2/organizations.json",

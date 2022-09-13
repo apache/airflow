@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from kylinpy import kylinpy
 
@@ -101,15 +102,15 @@ class KylinCubeOperator(BaseOperator):
         self,
         *,
         kylin_conn_id: str = 'kylin_default',
-        project: Optional[str] = None,
-        cube: Optional[str] = None,
-        dsn: Optional[str] = None,
-        command: Optional[str] = None,
-        start_time: Optional[str] = None,
-        end_time: Optional[str] = None,
-        offset_start: Optional[str] = None,
-        offset_end: Optional[str] = None,
-        segment_name: Optional[str] = None,
+        project: str | None = None,
+        cube: str | None = None,
+        dsn: str | None = None,
+        command: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        offset_start: str | None = None,
+        offset_end: str | None = None,
+        segment_name: str | None = None,
         is_track_job: bool = False,
         interval: int = 60,
         timeout: int = 60 * 60 * 24,
@@ -133,7 +134,7 @@ class KylinCubeOperator(BaseOperator):
         self.eager_error_status = eager_error_status
         self.jobs_error_status = [stat.upper() for stat in eager_error_status]
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
 
         _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
 

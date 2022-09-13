@@ -19,6 +19,7 @@
 Example Airflow DAG that show how to use various Dataproc Metastore
 operators to manage a service.
 """
+from __future__ import annotations
 
 import datetime
 import os

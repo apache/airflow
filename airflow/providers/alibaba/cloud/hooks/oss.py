@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from urllib.parse import urlparse
 
 import oss2
@@ -88,13 +90,13 @@ class OSSHook(BaseHook):
     conn_type = 'oss'
     hook_name = 'OSS'
 
-    def __init__(self, region: Optional[str] = None, oss_conn_id='oss_default', *args, **kwargs) -> None:
+    def __init__(self, region: str | None = None, oss_conn_id='oss_default', *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
         self.region = self.get_default_region() if region is None else region
         super().__init__(*args, **kwargs)
 
-    def get_conn(self) -> "Connection":
+    def get_conn(self) -> Connection:
         """Returns connection for the hook."""
         return self.oss_conn
 
@@ -118,7 +120,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def object_exists(self, key: str, bucket_name: Optional[str] = None) -> bool:
+    def object_exists(self, key: str, bucket_name: str | None = None) -> bool:
         """
         Check if object exists.
 
@@ -134,7 +136,7 @@ class OSSHook(BaseHook):
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: Optional[str] = None) -> oss2.api.Bucket:
+    def get_bucket(self, bucket_name: str | None = None) -> oss2.api.Bucket:
         """
         Returns a oss2.Bucket object
 
@@ -148,7 +150,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def load_string(self, key: str, content: str, bucket_name: Optional[str] = None) -> None:
+    def load_string(self, key: str, content: str, bucket_name: str | None = None) -> None:
         """
         Loads a string to OSS
 
@@ -167,7 +169,7 @@ class OSSHook(BaseHook):
         self,
         key: str,
         file: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
     ) -> None:
         """
         Upload a local file to OSS
@@ -187,8 +189,8 @@ class OSSHook(BaseHook):
         self,
         key: str,
         local_file: str,
-        bucket_name: Optional[str] = None,
-    ) -> Optional[str]:
+        bucket_name: str | None = None,
+    ) -> str | None:
         """
         Download file from OSS
 
@@ -210,7 +212,7 @@ class OSSHook(BaseHook):
     def delete_object(
         self,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
     ) -> None:
         """
         Delete object from OSS
@@ -229,7 +231,7 @@ class OSSHook(BaseHook):
     def delete_objects(
         self,
         key: list,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
     ) -> None:
         """
         Delete objects from OSS
@@ -246,7 +248,7 @@ class OSSHook(BaseHook):
     @provide_bucket_name
     def delete_bucket(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
     ) -> None:
         """
         Delete bucket from OSS
@@ -262,7 +264,7 @@ class OSSHook(BaseHook):
     @provide_bucket_name
     def create_bucket(
         self,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
     ) -> None:
         """
         Create bucket
@@ -277,7 +279,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def append_string(self, bucket_name: Optional[str], content: str, key: str, pos: int) -> None:
+    def append_string(self, bucket_name: str | None, content: str, key: str, pos: int) -> None:
         """
         Append string to a remote existing file
 
@@ -295,7 +297,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def read_key(self, bucket_name: Optional[str], key: str) -> str:
+    def read_key(self, bucket_name: str | None, key: str) -> str:
         """
         Read oss remote object content with the specified key
 
@@ -311,7 +313,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def head_key(self, bucket_name: Optional[str], key: str) -> oss2.models.HeadObjectResult:
+    def head_key(self, bucket_name: str | None, key: str) -> oss2.models.HeadObjectResult:
         """
         Get meta info of the specified remote object
 
@@ -327,7 +329,7 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def key_exist(self, bucket_name: Optional[str], key: str) -> bool:
+    def key_exist(self, bucket_name: str | None, key: str) -> bool:
         """
         Find out whether the specified key exists in the oss remote storage
 
@@ -360,7 +362,7 @@ class OSSHook(BaseHook):
 
         return oss2.Auth(oss_access_key_id, oss_access_key_secret)
 
-    def get_default_region(self) -> Optional[str]:
+    def get_default_region(self) -> str | None:
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get('auth_type', None)
         if not auth_type:

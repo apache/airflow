@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS S3 to Snowflake operator."""
+from __future__ import annotations
+
 import warnings
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -69,21 +70,21 @@ class S3ToSnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_keys: Optional[list] = None,
+        s3_keys: list | None = None,
         table: str,
         stage: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         file_format: str,
-        schema: Optional[str] = None,
-        columns_array: Optional[list] = None,
-        pattern: Optional[str] = None,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
+        schema: str | None = None,
+        columns_array: list | None = None,
+        pattern: str | None = None,
+        warehouse: str | None = None,
+        database: str | None = None,
         autocommit: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
-        role: Optional[str] = None,
-        authenticator: Optional[str] = None,
-        session_parameters: Optional[dict] = None,
+        role: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         warnings.warn(

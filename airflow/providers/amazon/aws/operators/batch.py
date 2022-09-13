@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 An Airflow operator for AWS Batch services
 
@@ -25,8 +23,10 @@ An Airflow operator for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+from __future__ import annotations
+
 import sys
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.providers.amazon.aws.utils import trim_none_values
 
@@ -128,15 +128,15 @@ class BatchOperator(BaseOperator):
         job_definition: str,
         job_queue: str,
         overrides: dict,
-        array_properties: Optional[dict] = None,
-        parameters: Optional[dict] = None,
-        job_id: Optional[str] = None,
-        waiters: Optional[Any] = None,
-        max_retries: Optional[int] = None,
-        status_retries: Optional[int] = None,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
-        tags: Optional[dict] = None,
+        array_properties: dict | None = None,
+        parameters: dict | None = None,
+        job_id: str | None = None,
+        waiters: Any | None = None,
+        max_retries: int | None = None,
+        status_retries: int | None = None,
+        aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        tags: dict | None = None,
         wait_for_completion: bool = True,
         **kwargs,
     ):
@@ -159,7 +159,7 @@ class BatchOperator(BaseOperator):
             region_name=region_name,
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Submit and monitor an AWS Batch job
 
@@ -176,7 +176,7 @@ class BatchOperator(BaseOperator):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
-    def submit_job(self, context: 'Context'):
+    def submit_job(self, context: Context):
         """
         Submit an AWS Batch job
 
@@ -217,7 +217,7 @@ class BatchOperator(BaseOperator):
             job_id=self.job_id,
         )
 
-    def monitor_job(self, context: 'Context'):
+    def monitor_job(self, context: Context):
         """
         Monitor an AWS Batch job
         monitor_job can raise an exception or an AirflowTaskTimeout can be raised if execution_timeout
@@ -330,13 +330,13 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         environment_type: str,
         state: str,
         compute_resources: dict,
-        unmanaged_v_cpus: Optional[int] = None,
-        service_role: Optional[str] = None,
-        tags: Optional[dict] = None,
-        max_retries: Optional[int] = None,
-        status_retries: Optional[int] = None,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
+        unmanaged_v_cpus: int | None = None,
+        service_role: str | None = None,
+        tags: dict | None = None,
+        max_retries: int | None = None,
+        status_retries: int | None = None,
+        aws_conn_id: str | None = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -362,9 +362,9 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
             region_name=self.region_name,
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Create an AWS batch compute environment"""
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             'computeEnvironmentName': self.compute_environment_name,
             'type': self.environment_type,
             'state': self.state,

@@ -213,7 +213,9 @@ repos:
       - id: pyupgrade
         name: Upgrade Python code automatically
         args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
+        # We need to exclude gcs hook from pyupgrade because it has public "list" command which clashes
+        # with `list` that is used as type
+        exclude: ^airflow/_vendor/|^airflow/providers/google/cloud/hooks/gcs.py$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:

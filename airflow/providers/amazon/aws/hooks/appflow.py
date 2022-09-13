@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
 from time import sleep
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -53,7 +54,7 @@ class AppflowHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     @cached_property
-    def conn(self) -> 'AppflowClient':
+    def conn(self) -> AppflowClient:
         """Get the underlying boto3 Appflow client (cached)"""
         return super().conn
 
@@ -104,7 +105,7 @@ class AppflowHook(AwsBaseHook):
         return execution_id
 
     def update_flow_filter(
-        self, flow_name: str, filter_tasks: List["TaskTypeDef"], set_trigger_ondemand: bool = False
+        self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
     ) -> None:
         """
         Update the flow task filter.
@@ -117,7 +118,7 @@ class AppflowHook(AwsBaseHook):
         """
         response = self.conn.describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
-        tasks: List["TaskTypeDef"] = []
+        tasks: list[TaskTypeDef] = []
 
         # cleanup old filter tasks
         for task in response["tasks"]:

@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import io
 import json
 import zipfile
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 import boto3
 
@@ -85,7 +86,7 @@ def delete_lambda(function_name: str):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_logs(function_name: str) -> None:
-    generated_log_groups: List[Tuple[str, Optional[str]]] = [
+    generated_log_groups: list[tuple[str, str | None]] = [
         (f'/aws/lambda/{function_name}', None),
     ]
 
