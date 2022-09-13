@@ -2234,7 +2234,13 @@ class TestDagModel:
         # add queue records so we'll need a run
         dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
         dataset_model: DatasetModel = dag_model.schedule_datasets[0]
-        session.add(DatasetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        session.add(
+            DatasetDagRunQueue(
+                dataset_id=dataset_model.id,
+                target_dag_id=dag_model.dag_id,
+                event_timestamp=pendulum.now('UTC'),
+            )
+        )
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2381,11 +2387,20 @@ class TestDagModel:
             pass
 
         session.flush()
+        event_timestamp = pendulum.now('UTC')
         session.add_all(
             [
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
                 DatasetDagRunQueue(
-                    dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
+                    dataset_id=ds1_id,
+                    target_dag_id=dag.dag_id,
+                    created_at=DEFAULT_DATE,
+                    event_timestamp=event_timestamp,
+                ),
+                DatasetDagRunQueue(
+                    dataset_id=ds2_id,
+                    target_dag_id=dag.dag_id,
+                    created_at=DEFAULT_DATE + timedelta(hours=1),
+                    event_timestamp=event_timestamp,
                 ),
             ]
         )
@@ -2968,10 +2983,11 @@ def test_get_dataset_triggered_next_run_info(dag_maker):
 
     session = dag_maker.session
     ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+    event_timestamp = pendulum.now('UTC')
     session.bulk_save_objects(
         [
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id, event_timestamp=event_timestamp),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id, event_timestamp=event_timestamp),
         ]
     )
     session.flush()

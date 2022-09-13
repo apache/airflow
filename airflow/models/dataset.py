@@ -204,6 +204,7 @@ class DatasetDagRunQueue(Base):
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    event_timestamp = Column(UtcDateTime, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset_dag_run_queue"

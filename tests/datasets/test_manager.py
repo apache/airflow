@@ -71,16 +71,22 @@ class TestDatasetManager:
         dag2 = DagModel(dag_id="dag2")
         session.add_all([dag1, dag2])
 
-        dsm = DatasetModel(uri="test_dataset_uri")
-        session.add(dsm)
-        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        dataset_model = DatasetModel(uri="test_dataset_uri")
+        session.add(dataset_model)
+        dataset_model.consuming_dags = [
+            DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)
+        ]
         session.flush()
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
 
-        # Ensure we've created a dataset
-        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
-        assert session.query(DatasetDagRunQueue).count() == 2
+        # Ensure we've created a dataset event
+        events = session.query(DatasetEvent).filter_by(dataset_id=dataset_model.id).all()
+        assert len(events) == 1
+        event = events[0]
+        queue_records = session.query(DatasetDagRunQueue).all()
+        assert len(queue_records) == 2
+        assert all(x.event_timestamp == event.timestamp for x in queue_records)
 
     def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):
         dsem = DatasetManager()

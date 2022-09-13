@@ -3131,12 +3131,16 @@ class TestSchedulerJob:
         with dag_maker(dag_id="datasets-consumer-single", schedule=[dataset1]):
             pass
         dag3 = dag_maker.dag
-
+        session.flush()
         session = dag_maker.session
         session.add_all(
             [
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+                DatasetDagRunQueue(
+                    dataset_id=ds1_id, target_dag_id=dag2.dag_id, event_timestamp=event2.timestamp
+                ),
+                DatasetDagRunQueue(
+                    dataset_id=ds1_id, target_dag_id=dag3.dag_id, event_timestamp=event2.timestamp
+                ),
             ]
         )
         session.flush()

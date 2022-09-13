@@ -343,7 +343,10 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
         ddrq = DatasetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+            target_dag_id=DAG_ID,
+            dataset_id=ds1_id,
+            created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC),
+            event_timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
         )
         session.add(ddrq)
         dataset_events = [

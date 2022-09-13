@@ -28,6 +28,8 @@ from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetMode
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -66,10 +68,17 @@ class DatasetManager(LoggingMixin):
 
         downstream_dag_ids = [x.dag_id for x in dataset_model.consuming_dags]
         if downstream_dag_ids:
-            self._queue_dagruns(consuming_dag_ids=downstream_dag_ids, dataset_id=dataset.id, session=session)
+            self._queue_dagruns(
+                dag_ids=downstream_dag_ids,
+                dataset_id=dataset_model.id,
+                event_timestamp=dataset_event.timestamp,
+                session=session,
+            )
         session.flush()
 
-    def _queue_dagruns(self, *, consuming_dag_ids: list[str], dataset_id: int, session: Session) -> None:
+    def _queue_dagruns(
+        self, *, dag_ids: list[str], dataset_id: int, event_timestamp: datetime, session: Session
+    ) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same dataset, this can fail with a unique
         # constraint violation.
@@ -81,30 +90,44 @@ class DatasetManager(LoggingMixin):
 
         if session.bind.dialect.name == "postgresql":
             return self._postgres_queue_dagruns(
-                consuming_dag_ids=consuming_dag_ids, dataset_id=dataset_id, session=session
+                dag_ids=dag_ids,
+                dataset_id=dataset_id,
+                event_timestamp=event_timestamp,
+                session=session,
             )
         return self._slow_path_queue_dagruns(
-            consuming_dag_ids=consuming_dag_ids, dataset_id=dataset_id, session=session
+            dag_ids=dag_ids,
+            dataset_id=dataset_id,
+            event_timestamp=event_timestamp,
+            session=session,
         )
 
-    def _slow_path_queue_dagruns(self, *, consuming_dag_ids, dataset_id, session: Session) -> None:
-        self.log.debug("consuming dag ids %s", consuming_dag_ids)
+    def _slow_path_queue_dagruns(self, *, dag_ids, dataset_id, event_timestamp, session: Session) -> None:
+        self.log.debug("consuming dag ids %s", dag_ids)
 
         # Don't error whole transaction when a single RunQueue item conflicts.
         # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
-        for dag_id in consuming_dag_ids:
-            item = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        for dag_id in dag_ids:
+            item = DatasetDagRunQueue(
+                target_dag_id=dag_id,
+                dataset_id=dataset_id,
+                event_timestamp=event_timestamp,
+            )
             try:
                 with session.begin_nested():
                     session.merge(item)
             except exc.IntegrityError:
                 self.log.debug("Skipping record %s", item, exc_info=True)
 
-    def _postgres_queue_dagruns(self, *, consuming_dag_ids, dataset_id, session: Session) -> None:
+    def _postgres_queue_dagruns(self, *, dag_ids, dataset_id, event_timestamp, session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset_id).on_conflict_do_nothing()
-        session.execute(stmt, [{'target_dag_id': x.dag_id} for x in consuming_dag_ids])
+        stmt = (
+            insert(DatasetDagRunQueue)
+            .values(dataset_id=dataset_id, event_timestamp=event_timestamp)
+            .on_conflict_do_nothing()
+        )
+        session.execute(stmt, [{'target_dag_id': x} for x in dag_ids])
 
 
 def resolve_dataset_manager() -> DatasetManager:
