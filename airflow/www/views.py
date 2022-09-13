@@ -96,7 +96,7 @@ from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -3481,19 +3481,28 @@ class Airflow(AirflowBaseView):
                 for info in session.query(
                     DatasetModel.id,
                     DatasetModel.uri,
-                    DatasetDagRunQueue.created_at,
+                    func.max(DatasetEvent.timestamp).label("lastUpdate"),
                 )
-                .join(DagScheduleDatasetReference, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
+                .join(DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id)
                 .join(
                     DatasetDagRunQueue,
                     and_(
-                        DatasetDagRunQueue.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DatasetDagRunQueue.dataset_id == DatasetModel.id,
                         DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
                     ),
                     isouter=True,
                 )
+                .join(
+                    DatasetEvent,
+                    and_(
+                        DatasetEvent.dataset_id == DatasetModel.id,
+                        DatasetEvent.timestamp > DatasetDagRunQueue.created_at,
+                    ),
+                    isouter=True,
+                )
                 .filter(DagScheduleDatasetReference.dag_id == dag_id)
-                .order_by(DatasetModel.id)
+                .group_by(DatasetModel.id, DatasetModel.uri)
+                .order_by(DatasetModel.uri)
                 .all()
             ]
         return (
