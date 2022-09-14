@@ -21,20 +21,33 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
+from airflow.utils.trigger_rule import TriggerRule
 
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "test28397yeo")
-OBJECT = os.environ.get("GCP_GCS_OBJECT", "abc123xyz")
-FOLDER_ID = os.environ.get("FILE_ID", "1234567890qwerty")
-FILE_NAME = os.environ.get("FILE_NAME", "file.pdf")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
+DAG_ID = "example_gdrive_to_gcs_with_gdrive_sensor"
+
+BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
+
+OBJECT = "abc123xyz"
+FOLDER_ID = "test"
+FILE_NAME = "file.pdf"
 
 with models.DAG(
-    "example_gdrive_to_gcs_with_gdrive_sensor",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
+
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+    )
+
     # [START detect_file]
     detect_file = GoogleDriveFileExistenceSensor(
         task_id="detect_file", folder_id=FOLDER_ID, file_name=FILE_NAME
@@ -45,8 +58,32 @@ with models.DAG(
         task_id="upload_gdrive_object_to_gcs",
         folder_id=FOLDER_ID,
         file_name=FILE_NAME,
-        bucket_name=BUCKET,
+        bucket_name=BUCKET_NAME,
         object_name=OBJECT,
     )
     # [END upload_gdrive_to_gcs]
-    detect_file >> upload_gdrive_to_gcs
+
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (
+        # TEST SETUP
+        create_bucket
+        # TEST BODY
+        >> detect_file
+        >> upload_gdrive_to_gcs
+        # TEST TEARDOWN
+        >> delete_bucket
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
