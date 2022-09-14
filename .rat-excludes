@@ -1,6 +1,7 @@
 # Note: these patterns are applied to single files or directories, not full paths
 # coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
 
+.git-blame-ignore-revs
 .github/*
 .gitignore
 .gitattributes
