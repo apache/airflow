@@ -24,6 +24,8 @@ import logging
 import signal
 import subprocess
 import sys
+from datetime import datetime
+from typing import Any
 
 from graphviz.dot import Dot
 from sqlalchemy.orm import Session
@@ -38,7 +40,6 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
@@ -531,25 +532,22 @@ def _run_task(ti: TaskInstance, session=None):
     Args:
         ti: TaskInstance to run
     """
-    current_task = ti.render_templates(ti.get_template_context())
     log.info("*****************************************************")
-    log.info("Running task %s", current_task.task_id)
+    log.info("Running task %s", ti.task_id)
     try:
-        xcom_value = current_task.execute(context=ti.get_template_context())
-        ti.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
-        log.info("%s ran successfully!", current_task.task_id)
-    except AirflowSkipException as e:
+        ti._run_raw_task(session=session)
+        log.info("%s ran successfully!", ti.task_id)
+    except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
-
     ti.set_state(State.SUCCESS)
 
 
 def _get_or_create_dagrun(
     dag: DAG,
-    conf: object,
-    start_date: timezone.datetime,
-    execution_date: timezone.datetime,
+    conf: dict[Any, Any] | None,
+    start_date: datetime,
+    execution_date: datetime,
     run_id: str,
     session: Session,
 ) -> object:
@@ -563,13 +561,13 @@ def _get_or_create_dagrun(
     if dr:
         session.delete(dr)
         session.commit()
-    dr: DagRun = dag.create_dagrun(
+    dr = dag.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=execution_date,
         run_id=run_id,
         start_date=start_date or execution_date,
         session=session,
-        conf=conf,
+        conf=conf,  # type: ignore
     )
     session.add(dr)
     session.flush()
