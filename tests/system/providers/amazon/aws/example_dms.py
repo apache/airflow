@@ -20,6 +20,8 @@ Note:  DMS requires you to configure specific IAM roles/permissions.  For more i
 https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Security.html#CHAP_Security.APIRole
 """
 
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from typing import cast
