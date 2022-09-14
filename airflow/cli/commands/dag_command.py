@@ -448,7 +448,7 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
 
 @provide_session
 @cli_utils.action_cli
-def dag_test(args, session=None):
+def dag_test(args, dag=None, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     run_conf = None
     if args.conf:
@@ -457,7 +457,7 @@ def dag_test(args, session=None):
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
-    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
