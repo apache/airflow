@@ -305,6 +305,38 @@ def _requirements_changed() -> bool:
     return False
 
 
+def _install_packages_in_k8s_virtualenv(dry_run: bool, verbose: bool, with_constraints: bool):
+    install_command = [
+        str(PYTHON_BIN_PATH),
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        str(K8S_REQUIREMENTS.resolve()),
+    ]
+    if with_constraints:
+        install_command.extend(
+            [
+                "--constraint",
+                f"https://raw.githubusercontent.com/apache/airflow/{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/"
+                f"constraints-{sys.version_info.major}.{sys.version_info.minor}.txt",
+            ]
+        )
+    install_packages_result = run_command(
+        install_command,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        capture_output=True,
+    )
+    if install_packages_result.returncode != 0:
+        get_console().print(
+            f'[error]Error when updating pip to {PIP_VERSION}:[/]\n'
+            f'{install_packages_result.stdout}\n{install_packages_result.stderr}'
+        )
+    return install_packages_result
+
+
 def create_virtualenv(force: bool, verbose: bool, dry_run: bool) -> RunCommandResult:
     K8S_CLUSTERS_PATH.mkdir(parents=True, exist_ok=True)
     if not force and not _requirements_changed():
@@ -354,29 +386,17 @@ def create_virtualenv(force: bool, verbose: bool, dry_run: bool) -> RunCommandRe
         )
         return pip_reinstall_result
     get_console().print(f'[info]Installing necessary packages in {K8S_ENV_PATH}')
-    install_packages_result = run_command(
-        [
-            str(PYTHON_BIN_PATH),
-            "-m",
-            "pip",
-            "install",
-            "-r",
-            str(K8S_REQUIREMENTS.resolve()),
-            "--constraint",
-            f"https://raw.githubusercontent.com/apache/airflow/{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/"
-            f"constraints-{sys.version_info.major}.{sys.version_info.minor}.txt",
-        ],
-        verbose=verbose,
-        dry_run=dry_run,
-        check=False,
-        capture_output=True,
+
+    install_packages_result = _install_packages_in_k8s_virtualenv(
+        dry_run=dry_run, verbose=verbose, with_constraints=True
     )
     if install_packages_result.returncode != 0:
-        get_console().print(
-            f'[error]Error when updating pip to {PIP_VERSION}:[/]\n'
-            f'{install_packages_result.stdout}\n{install_packages_result.stderr}'
+        # if the first installation fails, attempt to install it without constraints
+        install_packages_result = _install_packages_in_k8s_virtualenv(
+            dry_run=dry_run, verbose=verbose, with_constraints=False
         )
-    CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
+    if install_packages_result.returncode == 0:
+        CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
     return install_packages_result
 
 
