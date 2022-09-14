@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all providers."""
+from __future__ import annotations
+
 import fnmatch
 import functools
 import json
@@ -27,21 +29,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    MutableMapping,
-    NamedTuple,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.typing_compat import Literal
@@ -157,8 +145,8 @@ class ProviderInfo:
     """
 
     version: str
-    data: Dict
-    package_or_source: Union[Literal['source'], Literal['package']]
+    data: dict
+    package_or_source: Literal['source'] | Literal['package']
 
     def __post_init__(self):
         if self.package_or_source not in ('source', 'package'):
@@ -242,7 +230,7 @@ KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "
 
 def _sanity_check(
     provider_package: str, class_name: str, provider_info: ProviderInfo
-) -> Optional[Type["BaseHook"]]:
+) -> type[BaseHook] | None:
     """
     Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
@@ -340,25 +328,25 @@ class ProvidersManager(LoggingMixin):
     def __init__(self):
         """Initializes the manager."""
         super().__init__()
-        self._initialized_cache: Dict[str, bool] = {}
+        self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
-        self._provider_dict: Dict[str, ProviderInfo] = {}
+        self._provider_dict: dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
-        self._hooks_dict: Dict[str, HookInfo] = {}
+        self._hooks_dict: dict[str, HookInfo] = {}
 
-        self._taskflow_decorators: Dict[str, Callable] = LazyDictWithCache()
+        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
-        self._hook_provider_dict: Dict[str, HookClassProvider] = {}
+        self._hook_provider_dict: dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
-        self._hooks_lazy_dict: LazyDictWithCache[str, Union[HookInfo, Callable]] = LazyDictWithCache()
+        self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
-        self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
+        self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
-        self._field_behaviours: Dict[str, Dict] = {}
-        self._extra_link_class_name_set: Set[str] = set()
-        self._logging_class_name_set: Set[str] = set()
-        self._secrets_backend_class_name_set: Set[str] = set()
-        self._api_auth_backend_module_names: Set[str] = set()
+        self._field_behaviours: dict[str, dict] = {}
+        self._extra_link_class_name_set: set[str] = set()
+        self._logging_class_name_set: set[str] = set()
+        self._secrets_backend_class_name_set: set[str] = set()
+        self._api_auth_backend_module_names: set[str] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
@@ -521,8 +509,8 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_hooks_from_connection_types(
         self,
-        hook_class_names_registered: Set[str],
-        already_registered_warning_connection_types: Set[str],
+        hook_class_names_registered: set[str],
+        already_registered_warning_connection_types: set[str],
         package_name: str,
         provider: ProviderInfo,
     ):
@@ -564,8 +552,8 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_hooks_from_hook_class_names(
         self,
-        hook_class_names_registered: Set[str],
-        already_registered_warning_connection_types: Set[str],
+        hook_class_names_registered: set[str],
+        already_registered_warning_connection_types: set[str],
         package_name: str,
         provider: ProviderInfo,
         provider_uses_connection_types: bool,
@@ -639,8 +627,8 @@ class ProvidersManager(LoggingMixin):
     def _discover_hooks(self) -> None:
         """Retrieves all connections defined in the providers via Hooks"""
         for package_name, provider in self._provider_dict.items():
-            duplicated_connection_types: Set[str] = set()
-            hook_class_names_registered: Set[str] = set()
+            duplicated_connection_types: set[str] = set()
+            hook_class_names_registered: set[str] = set()
             provider_uses_connection_types = self._discover_hooks_from_connection_types(
                 hook_class_names_registered, duplicated_connection_types, package_name, provider
             )
@@ -705,11 +693,11 @@ class ProvidersManager(LoggingMixin):
 
     def _import_hook(
         self,
-        connection_type: Optional[str],
+        connection_type: str | None,
         provider_info: ProviderInfo,
-        hook_class_name: Optional[str] = None,
-        package_name: Optional[str] = None,
-    ) -> Optional[HookInfo]:
+        hook_class_name: str | None = None,
+        package_name: str | None = None,
+    ) -> HookInfo | None:
         """
         Imports hook and retrieves hook information. Either connection_type (for lazy loading)
         or hook_class_name must be set - but not both). Only needs package_name if hook_class_name is
@@ -811,7 +799,7 @@ class ProvidersManager(LoggingMixin):
             connection_testable=hasattr(hook_class, 'test_connection'),
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
+    def _add_widgets(self, package_name: str, hook_class: type, widgets: dict[str, Any]):
         conn_type = hook_class.conn_type  # type: ignore
         for field_identifier, field in widgets.items():
             if field_identifier.startswith('extra__'):
@@ -830,7 +818,7 @@ class ProvidersManager(LoggingMixin):
                 hook_class.__name__, package_name, field, field_identifier
             )
 
-    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: Dict):
+    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
         try:
             connection_type = getattr(hook_class, "conn_type")
             self._customized_form_fields_schema_validator.validate(customized_fields)
@@ -885,13 +873,13 @@ class ProvidersManager(LoggingMixin):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
 
     @property
-    def providers(self) -> Dict[str, ProviderInfo]:
+    def providers(self) -> dict[str, ProviderInfo]:
         """Returns information about available providers."""
         self.initialize_providers_list()
         return self._provider_dict
 
     @property
-    def hooks(self) -> MutableMapping[str, Optional[HookInfo]]:
+    def hooks(self) -> MutableMapping[str, HookInfo | None]:
         """
         Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
         None values if a hook discovered cannot be imported!
@@ -901,18 +889,18 @@ class ProvidersManager(LoggingMixin):
         return self._hooks_lazy_dict
 
     @property
-    def taskflow_decorators(self) -> Dict[str, "TaskDecorator"]:
+    def taskflow_decorators(self) -> dict[str, TaskDecorator]:
         self.initialize_providers_taskflow_decorator()
         return self._taskflow_decorators
 
     @property
-    def extra_links_class_names(self) -> List[str]:
+    def extra_links_class_names(self) -> list[str]:
         """Returns set of extra link class names."""
         self.initialize_providers_extra_links()
         return sorted(self._extra_link_class_name_set)
 
     @property
-    def connection_form_widgets(self) -> Dict[str, ConnectionFormWidgetInfo]:
+    def connection_form_widgets(self) -> dict[str, ConnectionFormWidgetInfo]:
         """
         Returns widgets for connection forms.
         Dictionary keys in the same order that it defined in Hook.
@@ -922,26 +910,26 @@ class ProvidersManager(LoggingMixin):
         return self._connection_form_widgets
 
     @property
-    def field_behaviours(self) -> Dict[str, Dict]:
+    def field_behaviours(self) -> dict[str, dict]:
         """Returns dictionary with field behaviours for connection types."""
         self.initialize_providers_hooks()
         self._import_info_from_all_hooks()
         return self._field_behaviours
 
     @property
-    def logging_class_names(self) -> List[str]:
+    def logging_class_names(self) -> list[str]:
         """Returns set of log task handlers class names."""
         self.initialize_providers_logging()
         return sorted(self._logging_class_name_set)
 
     @property
-    def secrets_backend_class_names(self) -> List[str]:
+    def secrets_backend_class_names(self) -> list[str]:
         """Returns set of secret backend class names."""
         self.initialize_providers_secrets_backends()
         return sorted(self._secrets_backend_class_name_set)
 
     @property
-    def auth_backend_module_names(self) -> List[str]:
+    def auth_backend_module_names(self) -> list[str]:
         """Returns set of API auth backend class names."""
         self.initialize_providers_auth_backends()
         return sorted(self._api_auth_backend_module_names)

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import collections
 import copy
 import itertools
@@ -32,7 +33,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import configupdater
@@ -1161,7 +1162,7 @@ class Airflow(AirflowBaseView):
             "is_paused",
         ]
         attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
-        dag_model_attrs: List[Tuple[str, Any]] = [
+        dag_model_attrs: list[tuple[str, Any]] = [
             (attr_name, attr)
             for attr_name, attr in (
                 (attr_name, getattr(dag_model, attr_name))
@@ -1547,7 +1548,7 @@ class Airflow(AirflowBaseView):
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
 
-        ti: Optional[TaskInstance] = (
+        ti: TaskInstance | None = (
             session.query(TaskInstance)
             .options(
                 # HACK: Eager-load relationships. This is needed because
@@ -1560,7 +1561,7 @@ class Airflow(AirflowBaseView):
             .one_or_none()
         )
         if ti is None:
-            ti_attrs: Optional[List[Tuple[str, Any]]] = None
+            ti_attrs: list[tuple[str, Any]] | None = None
         else:
             ti.refresh_from_task(task)
             ti_attrs_to_skip = [
@@ -1626,7 +1627,7 @@ class Airflow(AirflowBaseView):
 
         # Use the scheduler's context to figure out which dependencies are not met
         if ti is None:
-            failed_dep_reasons: List[Tuple[str, str]] = []
+            failed_dep_reasons: list[tuple[str, str]] = []
         else:
             dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
             failed_dep_reasons = [
@@ -2009,7 +2010,7 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if 'map_index' not in request.form:
-            map_indexes: Optional[List[int]] = None
+            map_indexes: list[int] | None = None
         else:
             map_indexes = request.form.getlist('map_index', type=int)
 
@@ -2023,7 +2024,7 @@ class Airflow(AirflowBaseView):
         recursive = request.form.get('recursive') == "true"
         only_failed = request.form.get('only_failed') == "true"
 
-        task_ids: List[Union[str, Tuple[str, int]]]
+        task_ids: list[str | tuple[str, int]]
         if map_indexes is None:
             task_ids = [task_id]
         else:
@@ -2242,7 +2243,7 @@ class Airflow(AirflowBaseView):
         run_id = request.args.get("run_id")
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run: Optional[DagRun] = (
+        dag_run: DagRun | None = (
             session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
         )
         redirect_url = get_safe_url(request.values.get('redirect_url'))
@@ -2284,7 +2285,7 @@ class Airflow(AirflowBaseView):
         dag_id: str,
         run_id: str,
         task_id: str,
-        map_indexes: Optional[List[int]],
+        map_indexes: list[int] | None,
         origin: str,
         upstream: bool,
         downstream: bool,
@@ -2330,7 +2331,7 @@ class Airflow(AirflowBaseView):
         origin = args.get('origin')
 
         if 'map_index' not in args:
-            map_indexes: Optional[List[int]] = None
+            map_indexes: list[int] | None = None
         else:
             map_indexes = args.getlist('map_index', type=int)
 
@@ -2366,7 +2367,7 @@ class Airflow(AirflowBaseView):
             return redirect_or_json(origin, msg, status='error', status_code=400)
 
         if map_indexes is None:
-            tasks: Union[List[Operator], List[Tuple[Operator, int]]] = [task]
+            tasks: list[Operator] | list[tuple[Operator, int]] = [task]
         else:
             tasks = [(task, map_index) for map_index in map_indexes]
 
@@ -2412,7 +2413,7 @@ class Airflow(AirflowBaseView):
         run_id = args.get('dag_run_id')
 
         if 'map_index' not in args:
-            map_indexes: Optional[List[int]] = None
+            map_indexes: list[int] | None = None
         else:
             map_indexes = args.getlist('map_index', type=int)
 
@@ -2451,7 +2452,7 @@ class Airflow(AirflowBaseView):
         run_id = args.get('dag_run_id')
 
         if 'map_index' not in args:
-            map_indexes: Optional[List[int]] = None
+            map_indexes: list[int] | None = None
         else:
             map_indexes = args.getlist('map_index', type=int)
 
@@ -3332,7 +3333,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
-    def extra_links(self, session: "Session" = NEW_SESSION):
+    def extra_links(self, session: Session = NEW_SESSION):
         """
         A restful endpoint that returns external links for a given Operator
 
@@ -3361,7 +3362,7 @@ class Airflow(AirflowBaseView):
         if not dag or task_id not in dag.task_ids:
             return {'url': None, 'error': f"can't find dag {dag} or task_id {task_id}"}, 404
 
-        task: "AbstractOperator" = dag.get_task(task_id)
+        task: AbstractOperator = dag.get_task(task_id)
         link_name = request.args.get('link_name')
         if link_name is None:
             return {'url': None, 'error': 'Link name not passed'}, 400
@@ -3518,8 +3519,8 @@ class Airflow(AirflowBaseView):
     )
     def dataset_dependencies(self):
         """Returns dataset dependencies graph."""
-        nodes_dict: Dict[str, Any] = {}
-        edge_tuples: Set[Dict[str, str]] = set()
+        nodes_dict: dict[str, Any] = {}
+        edge_tuples: set[dict[str, str]] = set()
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
@@ -3755,18 +3756,18 @@ class AirflowPrivilegeVerifierModelView(AirflowModelView):
     """
 
     @staticmethod
-    def validate_dag_edit_access(item: Union[DagRun, TaskInstance]):
+    def validate_dag_edit_access(item: DagRun | TaskInstance):
         """Validates whether the user has 'can_edit' access for this specific DAG."""
         if not get_airflow_app().appbuilder.sm.can_edit_dag(item.dag_id):
             raise AirflowException(f"Access denied for dag_id {item.dag_id}")
 
-    def pre_add(self, item: Union[DagRun, TaskInstance]):
+    def pre_add(self, item: DagRun | TaskInstance):
         self.validate_dag_edit_access(item)
 
-    def pre_update(self, item: Union[DagRun, TaskInstance]):
+    def pre_update(self, item: DagRun | TaskInstance):
         self.validate_dag_edit_access(item)
 
-    def pre_delete(self, item: Union[DagRun, TaskInstance]):
+    def pre_delete(self, item: DagRun | TaskInstance):
         self.validate_dag_edit_access(item)
 
     def post_add_redirect(self):  # Required to prevent redirect loop
@@ -3785,12 +3786,12 @@ def action_has_dag_edit_access(action_func: Callable) -> Callable:
     @wraps(action_func)
     def check_dag_edit_acl_for_actions(
         self,
-        items: Optional[Union[List[TaskInstance], List[DagRun], TaskInstance, DagRun]],
+        items: list[TaskInstance] | list[DagRun] | TaskInstance | DagRun | None,
         *args,
         **kwargs,
     ) -> Callable:
         if items is None:
-            dag_ids: Set[str] = set()
+            dag_ids: set[str] = set()
         elif isinstance(items, list):
             dag_ids = {item.dag_id for item in items if item is not None}
         elif isinstance(items, TaskInstance) or isinstance(items, DagRun):
@@ -3921,7 +3922,7 @@ class XComModelView(AirflowModelView):
 def lazy_add_provider_discovered_options_to_connection_form():
     """Adds provider-discovered connection parameters as late as possible"""
 
-    def _get_connection_types() -> List[Tuple[str, str]]:
+    def _get_connection_types() -> list[tuple[str, str]]:
         """Returns connection types available."""
         _connection_types = [
             ('fs', 'File (path)'),
@@ -4026,7 +4027,7 @@ class ConnectionModelView(AirflowModelView):
     edit_columns = add_columns.copy()
 
     # Initialized later by lazy_add_provider_discovered_options_to_connection_form
-    extra_fields: List[str] = []
+    extra_fields: list[str] = []
 
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
@@ -4037,7 +4038,7 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ('conn_id', 'asc')
 
-    extra_field_name_mapping: Dict[str, str] = {}
+    extra_field_name_mapping: dict[str, str] = {}
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
@@ -4715,7 +4716,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
     @action_has_dag_edit_access
     @action_logging
-    def action_muldelete(self, items: List[DagRun]):
+    def action_muldelete(self, items: list[DagRun]):
         """Multiple delete."""
         self.datamodel.delete_all(items)
         self.update_redirect()
@@ -4724,19 +4725,19 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action('set_queued', "Set state to 'queued'", '', single=False)
     @action_has_dag_edit_access
     @action_logging
-    def action_set_queued(self, drs: List[DagRun]):
+    def action_set_queued(self, drs: list[DagRun]):
         """Set state to queued."""
         return self._set_dag_runs_to_active_state(drs, State.QUEUED)
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
     @action_logging
-    def action_set_running(self, drs: List[DagRun]):
+    def action_set_running(self, drs: list[DagRun]):
         """Set state to running."""
         return self._set_dag_runs_to_active_state(drs, State.RUNNING)
 
     @provide_session
-    def _set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
+    def _set_dag_runs_to_active_state(self, drs: list[DagRun], state: str, session=None):
         """This routine only supports Running and Queued state."""
         try:
             count = 0
@@ -4761,7 +4762,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action_has_dag_edit_access
     @provide_session
     @action_logging
-    def action_set_failed(self, drs: List[DagRun], session=None):
+    def action_set_failed(self, drs: list[DagRun], session=None):
         """Set state to failed."""
         try:
             count = 0
@@ -4789,7 +4790,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action_has_dag_edit_access
     @provide_session
     @action_logging
-    def action_set_success(self, drs: List[DagRun], session=None):
+    def action_set_success(self, drs: list[DagRun], session=None):
         """Set state to success."""
         try:
             count = 0
@@ -4812,12 +4813,12 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action_has_dag_edit_access
     @provide_session
     @action_logging
-    def action_clear(self, drs: List[DagRun], session=None):
+    def action_clear(self, drs: list[DagRun], session=None):
         """Clears the state."""
         try:
             count = 0
             cleared_ti_count = 0
-            dag_to_tis: Dict[DAG, List[TaskInstance]] = {}
+            dag_to_tis: dict[DAG, list[TaskInstance]] = {}
             for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
                 count += 1
                 dag = get_airflow_app().dag_bag.get_dag(dr.dag_id)
@@ -5251,8 +5252,8 @@ class DagDependenciesView(AirflowBaseView):
         )
     )
     last_refresh = timezone.utcnow() - refresh_interval
-    nodes: List[Dict[str, Any]] = []
-    edges: List[Dict[str, str]] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, str]] = []
 
     @expose('/dag-dependencies')
     @auth.has_access(
@@ -5288,8 +5289,8 @@ class DagDependenciesView(AirflowBaseView):
 
     def _calculate_graph(self):
 
-        nodes_dict: Dict[str, Any] = {}
-        edge_tuples: Set[Dict[str, str]] = set()
+        nodes_dict: dict[str, Any] = {}
+        edge_tuples: set[dict[str, str]] = set()
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"

@@ -17,6 +17,7 @@
 """
 Visuals displayed to the user when entering Breeze shell.
 """
+from __future__ import annotations
 
 from airflow_breeze.global_constants import (
     FLOWER_HOST_PORT,

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Example DAG demonstrating SLA use in Tasks"""
+from __future__ import annotations
 
 import datetime
 import time
@@ -21,8 +23,6 @@ import time
 import pendulum
 
 from airflow.decorators import dag, task
-
-"""Example DAG demonstrating SLA use in Tasks"""
 
 
 # [START howto_task_sla]

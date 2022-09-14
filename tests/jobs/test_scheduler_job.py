@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import collections
 import datetime
@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator, Optional
+from typing import Deque, Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -135,7 +135,7 @@ class TestSchedulerJob:
         self.dagbag: DagBag = dagbag
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
-        self.null_exec: Optional[MockExecutor] = MockExecutor()
+        self.null_exec: MockExecutor | None = MockExecutor()
         # Since we don't want to store the code for the DAG defined in this file
         with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
             'airflow.models.dag.DagCode.bulk_sync_to_db'
@@ -4484,7 +4484,7 @@ class TestSchedulerJobQueriesCount:
     made that affects the performance of the SchedulerJob.
     """
 
-    scheduler_job: Optional[SchedulerJob]
+    scheduler_job: SchedulerJob | None
 
     @staticmethod
     def clean_db():

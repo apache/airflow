@@ -18,6 +18,7 @@
 """
 Example LatestOnlyOperator and TriggerRule interactions
 """
+from __future__ import annotations
 
 # [START example]
 import datetime

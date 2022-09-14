@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """jsonschema for validating serialized DAG and operator."""
+from __future__ import annotations
 
 import pkgutil
 from typing import TYPE_CHECKING, Iterable
@@ -44,7 +44,7 @@ class Validator(Protocol):
         """Check if the instance is valid under the current schema, raising validation error if not"""
         ...
 
-    def iter_errors(self, instance) -> Iterable["jsonschema.exceptions.ValidationError"]:
+    def iter_errors(self, instance) -> Iterable[jsonschema.exceptions.ValidationError]:
         """Lazily yield each of the validation errors in the given instance"""
         ...
 
