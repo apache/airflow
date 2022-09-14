@@ -457,9 +457,11 @@ def dag_test(args, session=None):
 
     def add_logger_if_needed(ti: TaskInstance):
         """
-        Add a formatted logger to the taskinstance so all logs are surfaced to the command line
+        Add a formatted logger to the taskinstance so all logs are surfaced to the command line instead
+        of into a task file. Since this is a local test run, it is much better for the user to see logs
+        in the command line, rather than needing to search for a log file.
         Args:
-            ti:
+            ti: The taskinstance that will recieve a logger
 
         Returns:
 
@@ -493,6 +495,9 @@ def dag_test(args, session=None):
 
     tasks = dag.task_dict
     log.info("starting dagrun")
+    # Instead of starting a scheduler, we run the minimal loop possible to check
+    # for task readiness and dependency management. This is notably faster
+    # than creating a BackfillJob and allows us to surface logs to the user
     while dr.state == State.RUNNING:
         schedulable_tis, _ = dr.update_state(session=session)
         for ti in schedulable_tis:
@@ -526,22 +531,25 @@ def dag_test(args, session=None):
 @provide_session
 def _run_task(ti: TaskInstance, session=None):
     """
-    Run a single task instance, write log output to the command-line, and push result to Xcom for downstream tasks
+    Run a single task instance, and push result to Xcom for downstream tasks. Bypasses a lot of
+    extra steps used in `task.run` to keep our local running as fast as possible
     Args:
-        ti:
+        ti: TaskInstance to run
 
     Returns:
 
     """
     current_task = ti.render_templates(ti.get_template_context())
+    log.info(f"*****************************************************")
     log.info(f"Running task {current_task.task_id}")
     xcom_value = current_task.execute(context=ti.get_template_context())
     ti.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
     log.info(f"{current_task.task_id} ran successfully!")
+    log.info(f"*****************************************************")
 
     ti.set_state(State.SUCCESS)
 
-def _get_or_create_dagrun(dag: DAG, conf, start_date, execution_date, run_id, session):
+def _get_or_create_dagrun(dag: DAG, conf: object, start_date: timezone.datetime, execution_date: timezone.datetime, run_id: str, session: Session) -> object:
 
     log.info("dagrun id:" + dag.dag_id)
     dr: DagRun = (
