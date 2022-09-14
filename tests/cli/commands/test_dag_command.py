@@ -499,12 +499,13 @@ class TestCliDags(unittest.TestCase):
             [
                 'dags',
                 'list-runs',
+                '--dag-id',
+                'example_bash_operator',
                 '--no-backfill',
                 '--start-date',
                 DEFAULT_DATE.isoformat(),
                 '--end-date',
                 timezone.make_aware(datetime.max).isoformat(),
-                'example_bash_operator',
             ]
         )
         dag_command.dag_list_dag_runs(args)
