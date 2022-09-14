@@ -1738,11 +1738,19 @@ def cross_downstream(
         task.set_downstream(to_tasks)
 
 
+# pyupgrade assumes all type annotations can be lazily evaluated, but this is
+# not the case for attrs-decorated classes, since cattrs needs to evaluate the
+# annotation expressions at runtime, and Python before 3.9.0 does not lazily
+# evaluate those. Putting the expression in a top-level assignment statement
+# communicates this runtime requirement to pyupgrade.
+BaseOperatorClassList = List[Type[BaseOperator]]
+
+
 @attr.s(auto_attribs=True)
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[List[Type[BaseOperator]]] = []
+    operators: ClassVar[BaseOperatorClassList] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link
