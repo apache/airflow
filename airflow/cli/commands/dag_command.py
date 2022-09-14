@@ -28,9 +28,6 @@ from typing import Optional
 from graphviz.dot import Dot
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import func
-from airflow.utils.types import DagRunType
-from airflow.utils.state import State
-from airflow.models.xcom import XCOM_RETURN_KEY
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
@@ -41,11 +38,13 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, State
+from airflow.utils.types import DagRunType
 
 log = logging.getLogger(__name__)
 
@@ -460,14 +459,10 @@ def dag_test(args, session=None):
         of into a task file. Since this is a local test run, it is much better for the user to see logs
         in the command line, rather than needing to search for a log file.
         Args:
-            ti: The taskinstance that will recieve a logger
-
-        Returns:
+            ti: The taskinstance that will receive a logger
 
         """
-        format = logging.Formatter(
-            "\t[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
-        )
+        format = logging.Formatter("\t[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(format)
         if not ti.log.handlers:  # only add log handler once
@@ -534,9 +529,6 @@ def _run_task(ti: TaskInstance, session=None):
     extra steps used in `task.run` to keep our local running as fast as possible
     Args:
         ti: TaskInstance to run
-
-    Returns:
-
     """
     current_task = ti.render_templates(ti.get_template_context())
     log.info(f"*****************************************************")
@@ -551,7 +543,15 @@ def _run_task(ti: TaskInstance, session=None):
 
     ti.set_state(State.SUCCESS)
 
-def _get_or_create_dagrun(dag: DAG, conf: object, start_date: timezone.datetime, execution_date: timezone.datetime, run_id: str, session: Session) -> object:
+
+def _get_or_create_dagrun(
+    dag: DAG,
+    conf: object,
+    start_date: timezone.datetime,
+    execution_date: timezone.datetime,
+    run_id: str,
+    session: Session,
+) -> object:
 
     log.info("dagrun id:" + dag.dag_id)
     dr: DagRun = (
@@ -576,7 +576,6 @@ def _get_or_create_dagrun(dag: DAG, conf: object, start_date: timezone.datetime,
     return dr
 
 
-
 @provide_session
 @cli_utils.action_cli
 def dag_reserialize(args, session: Session = NEW_SESSION):
@@ -585,5 +584,3 @@ def dag_reserialize(args, session: Session = NEW_SESSION):
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))
         dagbag.sync_to_db(session=session)
-
-

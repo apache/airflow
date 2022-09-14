@@ -17,7 +17,6 @@
 # under the License.
 import contextlib
 import io
-import json
 import os
 import tempfile
 import unittest
@@ -633,8 +632,6 @@ class TestCliDags(unittest.TestCase):
             ]
         )
 
-
-
     @mock.patch("airflow.cli.commands.dag_command._get_or_create_dagrun")
     @mock.patch("airflow.cli.commands.dag_command._run_task")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
@@ -690,8 +687,7 @@ class TestCliDags(unittest.TestCase):
     @mock.patch("airflow.cli.commands.dag_command._get_or_create_dagrun")
     @mock.patch("airflow.cli.commands.dag_command._run_task")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_dag_test_show_dag(self, mock_get_dag, mock_run_task, mock_create_dagrun,
-                               mock_render_dag):
+    def test_dag_test_show_dag(self, mock_get_dag, mock_run_task, mock_create_dagrun, mock_render_dag):
         cli_args = self.parser.parse_args(
             ['dags', 'test', 'example_bash_operator', DEFAULT_DATE.isoformat(), '--show-dagrun']
         )
