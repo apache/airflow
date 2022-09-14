@@ -31,10 +31,10 @@ import toml
 #
 # This script should replace the contents of the array with a new list of
 # identically formatted names, such that changes to the source of truth:
-
 AUTHORS = 'https://raw.githubusercontent.com/apache/airflow-ci-infra/main/authors.toml'
 
-# end up being reflected in the ci.yml.
+# ...end up being reflected in the ci.yml:
+WORKFLOW = '.github/workflows/ci.yml'
 
 
 req = requests.get(AUTHORS)
@@ -50,8 +50,7 @@ for author in sorted(author_set):
 
 authors = authors[:-2]
 
-with open('ci.yml') as handle:
-
+with open(WORKFLOW) as handle:
     new_ci = re.sub(
         r'''
             ^
@@ -70,5 +69,5 @@ with open('ci.yml') as handle:
         flags=re.DOTALL | re.VERBOSE,
     )
 
-with open('ci.yml', 'w') as handle:
+with open(WORKFLOW, 'w') as handle:
     handle.write(new_ci)
