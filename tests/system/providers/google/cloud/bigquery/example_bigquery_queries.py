@@ -27,12 +27,14 @@ from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
+    BigQueryColumnCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryGetDataOperator,
     BigQueryInsertJobOperator,
     BigQueryIntervalCheckOperator,
+    BigQueryTableCheckOperator,
     BigQueryValueCheckOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
@@ -208,6 +210,22 @@ for index, location in enumerate(locations, 1):
             location=location,
         )
         # [END howto_operator_bigquery_interval_check]
+
+        # [START howto_operator_bigquery_column_check]
+        column_check = BigQueryColumnCheckOperator(
+            task_id="column_check",
+            table=f"{DATASET}.{TABLE_1}",
+            column_mapping={"value": {"null_check": {"equal_to": 0}}},
+        )
+        # [END howto_operator_bigquery_column_check]
+
+        # [START howto_operator_bigquery_table_check]
+        table_check = BigQueryTableCheckOperator(
+            task_id="table_check",
+            table=f"{DATASET}.{TABLE_1}",
+            checks={"row_count_check": {"check_statement": {"COUNT(*) = 4"}}},
+        )
+        # [END howto_operator_bigquery_table_check]
 
         delete_dataset = BigQueryDeleteDatasetOperator(
             task_id="delete_dataset",
