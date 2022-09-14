@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
 import glob
 import itertools
 import mmap
 import os
 import unittest
-from typing import Dict, Set
 
 import pytest
 
@@ -97,7 +98,7 @@ def get_imports_from_file(filepath: str):
     with open(filepath) as py_file:
         content = py_file.read()
     doc_node = ast.parse(content, filepath)
-    import_names: Set[str] = set()
+    import_names: set[str] = set()
     for current_node in ast.walk(doc_node):
         if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
             continue
@@ -113,7 +114,7 @@ def filepath_to_module(filepath: str):
     return filepath.replace("/", ".")[: -(len('.py'))]
 
 
-def print_sorted(container: Set, indent: str = "    ") -> None:
+def print_sorted(container: set, indent: str = "    ") -> None:
     sorted_container = sorted(container)
     print(f"{indent}" + f"\n{indent}".join(sorted_container))
 
@@ -146,7 +147,7 @@ class ProjectStructureTest:
             content = py_file.read()
         doc_node = ast.parse(content, filepath)
         module = filepath_to_module(filepath)
-        results: Dict = {}
+        results: dict = {}
         for current_node in ast.walk(doc_node):
             if not isinstance(current_node, ast.ClassDef):
                 continue
@@ -161,13 +162,13 @@ class ExampleCoverageTest(ProjectStructureTest):
     """Checks that every operator is covered by example"""
 
     # Those operators are deprecated, so we do not need examples for them
-    DEPRECATED_CLASSES: Set = set()
+    DEPRECATED_CLASSES: set = set()
 
     # Those operators should not have examples as they are never used standalone (they are abstract)
-    BASE_CLASSES: Set = set()
+    BASE_CLASSES: set = set()
 
     # Please add the examples to those operators at the earliest convenience :)
-    MISSING_EXAMPLES_FOR_CLASSES: Set = set()
+    MISSING_EXAMPLES_FOR_CLASSES: set = set()
 
     def example_paths(self):
         """Override this method if your example dags are located elsewhere"""
@@ -212,10 +213,10 @@ class AssetsCoverageTest(ProjectStructureTest):
     """Checks that every operator have operator_extra_links attribute"""
 
     # These operators should not have assets
-    ASSETS_NOT_REQUIRED: Set = set()
+    ASSETS_NOT_REQUIRED: set = set()
 
     # Please add assets to following classes
-    MISSING_ASSETS_FOR_CLASSES: Set = set()
+    MISSING_ASSETS_FOR_CLASSES: set = set()
 
     def test_missing_assets(self):
         classes = self.list_of_classes()

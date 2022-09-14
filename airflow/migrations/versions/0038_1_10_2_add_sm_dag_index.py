@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Merge migrations Heads.
 
 Revision ID: 03bc53e68815
@@ -22,6 +21,7 @@ Revises: 0a2a5b66e19d, bf00311e1990
 Create Date: 2018-11-24 20:21:46.605414
 
 """
+from __future__ import annotations
 
 from alembic import op
 

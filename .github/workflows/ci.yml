@@ -339,7 +339,7 @@ jobs:
         if: needs.build-info.outputs.canary-run == 'true'
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 120
-        if: matrix.platform == 'linux/amd64' && needs.build-info.outputs.canary-run == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always() && needs.build-info.outputs.canary-run == 'true'

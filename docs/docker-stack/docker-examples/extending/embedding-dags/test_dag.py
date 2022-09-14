@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# [START dag]
 """This dag only runs some simple tasks to test Airflow's task execution."""
+from __future__ import annotations
+
+# [START dag]
 import datetime
 
 import pendulum

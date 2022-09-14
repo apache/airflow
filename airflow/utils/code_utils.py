@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import functools
 import inspect
 import os
-from typing import Any, Optional
+from typing import Any
 
 
-def get_python_source(x: Any) -> Optional[str]:
+def get_python_source(x: Any) -> str | None:
     """Helper function to get Python source (or not), preventing exceptions"""
     if isinstance(x, str):
         return x

@@ -3423,7 +3423,7 @@ export interface operations {
          *
          * This parameter is not meaningful when using the default XCom backend.
          *
-         * *New in version 2.5.0*
+         * *New in version 2.4.0*
          */
         deserialize?: boolean;
       };

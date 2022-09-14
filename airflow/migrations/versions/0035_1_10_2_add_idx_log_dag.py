@@ -22,6 +22,8 @@ Revises: 9635ae0956e7
 Create Date: 2018-08-07 06:41:41.028249
 
 """
+from __future__ import annotations
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

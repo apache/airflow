@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Defines the base entities that can be used for providing lineage
 information.
 """
-from typing import Any, ClassVar, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any, ClassVar
 
 import attr
 
@@ -32,7 +33,7 @@ class File:
     template_fields: ClassVar = ("url",)
 
     url: str = attr.ib()
-    type_hint: Optional[str] = None
+    type_hint: str | None = None
 
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -40,8 +41,8 @@ class User:
     """User entity. Identifies a user"""
 
     email: str = attr.ib()
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
     template_fields: ClassVar = ("email", "first_name", "last_name")
 
@@ -60,9 +61,9 @@ class Column:
     """Column of a Table"""
 
     name: str = attr.ib()
-    description: Optional[str] = None
+    description: str | None = None
     data_type: str = attr.ib()
-    tags: List[Tag] = []
+    tags: list[Tag] = []
 
     template_fields: ClassVar = ("name", "description", "data_type", "tags")
 
@@ -72,7 +73,7 @@ class Column:
 # `attr.converters.default_if_none(default=False)`
 
 
-def default_if_none(arg: Optional[bool]) -> bool:
+def default_if_none(arg: bool | None) -> bool:
     return arg or False
 
 
@@ -83,12 +84,12 @@ class Table:
     database: str = attr.ib()
     cluster: str = attr.ib()
     name: str = attr.ib()
-    tags: List[Tag] = []
-    description: Optional[str] = None
-    columns: List[Column] = []
-    owners: List[User] = []
-    extra: Dict[str, Any] = {}
-    type_hint: Optional[str] = None
+    tags: list[Tag] = []
+    description: str | None = None
+    columns: list[Column] = []
+    owners: list[User] = []
+    extra: dict[str, Any] = {}
+    type_hint: str | None = None
 
     template_fields: ClassVar = (
         "database",

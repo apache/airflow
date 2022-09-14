@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import os
 import struct
 from datetime import datetime
-from typing import Iterable, List, Optional
+from typing import Iterable
 
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
@@ -50,7 +52,7 @@ class DagCode(Base):
     last_updated = Column(UtcDateTime, nullable=False)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), 'mysql'), nullable=False)
 
-    def __init__(self, full_filepath: str, source_code: Optional[str] = None):
+    def __init__(self, full_filepath: str, source_code: str | None = None):
         self.fileloc = full_filepath
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
@@ -123,7 +125,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: List[str], session=None):
+    def remove_deleted_code(cls, alive_dag_filelocs: list[str], session=None):
         """Deletes code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs

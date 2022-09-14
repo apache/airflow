@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``root_dag_id`` to ``DAG``
 
 Revision ID: b3b105409875
@@ -23,6 +22,7 @@ Revises: d38e04c12aa2
 Create Date: 2019-09-28 23:20:01.744775
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
@@ -34,8 +35,8 @@ class CallbackRequest:
     def __init__(
         self,
         full_filepath: str,
-        processor_subdir: Optional[str] = None,
-        msg: Optional[str] = None,
+        processor_subdir: str | None = None,
+        msg: str | None = None,
     ):
         self.full_filepath = full_filepath
         self.processor_subdir = processor_subdir
@@ -73,10 +74,10 @@ class TaskCallbackRequest(CallbackRequest):
     def __init__(
         self,
         full_filepath: str,
-        simple_task_instance: "SimpleTaskInstance",
-        is_failure_callback: Optional[bool] = True,
-        processor_subdir: Optional[str] = None,
-        msg: Optional[str] = None,
+        simple_task_instance: SimpleTaskInstance,
+        is_failure_callback: bool | None = True,
+        processor_subdir: str | None = None,
+        msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.simple_task_instance = simple_task_instance
@@ -113,9 +114,9 @@ class DagCallbackRequest(CallbackRequest):
         full_filepath: str,
         dag_id: str,
         run_id: str,
-        processor_subdir: Optional[str],
-        is_failure_callback: Optional[bool] = True,
-        msg: Optional[str] = None,
+        processor_subdir: str | None,
+        is_failure_callback: bool | None = True,
+        msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.dag_id = dag_id
@@ -136,8 +137,8 @@ class SlaCallbackRequest(CallbackRequest):
         self,
         full_filepath: str,
         dag_id: str,
-        processor_subdir: Optional[str],
-        msg: Optional[str] = None,
+        processor_subdir: str | None,
+        msg: str | None = None,
     ):
         super().__init__(full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.dag_id = dag_id
