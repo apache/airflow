@@ -499,7 +499,7 @@ def dag_test(args, session=None):
         for ti in schedulable_tis:
             add_logger_if_needed(ti)
             ti.task = tasks[ti.task_id]
-            _run_task(ti)
+            _run_task(ti, session=session)
 
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
