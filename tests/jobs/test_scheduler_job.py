@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import collections
 import datetime
@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator, Optional
+from typing import Deque, Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -135,7 +135,7 @@ class TestSchedulerJob:
         self.dagbag: DagBag = dagbag
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
-        self.null_exec: Optional[MockExecutor] = MockExecutor()
+        self.null_exec: MockExecutor | None = MockExecutor()
         # Since we don't want to store the code for the DAG defined in this file
         with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
             'airflow.models.dag.DagCode.bulk_sync_to_db'
@@ -1500,7 +1500,7 @@ class TestSchedulerJob:
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
 
-    @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
+    @mock.patch('airflow.dag_processing.manager.DagFileProcessorAgent')
     def test_executor_end_called(self, mock_processor_agent):
         """
         Test to make sure executor.end gets called with a successful scheduler loop run
@@ -1513,7 +1513,7 @@ class TestSchedulerJob:
         self.scheduler_job.executor.end.assert_called_once()
         self.scheduler_job.processor_agent.end.assert_called_once()
 
-    @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
+    @mock.patch('airflow.dag_processing.manager.DagFileProcessorAgent')
     def test_cleanup_methods_all_called(self, mock_processor_agent):
         """
         Test to make sure all cleanup methods are called when the scheduler loop has an exception
@@ -4484,7 +4484,7 @@ class TestSchedulerJobQueriesCount:
     made that affects the performance of the SchedulerJob.
     """
 
-    scheduler_job: Optional[SchedulerJob]
+    scheduler_job: SchedulerJob | None
 
     @staticmethod
     def clean_db():

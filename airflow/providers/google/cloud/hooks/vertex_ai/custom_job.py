@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Cloud Vertex AI hook."""
+from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -50,25 +50,21 @@ class CustomJobHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._job: Optional[
-            Union[
-                CustomContainerTrainingJob,
-                CustomPythonPackageTrainingJob,
-                CustomTrainingJob,
-            ]
-        ] = None
+        self._job: None | (
+            CustomContainerTrainingJob | CustomPythonPackageTrainingJob | CustomTrainingJob
+        ) = None
 
     def get_pipeline_service_client(
         self,
-        region: Optional[str] = None,
+        region: str | None = None,
     ) -> PipelineServiceClient:
         """Returns PipelineServiceClient."""
         if region and region != 'global':
@@ -81,7 +77,7 @@ class CustomJobHook(GoogleBaseHook):
 
     def get_job_service_client(
         self,
-        region: Optional[str] = None,
+        region: str | None = None,
     ) -> JobServiceClient:
         """Returns JobServiceClient"""
         if region and region != 'global':
@@ -98,23 +94,23 @@ class CustomJobHook(GoogleBaseHook):
         display_name: str,
         container_uri: str,
         command: Sequence[str] = [],
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
     ) -> CustomContainerTrainingJob:
         """Returns CustomContainerTrainingJob object"""
         return CustomContainerTrainingJob(
@@ -147,23 +143,23 @@ class CustomJobHook(GoogleBaseHook):
         python_package_gcs_uri: str,
         python_module_name: str,
         container_uri: str,
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
     ):
         """Returns CustomPythonPackageTrainingJob object"""
         return CustomPythonPackageTrainingJob(
@@ -196,24 +192,24 @@ class CustomJobHook(GoogleBaseHook):
         display_name: str,
         script_path: str,
         container_uri: str,
-        requirements: Optional[Sequence[str]] = None,
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        requirements: Sequence[str] | None = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
     ):
         """Returns CustomTrainingJob object"""
         return CustomTrainingJob(
@@ -242,7 +238,7 @@ class CustomJobHook(GoogleBaseHook):
         )
 
     @staticmethod
-    def extract_model_id(obj: Dict) -> str:
+    def extract_model_id(obj: dict) -> str:
         """Returns unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
@@ -251,7 +247,7 @@ class CustomJobHook(GoogleBaseHook):
         """Returns unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -266,45 +262,37 @@ class CustomJobHook(GoogleBaseHook):
 
     def _run_job(
         self,
-        job: Union[
-            CustomTrainingJob,
-            CustomContainerTrainingJob,
-            CustomPythonPackageTrainingJob,
-        ],
-        dataset: Optional[
-            Union[
-                datasets.ImageDataset,
-                datasets.TabularDataset,
-                datasets.TextDataset,
-                datasets.VideoDataset,
-            ]
-        ] = None,
-        annotation_schema_uri: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
-        base_output_dir: Optional[str] = None,
-        service_account: Optional[str] = None,
-        network: Optional[str] = None,
-        bigquery_destination: Optional[str] = None,
-        args: Optional[List[Union[str, float, int]]] = None,
-        environment_variables: Optional[Dict[str, str]] = None,
+        job: (CustomTrainingJob | CustomContainerTrainingJob | CustomPythonPackageTrainingJob),
+        dataset: None
+        | (
+            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+        ) = None,
+        annotation_schema_uri: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
+        base_output_dir: str | None = None,
+        service_account: str | None = None,
+        network: str | None = None,
+        bigquery_destination: str | None = None,
+        args: list[str | float | int] | None = None,
+        environment_variables: dict[str, str] | None = None,
         replica_count: int = 1,
         machine_type: str = "n1-standard-4",
         accelerator_type: str = "ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count: int = 0,
         boot_disk_type: str = "pd-ssd",
         boot_disk_size_gb: int = 100,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        tensorboard: Optional[str] = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        tensorboard: str | None = None,
         sync=True,
-    ) -> Tuple[Optional[models.Model], str]:
+    ) -> tuple[models.Model | None, str]:
         """Run Job for training pipeline"""
         model = job.run(
             dataset=dataset,
@@ -352,9 +340,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         pipeline_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Cancels a PipelineJob. Starts asynchronous cancellation on the PipelineJob. The server makes a best
@@ -391,9 +379,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         training_pipeline: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Cancels a TrainingPipeline. Starts asynchronous cancellation on the TrainingPipeline. The server makes
@@ -430,9 +418,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Cancels a CustomJob. Starts asynchronous cancellation on the CustomJob. The server makes a best effort
@@ -470,9 +458,9 @@ class CustomJobHook(GoogleBaseHook):
         region: str,
         pipeline_job: PipelineJob,
         pipeline_job_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
         Creates a PipelineJob. A PipelineJob will run immediately when created.
@@ -509,9 +497,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         training_pipeline: TrainingPipeline,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
         Creates a TrainingPipeline. A created TrainingPipeline right away will be attempted to be run.
@@ -543,9 +531,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: CustomJob,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> CustomJob:
         """
         Creates a CustomJob. A created CustomJob right away will be attempted to be run.
@@ -580,56 +568,52 @@ class CustomJobHook(GoogleBaseHook):
         display_name: str,
         container_uri: str,
         command: Sequence[str] = [],
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
         # RUN
-        dataset: Optional[
-            Union[
-                datasets.ImageDataset,
-                datasets.TabularDataset,
-                datasets.TextDataset,
-                datasets.VideoDataset,
-            ]
-        ] = None,
-        annotation_schema_uri: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
-        base_output_dir: Optional[str] = None,
-        service_account: Optional[str] = None,
-        network: Optional[str] = None,
-        bigquery_destination: Optional[str] = None,
-        args: Optional[List[Union[str, float, int]]] = None,
-        environment_variables: Optional[Dict[str, str]] = None,
+        dataset: None
+        | (
+            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+        ) = None,
+        annotation_schema_uri: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
+        base_output_dir: str | None = None,
+        service_account: str | None = None,
+        network: str | None = None,
+        bigquery_destination: str | None = None,
+        args: list[str | float | int] | None = None,
+        environment_variables: dict[str, str] | None = None,
         replica_count: int = 1,
         machine_type: str = "n1-standard-4",
         accelerator_type: str = "ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count: int = 0,
         boot_disk_type: str = "pd-ssd",
         boot_disk_size_gb: int = 100,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        tensorboard: Optional[str] = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        tensorboard: str | None = None,
         sync=True,
-    ) -> Tuple[Optional[models.Model], str]:
+    ) -> tuple[models.Model | None, str]:
         """
         Create Custom Container Training Job
 
@@ -942,56 +926,52 @@ class CustomJobHook(GoogleBaseHook):
         python_package_gcs_uri: str,
         python_module_name: str,
         container_uri: str,
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
         # RUN
-        dataset: Optional[
-            Union[
-                datasets.ImageDataset,
-                datasets.TabularDataset,
-                datasets.TextDataset,
-                datasets.VideoDataset,
-            ]
-        ] = None,
-        annotation_schema_uri: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
-        base_output_dir: Optional[str] = None,
-        service_account: Optional[str] = None,
-        network: Optional[str] = None,
-        bigquery_destination: Optional[str] = None,
-        args: Optional[List[Union[str, float, int]]] = None,
-        environment_variables: Optional[Dict[str, str]] = None,
+        dataset: None
+        | (
+            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+        ) = None,
+        annotation_schema_uri: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
+        base_output_dir: str | None = None,
+        service_account: str | None = None,
+        network: str | None = None,
+        bigquery_destination: str | None = None,
+        args: list[str | float | int] | None = None,
+        environment_variables: dict[str, str] | None = None,
         replica_count: int = 1,
         machine_type: str = "n1-standard-4",
         accelerator_type: str = "ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count: int = 0,
         boot_disk_type: str = "pd-ssd",
         boot_disk_size_gb: int = 100,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        tensorboard: Optional[str] = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        tensorboard: str | None = None,
         sync=True,
-    ) -> Tuple[Optional[models.Model], str]:
+    ) -> tuple[models.Model | None, str]:
         """
         Create Custom Python Package Training Job
 
@@ -1303,57 +1283,53 @@ class CustomJobHook(GoogleBaseHook):
         display_name: str,
         script_path: str,
         container_uri: str,
-        requirements: Optional[Sequence[str]] = None,
-        model_serving_container_image_uri: Optional[str] = None,
-        model_serving_container_predict_route: Optional[str] = None,
-        model_serving_container_health_route: Optional[str] = None,
-        model_serving_container_command: Optional[Sequence[str]] = None,
-        model_serving_container_args: Optional[Sequence[str]] = None,
-        model_serving_container_environment_variables: Optional[Dict[str, str]] = None,
-        model_serving_container_ports: Optional[Sequence[int]] = None,
-        model_description: Optional[str] = None,
-        model_instance_schema_uri: Optional[str] = None,
-        model_parameters_schema_uri: Optional[str] = None,
-        model_prediction_schema_uri: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        requirements: Sequence[str] | None = None,
+        model_serving_container_image_uri: str | None = None,
+        model_serving_container_predict_route: str | None = None,
+        model_serving_container_health_route: str | None = None,
+        model_serving_container_command: Sequence[str] | None = None,
+        model_serving_container_args: Sequence[str] | None = None,
+        model_serving_container_environment_variables: dict[str, str] | None = None,
+        model_serving_container_ports: Sequence[int] | None = None,
+        model_description: str | None = None,
+        model_instance_schema_uri: str | None = None,
+        model_parameters_schema_uri: str | None = None,
+        model_prediction_schema_uri: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
         # RUN
-        dataset: Optional[
-            Union[
-                datasets.ImageDataset,
-                datasets.TabularDataset,
-                datasets.TextDataset,
-                datasets.VideoDataset,
-            ]
-        ] = None,
-        annotation_schema_uri: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
-        base_output_dir: Optional[str] = None,
-        service_account: Optional[str] = None,
-        network: Optional[str] = None,
-        bigquery_destination: Optional[str] = None,
-        args: Optional[List[Union[str, float, int]]] = None,
-        environment_variables: Optional[Dict[str, str]] = None,
+        dataset: None
+        | (
+            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+        ) = None,
+        annotation_schema_uri: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
+        base_output_dir: str | None = None,
+        service_account: str | None = None,
+        network: str | None = None,
+        bigquery_destination: str | None = None,
+        args: list[str | float | int] | None = None,
+        environment_variables: dict[str, str] | None = None,
         replica_count: int = 1,
         machine_type: str = "n1-standard-4",
         accelerator_type: str = "ACCELERATOR_TYPE_UNSPECIFIED",
         accelerator_count: int = 0,
         boot_disk_type: str = "pd-ssd",
         boot_disk_size_gb: int = 100,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        tensorboard: Optional[str] = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        tensorboard: str | None = None,
         sync=True,
-    ) -> Tuple[Optional[models.Model], str]:
+    ) -> tuple[models.Model | None, str]:
         """
         Create Custom Training Job
 
@@ -1663,9 +1639,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         pipeline_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a PipelineJob.
@@ -1696,9 +1672,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         training_pipeline: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a TrainingPipeline.
@@ -1729,9 +1705,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a CustomJob.
@@ -1762,9 +1738,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         pipeline_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
         Gets a PipelineJob.
@@ -1795,9 +1771,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         training_pipeline: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
         Gets a TrainingPipeline.
@@ -1828,9 +1804,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> CustomJob:
         """
         Gets a CustomJob.
@@ -1860,13 +1836,13 @@ class CustomJobHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListPipelineJobsPager:
         """
         Lists PipelineJobs in a Location.
@@ -1948,13 +1924,13 @@ class CustomJobHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        read_mask: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
         Lists TrainingPipelines in a Location.
@@ -2009,13 +1985,13 @@ class CustomJobHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int],
-        page_token: Optional[str],
-        filter: Optional[str],
-        read_mask: Optional[str],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None,
+        page_token: str | None,
+        filter: str | None,
+        read_mask: str | None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListCustomJobsPager:
         """
         Lists CustomJobs in a Location.

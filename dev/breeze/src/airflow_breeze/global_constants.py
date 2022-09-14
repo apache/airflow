@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
 Global constants that are used by all other Breeze components.
 """
-from __future__ import annotations
-
 import platform
 from enum import Enum
 from functools import lru_cache
@@ -29,13 +29,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-20.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
 
-# Commented this out as we are using buildkit and this vars became irrelevant
-# FORCE_PULL_IMAGES = False
-# CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
-FORCE_BUILD_IMAGES = False
 ANSWER = ""
-SKIP_CHECK_REMOTE_IMAGE = False
-# PUSH_PYTHON_BASE_IMAGE = False
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 

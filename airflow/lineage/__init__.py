@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Provides lineage support functions"""
+from __future__ import annotations
+
 import itertools
 import logging
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import attr
 
@@ -38,7 +40,7 @@ AUTO = "auto"
 log = logging.getLogger(__name__)
 
 
-def get_backend() -> Optional[LineageBackend]:
+def get_backend() -> LineageBackend | None:
     """Gets the lineage backend if defined in the configs"""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
@@ -54,7 +56,7 @@ def get_backend() -> Optional[LineageBackend]:
     return None
 
 
-def _render_object(obj: Any, context: "Context") -> dict:
+def _render_object(obj: Any, context: Context) -> dict:
     return context['ti'].task.render_template(obj, context)
 
 
@@ -66,7 +68,7 @@ def _deserialize(serialized: dict):
     return cls(**BaseSerialization.deserialize(serialized['__var']))
 
 
-def _serialize(objs: List[Any], source: str):
+def _serialize(objs: list[Any], source: str):
     """Serialize an attrs-decorated class to JSON"""
     from airflow.serialization.serialized_objects import BaseSerialization
 

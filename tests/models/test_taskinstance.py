@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import operator
@@ -24,7 +25,7 @@ import signal
 import sys
 import urllib
 from traceback import format_exception
-from typing import List, Optional, Union, cast
+from typing import cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
 from uuid import uuid4
@@ -102,10 +103,10 @@ def test_pool():
 
 
 class CallbackWrapper:
-    task_id: Optional[str] = None
-    dag_id: Optional[str] = None
-    execution_date: Optional[datetime.datetime] = None
-    task_state_in_callback: Optional[str] = None
+    task_id: str | None = None
+    dag_id: str | None = None
+    execution_date: datetime.datetime | None = None
+    task_state_in_callback: str | None = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
@@ -1732,6 +1733,12 @@ class TestTaskInstance:
             DatasetEvent.source_task_instance == ti
         ).one() == ('s3://dag1/output_1.txt',)
 
+        # check that the dataset event has an earlier timestamp than the DDRQ's
+        ddrq_timestamps = (
+            session.query(DatasetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
+        )
+        assert all([event.timestamp < ddrq_timestamp for (ddrq_timestamp,) in ddrq_timestamps])
+
     def test_outlet_datasets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
@@ -1795,9 +1802,9 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: Union[str, datetime.timedelta, None],
+        schedule_interval: str | datetime.timedelta | None,
         catchup: bool,
-        scenario: List[TaskInstanceState],
+        scenario: list[TaskInstanceState],
         dag_maker,
     ) -> list:
         dag_id = 'test_previous_dates'
@@ -2339,6 +2346,16 @@ class TestTaskInstance:
 
         Stats_incr.assert_any_call('ti_failures')
         Stats_incr.assert_any_call('operator_failures_EmptyOperator')
+
+    def test_handle_failure_task_undefined(self, create_task_instance):
+        """
+        When the loaded taskinstance does not use refresh_from_task, the task may be undefined.
+        For example:
+            the DAG file has been deleted before executing _execute_task_callbacks
+        """
+        ti = create_task_instance()
+        del ti.task
+        ti.handle_failure("test ti.task undefined")
 
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():

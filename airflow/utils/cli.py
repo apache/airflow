@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Utilities module for cli"""
+from __future__ import annotations
+
 import functools
-import json
 import logging
 import os
 import re
@@ -29,7 +29,7 @@ import traceback
 import warnings
 from argparse import Namespace
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -122,8 +122,6 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    from airflow.models import Log
-
     sub_commands_to_check = {'users', 'connections'}
     sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
@@ -156,21 +154,10 @@ def _build_metrics(func_name, namespace):
     metrics['execution_date'] = tmp_dic.get('execution_date')
     metrics['host_name'] = socket.gethostname()
 
-    extra = json.dumps({k: metrics[k] for k in ('host_name', 'full_command')})
-    log = Log(
-        event=f'cli_{func_name}',
-        task_instance=None,
-        owner=metrics['user'],
-        extra=extra,
-        task_id=metrics.get('task_id'),
-        dag_id=metrics.get('dag_id'),
-        execution_date=metrics.get('execution_date'),
-    )
-    metrics['log'] = log
     return metrics
 
 
-def process_subdir(subdir: Optional[str]):
+def process_subdir(subdir: str | None):
     """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
     if subdir:
         if not settings.DAGS_FOLDER:
@@ -194,7 +181,7 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
-def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
+def get_dag(subdir: str | None, dag_id: str) -> DAG:
     """Returns DAG of a given dag_id"""
     from airflow.models import DagBag
 
@@ -206,7 +193,7 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
     return dagbag.dags[dag_id]
 
 
-def get_dag_by_deserialization(dag_id: str) -> "DAG":
+def get_dag_by_deserialization(dag_id: str) -> DAG:
     from airflow.models.serialized_dag import SerializedDagModel
 
     dag_model = SerializedDagModel.get(dag_id)
@@ -216,7 +203,7 @@ def get_dag_by_deserialization(dag_id: str) -> "DAG":
     return dag_model.dag
 
 
-def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
+def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
     from airflow.models import DagBag
 

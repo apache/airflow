@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 from unittest import mock
 
 import pytest
@@ -30,7 +30,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerModelOperator,
 )
 
-CREATE_MODEL_PARAMS: Dict = {
+CREATE_MODEL_PARAMS: dict = {
     'ModelName': 'model_name',
     'PrimaryContainer': {
         'Image': 'image_name',
@@ -39,7 +39,7 @@ CREATE_MODEL_PARAMS: Dict = {
     'ExecutionRoleArn': 'arn:aws:iam:role/test-role',
 }
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = []
+EXPECTED_INTEGER_FIELDS: list[list[str]] = []
 
 
 class TestSageMakerModelOperator(unittest.TestCase):

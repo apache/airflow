@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow_breeze.global_constants import MOUNT_ALL, MOUNT_REMOVE, MOUNT_SELECTED, MOUNT_SKIP
 from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
 from airflow_breeze.utils.visuals import ASCIIART

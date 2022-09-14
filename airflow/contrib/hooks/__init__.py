@@ -15,15 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`."""
+from __future__ import annotations
+
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
     "This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from tempfile import NamedTemporaryFile
-from typing import Optional
 from unittest import TestCase, mock
 
 from parameterized import parameterized
@@ -38,7 +39,7 @@ from airflow.utils.session import create_session
 
 API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO: Optional[str] = None
+DELEGATE_TO: str | None = None
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)

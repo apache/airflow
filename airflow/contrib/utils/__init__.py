@@ -16,12 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.utils`."""
+from __future__ import annotations
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
-warnings.warn("This module is deprecated. Please use `airflow.utils`.", DeprecationWarning, stacklevel=2)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.utils`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2
+)
 
 __deprecated_classes = {
     'gcp_field_sanitizer': {

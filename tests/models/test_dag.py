@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import io
@@ -26,7 +27,6 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamVali
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel, TaskOutletDatasetReference
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -65,7 +65,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
@@ -857,7 +857,6 @@ class TestDag:
         """
         Ensure that datasets referenced in a dag are correctly loaded into the database.
         """
-        # todo: clear db
         dag_id1 = 'test_dataset_dag1'
         dag_id2 = 'test_dataset_dag2'
         task_id = 'test_dataset_task'
@@ -874,12 +873,12 @@ class TestDag:
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
-        d1 = stored_datasets[d1.uri]
-        d2 = stored_datasets[d2.uri]
-        d3 = stored_datasets[d3.uri]
+        d1_orm = stored_datasets[d1.uri]
+        d2_orm = stored_datasets[d2.uri]
+        d3_orm = stored_datasets[d3.uri]
         assert stored_datasets[uri1].extra == {"should": "be used"}
-        assert [x.dag_id for x in d1.consuming_dags] == [dag_id1]
-        assert [(x.task_id, x.dag_id) for x in d1.producing_tasks] == [(task_id, dag_id2)]
+        assert [x.dag_id for x in d1_orm.consuming_dags] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in d1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
             session.query(
                 TaskOutletDatasetReference.task_id,
@@ -889,10 +888,35 @@ class TestDag:
             .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
-            (task_id, dag_id1, d2.id),
-            (task_id, dag_id1, d3.id),
-            (task_id, dag_id2, d1.id),
+            (task_id, dag_id1, d2_orm.id),
+            (task_id, dag_id1, d3_orm.id),
+            (task_id, dag_id2, d1_orm.id),
         }
+
+        # now that we have verified that a new dag has its dataset references recorded properly,
+        # we need to verify that *changes* are recorded properly.
+        # so if any references are *removed*, they should also be deleted from the DB
+        # so let's remove some references and see what happens
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        EmptyOperator(task_id=task_id, dag=dag2)
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+        session.expunge_all()
+        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
+        d1_orm = stored_datasets[d1.uri]
+        d2_orm = stored_datasets[d2.uri]
+        assert [x.dag_id for x in d1_orm.consuming_dags] == []
+        assert set(
+            session.query(
+                TaskOutletDatasetReference.task_id,
+                TaskOutletDatasetReference.dag_id,
+                TaskOutletDatasetReference.dataset_id,
+            )
+            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
+            .all()
+        ) == {(task_id, dag_id1, d2_orm.id)}
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -1673,8 +1697,8 @@ class TestDag:
     )
     def test_clear_dag(
         self,
-        ti_state_begin: Optional[TaskInstanceState],
-        ti_state_end: Optional[TaskInstanceState],
+        ti_state_begin: TaskInstanceState | None,
+        ti_state_end: TaskInstanceState | None,
     ):
         dag_id = 'test_clear_dag'
         self._clean_up(dag_id)
@@ -1881,7 +1905,7 @@ class TestDag:
             catchup=True,
         )
 
-        def _check_logs(records: List[logging.LogRecord], data_interval: DataInterval) -> None:
+        def _check_logs(records: list[logging.LogRecord], data_interval: DataInterval) -> None:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
@@ -2078,6 +2102,17 @@ class TestDag:
 
 
 class TestDagModel:
+    def _clean(self):
+        clear_db_dags()
+        clear_db_datasets()
+        clear_db_runs()
+
+    def setup_method(self):
+        self._clean()
+
+    def teardown_method(self):
+        self._clean()
+
     def test_dags_needing_dagruns_not_too_early(self):
         dag = DAG(dag_id='far_future_dag', start_date=timezone.datetime(2038, 1, 1))
         EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
@@ -2100,6 +2135,48 @@ class TestDagModel:
 
         session.rollback()
         session.close()
+
+    def test_dags_needing_dagruns_datasets(self, dag_maker, session):
+        dataset = Dataset(uri='hello')
+        with dag_maker(
+            session=session,
+            dag_id='my_dag',
+            max_active_runs=1,
+            schedule=[dataset],
+            start_date=pendulum.now().add(days=-2),
+        ) as dag:
+            EmptyOperator(task_id='dummy')
+
+        # there's no queue record yet, so no runs needed at this time.
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == []
+
+        # add queue records so we'll need a run
+        dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
+        dataset_model: DatasetModel = dag_model.schedule_datasets[0]
+        session.add(DatasetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        session.flush()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == [dag_model]
+
+        # create run so we don't need a run anymore (due to max active runs)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.DATASET_TRIGGERED,
+            state=DagRunState.QUEUED,
+            execution_date=pendulum.now('UTC'),
+        )
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == []
+
+        # increase max active runs and we should now need another run
+        dag_maker.dag_model.max_active_runs = 2
+        session.flush()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == [dag_model]
 
     def test_max_active_runs_not_none(self):
         dag = DAG(dag_id='test_max_active_runs_not_none', start_date=timezone.datetime(2038, 1, 1))
@@ -2195,6 +2272,52 @@ class TestDagModel:
         dag.fileloc = fileloc
 
         assert dag.relative_fileloc == expected_relative
+
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns_dataset_triggered_dag_info_queued_times(self, session, dag_maker):
+        dataset1 = Dataset(uri="ds1")
+        dataset2 = Dataset(uri="ds2")
+
+        for dag_id, dataset in [("datasets-1", dataset1), ("datasets-2", dataset2)]:
+            with dag_maker(dag_id=dag_id, start_date=timezone.utcnow(), session=session):
+                EmptyOperator(task_id="task", outlets=[dataset])
+            dr = dag_maker.create_dagrun()
+
+            ds_id = session.query(DatasetModel.id).filter_by(uri=dataset.uri).scalar()
+
+            session.add(
+                DatasetEvent(
+                    dataset_id=ds_id,
+                    source_task_id="task",
+                    source_dag_id=dr.dag_id,
+                    source_run_id=dr.run_id,
+                    source_map_index=-1,
+                )
+            )
+
+        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        ds2_id = session.query(DatasetModel.id).filter_by(uri=dataset2.uri).scalar()
+
+        with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]) as dag:
+            pass
+
+        session.flush()
+        session.add_all(
+            [
+                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                DatasetDagRunQueue(
+                    dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
+                ),
+            ]
+        )
+        session.flush()
+
+        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        assert 1 == len(dataset_triggered_dag_info)
+        assert dag.dag_id in dataset_triggered_dag_info
+        first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
+        assert first_queued_time == DEFAULT_DATE
+        assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
 
 class TestQueries:
@@ -2739,7 +2862,7 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
         pytest.param(['a normal tag', 'a' * 101], False, id="two tags and one of them is of length > 100"),
     ],
 )
-def test__tags_length(tags: List[str], should_pass: bool):
+def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         models.DAG('test-dag', tags=tags)
     else:

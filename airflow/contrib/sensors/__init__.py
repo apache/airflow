@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`."""
+from __future__ import annotations
 
 import warnings
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
     "This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`.",
-    DeprecationWarning,
+    RemovedInAirflow3Warning,
     stacklevel=2,
 )
 

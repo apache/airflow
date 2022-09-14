@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import textwrap
 import unittest
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import jmespath
 import yaml
@@ -73,8 +74,8 @@ PARAMS = [
 
 
 class ExtraEnvEnvFromTest(unittest.TestCase):
-    k8s_objects: List[Dict[str, Any]]
-    k8s_objects_by_key: Dict[Tuple[str, str], Dict[str, Any]]
+    k8s_objects: list[dict[str, Any]]
+    k8s_objects_by_key: dict[tuple[str, str], dict[str, Any]]
 
     @classmethod
     def setUpClass(cls) -> None:

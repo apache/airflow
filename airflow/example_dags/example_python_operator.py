@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
 virtual environment.
 """
+from __future__ import annotations
+
 import logging
 import os
 import shutil

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import math
@@ -23,7 +24,6 @@ import re
 import sys
 import textwrap
 from datetime import datetime
-from typing import List, Set
 
 import pendulum
 import rich_click as click
@@ -66,8 +66,8 @@ class PrStat:
     def __init__(self, g, pull_request: PullRequest):
         self.g = g
         self.pull_request = pull_request
-        self._users: Set[str] = set()
-        self.issue_nums: List[int] = []
+        self._users: set[str] = set()
+        self.issue_nums: list[int] = []
         self.len_issue_comments = 0
         self.num_issue_comments = 0
         self.num_issue_reactions = 0
@@ -339,7 +339,7 @@ def main(
     top_number: int,
     verbose: bool,
 ):
-    selected_prs: List[PrStat] = []
+    selected_prs: list[PrStat] = []
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding='bytes')

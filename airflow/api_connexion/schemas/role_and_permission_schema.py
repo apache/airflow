@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -48,7 +49,7 @@ class ResourceSchema(SQLAlchemySchema):
 class ActionCollection(NamedTuple):
     """Action Action Collection"""
 
-    actions: List[Action]
+    actions: list[Action]
     total_entries: int
 
 
@@ -86,7 +87,7 @@ class RoleSchema(SQLAlchemySchema):
 class RoleCollection(NamedTuple):
     """List of roles"""
 
-    roles: List[Role]
+    roles: list[Role]
     total_entries: int
 
 

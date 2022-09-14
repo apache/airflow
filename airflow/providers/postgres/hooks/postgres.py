@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -66,9 +68,9 @@ class PostgresHook(DbApiHook):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.connection: Optional[Connection] = kwargs.pop("connection", None)
+        self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
-        self.schema: Optional[str] = kwargs.pop("schema", None)
+        self.schema: str | None = kwargs.pop("schema", None)
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
@@ -153,7 +155,7 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Optional[connection] = None) -> object:
+    def _serialize_cell(cell: object, conn: connection | None = None) -> object:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -168,7 +170,7 @@ class PostgresHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn: Connection) -> Tuple[str, str, int]:
+    def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
@@ -208,7 +210,7 @@ class PostgresHook(DbApiHook):
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
-    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> Optional[List[str]]:
+    def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
         Helper method that returns the table primary key
 
@@ -233,7 +235,7 @@ class PostgresHook(DbApiHook):
 
     @staticmethod
     def _generate_insert_sql(
-        table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """
         Static helper method that generates the INSERT SQL statement.

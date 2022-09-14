@@ -16,10 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import ast
 import sys
 from pathlib import Path
+
+from packaging.version import Version
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -49,13 +52,15 @@ def read_current_airflow_version():
 
     version = [x for x in assignments if x.targets[0].id == "version"][0]
 
-    return ast.literal_eval(version.value)
+    return Version(ast.literal_eval(version.value))
 
 
 if __name__ == '__main__':
-    versions = read_revision_heads_map()
     airflow_version = read_current_airflow_version()
-    if 'dev' not in airflow_version and airflow_version not in versions:
+    if airflow_version.is_devrelease or 'b' in (airflow_version.pre or ()):
+        exit(0)
+    versions = read_revision_heads_map()
+    if airflow_version.base_version not in versions:
         print("Current airflow version is not in the REVISION_HEADS_MAP")
         print("Current airflow version:", airflow_version)
         print("Please add the version to the REVISION_HEADS_MAP at:", DB_FILE)

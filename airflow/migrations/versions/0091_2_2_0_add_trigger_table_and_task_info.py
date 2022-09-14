@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Adds ``trigger`` table and deferrable operator columns to task instance
 
 Revision ID: 54bebd308c5f
@@ -23,6 +22,7 @@ Revises: 30867afad44a
 Create Date: 2021-04-14 12:56:40.688260
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

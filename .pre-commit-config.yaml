@@ -179,7 +179,7 @@ repos:
         name: Detect if private key is added to the repository
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
         exclude: ^airflow/_vendor/
@@ -191,7 +191,7 @@ repos:
         exclude: ^airflow/_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^airflow/_vendor/|^images/breeze/output.*$
+        exclude: ^airflow/_vendor/|^images/breeze/output.*$|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.dot
       - id: fix-encoding-pragma
         name: Remove encoding header from python files
         exclude: ^airflow/_vendor/
@@ -236,18 +236,6 @@ repos:
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
-        files: \.py$|\.pyi$
-        # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
-        args:
-          # These -p options are duplicated to known_first_party in setup.cfg,
-          # Please keep these in sync for now. (See comments there for details.)
-          - -p=airflow
-          - -p=airflow_breeze
-          - -p=docker_tests
-          - -p=docs
-          - -p=kubernetes_tests
-          - -p=tests
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -406,6 +394,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
+        additional_dependencies: ['packaging']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
@@ -869,14 +858,14 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
+        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev|^tests/system/providers|^tests/providers
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/system/providers/\*.py|^tests/providers/\*.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
@@ -909,4 +898,11 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
+      - id: update-er-diagram
+        name: Update ER diagram
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_update_er_diagram.py
+        pass_filenames: false
+        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
