@@ -556,18 +556,16 @@ def _get_or_create_dagrun(dag: DAG, conf: object, start_date: timezone.datetime,
     log.info("dagrun id:" + dag.dag_id)
     dr: DagRun = (
         session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
+        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
         .first()
     )
     if dr:
         session.delete(dr)
-        session.flush()
+        session.commit()
     dr: DagRun = dag.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=execution_date,
         run_id=run_id,
-
-
         start_date=start_date or execution_date,
         session=session,
         conf=conf,
