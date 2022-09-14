@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-13T19:04:00Z
+# This constraints file was automatically generated on 2022-09-14T18:08:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,7 +48,7 @@ cachelib==0.9.0
 cachetools==5.2.0
 cattrs==22.1.0
 celery==5.2.7
-certifi==2022.6.15.1
+certifi==2022.6.15.2
 cffi==1.15.1
 cgroupspy==0.2.2
 charset-normalizer==2.1.1
@@ -88,7 +88,7 @@ h11==0.12.0
 httpcore==0.15.0
 httpx==0.23.0
 humanize==4.3.0
-idna==3.3
+idna==3.4
 importlib-metadata==4.12.0
 importlib-resources==5.9.0
 inflection==0.5.1
@@ -124,7 +124,7 @@ plyvel==1.4.0
 prison==0.2.1
 prometheus-client==0.14.1
 prompt-toolkit==3.0.31
-protobuf==3.20.1
+protobuf==3.20.2
 psutil==5.9.2
 pure-sasl==0.6.2
 pyarrow==9.0.0

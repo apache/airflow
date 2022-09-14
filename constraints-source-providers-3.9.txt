@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-13T19:00:00Z
+# This constraints file was automatically generated on 2022-09-14T18:02:19Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -71,7 +71,7 @@ async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 attrs==22.1.0
-aws-sam-translator==1.50.0
+aws-sam-translator==1.51.0
 aws-xray-sdk==2.10.0
 azure-batch==12.0.0
 azure-common==1.1.28
@@ -102,9 +102,9 @@ billiard==3.6.4.0
 black==22.8.0
 bleach==5.0.1
 blinker==1.5
-boto3==1.24.71
+boto3==1.24.72
 boto==2.49.0
-botocore==1.27.71
+botocore==1.27.72
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -112,10 +112,10 @@ cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==22.1.0
 celery==5.2.7
-certifi==2022.6.15.1
+certifi==2022.6.15.2
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.64.1
+cfn-lint==0.65.0
 cgroupspy==0.2.2
 chardet==4.0.0
 charset-normalizer==2.0.12
@@ -247,7 +247,7 @@ httpx==0.23.0
 humanize==4.3.0
 hvac==0.11.2
 identify==2.5.5
-idna==3.3
+idna==3.4
 ijson==3.1.4
 imagesize==1.4.1
 importlib-metadata==4.12.0
@@ -327,7 +327,7 @@ oauthlib==3.2.1
 openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
-oracledb==1.0.3
+oracledb==1.1.0
 orjson==3.8.0
 oscrypto==1.3.0
 oss2==2.16.0
@@ -470,7 +470,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.6.0
-spython==0.2.11
+spython==0.2.12
 sqlalchemy-bigquery==1.4.4
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.11
