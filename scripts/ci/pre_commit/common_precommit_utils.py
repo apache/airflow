@@ -14,16 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from pathlib import Path
-from typing import List
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 
 
-def insert_documentation(file_path: Path, content: List[str], header: str, footer: str):
+def insert_documentation(file_path: Path, content: list[str], header: str, footer: str):
     text = file_path.read_text().splitlines(keepends=True)
     replacing = False
-    result: List[str] = []
+    result: list[str] = []
     for line in text:
         if line.strip().startswith(header.strip()):
             replacing = True

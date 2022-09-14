@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import abc
-from typing import Any, AsyncIterator, Dict, Tuple
+from typing import Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -39,7 +40,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         pass
 
     @abc.abstractmethod
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         """
         Returns the information needed to reconstruct this Trigger.
 

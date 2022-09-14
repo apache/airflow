@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """add data_compressed to serialized_dag
 
 Revision ID: a3bcd0914482
@@ -23,6 +22,7 @@ Revises: e655c0453f75
 Create Date: 2022-02-03 22:40:59.841119
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

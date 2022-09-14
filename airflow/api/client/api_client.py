@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for all the API clients."""
+from __future__ import annotations
+
 import httpx
 
 

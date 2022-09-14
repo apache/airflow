@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import re
-from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -167,7 +168,7 @@ class TestProviderManager:
         provider_manager = ProvidersManager()
         widget_field = StringField(lazy_gettext('My Param'), widget=BS3TextFieldWidget())
         dummy_field = BooleanField(label=lazy_gettext('Dummy param'), description="dummy")
-        widgets: Dict[str, Field] = {}
+        widgets: dict[str, Field] = {}
         if scenario == 'prefix':
             widgets['extra__test__my_param'] = widget_field
         elif scenario == 'no_prefix':

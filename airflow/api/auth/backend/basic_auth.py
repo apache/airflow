@@ -15,8 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Basic authentication backend"""
+from __future__ import annotations
+
 from functools import wraps
-from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, TypeVar, cast
 
 from flask import Response, request
 from flask_appbuilder.const import AUTH_LDAP
@@ -25,7 +27,7 @@ from flask_login import login_user
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.www.fab_security.sqla.models import User
 
-CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
+CLIENT_AUTH: tuple[str, str] | Any | None = None
 
 
 def init_app(_):
@@ -35,7 +37,7 @@ def init_app(_):
 T = TypeVar("T", bound=Callable)
 
 
-def auth_current_user() -> Optional[User]:
+def auth_current_user() -> User | None:
     """Authenticate and set current user if Authorization header exists"""
     auth = request.authorization
     if auth is None or not auth.username or not auth.password:

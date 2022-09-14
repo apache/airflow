@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import re
 from itertools import product
-from typing import List, Tuple
 
 import rich_click as click
 from rich import print
@@ -51,7 +51,7 @@ PROVIDERS = "PROVIDERS"
 UPGRADE_CHECK = "UPGRADE_CHECK"
 
 
-def get_packages() -> List[Tuple[str, str]]:
+def get_packages() -> list[tuple[str, str]]:
     try:
         with open("packages.txt") as file:
             content = file.read()
@@ -86,7 +86,7 @@ def create_docker(txt: str):
     )
 
 
-def check_providers(files: List[str]):
+def check_providers(files: list[str]):
     print("Checking providers from packages.txt:\n")
     missing_list = []
     for name, version in get_packages():
@@ -123,7 +123,7 @@ def check_all_files(actual_files, expected_files):
     return missing_list
 
 
-def check_release(files: List[str], version: str):
+def check_release(files: list[str], version: str):
     print(f"Checking airflow release for version {version}:\n")
     version = strip_rc_suffix(version)
 
@@ -141,7 +141,7 @@ def expand_name_variations(files):
     return list(sorted(base + suffix for base, suffix in product(files, ['', '.asc', '.sha512'])))
 
 
-def check_upgrade_check(files: List[str], version: str):
+def check_upgrade_check(files: list[str], version: str):
     print(f"Checking upgrade_check for version {version}:\n")
     version = strip_rc_suffix(version)
 

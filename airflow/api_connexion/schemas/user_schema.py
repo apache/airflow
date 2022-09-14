@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, NamedTuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -55,7 +57,7 @@ class UserSchema(UserCollectionItemSchema):
 class UserCollection(NamedTuple):
     """User collection"""
 
-    users: List[User]
+    users: list[User]
     total_entries: int
 
 

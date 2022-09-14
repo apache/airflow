@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Increase length of email and username in ``ab_user`` and ``ab_register_user`` table to ``256`` characters
 
 Revision ID: 5e3ec427fdd3
@@ -23,6 +22,7 @@ Revises: 587bdf053233
 Create Date: 2021-12-01 11:49:26.390210
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

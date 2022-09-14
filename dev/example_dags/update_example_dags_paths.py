@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
-from typing import Optional
 
 import requests
 from rich.console import Console
@@ -55,7 +56,7 @@ def check_if_url_exists(url: str) -> bool:  # type: ignore[return]
     response.raise_for_status()
 
 
-def replace_match(file: str, line: str, provider: str, version: str) -> Optional[str]:
+def replace_match(file: str, line: str, provider: str, version: str) -> str | None:
     for matcher in [EXAMPLE_DAGS_URL_MATCHER, SYSTEM_TESTS_URL_MATCHER]:
         match = matcher.match(line)
         if match:

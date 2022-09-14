@@ -14,9 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from functools import total_ordering
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple
 
 from rich.console import Console
 
@@ -33,8 +35,8 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class DocBuildError(NamedTuple):
     """Errors found in docs build."""
 
-    file_path: Optional[str]
-    line_no: Optional[int]
+    file_path: str | None
+    line_no: int | None
     message: str
 
     def __eq__(self, other):
@@ -55,7 +57,7 @@ class DocBuildError(NamedTuple):
         return left < right
 
 
-def display_errors_summary(build_errors: Dict[str, List[DocBuildError]]) -> None:
+def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None:
     """Displays summary of errors"""
     console.print()
     console.print("[red]" + "#" * 30 + " Start docs build errors summary " + "#" * 30 + "[/]")
@@ -82,7 +84,7 @@ def display_errors_summary(build_errors: Dict[str, List[DocBuildError]]) -> None
     console.print()
 
 
-def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> List[DocBuildError]:
+def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildError]:
     """
     Parses warnings from Sphinx.
 

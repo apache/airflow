@@ -21,10 +21,11 @@ Some of the arguments ("Python/Backend/Versions of the backend) are cached local
 This allows to not remember what was the last version of Python used, if you just want to enter
 the shell with the same version as the "previous run".
 """
+from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from airflow_breeze import global_constants
 from airflow_breeze.utils.console import get_console
@@ -35,7 +36,7 @@ def check_if_cache_exists(param_name: str) -> bool:
     return (Path(BUILD_CACHE_DIR) / f".{param_name}").exists()
 
 
-def read_from_cache_file(param_name: str) -> Optional[str]:
+def read_from_cache_file(param_name: str) -> str | None:
     cache_exists = check_if_cache_exists(param_name)
     if cache_exists:
         return (Path(BUILD_CACHE_DIR) / f".{param_name}").read_text().strip()
@@ -70,9 +71,7 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         sys.exit(1)
 
 
-def read_and_validate_value_from_cache(
-    param_name: str, default_param_value: str
-) -> Tuple[bool, Optional[str]]:
+def read_and_validate_value_from_cache(param_name: str, default_param_value: str) -> tuple[bool, str | None]:
     """
     Reads and validates value from cache is present and whether its value is valid according to current rules.
     It could happen that the allowed values have been modified since the last time cached value was set,
@@ -100,7 +99,7 @@ def read_and_validate_value_from_cache(
     return is_from_cache, cached_value
 
 
-def check_if_values_allowed(param_name: str, param_value: str) -> Tuple[bool, List[Any]]:
+def check_if_values_allowed(param_name: str, param_value: str) -> tuple[bool, list[Any]]:
     """Checks if parameter value is allowed by looking at global constants."""
     allowed = False
     allowed_values = getattr(global_constants, f'ALLOWED_{param_name.upper()}S')

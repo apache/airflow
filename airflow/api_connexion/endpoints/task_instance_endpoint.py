@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Iterable, List, Optional, Tuple, TypeVar
+from __future__ import annotations
+
+from typing import Any, Iterable, TypeVar
 
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
@@ -161,20 +163,20 @@ def get_mapped_task_instances(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    execution_date_gte: Optional[str] = None,
-    execution_date_lte: Optional[str] = None,
-    start_date_gte: Optional[str] = None,
-    start_date_lte: Optional[str] = None,
-    end_date_gte: Optional[str] = None,
-    end_date_lte: Optional[str] = None,
-    duration_gte: Optional[float] = None,
-    duration_lte: Optional[float] = None,
-    state: Optional[List[str]] = None,
-    pool: Optional[List[str]] = None,
-    queue: Optional[List[str]] = None,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    order_by: Optional[str] = None,
+    execution_date_gte: str | None = None,
+    execution_date_lte: str | None = None,
+    start_date_gte: str | None = None,
+    start_date_lte: str | None = None,
+    end_date_gte: str | None = None,
+    end_date_lte: str | None = None,
+    duration_gte: float | None = None,
+    duration_lte: float | None = None,
+    state: list[str] | None = None,
+    pool: list[str] | None = None,
+    queue: list[str] | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    order_by: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
@@ -250,20 +252,20 @@ def get_mapped_task_instances(
     )
 
 
-def _convert_state(states: Optional[Iterable[str]]) -> Optional[List[Optional[str]]]:
+def _convert_state(states: Iterable[str] | None) -> list[str | None] | None:
     if not states:
         return None
     return [State.NONE if s == "none" else s for s in states]
 
 
-def _apply_array_filter(query: Query, key: ClauseElement, values: Optional[Iterable[Any]]) -> Query:
+def _apply_array_filter(query: Query, key: ClauseElement, values: Iterable[Any] | None) -> Query:
     if values is not None:
         cond = ((key == v) for v in values)
         query = query.filter(or_(*cond))
     return query
 
 
-def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, T]) -> Query:
+def _apply_range_filter(query: Query, key: ClauseElement, value_range: tuple[T, T]) -> Query:
     gte_value, lte_value = value_range
     if gte_value is not None:
         query = query.filter(key >= gte_value)
@@ -293,20 +295,20 @@ def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, 
 def get_task_instances(
     *,
     limit: int,
-    dag_id: Optional[str] = None,
-    dag_run_id: Optional[str] = None,
-    execution_date_gte: Optional[str] = None,
-    execution_date_lte: Optional[str] = None,
-    start_date_gte: Optional[str] = None,
-    start_date_lte: Optional[str] = None,
-    end_date_gte: Optional[str] = None,
-    end_date_lte: Optional[str] = None,
-    duration_gte: Optional[float] = None,
-    duration_lte: Optional[float] = None,
-    state: Optional[List[str]] = None,
-    pool: Optional[List[str]] = None,
-    queue: Optional[List[str]] = None,
-    offset: Optional[int] = None,
+    dag_id: str | None = None,
+    dag_run_id: str | None = None,
+    execution_date_gte: str | None = None,
+    execution_date_lte: str | None = None,
+    start_date_gte: str | None = None,
+    start_date_lte: str | None = None,
+    end_date_gte: str | None = None,
+    end_date_lte: str | None = None,
+    duration_gte: float | None = None,
+    duration_lte: float | None = None,
+    state: list[str] | None = None,
+    pool: list[str] | None = None,
+    queue: list[str] | None = None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
@@ -443,7 +445,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     downstream = data.pop('include_downstream', False)
     upstream = data.pop('include_upstream', False)
     if dag_run_id is not None:
-        dag_run: Optional[DR] = (
+        dag_run: DR | None = (
             session.query(DR).filter(DR.dag_id == dag_id, DR.run_id == dag_run_id).one_or_none()
         )
         if dag_run is None:

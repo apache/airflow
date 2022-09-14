@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc
@@ -41,7 +43,7 @@ class DatasetManager(LoggingMixin):
         super().__init__(**kwargs)
 
     def register_dataset_change(
-        self, *, task_instance: "TaskInstance", dataset: Dataset, extra=None, session: Session, **kwargs
+        self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
         """
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
@@ -104,7 +106,7 @@ class DatasetManager(LoggingMixin):
         )
 
 
-def resolve_dataset_manager() -> "DatasetManager":
+def resolve_dataset_manager() -> DatasetManager:
     _dataset_manager_class = conf.getimport(
         section='core',
         key='dataset_manager_class',

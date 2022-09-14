@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import datetime
 import os
 import re
@@ -24,7 +25,6 @@ import threading
 import time
 import uuid
 from multiprocessing import Value
-from typing import List, Union
 from unittest import mock
 from unittest.mock import patch
 
@@ -795,7 +795,7 @@ def clean_db_helper():
 @pytest.mark.usefixtures("clean_db_helper")
 @mock.patch("airflow.jobs.local_task_job.get_task_runner")
 def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
-    codes: List[Union[int, None]] = 9 * [None] + [0]
+    codes: list[int | None] = 9 * [None] + [0]
     mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())

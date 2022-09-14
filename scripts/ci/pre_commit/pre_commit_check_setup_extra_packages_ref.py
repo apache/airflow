@@ -19,12 +19,12 @@
 """
 Checks if all the libraries in setup.py are listed in installation.rst file
 """
+from __future__ import annotations
 
 import os
 import re
 import sys
 from os.path import dirname
-from typing import Dict, List, Set
 
 from rich import print
 from rich.console import Console
@@ -52,7 +52,7 @@ def get_file_content(*path_elements: str) -> str:
         return file_to_read.read()
 
 
-def get_extras_from_setup() -> Set[str]:
+def get_extras_from_setup() -> set[str]:
     """Returns a set of regular (non-deprecated) extras from setup."""
     return (
         set(EXTRAS_DEPENDENCIES.keys())
@@ -61,7 +61,7 @@ def get_extras_from_setup() -> Set[str]:
     )
 
 
-def get_extras_from_docs() -> Set[str]:
+def get_extras_from_docs() -> set[str]:
     """
     Returns a list of extras from airflow.docs.
     """
@@ -70,13 +70,13 @@ def get_extras_from_docs() -> Set[str]:
         rf'\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})][^|]+\|[^|]+\|',
         re.MULTILINE,
     )
-    doc_extra_set: Set[str] = set()
+    doc_extra_set: set[str] = set()
     for doc_extra in extras_section_regex.findall(docs_content):
         doc_extra_set.add(doc_extra)
     return doc_extra_set
 
 
-def get_preinstalled_providers_from_docs() -> List[str]:
+def get_preinstalled_providers_from_docs() -> list[str]:
     """
     Returns list of pre-installed providers from the doc.
     """
@@ -88,7 +88,7 @@ def get_preinstalled_providers_from_docs() -> List[str]:
     return preinstalled_section_regex.findall(docs_content)
 
 
-def get_deprecated_extras_from_docs() -> Dict[str, str]:
+def get_deprecated_extras_from_docs() -> dict[str, str]:
     """
     Returns dict of deprecated extras from airflow.docs (alias -> target extra)
     """
@@ -245,7 +245,7 @@ Below is the list of preinstalled providers that:
 
 
 if __name__ == '__main__':
-    status: List[bool] = []
+    status: list[bool] = []
     # force adding all provider package dependencies, to check providers status
     add_all_provider_packages()
     main_console = Console()

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating the usage of labels with different branches.
 """
+from __future__ import annotations
+
 import pendulum
 
 from airflow import DAG

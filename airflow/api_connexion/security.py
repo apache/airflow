@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from functools import wraps
-from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Callable, Sequence, TypeVar, cast
 
 from flask import Response
 
@@ -37,7 +38,7 @@ def check_authentication() -> None:
     raise Unauthenticated(headers=response.headers)
 
 
-def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
+def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
     appbuilder = get_airflow_app().appbuilder
     appbuilder.sm.sync_resource_permissions(permissions)

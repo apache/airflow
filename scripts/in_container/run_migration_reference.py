@@ -19,6 +19,8 @@
 """
 Module to update db migration information in Airflow
 """
+from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
@@ -88,7 +90,7 @@ def insert_version(old_content, file):
     file.write_text(new_content)
 
 
-def revision_suffix(rev: "Script"):
+def revision_suffix(rev: Script):
     if rev.is_head:
         return ' (head)'
     if rev.is_base:
@@ -100,7 +102,7 @@ def revision_suffix(rev: "Script"):
     return ''
 
 
-def ensure_airflow_version(revisions: Iterable["Script"]):
+def ensure_airflow_version(revisions: Iterable[Script]):
     for rev in revisions:
         assert rev.module.__file__ is not None  # For Mypy.
         file = Path(rev.module.__file__)
@@ -109,13 +111,13 @@ def ensure_airflow_version(revisions: Iterable["Script"]):
             insert_version(content, file)
 
 
-def get_revisions() -> Iterable["Script"]:
+def get_revisions() -> Iterable[Script]:
     config = _get_alembic_config()
     script = ScriptDirectory.from_config(config)
     yield from script.walk_revisions()
 
 
-def update_docs(revisions: Iterable["Script"]):
+def update_docs(revisions: Iterable[Script]):
     doc_data = []
     for rev in revisions:
         doc_data.append(

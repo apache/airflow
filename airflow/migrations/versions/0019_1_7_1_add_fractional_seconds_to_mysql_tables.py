@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add fractional seconds to MySQL tables
 
 Revision ID: 4addfa1236f1
@@ -23,6 +22,7 @@ Revises: f2ca10b85618
 Create Date: 2016-09-11 13:39:18.592072
 
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy.dialects import mysql

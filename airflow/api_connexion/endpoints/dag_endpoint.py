@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Collection, Optional
+from typing import Collection
 
 from connexion import NoContent
 from flask import g, request
@@ -70,8 +71,8 @@ def get_dags(
     *,
     limit: int,
     offset: int = 0,
-    tags: Optional[Collection[str]] = None,
-    dag_id_pattern: Optional[str] = None,
+    tags: Collection[str] | None = None,
+    dag_id_pattern: str | None = None,
     only_active: bool = True,
     session: Session = NEW_SESSION,
 ) -> APIResponse:

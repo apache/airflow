@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """Add ``executor_config`` column to ``task_instance`` table
 
 Revision ID: 33ae817a1ff4
@@ -23,6 +21,7 @@ Revises: 947454bf1dff
 Create Date: 2017-09-11 15:26:47.598494
 
 """
+from __future__ import annotations
 
 import dill
 import sqlalchemy as sa

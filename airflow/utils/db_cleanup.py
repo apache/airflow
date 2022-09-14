@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module took inspiration from the community maintenance dag
 (https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
 """
+from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pendulum import DateTime
 from sqlalchemy import and_, column, false, func, table, text
@@ -58,10 +58,10 @@ class _TableConfig:
 
     table_name: str
     recency_column_name: str
-    extra_columns: Optional[List[str]] = None
+    extra_columns: list[str] | None = None
     keep_last: bool = False
-    keep_last_filters: Optional[Any] = None
-    keep_last_group_by: Optional[Any] = None
+    keep_last_filters: Any | None = None
+    keep_last_group_by: Any | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -83,7 +83,7 @@ class _TableConfig:
         )
 
 
-config_list: List[_TableConfig] = [
+config_list: list[_TableConfig] = [
     _TableConfig(table_name='job', recency_column_name='latest_heartbeat'),
     _TableConfig(table_name='dag', recency_column_name='last_parsed_time'),
     _TableConfig(
@@ -108,10 +108,10 @@ config_list: List[_TableConfig] = [
     _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done'),
 ]
 
-config_dict: Dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
+config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 
 
-def _check_for_rows(*, query: "Query", print_rows=False):
+def _check_for_rows(*, query: Query, print_rows=False):
     num_entities = query.count()
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if print_rows:
@@ -271,7 +271,7 @@ def _cleanup_table(
     session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: List[str]):
+def _confirm_delete(*, date: DateTime, tables: list[str]):
     for_tables = f" for tables {tables!r}" if tables else ''
     question = (
         f"You have requested that we purge all data prior to {date}{for_tables}.\n"
@@ -285,7 +285,7 @@ def _confirm_delete(*, date: DateTime, tables: List[str]):
         raise SystemExit("User did not confirm; exiting.")
 
 
-def _print_config(*, configs: Dict[str, _TableConfig]):
+def _print_config(*, configs: dict[str, _TableConfig]):
     data = [x.readable_config for x in configs.values()]
     AirflowConsole().print_as_table(data=data)
 
@@ -310,12 +310,12 @@ def _suppress_with_logging(table, session):
 def run_cleanup(
     *,
     clean_before_timestamp: DateTime,
-    table_names: Optional[List[str]] = None,
+    table_names: list[str] | None = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
     skip_archive: bool = False,
-    session: 'Session' = NEW_SESSION,
+    session: Session = NEW_SESSION,
 ):
     """
     Purges old records in airflow metadata database.

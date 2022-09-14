@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Classes for interacting with Kubernetes API"""
+from __future__ import annotations
+
 import copy
 import uuid
-from typing import Tuple
 
 from kubernetes.client import models as k8s
 
@@ -75,7 +76,7 @@ class Secret(K8SModel):
         """Reads from environment to secret"""
         return k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=self.secret))
 
-    def to_volume_secret(self) -> Tuple[k8s.V1Volume, k8s.V1VolumeMount]:
+    def to_volume_secret(self) -> tuple[k8s.V1Volume, k8s.V1VolumeMount]:
         """Converts to volume secret"""
         vol_id = f'secretvol{uuid.uuid4()}'
         volume = k8s.V1Volume(name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret))

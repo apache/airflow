@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict
+from typing import Any
 
 from provider_yaml_utils import load_package_data
 from sphinx.application import Sphinx
@@ -118,10 +119,10 @@ if __name__ == "__main__":
                 """Display warning"""
                 print(msg, file=sys.stderr)
 
-        def fetch_inventories(intersphinx_mapping) -> Dict[str, Any]:
+        def fetch_inventories(intersphinx_mapping) -> dict[str, Any]:
             now = int(time.time())
 
-            cache: Dict[Any, Any] = {}
+            cache: dict[Any, Any] = {}
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 for name, (uri, invs) in intersphinx_mapping.values():
                     pool.submit(fetch_inventory_group, name, uri, invs, cache, _MockApp(), now)

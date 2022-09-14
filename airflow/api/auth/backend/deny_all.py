@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend that denies all requests"""
+from __future__ import annotations
+
 from functools import wraps
-from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, TypeVar, cast
 
 from flask import Response
 
-CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
+CLIENT_AUTH: tuple[str, str] | Any | None = None
 
 
 def init_app(_):

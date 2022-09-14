@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import os
 import sys
-from typing import List, Optional, Tuple
 
 import click
 
@@ -92,8 +93,8 @@ from airflow_breeze.utils.run_utils import filter_out_none, fix_group_permission
 
 
 def run_build_in_parallel(
-    image_params_list: List[BuildProdParams],
-    python_version_list: List[str],
+    image_params_list: list[BuildProdParams],
+    python_version_list: list[str],
     parallelism: int,
     include_success_outputs: bool,
     skip_cleanup: bool,
@@ -229,7 +230,7 @@ def build(
     skip_cleanup: bool,
     include_success_outputs: bool,
     python_versions: str,
-    answer: Optional[str],
+    answer: str | None,
     **kwargs,
 ):
     """
@@ -250,7 +251,7 @@ def build(
     fix_group_permissions(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
-        params_list: List[BuildProdParams] = []
+        params_list: list[BuildProdParams] = []
         for python in python_version_list:
             params = BuildProdParams(**parameters_passed)
             params.python = python
@@ -303,7 +304,7 @@ def pull_prod_image(
     wait_for_image: bool,
     tag_as_latest: bool,
     verify: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
     perform_environment_checks(verbose=verbose)
@@ -375,10 +376,10 @@ def verify(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
+    image_tag: str | None,
     pull: bool,
     slim_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Verify Production image."""
     perform_environment_checks(verbose=verbose)
@@ -453,8 +454,8 @@ def run_build_production_image(
     verbose: bool,
     dry_run: bool,
     prod_image_params: BuildProdParams,
-    output: Optional[Output],
-) -> Tuple[int, str]:
+    output: Output | None,
+) -> tuple[int, str]:
     """
     Builds PROD image:
 

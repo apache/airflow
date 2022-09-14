@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.utils.context import Context
@@ -47,16 +49,16 @@ class EmailOperator(BaseOperator):
     def __init__(
         self,
         *,
-        to: Union[List[str], str],
+        to: list[str] | str,
         subject: str,
         html_content: str,
-        files: Optional[List] = None,
-        cc: Optional[Union[List[str], str]] = None,
-        bcc: Optional[Union[List[str], str]] = None,
+        files: list | None = None,
+        cc: list[str] | str | None = None,
+        bcc: list[str] | str | None = None,
         mime_subtype: str = 'mixed',
         mime_charset: str = 'utf-8',
-        conn_id: Optional[str] = None,
-        custom_headers: Optional[Dict[str, Any]] = None,
+        conn_id: str | None = None,
+        custom_headers: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

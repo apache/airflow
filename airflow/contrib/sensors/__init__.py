@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.sensors` or `airflow.providers.*.sensors`."""
+from __future__ import annotations
 
 import warnings
 

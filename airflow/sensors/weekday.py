@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import Iterable, Union
+from typing import Iterable
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.base import BaseSensorOperator
@@ -79,7 +81,7 @@ class DayOfWeekSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        week_day: Union[str, Iterable[str], WeekDay, Iterable[WeekDay]],
+        week_day: str | Iterable[str] | WeekDay | Iterable[WeekDay],
         use_task_logical_date: bool = False,
         use_task_execution_day: bool = False,
         **kwargs,

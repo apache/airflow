@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, subqueryload
@@ -61,7 +60,7 @@ def get_datasets(
     *,
     limit: int,
     offset: int = 0,
-    uri_pattern: Optional[str] = None,
+    uri_pattern: str | None = None,
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -90,11 +89,11 @@ def get_dataset_events(
     limit: int,
     offset: int = 0,
     order_by: str = "timestamp",
-    dataset_id: Optional[int] = None,
-    source_dag_id: Optional[str] = None,
-    source_task_id: Optional[str] = None,
-    source_run_id: Optional[str] = None,
-    source_map_index: Optional[int] = None,
+    dataset_id: int | None = None,
+    source_dag_id: str | None = None,
+    source_task_id: str | None = None,
+    source_run_id: str | None = None,
+    source_map_index: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dataset events"""

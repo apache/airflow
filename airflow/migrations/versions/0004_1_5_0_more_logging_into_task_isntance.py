@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``operator`` and ``queued_dttm`` to ``task_instance`` table
 
 Revision ID: 338e90f54d61
@@ -23,6 +22,8 @@ Revises: 13eb55f81627
 Create Date: 2015-08-25 06:09:20.460147
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 

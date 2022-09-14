@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """API Client that allows interacting with Airflow API"""
+from __future__ import annotations
+
 from importlib import import_module
 from typing import Any
 

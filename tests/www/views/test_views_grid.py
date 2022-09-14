@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime, timedelta
-from typing import List
 
 import pendulum
 import pytest
@@ -128,7 +129,7 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
-def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
+def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:
     - One run successful

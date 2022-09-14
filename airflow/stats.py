@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import logging
@@ -22,7 +23,7 @@ import socket
 import string
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -65,7 +66,7 @@ class StatsLogger(Protocol):
         """Gauge stat"""
 
     @classmethod
-    def timing(cls, stat: str, dt: Union[float, datetime.timedelta]) -> None:
+    def timing(cls, stat: str, dt: float | datetime.timedelta) -> None:
         """Stats timing"""
 
     @classmethod
@@ -125,8 +126,8 @@ class Timer:
     # pystatsd and dogstatsd both have a timer class, but present different API
     # so we can't use this as a mixin on those, instead this class is contains the "real" timer
 
-    _start_time: Optional[int]
-    duration: Optional[int]
+    _start_time: int | None
+    duration: int | None
 
     def __init__(self, real_timer=None):
         self.real_timer = real_timer
@@ -318,7 +319,7 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def timing(self, stat, dt: Union[float, datetime.timedelta], tags: Optional[List[str]] = None):
+    def timing(self, stat, dt: float | datetime.timedelta, tags: list[str] | None = None):
         """Stats timing"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
@@ -338,7 +339,7 @@ class SafeDogStatsdLogger:
 
 class _Stats(type):
     factory = None
-    instance: Optional[StatsLogger] = None
+    instance: StatsLogger | None = None
 
     def __getattr__(cls, name):
         if not cls.instance:

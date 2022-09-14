@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Utilities for running or stopping processes."""
+from __future__ import annotations
+
 import errno
 import logging
 import os
@@ -34,7 +35,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, Generator, List, Optional
+from typing import Generator
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
@@ -52,9 +53,9 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TI
 def reap_process_group(
     process_group_id: int,
     logger,
-    sig: 'signal.Signals' = signal.SIGTERM,
+    sig: signal.Signals = signal.SIGTERM,
     timeout: int = DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM,
-) -> Dict[int, int]:
+) -> dict[int, int]:
     """
     Send sig (SIGTERM) to the process group of pid.
 
@@ -158,7 +159,7 @@ def reap_process_group(
     return returncodes
 
 
-def execute_in_subprocess(cmd: List[str], cwd: Optional[str] = None) -> None:
+def execute_in_subprocess(cmd: list[str], cwd: str | None = None) -> None:
     """
     Execute a process and stream output to logger.
     :param cmd: command and arguments to run
@@ -167,7 +168,7 @@ def execute_in_subprocess(cmd: List[str], cwd: Optional[str] = None) -> None:
     execute_in_subprocess_with_kwargs(cmd, cwd=cwd)
 
 
-def execute_in_subprocess_with_kwargs(cmd: List[str], **kwargs) -> None:
+def execute_in_subprocess_with_kwargs(cmd: list[str], **kwargs) -> None:
     """
     Execute a process and stream output to logger.
 
@@ -190,7 +191,7 @@ def execute_in_subprocess_with_kwargs(cmd: List[str], **kwargs) -> None:
         raise subprocess.CalledProcessError(exit_code, cmd)
 
 
-def execute_interactive(cmd: List[str], **kwargs) -> None:
+def execute_interactive(cmd: list[str], **kwargs) -> None:
     """
     Run the new command as a subprocess.
 
@@ -229,7 +230,7 @@ def execute_interactive(cmd: List[str], **kwargs) -> None:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
 
 
-def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> None:
+def kill_child_processes_by_pids(pids_to_kill: list[int], timeout: int = 5) -> None:
     """
     Kills child processes for the current process.
 
@@ -273,7 +274,7 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
 
 
 @contextmanager
-def patch_environ(new_env_variables: Dict[str, str]) -> Generator[None, None, None]:
+def patch_environ(new_env_variables: dict[str, str]) -> Generator[None, None, None]:
     """
     Set environment variables in context.
 

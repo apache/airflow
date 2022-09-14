@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Pool APIs."""
+from __future__ import annotations
+
 from deprecated import deprecated
 
 from airflow.exceptions import AirflowBadRequest, PoolNotFound

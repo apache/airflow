@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Fix Sqlite foreign key
 
 Revision ID: 856955da8476
@@ -22,6 +21,7 @@ Revises: f23433877c24
 Create Date: 2018-06-17 15:54:53.844230
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

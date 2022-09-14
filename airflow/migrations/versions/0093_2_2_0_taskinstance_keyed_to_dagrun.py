@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Change ``TaskInstance`` and ``TaskReschedule`` tables from execution_date to run_id.
 
 Revision ID: 7b2661a43ba3
@@ -23,6 +22,7 @@ Revises: 142555e44c17
 Create Date: 2021-07-15 15:26:12.710749
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

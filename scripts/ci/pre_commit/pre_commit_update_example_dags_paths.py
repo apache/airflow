@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 import yaml
 from rich.console import Console
@@ -40,7 +41,7 @@ EXAMPLE_DAGS_URL_MATCHER = re.compile(
 )
 
 
-def get_provider_and_version(url_path: str) -> Tuple[str, str]:
+def get_provider_and_version(url_path: str) -> tuple[str, str]:
     candidate_folders = url_path.split("/")
     while candidate_folders:
         try:
@@ -63,7 +64,7 @@ def get_provider_and_version(url_path: str) -> Tuple[str, str]:
     sys.exit(1)
 
 
-def replace_match(file: Path, line: str) -> Optional[str]:
+def replace_match(file: Path, line: str) -> str | None:
     match = EXAMPLE_DAGS_URL_MATCHER.match(line)
     if match:
         url_path_to_dir = match.group(4)

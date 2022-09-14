@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import logging
 import os
@@ -24,7 +26,6 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
-from typing import List
 
 import pytest
 
@@ -833,7 +834,7 @@ class TestShortCircuitOperator:
         assert xcom_value_short_op_no_push_xcom is None
 
 
-virtualenv_string_args: List[str] = []
+virtualenv_string_args: list[str] = []
 
 
 class TestPythonVirtualenvOperator(unittest.TestCase):

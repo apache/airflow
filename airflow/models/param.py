@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import copy
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
+from typing import TYPE_CHECKING, Any, ItemsView, MutableMapping, ValuesView
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils.context import Context
@@ -41,14 +43,14 @@ class Param:
 
     CLASS_IDENTIFIER = '__class'
 
-    def __init__(self, default: Any = NOTSET, description: Optional[str] = None, **kwargs):
+    def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
         if default is not NOTSET:
             self._warn_if_not_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
-    def __copy__(self) -> "Param":
+    def __copy__(self) -> Param:
         return Param(self.value, self.description, schema=self.schema)
 
     @staticmethod
@@ -114,12 +116,12 @@ class ParamsDict(MutableMapping[str, Any]):
 
     __slots__ = ['__dict', 'suppress_exception']
 
-    def __init__(self, dict_obj: Optional[Dict] = None, suppress_exception: bool = False):
+    def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
         """
         :param dict_obj: A dict or dict like object to init ParamsDict
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
         """
-        params_dict: Dict[str, Param] = {}
+        params_dict: dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
             if not isinstance(v, Param):
@@ -129,10 +131,10 @@ class ParamsDict(MutableMapping[str, Any]):
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
 
-    def __copy__(self) -> "ParamsDict":
+    def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
 
-    def __deepcopy__(self, memo: Optional[Dict[int, Any]]) -> "ParamsDict":
+    def __deepcopy__(self, memo: dict[int, Any] | None) -> ParamsDict:
         return ParamsDict(copy.deepcopy(self.__dict, memo), self.suppress_exception)
 
     def __contains__(self, o: object) -> bool:
@@ -198,11 +200,11 @@ class ParamsDict(MutableMapping[str, Any]):
             return super().update(args[0].__dict)
         super().update(*args, **kwargs)
 
-    def dump(self) -> Dict[str, Any]:
+    def dump(self) -> dict[str, Any]:
         """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> dict[str, Any]:
         """Validates & returns all the Params object stored in the dictionary"""
         resolved_dict = {}
         try:
@@ -235,7 +237,7 @@ class DagParam:
     :param default: Default value used if no parameter was set.
     """
 
-    def __init__(self, current_dag: "DAG", name: str, default: Any = NOTSET):
+    def __init__(self, current_dag: DAG, name: str, default: Any = NOTSET):
         if default is not NOTSET:
             current_dag.params[name] = default
         self._name = name

@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Based on: https://github.com/sphinx-contrib/redirects"""
+from __future__ import annotations
+
 import os
 
 from sphinx.builders import html as builders

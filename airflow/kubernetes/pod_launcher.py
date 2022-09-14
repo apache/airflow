@@ -19,4 +19,6 @@
 This module is deprecated.
 Please use :mod:`kubernetes.client.models` for V1ResourceRequirements and Port.
 """
+from __future__ import annotations
+
 from airflow.kubernetes.pod_launcher_deprecated import PodLauncher, PodStatus  # noqa: autoflake

@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import Iterable, Union
+from typing import Iterable
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
@@ -87,9 +89,9 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     def __init__(
         self,
         *,
-        follow_task_ids_if_true: Union[str, Iterable[str]],
-        follow_task_ids_if_false: Union[str, Iterable[str]],
-        week_day: Union[str, Iterable[str], WeekDay, Iterable[WeekDay]],
+        follow_task_ids_if_true: str | Iterable[str],
+        follow_task_ids_if_false: str | Iterable[str],
+        week_day: str | Iterable[str] | WeekDay | Iterable[WeekDay],
         use_task_logical_date: bool = False,
         use_task_execution_day: bool = False,
         **kwargs,
@@ -108,7 +110,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             )
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:
             now = context["logical_date"]
         else:

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 # fmt: off
 """Sensors."""
+from __future__ import annotations
+
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {

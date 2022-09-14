@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any, Union
 
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
@@ -37,7 +38,7 @@ class _DataIntervalTimetable(Timetable):
     instance), and schedule a DagRun at the end of each interval.
     """
 
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+    def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
         This is called when ``catchup=False``. See docstring of subclasses for
@@ -78,9 +79,9 @@ class _DataIntervalTimetable(Timetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         earliest = restriction.earliest
         if not restriction.catchup:
             earliest = self._skip_to_latest(earliest)
@@ -122,17 +123,17 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     """
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> Timetable:
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.serialized_objects import decode_timezone
 
         return cls(data["expression"], decode_timezone(data["timezone"]))
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_timezone
 
         return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
 
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+    def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
         The logic is that we move start_date up until one period before, so the
@@ -175,7 +176,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         self._delta = delta
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.serialized_objects import decode_relativedelta
 
         delta = data["delta"]
@@ -196,7 +197,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def summary(self) -> str:
         return str(self._delta)
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta
 
         delta: Any
@@ -223,7 +224,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def _align_to_prev(self, current: DateTime) -> DateTime:
         return current
 
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+    def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
         The logic is that we move start_date up until one period before, so the

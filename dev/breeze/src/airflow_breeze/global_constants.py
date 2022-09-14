@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
 Global constants that are used by all other Breeze components.
 """
-from __future__ import annotations
-
 import platform
 from enum import Enum
 from functools import lru_cache

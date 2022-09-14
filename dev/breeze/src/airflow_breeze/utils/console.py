@@ -18,10 +18,12 @@
 Console used by all processes. We are forcing colors and terminal output as Breeze is supposed
 to be only run in CI or real development terminal - in both cases we want to have colors on.
 """
+from __future__ import annotations
+
 import os
 from enum import Enum
 from functools import lru_cache
-from typing import NamedTuple, Optional, TextIO
+from typing import NamedTuple, TextIO
 
 from rich.console import Console
 from rich.theme import Theme
@@ -81,7 +83,7 @@ class Output(NamedTuple):
 
 
 @lru_cache(maxsize=None)
-def get_console(output: Optional[Output] = None) -> Console:
+def get_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,
         color_system="standard",
@@ -93,7 +95,7 @@ def get_console(output: Optional[Output] = None) -> Console:
 
 
 @lru_cache(maxsize=None)
-def get_stderr_console(output: Optional[Output] = None) -> Console:
+def get_stderr_console(output: Output | None = None) -> Console:
     return Console(
         force_terminal=True,
         color_system="standard",

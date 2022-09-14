@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Class responsible for colouring logs based on log level."""
+from __future__ import annotations
+
 import re
 import sys
 from logging import LogRecord
-from typing import Any, Union
+from typing import Any
 
 from colorlog import TTYColoredFormatter
 from colorlog.escape_codes import esc, escape_codes
@@ -49,7 +51,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
         super().__init__(*args, **kwargs)
 
     @staticmethod
-    def _color_arg(arg: Any) -> Union[str, float, int]:
+    def _color_arg(arg: Any) -> str | float | int:
         if isinstance(arg, (int, float)):
             # In case of %d or %f formatting
             return arg

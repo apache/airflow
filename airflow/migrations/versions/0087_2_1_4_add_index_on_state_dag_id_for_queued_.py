@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add index on state, dag_id for queued ``dagrun``
 
 Revision ID: ccde3e26fe78
@@ -23,6 +22,7 @@ Revises: 092435bf5d12
 Create Date: 2021-09-08 16:35:34.867711
 
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy import text

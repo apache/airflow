@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Common utility functions with strings"""
+from __future__ import annotations
 
 import string
 from random import choice
-from typing import Optional
 
 
 def get_random_string(length=8, choices=string.ascii_letters + string.digits):
@@ -29,7 +29,7 @@ def get_random_string(length=8, choices=string.ascii_letters + string.digits):
 TRUE_LIKE_VALUES = {"on", "t", "true", "y", "yes", "1"}
 
 
-def to_boolean(astring: Optional[str]) -> bool:
+def to_boolean(astring: str | None) -> bool:
     """Convert a string to a boolean."""
     if astring is None:
         return False

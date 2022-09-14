@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import shutil
@@ -21,7 +22,7 @@ import sys
 import threading
 from signal import SIGTERM
 from time import sleep
-from typing import Iterable, Optional, Tuple
+from typing import Iterable
 
 import click
 
@@ -136,7 +137,7 @@ def shell(
     python: str,
     github_repository: str,
     backend: str,
-    integration: Tuple[str],
+    integration: tuple[str],
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
@@ -144,17 +145,17 @@ def shell(
     mount_sources: str,
     use_packages_from_dist: bool,
     package_format: str,
-    use_airflow_version: Optional[str],
+    use_airflow_version: str | None,
     airflow_extras: str,
     airflow_constraints_reference: str,
     force_build: bool,
     db_reset: bool,
     include_mypy_volume: bool,
-    answer: Optional[str],
-    max_time: Optional[int],
-    image_tag: Optional[str],
-    platform: Optional[str],
-    extra_args: Tuple,
+    answer: str | None,
+    max_time: int | None,
+    image_tag: str | None,
+    platform: str | None,
+    extra_args: tuple,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if verbose or dry_run:
@@ -221,7 +222,7 @@ def start_airflow(
     python: str,
     github_repository: str,
     backend: str,
-    integration: Tuple[str],
+    integration: tuple[str],
     postgres_version: str,
     load_example_dags: bool,
     load_default_connections: bool,
@@ -229,17 +230,17 @@ def start_airflow(
     mssql_version: str,
     forward_credentials: bool,
     mount_sources: str,
-    use_airflow_version: Optional[str],
+    use_airflow_version: str | None,
     airflow_extras: str,
     airflow_constraints_reference: str,
     use_packages_from_dist: bool,
     package_format: str,
     force_build: bool,
-    image_tag: Optional[str],
+    image_tag: str | None,
     db_reset: bool,
-    answer: Optional[str],
-    platform: Optional[str],
-    extra_args: Tuple,
+    answer: str | None,
+    platform: str | None,
+    extra_args: tuple,
 ):
     """Enter breeze environment and starts all Airflow components in the tmux session."""
     if use_airflow_version is None:
@@ -305,7 +306,7 @@ def build_docs(
     spellcheck_only: bool,
     for_production: bool,
     clean_build: bool,
-    package_filter: Tuple[str],
+    package_filter: tuple[str],
 ):
     """Build documentation in the container."""
     if for_production and not clean_build:
@@ -390,9 +391,9 @@ def static_checks(
     show_diff_on_failure: bool,
     last_commit: bool,
     commit_ref: str,
-    type: Tuple[str],
+    type: tuple[str],
     file: Iterable[str],
-    precommit_args: Tuple,
+    precommit_args: tuple,
 ):
     assert_pre_commit_installed(verbose=verbose)
     perform_environment_checks(verbose=verbose)
@@ -482,7 +483,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
 @option_verbose
 @option_dry_run
 @click.argument('exec_args', nargs=-1, type=click.UNPROCESSED)
-def exec(verbose: bool, dry_run: bool, exec_args: Tuple):
+def exec(verbose: bool, dry_run: bool, exec_args: tuple):
     perform_environment_checks(verbose=verbose)
     container_running = find_airflow_container(verbose, dry_run)
     if container_running:
@@ -575,7 +576,7 @@ def stop_exec_on_error(returncode: int):
     sys.exit(returncode)
 
 
-def find_airflow_container(verbose, dry_run) -> Optional[str]:
+def find_airflow_container(verbose, dry_run) -> str | None:
     exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
     check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
     exec_shell_params.print_badge_info()

@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Switch XCom table to use ``run_id`` and add ``map_index``.
 
 Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
 Create Date: 2022-01-19 03:20:35.329037
 """
+from __future__ import annotations
+
 from typing import Sequence
 
 from alembic import op

@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import List
+from __future__ import annotations
 
 from airflow.models import Operator
 from airflow.models.abstractoperator import AbstractOperator
@@ -103,9 +102,9 @@ def dag_edges(dag: DAG):
     # Collect all the edges between individual tasks
     edges = set()
 
-    tasks_to_trace: List[Operator] = dag.roots
+    tasks_to_trace: list[Operator] = dag.roots
     while tasks_to_trace:
-        tasks_to_trace_next: List[Operator] = []
+        tasks_to_trace_next: list[Operator] = []
         for task in tasks_to_trace:
             for child in task.downstream_list:
                 edge = (task.task_id, child.task_id)

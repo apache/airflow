@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Increase length for connection password
 
 Revision ID: fe461863935f
@@ -23,6 +22,7 @@ Revises: 08364691d074
 Create Date: 2019-12-08 09:47:09.033009
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

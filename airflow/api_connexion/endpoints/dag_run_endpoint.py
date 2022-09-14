@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import List, Optional, Tuple
 
 import pendulum
 from connexion import NoContent
@@ -102,7 +103,7 @@ def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """If dag run is dataset-triggered, return the dataset events that triggered it."""
-    dag_run: Optional[DagRun] = (
+    dag_run: DagRun | None = (
         session.query(DagRun)
         .filter(
             DagRun.dag_id == dag_id,
@@ -124,16 +125,16 @@ def get_upstream_dataset_events(
 def _fetch_dag_runs(
     query: Query,
     *,
-    end_date_gte: Optional[str],
-    end_date_lte: Optional[str],
-    execution_date_gte: Optional[str],
-    execution_date_lte: Optional[str],
-    start_date_gte: Optional[str],
-    start_date_lte: Optional[str],
-    limit: Optional[int],
-    offset: Optional[int],
+    end_date_gte: str | None,
+    end_date_lte: str | None,
+    execution_date_gte: str | None,
+    execution_date_lte: str | None,
+    start_date_gte: str | None,
+    start_date_lte: str | None,
+    limit: int | None,
+    offset: int | None,
     order_by: str,
-) -> Tuple[List[DagRun], int]:
+) -> tuple[list[DagRun], int]:
     if start_date_gte:
         query = query.filter(DagRun.start_date >= start_date_gte)
     if start_date_lte:
@@ -187,15 +188,15 @@ def _fetch_dag_runs(
 def get_dag_runs(
     *,
     dag_id: str,
-    start_date_gte: Optional[str] = None,
-    start_date_lte: Optional[str] = None,
-    execution_date_gte: Optional[str] = None,
-    execution_date_lte: Optional[str] = None,
-    end_date_gte: Optional[str] = None,
-    end_date_lte: Optional[str] = None,
-    state: Optional[List[str]] = None,
-    offset: Optional[int] = None,
-    limit: Optional[int] = None,
+    start_date_gte: str | None = None,
+    start_date_lte: str | None = None,
+    execution_date_gte: str | None = None,
+    execution_date_lte: str | None = None,
+    end_date_gte: str | None = None,
+    end_date_lte: str | None = None,
+    state: list[str] | None = None,
+    offset: int | None = None,
+    limit: int | None = None,
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ):
@@ -340,7 +341,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
-    dag_run: Optional[DagRun] = (
+    dag_run: DagRun | None = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:
@@ -372,7 +373,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
-    dag_run: Optional[DagRun] = (
+    dag_run: DagRun | None = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
     if dag_run is None:

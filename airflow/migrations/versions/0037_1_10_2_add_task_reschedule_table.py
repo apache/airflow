@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``task_reschedule`` table
 
 Revision ID: 0a2a5b66e19d
@@ -22,6 +21,8 @@ Revises: 9635ae0956e7
 Create Date: 2018-06-17 22:50:00.053620
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 

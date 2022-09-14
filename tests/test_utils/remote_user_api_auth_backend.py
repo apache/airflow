@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default authentication backend - everything is allowed"""
+from __future__ import annotations
+
 import logging
 from functools import wraps
-from typing import Callable, Optional, Tuple, TypeVar, Union, cast
+from typing import Callable, TypeVar, cast
 
 from flask import Response, request
 from flask_login import login_user
@@ -28,7 +30,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 
 log = logging.getLogger(__name__)
 
-CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = None
+CLIENT_AUTH: tuple[str, str] | AuthBase | None = None
 
 
 def init_app(_):

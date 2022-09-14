@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import logging
 import warnings
 from json import JSONDecodeError
-from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
@@ -101,16 +101,16 @@ class Connection(Base, LoggingMixin):
 
     def __init__(
         self,
-        conn_id: Optional[str] = None,
-        conn_type: Optional[str] = None,
-        description: Optional[str] = None,
-        host: Optional[str] = None,
-        login: Optional[str] = None,
-        password: Optional[str] = None,
-        schema: Optional[str] = None,
-        port: Optional[int] = None,
-        extra: Optional[Union[str, dict]] = None,
-        uri: Optional[str] = None,
+        conn_id: str | None = None,
+        conn_type: str | None = None,
+        description: str | None = None,
+        host: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        schema: str | None = None,
+        port: int | None = None,
+        extra: str | dict | None = None,
+        uri: str | None = None,
     ):
         super().__init__()
         self.conn_id = conn_id
@@ -243,7 +243,7 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query: Optional[str] = urlencode(self.extra_dejson)
+                query: str | None = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
@@ -253,7 +253,7 @@ class Connection(Base, LoggingMixin):
 
         return uri
 
-    def get_password(self) -> Optional[str]:
+    def get_password(self) -> str | None:
         """Return encrypted password."""
         if self._password and self.is_encrypted:
             fernet = get_fernet()
@@ -266,7 +266,7 @@ class Connection(Base, LoggingMixin):
         else:
             return self._password
 
-    def set_password(self, value: Optional[str]):
+    def set_password(self, value: str | None):
         """Encrypt password and set in object attribute."""
         if value:
             fernet = get_fernet()
@@ -278,7 +278,7 @@ class Connection(Base, LoggingMixin):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_password', descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> Dict:
+    def get_extra(self) -> dict:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
@@ -394,7 +394,7 @@ class Connection(Base, LoggingMixin):
         return status, message
 
     @property
-    def extra_dejson(self) -> Dict:
+    def extra_dejson(self) -> dict:
         """Returns the extra property by deserializing json."""
         obj = {}
         if self.extra:
@@ -410,7 +410,7 @@ class Connection(Base, LoggingMixin):
         return obj
 
     @classmethod
-    def get_connection_from_secrets(cls, conn_id: str) -> 'Connection':
+    def get_connection_from_secrets(cls, conn_id: str) -> Connection:
         """
         Get connection by conn_id.
 
@@ -432,7 +432,7 @@ class Connection(Base, LoggingMixin):
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
     @classmethod
-    def from_json(cls, value, conn_id=None) -> 'Connection':
+    def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
         extra = kwargs.pop('extra', None)
         if extra:

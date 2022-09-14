@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Task Instance APIs."""
+from __future__ import annotations
+
 import warnings
 
 from airflow.api.common.mark_tasks import (  # noqa

@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import functools
 import sys
 from pathlib import Path
 from pprint import pprint
-from typing import List, Set, Tuple
 
 import requests
 import semver
@@ -35,7 +35,7 @@ KNOWN_FALSE_DETECTIONS = {
 }
 
 
-def fetch_pypi_versions() -> List[str]:
+def fetch_pypi_versions() -> list[str]:
     r = requests.get('https://pypi.org/pypi/apache-airflow/json')
     r.raise_for_status()
     all_version = r.json()['releases'].keys()
@@ -44,7 +44,7 @@ def fetch_pypi_versions() -> List[str]:
 
 
 @functools.lru_cache()
-def fetch_config_options_for_version(version: str) -> Set[Tuple[str, str]]:
+def fetch_config_options_for_version(version: str) -> set[tuple[str, str]]:
     r = requests.get(
         f'https://raw.githubusercontent.com/apache/airflow/{version}/airflow/config_templates/config.yml'
     )
@@ -61,7 +61,7 @@ def fetch_config_options_for_version(version: str) -> Set[Tuple[str, str]]:
     return config_options
 
 
-def read_local_config_options() -> Set[Tuple[str, str, str]]:
+def read_local_config_options() -> set[tuple[str, str, str]]:
     config_sections = yaml.safe_load((ROOT_DIR / "airflow" / "config_templates" / "config.yml").read_text())
     config_options = {
         (config_section['name'], config_option['name'], config_option['version_added'])
@@ -74,10 +74,10 @@ def read_local_config_options() -> Set[Tuple[str, str, str]]:
 # 1. Prepare versions to checks
 airflow_version = fetch_pypi_versions()
 airflow_version = sorted(airflow_version, key=semver.VersionInfo.parse)
-to_check_versions: List[str] = [d for d in airflow_version if d.startswith("2.")]
+to_check_versions: list[str] = [d for d in airflow_version if d.startswith("2.")]
 
 # 2. Compute expected options set with version added fields
-expected_computed_options: Set[Tuple[str, str, str]] = set()
+expected_computed_options: set[tuple[str, str, str]] = set()
 for prev_version, curr_version in zip(to_check_versions[:-1], to_check_versions[1:]):
     print("Processing version:", curr_version)
     options_1 = fetch_config_options_for_version(prev_version)
@@ -93,10 +93,10 @@ local_options = read_local_config_options()
 print("Local options count:", len(local_options))
 
 # 4. Hide options that do not exist in the local configuration file. They are probably deprecated.
-local_options_plain: Set[Tuple[str, str]] = {
+local_options_plain: set[tuple[str, str]] = {
     (section_name, option_name) for section_name, option_name, version_added in local_options
 }
-computed_options: Set[Tuple[str, str, str]] = {
+computed_options: set[tuple[str, str, str]] = {
     (section_name, option_name, version_added)
     for section_name, option_name, version_added in expected_computed_options
     if (section_name, option_name) in local_options_plain
@@ -104,12 +104,12 @@ computed_options: Set[Tuple[str, str, str]] = {
 print("Visible computed options count:", len(computed_options))
 
 # 5. Compute difference between expected and local options set
-local_options_with_version_added: Set[Tuple[str, str, str]] = {
+local_options_with_version_added: set[tuple[str, str, str]] = {
     (section_name, option_name, version_added)
     for section_name, option_name, version_added in local_options
     if version_added
 }
-diff_options: Set[Tuple[str, str, str]] = computed_options - local_options_with_version_added
+diff_options: set[tuple[str, str, str]] = computed_options - local_options_with_version_added
 
 diff_options -= KNOWN_FALSE_DETECTIONS
 

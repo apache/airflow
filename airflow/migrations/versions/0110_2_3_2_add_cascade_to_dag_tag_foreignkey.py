@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add cascade to dag_tag foreign key
 
 Revision ID: 3c94c427fdf6
@@ -23,6 +22,7 @@ Revises: 1de7bc13c950
 Create Date: 2022-05-03 09:47:41.957710
 
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy import inspect

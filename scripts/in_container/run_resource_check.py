@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 import psutil
 from rich.console import Console
@@ -63,7 +63,7 @@ def resoure_check():
     partition_usage = psutil.disk_usage('/')
     disk_available = round(get_size(partition_usage.free))
 
-    resources: Dict[str, Resource] = {
+    resources: dict[str, Resource] = {
         'Memory': Resource(current=mem_available, minimumAllowed=MINIMUM_ALLOWED_MEMORY),
         'Cpus': Resource(current=cpus_available, minimumAllowed=MINIMUM_ALLOWED_CPUS),
         'Disk': Resource(current=disk_available, minimumAllowed=MINIMUM_ALLOWED_DISK),

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating setting up inter-DAG dependencies using ExternalTaskSensor and
 ExternalTaskMarker.
@@ -38,6 +37,7 @@ ExternalTaskSensor times out. In this case, ExternalTaskSensor will raise Airflo
 or AirflowSensorTimeout exception
 
 """
+from __future__ import annotations
 
 import pendulum
 

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add Dataset model
 
 Revision ID: 0038cd0c28b4
@@ -23,6 +22,8 @@ Revises: 44b7034f6bdc
 Create Date: 2022-06-22 14:37:20.880672
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 import sqlalchemy_jsonfield
 from alembic import op

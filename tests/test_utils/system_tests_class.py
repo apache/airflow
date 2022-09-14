@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from unittest import TestCase
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
@@ -32,7 +33,7 @@ from tests.test_utils.logging_command_executor import get_executor
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
 
-def get_default_logs_if_none(logs: Optional[str]) -> str:
+def get_default_logs_if_none(logs: str | None) -> str:
     if logs is None:
         return os.path.join(AIRFLOW_HOME, 'logs')
     return logs

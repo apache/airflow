@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import os
 import re
@@ -26,7 +28,7 @@ from multiprocessing.pool import ApplyResult, Pool
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Event, Thread
-from typing import Generator, List, NamedTuple, Optional, Tuple
+from typing import Generator, NamedTuple
 
 from airflow_breeze.utils.console import MessageType, Output, get_console
 
@@ -42,7 +44,7 @@ def get_temp_file_name() -> str:
     return name
 
 
-def get_output_files(titles: List[str]) -> List[Output]:
+def get_output_files(titles: list[str]) -> list[Output]:
     outputs = [Output(title=titles[i], file_name=get_temp_file_name()) for i in range(len(titles))]
     for out in outputs:
         get_console().print(f"[info]Capturing output of {out.title}:[/] {out.file_name}")
@@ -63,7 +65,7 @@ def remove_ansi_colours(line):
     return ANSI_COLOUR_MATCHER.sub('', line)
 
 
-def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> Tuple[List[str], List[str]]:
+def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> tuple[list[str], list[str]]:
     """
     Get last lines of a file efficiently, without reading the whole file (with some limitations).
     Assumptions ara that line length not bigger than ~180 chars.
@@ -84,13 +86,13 @@ def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> Tuple[List[str
 
 
 class ProgressLines(NamedTuple):
-    lines: List[str]
-    skip_truncation: List[bool]
+    lines: list[str]
+    skip_truncation: list[bool]
 
 
 class AbstractProgressInfoMatcher(metaclass=ABCMeta):
     @abstractmethod
-    def get_best_matching_lines(self, output: Output) -> Optional[ProgressLines]:
+    def get_best_matching_lines(self, output: Output) -> ProgressLines | None:
         """
         Return best matching lines of the output. It also indicates if the lines potentially need truncation
         :param output: file that should be analysed for the output
@@ -102,12 +104,12 @@ class DockerBuildxProgressMatcher(AbstractProgressInfoMatcher):
     DOCKER_BUILDX_PROGRESS_MATCHER = re.compile(r'\s*#(\d*) ')
 
     def __init__(self):
-        self.last_docker_build_line: Optional[str] = None
+        self.last_docker_build_line: str | None = None
 
-    def get_best_matching_lines(self, output) -> Optional[ProgressLines]:
+    def get_best_matching_lines(self, output) -> ProgressLines | None:
         last_lines, last_lines_no_colors = get_last_lines_of_file(output.file_name, num_lines=5)
         best_progress: int = 0
-        best_line: Optional[str] = None
+        best_line: str | None = None
         for index, line in enumerate(last_lines_no_colors):
             match = DockerBuildxProgressMatcher.DOCKER_BUILDX_PROGRESS_MATCHER.match(line)
             if match:
@@ -129,10 +131,10 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
         self,
         regexp: str,
         lines_to_search: int,
-        regexp_for_joined_line: Optional[str] = None,
-        regexp_to_skip_truncation: Optional[str] = None,
+        regexp_for_joined_line: str | None = None,
+        regexp_to_skip_truncation: str | None = None,
     ):
-        self.last_good_match: Optional[str] = None
+        self.last_good_match: str | None = None
         self.matcher = re.compile(regexp)
         self.lines_to_search = lines_to_search
         self.matcher_for_joined_line = re.compile(regexp_for_joined_line) if regexp_for_joined_line else None
@@ -140,12 +142,12 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
             re.compile(regexp_to_skip_truncation) if regexp_to_skip_truncation else None
         )
 
-    def get_best_matching_lines(self, output: Output) -> Optional[ProgressLines]:
+    def get_best_matching_lines(self, output: Output) -> ProgressLines | None:
         last_lines, last_lines_no_colors = get_last_lines_of_file(
             output.file_name, num_lines=self.lines_to_search
         )
-        best_line: Optional[str] = None
-        previous_line: Optional[str] = None
+        best_line: str | None = None
+        previous_line: str | None = None
         for index, line in enumerate(last_lines_no_colors):
             match = self.matcher.match(line)
             if match:
@@ -155,8 +157,8 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
                         previous_line = last_lines[index - 1].strip()
         if best_line is not None:
             if self.matcher_for_joined_line is not None and previous_line is not None:
-                list_to_return: List[str] = [previous_line, best_line]
-                skip_truncation: List[bool] = [
+                list_to_return: list[str] = [previous_line, best_line]
+                skip_truncation: list[bool] = [
                     bool(self.matcher_to_skip_truncation.match(line))
                     if self.matcher_to_skip_truncation
                     else False
@@ -183,10 +185,10 @@ DOCKER_PULL_PROGRESS_REGEXP = r'^[0-9a-f]+: .*|.*\[[ 0-9]+%].*|^Waiting'
 class ParallelMonitor(Thread):
     def __init__(
         self,
-        outputs: List[Output],
+        outputs: list[Output],
         initial_time_in_seconds: int = 2,
         time_in_seconds: int = 10,
-        progress_matcher: Optional[AbstractProgressInfoMatcher] = None,
+        progress_matcher: AbstractProgressInfoMatcher | None = None,
     ):
         super().__init__()
         self.outputs = outputs
@@ -195,11 +197,11 @@ class ParallelMonitor(Thread):
         self.exit_event = Event()
         self.progress_matcher = progress_matcher
         self.start_time = datetime.datetime.utcnow()
-        self.last_custom_progress: Optional[ProgressLines] = None
+        self.last_custom_progress: ProgressLines | None = None
 
     def print_single_progress(self, output: Output):
         if self.progress_matcher:
-            custom_progress: Optional[ProgressLines] = self.progress_matcher.get_best_matching_lines(output)
+            custom_progress: ProgressLines | None = self.progress_matcher.get_best_matching_lines(output)
             custom_progress = self.last_custom_progress if custom_progress is None else custom_progress
             if custom_progress is not None:
                 first_line = True
@@ -241,7 +243,7 @@ class ParallelMonitor(Thread):
             get_console().print_exception(show_locals=True)
 
 
-def print_async_summary(completed_list: List[ApplyResult]) -> None:
+def print_async_summary(completed_list: list[ApplyResult]) -> None:
     """
     Print summary of completed async results.
     :param completed_list: list of completed async results.
@@ -257,15 +259,15 @@ def print_async_summary(completed_list: List[ApplyResult]) -> None:
     get_console().print()
 
 
-def get_completed_result_list(results: List[ApplyResult]) -> List[ApplyResult]:
+def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     """Return completed results from the list."""
     return list(filter(lambda result: result.ready(), results))
 
 
 def check_async_run_results(
-    results: List[ApplyResult],
+    results: list[ApplyResult],
     success: str,
-    outputs: List[Output],
+    outputs: list[Output],
     include_success_outputs: bool,
     poll_time: float = 0.2,
     skip_cleanup: bool = False,
@@ -331,11 +333,11 @@ def check_async_run_results(
 @contextmanager
 def run_with_pool(
     parallelism: int,
-    all_params: List[str],
+    all_params: list[str],
     initial_time_in_seconds: int = 2,
     time_in_seconds: int = 10,
-    progress_matcher: Optional[AbstractProgressInfoMatcher] = None,
-) -> Generator[Tuple[Pool, List[Output]], None, None]:
+    progress_matcher: AbstractProgressInfoMatcher | None = None,
+) -> Generator[tuple[Pool, list[Output]], None, None]:
     get_console().print(f"Running with parallelism: {parallelism}")
     pool = create_pool(parallelism)
     outputs = get_output_files(all_params)

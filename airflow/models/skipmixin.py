@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance
@@ -44,7 +45,7 @@ XCOM_SKIPMIXIN_SKIPPED = "skipped"
 XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 
-def _ensure_tasks(nodes: Iterable["DAGNode"]) -> Sequence["Operator"]:
+def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.mappedoperator import MappedOperator
 
@@ -56,9 +57,9 @@ class SkipMixin(LoggingMixin):
 
     def _set_state_to_skipped(
         self,
-        dag_run: "DagRun",
-        tasks: Iterable["Operator"],
-        session: "Session",
+        dag_run: DagRun,
+        tasks: Iterable[Operator],
+        session: Session,
     ) -> None:
         """Used internally to set state of task instances to skipped from the same dag run."""
         now = timezone.utcnow()
@@ -79,10 +80,10 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run: "DagRun",
-        execution_date: "DateTime",
-        tasks: Iterable["DAGNode"],
-        session: "Session" = NEW_SESSION,
+        dag_run: DagRun,
+        execution_date: DateTime,
+        tasks: Iterable[DAGNode],
+        session: Session = NEW_SESSION,
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -129,7 +130,7 @@ class SkipMixin(LoggingMixin):
         session.commit()
 
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
-        task_id: Optional[str] = getattr(self, "task_id", None)
+        task_id: str | None = getattr(self, "task_id", None)
         if task_id is not None:
             from airflow.models.xcom import XCom
 
@@ -142,7 +143,7 @@ class SkipMixin(LoggingMixin):
                 session=session,
             )
 
-    def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[None, str, Iterable[str]]):
+    def skip_all_except(self, ti: TaskInstance, branch_task_ids: None | str | Iterable[str]):
         """
         This method implements the logic for a branching operator; given a single
         task ID or list of task IDs to follow, this skips all other tasks

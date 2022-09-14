@@ -14,17 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
-# (https://github.com/dpgaspar/Flask-AppBuilder).
-# Copyright 2013, Daniel Vaz Gaspar
+from __future__ import annotations
 
 import base64
 import datetime
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Type
+from typing import Any
 from uuid import uuid4
 
 from flask import current_app, g, session, url_for
@@ -75,6 +72,9 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
+# This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
+# (https://github.com/dpgaspar/Flask-AppBuilder).
+# Copyright 2013, Daniel Vaz Gaspar
 log = logging.getLogger(__name__)
 
 
@@ -91,8 +91,8 @@ def _oauth_tokengetter(token=None):
 class AnonymousUser(AnonymousUserMixin):
     """User object used when no active user is logged in."""
 
-    _roles: Set[Tuple[str, str]] = set()
-    _perms: Set[Tuple[str, str]] = set()
+    _roles: set[tuple[str, str]] = set()
+    _perms: set[tuple[str, str]] = set()
 
     @property
     def roles(self):
@@ -134,9 +134,9 @@ class BaseSecurityManager:
     """ Flask-OpenID OpenID """
     oauth = None
     """ Flask-OAuth """
-    oauth_remotes: Dict[str, Any]
+    oauth_remotes: dict[str, Any]
     """ OAuth email whitelists """
-    oauth_whitelists: Dict[str, List] = {}
+    oauth_whitelists: dict[str, list] = {}
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     @staticmethod
@@ -148,17 +148,17 @@ class BaseSecurityManager:
 
     oauth_user_info = None
 
-    user_model: Type[User]
+    user_model: type[User]
     """ Override to set your own User Model """
-    role_model: Type[Role]
+    role_model: type[Role]
     """ Override to set your own Role Model """
-    action_model: Type[Action]
+    action_model: type[Action]
     """ Override to set your own Action Model """
-    resource_model: Type[Resource]
+    resource_model: type[Resource]
     """ Override to set your own Resource Model """
-    permission_model: Type[Permission]
+    permission_model: type[Permission]
     """ Override to set your own Permission Model """
-    registeruser_model: Type[RegisterUser]
+    registeruser_model: type[RegisterUser]
     """ Override to set your own RegisterUser Model """
 
     userdbmodelview = UserDBModelView
@@ -305,7 +305,7 @@ class BaseSecurityManager:
         """Returns FAB builtin roles."""
         return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
-    def get_roles_from_keys(self, role_keys: List[str]) -> Set[RoleModelView]:
+    def get_roles_from_keys(self, role_keys: list[str]) -> set[RoleModelView]:
         """
         Construct a list of FAB role objects, from a list of keys.
 
@@ -403,7 +403,7 @@ class BaseSecurityManager:
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
 
     @property
-    def auth_roles_mapping(self) -> Dict[str, List[str]]:
+    def auth_roles_mapping(self) -> dict[str, list[str]]:
         """The mapping of auth roles."""
         return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
 
@@ -961,7 +961,7 @@ class BaseSecurityManager:
         except (IndexError, NameError):
             return None, None
 
-    def _ldap_calculate_user_roles(self, user_attributes: Dict[str, List[bytes]]) -> List[str]:
+    def _ldap_calculate_user_roles(self, user_attributes: dict[str, list[bytes]]) -> list[str]:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
@@ -1012,13 +1012,13 @@ class BaseSecurityManager:
             return False
 
     @staticmethod
-    def ldap_extract(ldap_dict: Dict[str, List[bytes]], field_name: str, fallback: str) -> str:
+    def ldap_extract(ldap_dict: dict[str, list[bytes]], field_name: str, fallback: str) -> str:
         raw_value = ldap_dict.get(field_name, [bytes()])
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
 
     @staticmethod
-    def ldap_extract_list(ldap_dict: Dict[str, List[bytes]], field_name: str) -> List[str]:
+    def ldap_extract_list(ldap_dict: dict[str, list[bytes]], field_name: str) -> list[str]:
         raw_list = ldap_dict.get(field_name, [])
         # decode - removing empty strings
         return [x.decode("utf-8") for x in raw_list if x.decode("utf-8")]
@@ -1252,7 +1252,7 @@ class BaseSecurityManager:
         self.update_user_auth_stat(user)
         return user
 
-    def _oauth_calculate_user_roles(self, userinfo) -> List[str]:
+    def _oauth_calculate_user_roles(self, userinfo) -> list[str]:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
@@ -1349,8 +1349,8 @@ class BaseSecurityManager:
         return False
 
     def _get_user_permission_resources(
-        self, user: Optional[User], action_name: str, resource_names: Optional[List[str]] = None
-    ) -> Set[str]:
+        self, user: User | None, action_name: str, resource_names: list[str] | None = None
+    ) -> set[str]:
         """
         Return a set of resource names with a certain action name
         that a user has access to. Mainly used to fetch all menu permissions
@@ -1382,7 +1382,7 @@ class BaseSecurityManager:
         result.update(role_resource_names)
         return result
 
-    def get_user_menu_access(self, menu_names: Optional[List[str]] = None) -> Set[str]:
+    def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
         if current_user.is_authenticated:
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
@@ -1505,7 +1505,7 @@ class BaseSecurityManager:
         """Generic function that returns all existing users"""
         raise NotImplementedError
 
-    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
+    def get_role_permissions_from_db(self, role_id: int) -> list[Permission]:
         """Get all DB permissions from a role id"""
         raise NotImplementedError
 
@@ -1551,11 +1551,11 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: List[int]):
+    def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: list[int]):
         raise NotImplementedError
 
     def permission_exists_in_one_or_more_roles(
-        self, resource_name: str, action_name: str, role_ids: List[int]
+        self, resource_name: str, action_name: str, role_ids: list[int]
     ) -> bool:
         """Finds and returns permission views for a group of roles"""
         raise NotImplementedError

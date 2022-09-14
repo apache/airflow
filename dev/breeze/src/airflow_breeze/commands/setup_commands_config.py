@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Union
+from __future__ import annotations
 
-SETUP_COMMANDS: Dict[str, Union[str, List[str]]] = {
+SETUP_COMMANDS: dict[str, str | list[str]] = {
     "name": "Setup",
     "commands": [
         "autocomplete",
@@ -28,7 +28,7 @@ SETUP_COMMANDS: Dict[str, Union[str, List[str]]] = {
         "version",
     ],
 }
-SETUP_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
+SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze setup self-upgrade": [
         {
             "name": "Self-upgrade flags",

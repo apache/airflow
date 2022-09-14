@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
-from typing import Optional
 
 import dateutil.relativedelta
 import freezegun
@@ -53,7 +54,7 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 )
 @freezegun.freeze_time(CURRENT_TIME)
 def test_no_catchup_first_starts_at_current_time(
-    last_automated_data_interval: Optional[DataInterval],
+    last_automated_data_interval: DataInterval | None,
 ) -> None:
     """If ``catchup=False`` and start_date is a day before"""
     next_info = CRON_TIMETABLE.next_dagrun_info(
@@ -74,7 +75,7 @@ def test_no_catchup_first_starts_at_current_time(
 )
 @freezegun.freeze_time(CURRENT_TIME)
 def test_new_schedule_interval_next_info_starts_at_new_time(
-    earliest: Optional[pendulum.DateTime],
+    earliest: pendulum.DateTime | None,
     catchup: bool,
 ) -> None:
     """First run after DAG has new schedule interval."""
@@ -102,7 +103,7 @@ def test_new_schedule_interval_next_info_starts_at_new_time(
 @freezegun.freeze_time(CURRENT_TIME)
 def test_no_catchup_next_info_starts_at_current_time(
     timetable: Timetable,
-    last_automated_data_interval: Optional[DataInterval],
+    last_automated_data_interval: DataInterval | None,
 ) -> None:
     """If ``catchup=False``, the next data interval ends at the current time."""
     next_info = timetable.next_dagrun_info(

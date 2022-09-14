@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
+from __future__ import annotations
+
 import logging
 import os
-from typing import Optional
 
 import psutil
 from setproctitle import setproctitle
@@ -133,7 +134,7 @@ class StandardTaskRunner(BaseTaskRunner):
             # deleted at os._exit()
             os._exit(return_code)
 
-    def return_code(self, timeout: int = 0) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> int | None:
         # We call this multiple times, but we can only wait on the process once
         if self._rc is not None or not self.process:
             return self._rc

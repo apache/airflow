@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
 import json
 import os
@@ -24,7 +26,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, NamedTuple
 
 import click
 
@@ -168,7 +170,7 @@ def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run
     sys.exit(0)
 
 
-def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -> Tuple[str, ...]:
+def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> tuple[str, ...]:
     if commit_ref is None:
         return ()
     cmd = [
@@ -232,7 +234,7 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
 @option_verbose
 @option_dry_run
 def selective_check(
-    commit_ref: Optional[str],
+    commit_ref: str | None,
     pr_labels: str,
     default_branch: str,
     default_constraints_branch: str,
@@ -281,12 +283,12 @@ TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
 
 class WorkflowInfo(NamedTuple):
     event_name: str
-    pull_request_labels: List[str]
+    pull_request_labels: list[str]
     target_repo: str
     head_repo: str
-    ref: Optional[str]
-    ref_name: Optional[str]
-    pr_number: Optional[int]
+    ref: str | None
+    ref_name: str | None
+    pr_number: int | None
 
     def print_ga_outputs(self):
         print(get_ga_output(name="pr_labels", value=str(self.pull_request_labels)))
@@ -336,7 +338,7 @@ class WorkflowInfo(NamedTuple):
 
 
 def workflow_info(context: str) -> WorkflowInfo:
-    ctx: Dict[Any, Any] = json.loads(context)
+    ctx: dict[Any, Any] = json.loads(context)
     event_name = ctx.get("event_name")
     if not event_name:
         get_console().print(f"[error]Missing event_name in: {ctx}")
@@ -344,7 +346,7 @@ def workflow_info(context: str) -> WorkflowInfo:
     pull_request_labels = []
     head_repo = ""
     target_repo = ""
-    pr_number: Optional[int] = None
+    pr_number: int | None = None
     ref_name = ctx.get("ref_name")
     ref = ctx.get("ref")
     if event_name == "pull_request":

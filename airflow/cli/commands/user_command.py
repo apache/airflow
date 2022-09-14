@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """User sub-commands"""
+from __future__ import annotations
+
 import functools
 import getpass
 import json
@@ -22,7 +24,7 @@ import os
 import random
 import re
 import string
-from typing import Any, Dict, List
+from typing import Any
 
 from marshmallow import Schema, fields, validate
 from marshmallow.exceptions import ValidationError
@@ -189,7 +191,7 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list: List[Dict[str, Any]]):
+def _import_users(users_list: list[dict[str, Any]]):
     appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []

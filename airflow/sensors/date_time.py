@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-from typing import Sequence, Union
+from typing import Sequence
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -56,7 +57,7 @@ class DateTimeSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ("target_time",)
 
-    def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
+    def __init__(self, *, target_time: str | datetime.datetime, **kwargs) -> None:
         super().__init__(**kwargs)
 
         # self.target_time can't be a datetime object as it is a template_field

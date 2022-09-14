@@ -16,14 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Experimental APIs."""
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
 
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
 from airflow.models import DagBag, DagModel, DagRun
 
 
-def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
+def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
     """Checks that DAG exists and in case it is specified that Task exist"""
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:

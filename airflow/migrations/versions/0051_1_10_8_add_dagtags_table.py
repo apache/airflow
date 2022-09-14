@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``DagTags`` table
 
 Revision ID: 7939bcff74ba
@@ -23,6 +22,7 @@ Revises: fe461863935f
 Create Date: 2020-01-07 19:39:01.247442
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

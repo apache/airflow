@@ -15,8 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG Cycle tester"""
+from __future__ import annotations
+
 from collections import defaultdict, deque
-from typing import TYPE_CHECKING, Deque, Dict
+from typing import TYPE_CHECKING, Deque
 
 from airflow.exceptions import AirflowDagCycleException, RemovedInAirflow3Warning
 
@@ -28,7 +30,7 @@ CYCLE_IN_PROGRESS = 1
 CYCLE_DONE = 2
 
 
-def test_cycle(dag: 'DAG') -> None:
+def test_cycle(dag: DAG) -> None:
     """
     A wrapper function of `check_cycle` for backward compatibility purpose.
     New code should use `check_cycle` instead since this function name `test_cycle` starts with 'test_' and
@@ -44,13 +46,13 @@ def test_cycle(dag: 'DAG') -> None:
     return check_cycle(dag)
 
 
-def check_cycle(dag: 'DAG') -> None:
+def check_cycle(dag: DAG) -> None:
     """Check to see if there are any cycles in the DAG.
 
     :raises AirflowDagCycleException: If cycle is found in the DAG.
     """
     # default of int is 0 which corresponds to CYCLE_NEW
-    visited: Dict[str, int] = defaultdict(int)
+    visited: dict[str, int] = defaultdict(int)
     path_stack: Deque[str] = deque()
     task_dict = dag.task_dict
 

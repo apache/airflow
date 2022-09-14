@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``LogTemplate`` table to track changes to config values ``log_filename_template``
 
 Revision ID: f9da662e7089
 Revises: 786e3737b18f
 Create Date: 2021-12-09 06:11:21.044940
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy import Column, ForeignKey, Integer, Text

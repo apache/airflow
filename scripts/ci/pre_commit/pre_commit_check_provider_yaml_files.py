@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import pathlib
@@ -22,7 +23,7 @@ import sys
 import textwrap
 from collections import Counter
 from itertools import chain, product
-from typing import Any, Dict, Iterable, List, Set
+from typing import Any, Iterable
 
 import jsonschema
 import yaml
@@ -58,7 +59,7 @@ def _filepath_to_module(filepath: pathlib.Path) -> str:
     return p.replace("/", ".")
 
 
-def _load_schema() -> Dict[str, Any]:
+def _load_schema() -> dict[str, Any]:
     with PROVIDER_DATA_SCHEMA_PATH.open() as schema_file:
         content = json.load(schema_file)
     return content
@@ -79,7 +80,7 @@ def _load_package_data(package_paths: Iterable[str]):
     return result
 
 
-def get_all_integration_names(yaml_files) -> List[str]:
+def get_all_integration_names(yaml_files) -> list[str]:
     all_integrations = [
         i['integration-name'] for f in yaml_files.values() if 'integrations' in f for i in f["integrations"]
     ]
@@ -87,7 +88,7 @@ def get_all_integration_names(yaml_files) -> List[str]:
     return all_integrations
 
 
-def check_integration_duplicates(yaml_files: Dict[str, Dict]):
+def check_integration_duplicates(yaml_files: dict[str, dict]):
     """Integration names must be globally unique."""
     print("Checking integration duplicates")
     all_integrations = get_all_integration_names(yaml_files)
@@ -136,7 +137,7 @@ def assert_sets_equal(set1, set2):
 
 
 def check_if_objects_belongs_to_package(
-    object_names: Set[str], provider_package: str, yaml_file_path: str, resource_type: str
+    object_names: set[str], provider_package: str, yaml_file_path: str, resource_type: str
 ):
     for object_name in object_names:
         if not object_name.startswith(provider_package):
@@ -160,7 +161,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
     return expected_modules, provider_package, resource_data
 
 
-def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict]):
+def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: dict[str, dict]):
     print("Checking completeness of list of {sensors, hooks, operators}")
     print(" -- {sensors, hooks, operators} - Expected modules (left) : Current modules (right)")
     for (yaml_file_path, provider_data), resource_type in product(
@@ -182,7 +183,7 @@ def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict
             )
 
 
-def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: Dict[str, Dict]):
+def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: dict[str, dict]):
     print("Checking for duplicates in list of {sensors, hooks, operators}")
     for (yaml_file_path, provider_data), resource_type in product(
         yaml_files.items(), ["sensors", "operators", "hooks"]
@@ -198,7 +199,7 @@ def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files
                     )
 
 
-def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
+def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
     print("Checking completeness of list of transfers")
     resource_type = 'transfers'
 
@@ -220,7 +221,7 @@ def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
             )
 
 
-def check_hook_classes(yaml_files: Dict[str, Dict]):
+def check_hook_classes(yaml_files: dict[str, dict]):
     print("Checking connection classes belong to package")
     resource_type = 'hook-class-names'
     for yaml_file_path, provider_data in yaml_files.items():
@@ -232,7 +233,7 @@ def check_hook_classes(yaml_files: Dict[str, Dict]):
             )
 
 
-def check_duplicates_in_list_of_transfers(yaml_files: Dict[str, Dict]):
+def check_duplicates_in_list_of_transfers(yaml_files: dict[str, dict]):
     print("Checking for duplicates in list of transfers")
     errors = []
     resource_type = "transfers"
@@ -254,7 +255,7 @@ def check_duplicates_in_list_of_transfers(yaml_files: Dict[str, Dict]):
                     )
 
 
-def check_invalid_integration(yaml_files: Dict[str, Dict]):
+def check_invalid_integration(yaml_files: dict[str, dict]):
     print("Detect unregistered integrations")
     all_integration_names = set(get_all_integration_names(yaml_files))
 
@@ -283,10 +284,10 @@ def check_invalid_integration(yaml_files: Dict[str, Dict]):
             )
 
 
-def check_doc_files(yaml_files: Dict[str, Dict]):
+def check_doc_files(yaml_files: dict[str, dict]):
     print("Checking doc files")
-    current_doc_urls: List[str] = []
-    current_logo_urls: List[str] = []
+    current_doc_urls: list[str] = []
+    current_logo_urls: list[str] = []
     for provider in yaml_files.values():
         if 'integrations' in provider:
             current_doc_urls.extend(
@@ -328,14 +329,14 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
         sys.exit(1)
 
 
-def check_unique_provider_name(yaml_files: Dict[str, Dict]):
+def check_unique_provider_name(yaml_files: dict[str, dict]):
     provider_names = [d['name'] for d in yaml_files.values()]
     duplicates = {x for x in provider_names if provider_names.count(x) > 1}
     if duplicates:
         errors.append(f"Provider name must be unique. Duplicates: {duplicates}")
 
 
-def check_providers_are_mentioned_in_issue_template(yaml_files: Dict[str, Dict]):
+def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict]):
     prefix_len = len("apache-airflow-providers-")
     short_provider_names = [d['package-name'][prefix_len:] for d in yaml_files.values()]
     short_provider_names.remove('jira')  # exclude deprecated provider that shouldn't be in issue template
@@ -354,7 +355,7 @@ def check_providers_are_mentioned_in_issue_template(yaml_files: Dict[str, Dict])
         sys.exit(1)
 
 
-def check_providers_have_all_documentation_files(yaml_files: Dict[str, Dict]):
+def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
     expected_files = ["commits.rst", "index.rst", "installing-providers-from-sources.rst"]
     for package_info in yaml_files.values():
         package_name = package_info['package-name']
@@ -376,7 +377,7 @@ if __name__ == '__main__':
     else:
         paths = all_provider_files
 
-    all_parsed_yaml_files: Dict[str, Dict] = _load_package_data(paths)
+    all_parsed_yaml_files: dict[str, dict] = _load_package_data(paths)
 
     all_files_loaded = len(all_provider_files) == len(paths)
     check_integration_duplicates(all_parsed_yaml_files)

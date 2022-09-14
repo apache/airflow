@@ -21,6 +21,7 @@ KubernetesExecutor
     For more information on how the KubernetesExecutor works, take a look at the guide:
     :ref:`executor:KubernetesExecutor`
 """
+from __future__ import annotations
 
 import functools
 import json
@@ -28,7 +29,7 @@ import multiprocessing
 import time
 from datetime import timedelta
 from queue import Empty, Queue
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
@@ -77,10 +78,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
     def __init__(
         self,
-        namespace: Optional[str],
+        namespace: str | None,
         multi_namespace_mode: bool,
-        watcher_queue: 'Queue[KubernetesWatchType]',
-        resource_version: Optional[str],
+        watcher_queue: Queue[KubernetesWatchType],
+        resource_version: str | None,
         scheduler_job_id: str,
         kube_config: Configuration,
     ):
@@ -121,10 +122,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def _run(
         self,
         kube_client: client.CoreV1Api,
-        resource_version: Optional[str],
+        resource_version: str | None,
         scheduler_job_id: str,
         kube_config: Any,
-    ) -> Optional[str]:
+    ) -> str | None:
         self.log.info('Event: and now my watch begins starting at resource_version: %s', resource_version)
         watcher = watch.Watch()
 
@@ -135,7 +136,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             for key, value in kube_config.kube_client_request_args.items():
                 kwargs[key] = value
 
-        last_resource_version: Optional[str] = None
+        last_resource_version: str | None = None
         if self.multi_namespace_mode:
             list_worker_pods = functools.partial(
                 watcher.stream, kube_client.list_pod_for_all_namespaces, **kwargs
@@ -193,7 +194,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         pod_id: str,
         namespace: str,
         status: str,
-        annotations: Dict[str, str],
+        annotations: dict[str, str],
         resource_version: str,
         event: Any,
     ) -> None:
@@ -234,8 +235,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def __init__(
         self,
         kube_config: Any,
-        task_queue: 'Queue[KubernetesJobType]',
-        result_queue: 'Queue[KubernetesResultsType]',
+        task_queue: Queue[KubernetesJobType],
+        result_queue: Queue[KubernetesResultsType],
         kube_client: client.CoreV1Api,
         scheduler_job_id: str,
     ):
@@ -412,7 +413,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self._manager.shutdown()
 
 
-def get_base_pod_from_template(pod_template_file: Optional[str], kube_config: Any) -> k8s.V1Pod:
+def get_base_pod_from_template(pod_template_file: str | None, kube_config: Any) -> k8s.V1Pod:
     """
     Reads either the pod_template_file set in the executor_config or the base pod_template_file
     set in the airflow.cfg to craft a "base pod" that will be used by the KubernetesExecutor
@@ -435,14 +436,14 @@ class KubernetesExecutor(BaseExecutor):
     def __init__(self):
         self.kube_config = KubeConfig()
         self._manager = multiprocessing.Manager()
-        self.task_queue: 'Queue[KubernetesJobType]' = self._manager.Queue()
-        self.result_queue: 'Queue[KubernetesResultsType]' = self._manager.Queue()
-        self.kube_scheduler: Optional[AirflowKubernetesScheduler] = None
-        self.kube_client: Optional[client.CoreV1Api] = None
-        self.scheduler_job_id: Optional[str] = None
-        self.event_scheduler: Optional[EventScheduler] = None
-        self.last_handled: Dict[TaskInstanceKey, float] = {}
-        self.kubernetes_queue: Optional[str] = None
+        self.task_queue: Queue[KubernetesJobType] = self._manager.Queue()
+        self.result_queue: Queue[KubernetesResultsType] = self._manager.Queue()
+        self.kube_scheduler: AirflowKubernetesScheduler | None = None
+        self.kube_client: client.CoreV1Api | None = None
+        self.scheduler_job_id: str | None = None
+        self.event_scheduler: EventScheduler | None = None
+        self.last_handled: dict[TaskInstanceKey, float] = {}
+        self.kubernetes_queue: str | None = None
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
@@ -465,7 +466,7 @@ class KubernetesExecutor(BaseExecutor):
         query = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED)
         if self.kubernetes_queue:
             query = query.filter(TaskInstance.queue == self.kubernetes_queue)
-        queued_tis: List[TaskInstance] = query.all()
+        queued_tis: list[TaskInstance] = query.all()
         self.log.info('Found %s queued task instances', len(queued_tis))
 
         # Go through the "last seen" dictionary and clean out old entries
@@ -543,8 +544,8 @@ class KubernetesExecutor(BaseExecutor):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:
         """Executes task asynchronously"""
         self.log.info('Add task %s with command %s with executor_config %s', key, command, executor_config)
@@ -685,7 +686,7 @@ class KubernetesExecutor(BaseExecutor):
                 )
                 self.kube_scheduler.delete_pod(pod.metadata.name, pod.metadata.namespace)
 
-    def _change_state(self, key: TaskInstanceKey, state: Optional[str], pod_id: str, namespace: str) -> None:
+    def _change_state(self, key: TaskInstanceKey, state: str | None, pod_id: str, namespace: str) -> None:
         if state != State.RUNNING:
             if self.kube_config.delete_worker_pods:
                 if not self.kube_scheduler:
@@ -715,7 +716,7 @@ class KubernetesExecutor(BaseExecutor):
         return tis_to_flush
 
     def adopt_launched_task(
-        self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: Dict[TaskInstanceKey, k8s.V1Pod]
+        self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: dict[TaskInstanceKey, k8s.V1Pod]
     ) -> None:
         """
         Patch existing pod so that the current KubernetesJobWatcher can monitor it via label selectors

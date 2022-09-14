@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import fields, post_dump, pre_load, validate
 from marshmallow.schema import Schema
@@ -128,7 +130,7 @@ class ClearDagRunStateFormSchema(Schema):
 class DAGRunCollection(NamedTuple):
     """List of DAGRuns with metadata"""
 
-    dag_runs: List[DagRun]
+    dag_runs: list[DagRun]
     total_entries: int
 
 

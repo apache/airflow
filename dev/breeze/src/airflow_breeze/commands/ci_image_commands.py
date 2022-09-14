@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
 
 import click
 
@@ -103,7 +104,7 @@ def ci_image():
 
 
 def check_if_image_building_is_needed(
-    ci_image_params: BuildCiParams, output: Optional[Output], dry_run: bool, verbose: bool
+    ci_image_params: BuildCiParams, output: Output | None, dry_run: bool, verbose: bool
 ) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
@@ -117,8 +118,8 @@ def check_if_image_building_is_needed(
 
 
 def run_build_in_parallel(
-    image_params_list: List[BuildCiParams],
-    python_version_list: List[str],
+    image_params_list: list[BuildCiParams],
+    python_version_list: list[str],
     include_success_outputs: bool,
     parallelism: int,
     skip_cleanup: bool,
@@ -223,7 +224,7 @@ def build(
     fix_group_permissions(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
-        params_list: List[BuildCiParams] = []
+        params_list: list[BuildCiParams] = []
         for python in python_version_list:
             params = BuildCiParams(**parameters_passed)
             params.python = python
@@ -277,7 +278,7 @@ def pull(
     wait_for_image: bool,
     tag_as_latest: bool,
     verify: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks(verbose=verbose)
@@ -343,9 +344,9 @@ def verify(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
+    image_tag: str | None,
     pull: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Verify CI image."""
     perform_environment_checks(verbose=verbose)
@@ -433,8 +434,8 @@ def run_build_ci_image(
     ci_image_params: BuildCiParams,
     verbose: bool,
     dry_run: bool,
-    output: Optional[Output],
-) -> Tuple[int, str]:
+    output: Output | None,
+) -> tuple[int, str]:
     """
     Builds CI image:
 
@@ -545,7 +546,7 @@ def run_build_ci_image(
 
 
 def rebuild_or_pull_ci_image_if_needed(
-    command_params: Union[ShellParams, BuildCiParams], dry_run: bool, verbose: bool
+    command_params: ShellParams | BuildCiParams, dry_run: bool, verbose: bool
 ) -> None:
     """
     Rebuilds CI image if needed and user confirms it.

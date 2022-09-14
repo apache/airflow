@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import collections.abc
 import contextlib
 import hashlib
@@ -34,15 +36,10 @@ from typing import (
     Callable,
     Collection,
     ContextManager,
-    Dict,
     Generator,
     Iterable,
-    List,
     NamedTuple,
-    Optional,
-    Set,
     Tuple,
-    Union,
 )
 from urllib.parse import quote
 
@@ -135,7 +132,7 @@ from airflow.utils.timeout import timeout
 
 TR = TaskReschedule
 
-_CURRENT_CONTEXT: List[Context] = []
+_CURRENT_CONTEXT: list[Context] = []
 log = logging.getLogger(__name__)
 
 
@@ -168,11 +165,11 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
 
 
 def clear_task_instances(
-    tis: List["TaskInstance"],
+    tis: list[TaskInstance],
     session: Session,
     activate_dag_runs: None = None,
-    dag: Optional["DAG"] = None,
-    dag_run_state: Union[DagRunState, Literal[False]] = DagRunState.QUEUED,
+    dag: DAG | None = None,
+    dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
     """
     Clears a set of task instances, but makes sure the running ones
@@ -187,7 +184,7 @@ def clear_task_instances(
     """
     job_ids = []
     # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
-    task_id_by_key: Dict[str, Dict[str, Dict[int, Dict[int, Set[str]]]]] = defaultdict(
+    task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
     for ti in tis:
@@ -327,10 +324,10 @@ class _LazyXComAccess(collections.abc.Sequence):
     run_id: str
     task_id: str
     _query: Query = attr.ib(repr=False)
-    _len: Optional[int] = attr.ib(init=False, repr=False, default=None)
+    _len: int | None = attr.ib(init=False, repr=False, default=None)
 
     @classmethod
-    def build_from_single_xcom(cls, first: "XCom", query: Query) -> "_LazyXComAccess":
+    def build_from_single_xcom(cls, first: XCom, query: Query) -> _LazyXComAccess:
         return cls(
             dag_id=first.dag_id,
             run_id=first.run_id,
@@ -389,23 +386,23 @@ class TaskInstanceKey(NamedTuple):
     map_index: int = -1
 
     @property
-    def primary(self) -> Tuple[str, str, str, int]:
+    def primary(self) -> tuple[str, str, str, int]:
         """Return task instance primary key part of the key"""
         return self.dag_id, self.task_id, self.run_id, self.map_index
 
     @property
-    def reduced(self) -> 'TaskInstanceKey':
+    def reduced(self) -> TaskInstanceKey:
         """Remake the key by subtracting 1 from try number to match in memory information"""
         return TaskInstanceKey(
             self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
         )
 
-    def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
+    def with_try_number(self, try_number: int) -> TaskInstanceKey:
         """Returns TaskInstanceKey with provided ``try_number``"""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
 
     @property
-    def key(self) -> "TaskInstanceKey":
+    def key(self) -> TaskInstanceKey:
         """For API-compatibly with TaskInstance.
 
         Returns self
@@ -522,14 +519,14 @@ class TaskInstance(Base, LoggingMixin):
 
     execution_date = association_proxy("dag_run", "execution_date")
 
-    task: "Operator"  # Not always set...
+    task: Operator  # Not always set...
 
     def __init__(
         self,
-        task: "Operator",
-        execution_date: Optional[datetime] = None,
-        run_id: Optional[str] = None,
-        state: Optional[str] = None,
+        task: Operator,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        state: str | None = None,
         map_index: int = -1,
     ):
         super().__init__()
@@ -589,7 +586,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
 
     @staticmethod
-    def insert_mapping(run_id: str, task: "Operator", map_index: int) -> Dict[str, Any]:
+    def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
         """:meta private:"""
         return {
             'dag_id': task.dag_id,
@@ -671,7 +668,7 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag: Union["DAG", "DagModel"]
+        dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
         if hasattr(self, 'task') and hasattr(self.task, 'dag'):
             dag = self.task.dag
@@ -721,14 +718,14 @@ class TaskInstance(Base, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: Optional[int] = None,
-        file_path: Optional[str] = None,
+        pickle_id: int | None = None,
+        file_path: str | None = None,
         raw: bool = False,
-        job_id: Optional[str] = None,
-        pool: Optional[str] = None,
-        cfg_path: Optional[str] = None,
+        job_id: str | None = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
         map_index: int = -1,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Generates the shell command required to execute this task instance.
 
@@ -871,7 +868,7 @@ class TaskInstance(Base, LoggingMixin):
         if lock_for_update:
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
-                    ti: Optional[TaskInstance] = qry.with_for_update().one_or_none()
+                    ti: TaskInstance | None = qry.with_for_update().one_or_none()
         else:
             ti = qry.one_or_none()
         if ti:
@@ -902,7 +899,7 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-    def refresh_from_task(self, task: "Operator", pool_override: Optional[str] = None) -> None:
+    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """
         Copy common attributes from the given task.
 
@@ -932,7 +929,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.log.debug("Clearing XCom data")
         if self.map_index < 0:
-            map_index: Optional[int] = None
+            map_index: int | None = None
         else:
             map_index = self.map_index
         XCom.clear(
@@ -949,7 +946,7 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @provide_session
-    def set_state(self, state: Optional[str], session: Session = NEW_SESSION) -> bool:
+    def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
         """
         Set TaskInstance state.
 
@@ -1008,9 +1005,9 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def get_previous_dagrun(
         self,
-        state: Optional[DagRunState] = None,
-        session: Optional[Session] = None,
-    ) -> Optional["DagRun"]:
+        state: DagRunState | None = None,
+        session: Session | None = None,
+    ) -> DagRun | None:
         """The DagRun that ran before this task instance's DagRun.
 
         :param state: If passed, it only take into account instances of a specific state.
@@ -1041,9 +1038,9 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def get_previous_ti(
         self,
-        state: Optional[DagRunState] = None,
+        state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> Optional['TaskInstance']:
+    ) -> TaskInstance | None:
         """
         The task instance for the task that ran before this task instance.
 
@@ -1056,7 +1053,7 @@ class TaskInstance(Base, LoggingMixin):
         return dagrun.get_task_instance(self.task_id, session=session)
 
     @property
-    def previous_ti(self) -> Optional['TaskInstance']:
+    def previous_ti(self) -> TaskInstance | None:
         """
         This attribute is deprecated.
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
@@ -1072,7 +1069,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.get_previous_ti()
 
     @property
-    def previous_ti_success(self) -> Optional['TaskInstance']:
+    def previous_ti_success(self) -> TaskInstance | None:
         """
         This attribute is deprecated.
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
@@ -1090,9 +1087,9 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def get_previous_execution_date(
         self,
-        state: Optional[DagRunState] = None,
+        state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> Optional[pendulum.DateTime]:
+    ) -> pendulum.DateTime | None:
         """
         The execution date from property previous_ti_success.
 
@@ -1105,8 +1102,8 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def get_previous_start_date(
-        self, state: Optional[DagRunState] = None, session: Session = NEW_SESSION
-    ) -> Optional[pendulum.DateTime]:
+        self, state: DagRunState | None = None, session: Session = NEW_SESSION
+    ) -> pendulum.DateTime | None:
         """
         The start date from property previous_ti_success.
 
@@ -1119,7 +1116,7 @@ class TaskInstance(Base, LoggingMixin):
         return prev_ti and prev_ti.start_date and pendulum.instance(prev_ti.start_date)
 
     @property
-    def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
+    def previous_start_date_success(self) -> pendulum.DateTime | None:
         """
         This attribute is deprecated.
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
@@ -1136,7 +1133,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def are_dependencies_met(
-        self, dep_context: Optional[DepContext] = None, session: Session = NEW_SESSION, verbose: bool = False
+        self, dep_context: DepContext | None = None, session: Session = NEW_SESSION, verbose: bool = False
     ) -> bool:
         """
         Returns whether or not all the conditions are met for this task instance to be run
@@ -1169,9 +1166,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     @provide_session
-    def get_failed_dep_statuses(
-        self, dep_context: Optional[DepContext] = None, session: Session = NEW_SESSION
-    ):
+    def get_failed_dep_statuses(self, dep_context: DepContext | None = None, session: Session = NEW_SESSION):
         """Get failed Dependencies"""
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
@@ -1241,7 +1236,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
-    def get_dagrun(self, session: Session = NEW_SESSION) -> "DagRun":
+    def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
         """
         Returns the DagRun for this TaskInstance
 
@@ -1271,9 +1266,9 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: Optional[str] = None,
-        pool: Optional[str] = None,
-        external_executor_id: Optional[str] = None,
+        job_id: str | None = None,
+        pool: str | None = None,
+        external_executor_id: str | None = None,
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -1389,7 +1384,7 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     def _date_or_empty(self, attr: str) -> str:
-        result: Optional[datetime] = getattr(self, attr, None)
+        result: datetime | None = getattr(self, attr, None)
         return result.strftime('%Y%m%dT%H%M%S') if result else ''
 
     def _log_state(self, lead_msg: str = '') -> None:
@@ -1425,8 +1420,8 @@ class TaskInstance(Base, LoggingMixin):
         self,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: Optional[str] = None,
-        pool: Optional[str] = None,
+        job_id: str | None = None,
+        pool: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -1614,7 +1609,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr('ti_successes')
 
     def _run_finished_callback(
-        self, callback: Optional["TaskStateChangeCallback"], context: Context, callback_type: str
+        self, callback: TaskStateChangeCallback | None, context: Context, callback_type: str
     ) -> None:
         """Run callback after task finishes"""
         try:
@@ -1716,7 +1711,7 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.trigger_timeout = self.start_date + execution_timeout
 
-    def _run_execute_callback(self, context: Context, task: "Operator") -> None:
+    def _run_execute_callback(self, context: Context, task: Operator) -> None:
         """Functions that need to be run before a Task is executed"""
         try:
             if task.on_execute_callback:
@@ -1734,8 +1729,8 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: Optional[str] = None,
-        pool: Optional[str] = None,
+        job_id: str | None = None,
+        pool: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """Run TaskInstance"""
@@ -1820,7 +1815,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @staticmethod
-    def get_truncated_error_traceback(error: BaseException, truncate_to: Callable) -> Optional[TracebackType]:
+    def get_truncated_error_traceback(error: BaseException, truncate_to: Callable) -> TracebackType | None:
         """
         Truncates the traceback of an exception to the first frame called from within a given function
 
@@ -1840,9 +1835,9 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[None, str, Exception, KeyboardInterrupt],
-        test_mode: Optional[bool] = None,
-        context: Optional[Context] = None,
+        error: None | str | Exception | KeyboardInterrupt,
+        test_mode: bool | None = None,
+        context: Context | None = None,
         force_fail: bool = False,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -1890,7 +1885,7 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task: Optional[BaseOperator] = None
+        task: BaseOperator | None = None
         try:
             if getattr(self, 'task', None) and context:
                 task = self.task.unmap((context, session))
@@ -1975,28 +1970,28 @@ class TaskInstance(Base, LoggingMixin):
         ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
 
         @cache  # Prevent multiple database access.
-        def _get_previous_dagrun_success() -> Optional["DagRun"]:
+        def _get_previous_dagrun_success() -> DagRun | None:
             return self.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
 
-        def _get_previous_dagrun_data_interval_success() -> Optional["DataInterval"]:
+        def _get_previous_dagrun_data_interval_success() -> DataInterval | None:
             dagrun = _get_previous_dagrun_success()
             if dagrun is None:
                 return None
             return dag.get_run_data_interval(dagrun)
 
-        def get_prev_data_interval_start_success() -> Optional[pendulum.DateTime]:
+        def get_prev_data_interval_start_success() -> pendulum.DateTime | None:
             data_interval = _get_previous_dagrun_data_interval_success()
             if data_interval is None:
                 return None
             return data_interval.start
 
-        def get_prev_data_interval_end_success() -> Optional[pendulum.DateTime]:
+        def get_prev_data_interval_end_success() -> pendulum.DateTime | None:
             data_interval = _get_previous_dagrun_data_interval_success()
             if data_interval is None:
                 return None
             return data_interval.end
 
-        def get_prev_start_date_success() -> Optional[pendulum.DateTime]:
+        def get_prev_start_date_success() -> pendulum.DateTime | None:
             dagrun = _get_previous_dagrun_success()
             if dagrun is None:
                 return None
@@ -2017,7 +2012,7 @@ class TaskInstance(Base, LoggingMixin):
             return get_tomorrow_ds().replace('-', '')
 
         @cache
-        def get_next_execution_date() -> Optional[pendulum.DateTime]:
+        def get_next_execution_date() -> pendulum.DateTime | None:
             # For manually triggered dagruns that aren't run on a schedule,
             # the "next" execution date doesn't make sense, and should be set
             # to execution date for consistency with how execution_date is set
@@ -2031,13 +2026,13 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return timezone.coerce_datetime(next_info.logical_date)
 
-        def get_next_ds() -> Optional[str]:
+        def get_next_ds() -> str | None:
             execution_date = get_next_execution_date()
             if execution_date is None:
                 return None
             return execution_date.strftime('%Y-%m-%d')
 
-        def get_next_ds_nodash() -> Optional[str]:
+        def get_next_ds_nodash() -> str | None:
             ds = get_next_ds()
             if ds is None:
                 return ds
@@ -2056,19 +2051,19 @@ class TaskInstance(Base, LoggingMixin):
                 return dag.previous_schedule(logical_date)
 
         @cache
-        def get_prev_ds() -> Optional[str]:
+        def get_prev_ds() -> str | None:
             execution_date = get_prev_execution_date()
             if execution_date is None:
                 return None
             return execution_date.strftime(r'%Y-%m-%d')
 
-        def get_prev_ds_nodash() -> Optional[str]:
+        def get_prev_ds_nodash() -> str | None:
             prev_ds = get_prev_ds()
             if prev_ds is None:
                 return None
             return prev_ds.replace('-', '')
 
-        def get_triggering_events() -> Dict[str, List["DatasetEvent"]]:
+        def get_triggering_events() -> dict[str, list[DatasetEvent]]:
             nonlocal dag_run
             # The dag_run may not be attached to the session anymore (code base is over-zealous with use of
             # `session.expunge_all()`) so re-attach it if we get called
@@ -2076,7 +2071,7 @@ class TaskInstance(Base, LoggingMixin):
                 dag_run = session.merge(dag_run, load=False)
 
             dataset_events = dag_run.consumed_dataset_events
-            triggering_events: Dict[str, List["DatasetEvent"]] = defaultdict(list)
+            triggering_events: dict[str, list[DatasetEvent]] = defaultdict(list)
             for event in dataset_events:
                 triggering_events[event.dataset.uri].append(event)
 
@@ -2186,7 +2181,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Optional[Context] = None) -> "Operator":
+    def render_templates(self, context: Context | None = None) -> Operator:
         """Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
@@ -2201,7 +2196,7 @@ class TaskInstance(Base, LoggingMixin):
         original_task, self.task = self.task, rendered_task
         return original_task
 
-    def render_k8s_pod_yaml(self) -> Optional[dict]:
+    def render_k8s_pod_yaml(self) -> dict | None:
         """Render k8s pod yaml"""
         from kubernetes.client.api_client import ApiClient
 
@@ -2230,8 +2225,8 @@ class TaskInstance(Base, LoggingMixin):
         return sanitized_pod
 
     def get_email_subject_content(
-        self, exception: BaseException, task: Optional["BaseOperator"] = None
-    ) -> Tuple[str, str, str]:
+        self, exception: BaseException, task: BaseOperator | None = None
+    ) -> tuple[str, str, str]:
         """Get the email subject content for exceptions."""
         # For a ti from DB (without ti.task), return the default value
         if task is None:
@@ -2262,7 +2257,7 @@ class TaskInstance(Base, LoggingMixin):
         # This function is called after changing the state from State.RUNNING,
         # so we need to subtract 1 from self.try_number here.
         current_try_number = self.try_number - 1
-        additional_context: Dict[str, Any] = {
+        additional_context: dict[str, Any] = {
             "exception": exception,
             "exception_html": exception_html,
             "try_number": current_try_number,
@@ -2308,7 +2303,7 @@ class TaskInstance(Base, LoggingMixin):
 
         return subject, html_content, html_content_err
 
-    def email_alert(self, exception, task: "BaseOperator") -> None:
+    def email_alert(self, exception, task: BaseOperator) -> None:
         """Send alert email with exception information."""
         subject, html_content, html_content_err = self.get_email_subject_content(exception, task=task)
         assert task.email
@@ -2325,7 +2320,7 @@ class TaskInstance(Base, LoggingMixin):
             self.duration = None
         self.log.debug("Task Duration set to %s", self.duration)
 
-    def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
+    def _record_task_map_for_downstreams(self, task: Operator, value: Any, *, session: Session) -> None:
         if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
             return
         # TODO: We don't push TaskMap for mapped task instances because it's not
@@ -2353,7 +2348,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: Optional[datetime] = None,
+        execution_date: datetime | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -2389,13 +2384,13 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def xcom_pull(
         self,
-        task_ids: Optional[Union[str, Iterable[str]]] = None,
-        dag_id: Optional[str] = None,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
         *,
-        map_indexes: Optional[Union[int, Iterable[int]]] = None,
+        map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
     ) -> Any:
         """Pull XComs that optionally meet certain criteria.
@@ -2465,19 +2460,19 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         if task_ids is None:
-            task_id_pos: Dict[str, int] = defaultdict(int)
+            task_id_pos: dict[str, int] = defaultdict(int)
         elif isinstance(task_ids, str):
             task_id_pos = {task_ids: 0}
         else:
             task_id_pos = {task_id: i for i, task_id in enumerate(task_ids)}
         if map_indexes is None:
-            map_index_pos: Dict[int, int] = defaultdict(int)
+            map_index_pos: dict[int, int] = defaultdict(int)
         elif isinstance(map_indexes, int):
             map_index_pos = {map_indexes: 0}
         else:
             map_index_pos = {map_index: i for i, map_index in enumerate(map_indexes)}
 
-        def _arg_pos(item: Tuple[str, int, Any]) -> Tuple[int, int]:
+        def _arg_pos(item: tuple[str, int, Any]) -> tuple[int, int]:
             task_id, map_index, _ = item
             return task_id_pos[task_id], map_index_pos[map_index]
 
@@ -2504,7 +2499,7 @@ class TaskInstance(Base, LoggingMixin):
         self._set_context(self)
 
     @staticmethod
-    def filter_for_tis(tis: Iterable[Union["TaskInstance", TaskInstanceKey]]) -> Optional[BooleanClauseList]:
+    def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
         """Returns SQLAlchemy filter to query selected task instances"""
         # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
         # Or it might be a generator, but we need to be able to iterate over it more than once
@@ -2549,7 +2544,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     @classmethod
-    def ti_selector_condition(cls, vals: Collection[Union[str, Tuple[str, int]]]) -> ColumnOperators:
+    def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
         """
         Build an SQLAlchemy filter for a list where each element can contain
         whether a task_id, or a tuple of (task_id,map_index)
@@ -2561,7 +2556,7 @@ class TaskInstance(Base, LoggingMixin):
         task_id_only = [v for v in vals if isinstance(v, str)]
         with_map_index = [v for v in vals if not isinstance(v, str)]
 
-        filters: List[ColumnOperators] = []
+        filters: list[ColumnOperators] = []
         if task_id_only:
             filters.append(cls.task_id.in_(task_id_only))
         if with_map_index:
@@ -2591,8 +2586,8 @@ class SimpleTaskInstance:
         dag_id: str,
         task_id: str,
         run_id: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
         try_number: int,
         map_index: int,
         state: str,
@@ -2600,8 +2595,8 @@ class SimpleTaskInstance:
         pool: str,
         queue: str,
         key: TaskInstanceKey,
-        run_as_user: Optional[str] = None,
-        priority_weight: Optional[int] = None,
+        run_as_user: str | None = None,
+        priority_weight: int | None = None,
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -2634,7 +2629,7 @@ class SimpleTaskInstance:
         return new_dict
 
     @classmethod
-    def from_ti(cls, ti: TaskInstance) -> "SimpleTaskInstance":
+    def from_ti(cls, ti: TaskInstance) -> SimpleTaskInstance:
         return cls(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -2653,12 +2648,12 @@ class SimpleTaskInstance:
         )
 
     @classmethod
-    def from_dict(cls, obj_dict: dict) -> "SimpleTaskInstance":
+    def from_dict(cls, obj_dict: dict) -> SimpleTaskInstance:
         ti_key = TaskInstanceKey(*obj_dict.pop('key'))
         start_date = None
         end_date = None
-        start_date_str: Optional[str] = obj_dict.pop('start_date')
-        end_date_str: Optional[str] = obj_dict.pop('end_date')
+        start_date_str: str | None = obj_dict.pop('start_date')
+        end_date_str: str | None = obj_dict.pop('end_date')
         if start_date_str:
             start_date = timezone.parse(start_date_str)
         if end_date_str:

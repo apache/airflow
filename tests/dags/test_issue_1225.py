@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 DAG designed to test what happens when a DAG with pooled tasks is run
 by a BackfillJob.
 Addresses issue #1225.
 """
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 
 from airflow.models import DAG

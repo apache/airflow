@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
@@ -45,7 +46,7 @@ class BuildCiParams(CommonBuildParams):
         return 'CI'
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         extra_ci_flags = []
         extra_ci_flags.extend(
             ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
@@ -61,7 +62,7 @@ class BuildCiParams(CommonBuildParams):
         return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
 
     @property
-    def required_image_args(self) -> List[str]:
+    def required_image_args(self) -> list[str]:
         return [
             "airflow_branch",
             "airflow_constraints_mode",
@@ -78,7 +79,7 @@ class BuildCiParams(CommonBuildParams):
         ]
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         return [
             "additional_airflow_extras",
             "additional_dev_apt_command",

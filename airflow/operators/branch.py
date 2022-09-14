@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Branching operators"""
+from __future__ import annotations
 
-from typing import Iterable, Union
+from typing import Iterable
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
@@ -38,7 +39,7 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
     tasks directly downstream of this operator will be skipped.
     """
 
-    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
         """
         Subclasses should implement this, running whatever logic is
         necessary to choose a branch and returning a task_id or list of

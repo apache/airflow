@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import os
@@ -22,7 +23,7 @@ import re
 import subprocess
 import textwrap
 from collections import defaultdict
-from typing import Any, Dict, List, NamedTuple, Optional, Set, Union
+from typing import Any, NamedTuple, Union
 
 import rich_click as click
 from github import Github, Issue, PullRequest, UnknownObjectException
@@ -100,10 +101,10 @@ option_is_helm_chart = click.option(
 
 def get_git_log_command(
     verbose: bool,
-    from_commit: Optional[str] = None,
-    to_commit: Optional[str] = None,
+    from_commit: str | None = None,
+    to_commit: str | None = None,
     is_helm_chart: bool = True,
-) -> List[str]:
+) -> list[str]:
     """
     Get git command to run for the current repo from the current folder (which is the package folder).
     :param verbose: whether to print verbose info while getting the command
@@ -138,7 +139,7 @@ class Change(NamedTuple):
     date: str
     message: str
     message_without_backticks: str
-    pr: Optional[int]
+    pr: int | None
 
 
 def get_change_from_line(line: str):
@@ -160,7 +161,7 @@ def get_change_from_line(line: str):
 
 def get_changes(
     verbose: bool, previous_release: str, current_release: str, is_helm_chart: bool = False
-) -> List[Change]:
+) -> list[Change]:
     change_strings = subprocess.check_output(
         get_git_log_command(
             verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
@@ -173,7 +174,7 @@ def get_changes(
 
 def render_template(
     template_name: str,
-    context: Dict[str, Any],
+    context: dict[str, Any],
     autoescape: bool = True,
     keep_trailing_newline: bool = False,
 ) -> str:
@@ -201,9 +202,9 @@ def render_template(
 
 def print_issue_content(
     current_release: str,
-    pull_requests: Dict[int, PullRequestOrIssue],
-    linked_issues: Dict[int, List[Issue.Issue]],
-    users: Dict[int, Set[str]],
+    pull_requests: dict[int, PullRequestOrIssue],
+    linked_issues: dict[int, list[Issue.Issue]],
+    users: dict[int, set[str]],
     is_helm_chart: bool = False,
 ):
     link = f"https://pypi.org/project/apache-airflow/{current_release}/"
@@ -213,8 +214,8 @@ def print_issue_content(
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
     pr_list = list(pull_requests.keys())
     pr_list.sort()
-    user_logins: Dict[int, str] = {pr: "@" + " @".join(users[pr]) for pr in users}
-    all_users: Set[str] = set()
+    user_logins: dict[int, str] = {pr: "@" + " @".join(users[pr]) for pr in users}
+    all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
     all_user_logins = "@" + " @".join(all_users)
@@ -250,7 +251,7 @@ def generate_issue_content(
     current_release: str,
     excluded_pr_list: str,
     verbose: bool,
-    limit_pr_count: Optional[int],
+    limit_pr_count: int | None,
     is_helm_chart: bool,
 ):
     if excluded_pr_list:
@@ -263,9 +264,9 @@ def generate_issue_content(
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
-    pull_requests: Dict[int, PullRequestOrIssue] = {}
-    linked_issues: Dict[int, List[Issue.Issue]] = defaultdict(lambda: [])
-    users: Dict[int, Set[str]] = defaultdict(lambda: set())
+    pull_requests: dict[int, PullRequestOrIssue] = {}
+    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
+    users: dict[int, set[str]] = defaultdict(lambda: set())
     count_prs = len(prs)
     if limit_pr_count:
         count_prs = limit_pr_count

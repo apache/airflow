@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``dag_run`` table
 
 Revision ID: 1b38cef5b76e
@@ -23,6 +22,7 @@ Revises: 52d714495f0
 Create Date: 2015-10-27 08:31:48.475140
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

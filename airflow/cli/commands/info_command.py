@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands"""
+from __future__ import annotations
+
 import locale
 import logging
 import os
 import platform
 import subprocess
 import sys
-from typing import List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -132,7 +133,7 @@ class OperatingSystem:
     CYGWIN = "Cygwin"
 
     @staticmethod
-    def get_current() -> Optional[str]:
+    def get_current() -> str | None:
         """Get current operating system"""
         if os.name == "nt":
             return OperatingSystem.WINDOWS
@@ -185,7 +186,7 @@ class AirflowInfo:
         self.anonymizer = anonymizer
 
     @staticmethod
-    def _get_version(cmd: List[str], grep: Optional[bytes] = None):
+    def _get_version(cmd: list[str], grep: bytes | None = None):
         """Return tools version."""
         try:
             with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
@@ -306,7 +307,7 @@ class AirflowInfo:
     def _providers_info(self):
         return [(p.data['package-name'], p.version) for p in ProvidersManager().providers.values()]
 
-    def show(self, output: str, console: Optional[AirflowConsole] = None) -> None:
+    def show(self, output: str, console: AirflowConsole | None = None) -> None:
         """Shows information about Airflow instance"""
         all_info = {
             "Apache Airflow": self._airflow_info,

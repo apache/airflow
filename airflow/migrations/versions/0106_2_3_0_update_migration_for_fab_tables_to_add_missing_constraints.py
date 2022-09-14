@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Update migration for FAB tables to add missing constraints
 
 Revision ID: 909884dea523
@@ -23,7 +22,7 @@ Revises: 48925b2719cb
 Create Date: 2022-03-21 08:33:01.635688
 
 """
-
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

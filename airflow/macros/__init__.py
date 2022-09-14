@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
 from random import random  # noqa
-from typing import Any, Optional
+from typing import Any
 
 import dateutil  # noqa
 from pendulum import DateTime
@@ -62,7 +64,7 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
     return datetime.strptime(str(ds), input_format).strftime(output_format)
 
 
-def datetime_diff_for_humans(dt: Any, since: Optional[DateTime] = None) -> str:
+def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:
     """
     Return a human-readable/approximate difference between two datetimes, or
     one and now.

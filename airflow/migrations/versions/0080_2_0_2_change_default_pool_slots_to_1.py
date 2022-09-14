@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Change default ``pool_slots`` to ``1``
 
 Revision ID: 8646922c8a04
@@ -23,6 +22,7 @@ Revises: 449b4072c2da
 Create Date: 2021-02-23 23:19:22.409973
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

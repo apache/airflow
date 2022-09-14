@@ -20,6 +20,7 @@
 Check things about newsfragments:
   - Only a single line, except for `significant` changes which can have a blank line, then the body
 """
+from __future__ import annotations
 
 import sys
 from pathlib import Path

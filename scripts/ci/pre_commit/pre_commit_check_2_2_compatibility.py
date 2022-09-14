@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path
-from typing import List
 
 from rich.console import Console
 
@@ -30,7 +31,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 console = Console(color_system="standard", width=200)
 
-errors: List[str] = []
+errors: list[str] = []
 
 SKIP_COMP_CHECK = "# ignore airflow compat check"
 TRY_NUM_MATCHER = re.compile(r".*context.*\[[\"']try_number[\"']].*")

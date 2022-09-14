@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add time zone awareness
 
 Revision ID: 0e2a74e0fc9f
@@ -22,6 +21,7 @@ Revises: d2ae31099d61
 Create Date: 2017-11-10 22:22:31.326152
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

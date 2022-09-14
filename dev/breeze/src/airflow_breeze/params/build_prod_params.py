@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import re
 import sys
 from dataclasses import dataclass
-from typing import List
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -68,7 +68,7 @@ class BuildProdParams(CommonBuildParams):
         return 'PROD'
 
     @property
-    def args_for_remote_install(self) -> List:
+    def args_for_remote_install(self) -> list:
         build_args = []
         build_args.extend(
             [
@@ -110,7 +110,7 @@ class BuildProdParams(CommonBuildParams):
         return build_args
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
         if len(self.install_airflow_reference) > 0:
             AIRFLOW_INSTALLATION_METHOD = (
@@ -202,7 +202,7 @@ class BuildProdParams(CommonBuildParams):
         return f"{self.airflow_image_name}-kubernetes"
 
     @property
-    def required_image_args(self) -> List[str]:
+    def required_image_args(self) -> list[str]:
         return [
             "airflow_branch",
             "airflow_constraints_mode",
@@ -225,7 +225,7 @@ class BuildProdParams(CommonBuildParams):
         ]
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         return [
             "additional_airflow_extras",
             "additional_dev_apt_command",

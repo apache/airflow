@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models.taskmixin import DependencyMixin
 
@@ -40,10 +42,10 @@ class EdgeModifier(DependencyMixin):
     is the representation of the information for one specific edge.
     """
 
-    def __init__(self, label: Optional[str] = None):
+    def __init__(self, label: str | None = None):
         self.label = label
-        self._upstream: List["BaseOperator"] = []
-        self._downstream: List["BaseOperator"] = []
+        self._upstream: list[BaseOperator] = []
+        self._downstream: list[BaseOperator] = []
 
     @property
     def roots(self):
@@ -54,7 +56,7 @@ class EdgeModifier(DependencyMixin):
         return self._upstream
 
     def set_upstream(
-        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
+        self, task_or_task_list: DependencyMixin | Sequence[DependencyMixin], chain: bool = True
     ):
         """
         Sets the given task/list onto the upstream attribute, and then checks if
@@ -68,7 +70,7 @@ class EdgeModifier(DependencyMixin):
         if isinstance(task_or_task_list, DependencyMixin):
             task_or_task_list = [task_or_task_list]
         # Unfurl it into actual operators
-        operators: List[BaseOperator] = []
+        operators: list[BaseOperator] = []
         for task in task_or_task_list:
             for root in task.roots:
                 if not isinstance(root, BaseOperator):
@@ -85,7 +87,7 @@ class EdgeModifier(DependencyMixin):
         self._upstream.extend(operators)
 
     def set_downstream(
-        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
+        self, task_or_task_list: DependencyMixin | Sequence[DependencyMixin], chain: bool = True
     ):
         """
         Sets the given task/list onto the downstream attribute, and then checks if
@@ -99,7 +101,7 @@ class EdgeModifier(DependencyMixin):
         if isinstance(task_or_task_list, DependencyMixin):
             task_or_task_list = [task_or_task_list]
         # Unfurl it into actual operators
-        operators: List[BaseOperator] = []
+        operators: list[BaseOperator] = []
         for task in task_or_task_list:
             for leaf in task.leaves:
                 if not isinstance(leaf, BaseOperator):

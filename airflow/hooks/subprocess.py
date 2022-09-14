@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import os
 import signal
 from collections import namedtuple
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
-from typing import Dict, List, Optional
 
 from airflow.hooks.base import BaseHook
 
@@ -31,15 +32,15 @@ class SubprocessHook(BaseHook):
     """Hook for running processes with the ``subprocess`` module"""
 
     def __init__(self) -> None:
-        self.sub_process: Optional[Popen[bytes]] = None
+        self.sub_process: Popen[bytes] | None = None
         super().__init__()
 
     def run_command(
         self,
-        command: List[str],
-        env: Optional[Dict[str, str]] = None,
+        command: list[str],
+        env: dict[str, str] | None = None,
         output_encoding: str = 'utf-8',
-        cwd: Optional[str] = None,
+        cwd: str | None = None,
     ) -> SubprocessResult:
         """
         Execute the command.

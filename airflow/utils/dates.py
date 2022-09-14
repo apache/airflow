@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # for doctest
@@ -26,7 +26,7 @@ from dateutil.relativedelta import relativedelta  # for doctest
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
 
-cron_presets: Dict[str, str] = {
+cron_presets: dict[str, str] = {
     '@hourly': '0 * * * *',
     '@daily': '0 0 * * *',
     '@weekly': '0 0 * * 0',
@@ -38,10 +38,10 @@ cron_presets: Dict[str, str] = {
 
 def date_range(
     start_date: datetime,
-    end_date: Optional[datetime] = None,
-    num: Optional[int] = None,
-    delta: Optional[Union[str, timedelta, relativedelta]] = None,
-) -> List[datetime]:
+    end_date: datetime | None = None,
+    num: int | None = None,
+    delta: str | timedelta | relativedelta | None = None,
+) -> list[datetime]:
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to `datetime.datetime`
@@ -89,7 +89,7 @@ def date_range(
     delta_iscron = False
     time_zone = start_date.tzinfo
 
-    abs_delta: Union[timedelta, relativedelta]
+    abs_delta: timedelta | relativedelta
     if isinstance(delta, str):
         delta_iscron = True
         if timezone.is_localized(start_date):

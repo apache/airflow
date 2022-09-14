@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import Optional
 
 from airflow_breeze.utils.console import MessageType, get_console
 from airflow_breeze.utils.parallel import Output
@@ -28,9 +28,7 @@ _in_ci_group = False
 
 
 @contextmanager
-def ci_group(
-    title: str, message_type: Optional[MessageType] = MessageType.INFO, output: Optional[Output] = None
-):
+def ci_group(title: str, message_type: MessageType | None = MessageType.INFO, output: Output | None = None):
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.

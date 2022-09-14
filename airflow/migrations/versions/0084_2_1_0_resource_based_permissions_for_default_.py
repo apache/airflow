@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Resource based permissions for default ``Flask-AppBuilder`` views
 
 Revision ID: a13f7613ad25
@@ -23,6 +22,8 @@ Revises: e165e7455d70
 Create Date: 2021-03-20 21:23:05.793378
 
 """
+from __future__ import annotations
+
 import logging
 
 from airflow.security import permissions

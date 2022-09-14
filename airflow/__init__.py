@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
@@ -25,10 +23,9 @@ in their PYTHONPATH. airflow_login should be based off the
 
 isort:skip_file
 """
+from __future__ import annotations
 
 # flake8: noqa: F401
-
-from __future__ import annotations
 
 import os
 import sys

@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Database sub-commands"""
+from __future__ import annotations
+
 import os
 import textwrap
 from tempfile import NamedTemporaryFile

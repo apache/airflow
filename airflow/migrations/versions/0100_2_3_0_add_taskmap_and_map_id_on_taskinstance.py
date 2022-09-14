@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``map_index`` column to TaskInstance to identify task-mapping,
 and a ``task_map`` table to track mapping values from XCom.
 
@@ -23,6 +22,7 @@ Revision ID: e655c0453f75
 Revises: f9da662e7089
 Create Date: 2021-12-13 22:59:41.052584
 """
+from __future__ import annotations
 
 from alembic import op
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, text

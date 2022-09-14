@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Migrate RTIF to use run_id and map_index
 
 Revision ID: 4eaab2fe6582
@@ -23,6 +22,7 @@ Revises: c97c2ab6aa23
 Create Date: 2022-03-03 17:48:29.955821
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

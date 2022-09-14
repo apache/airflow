@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add map_index to Log.
 
 Revision ID: 75d5ed6c2b43
 Revises: 909884dea523
 Create Date: 2022-03-15 16:35:54.816863
 """
+from __future__ import annotations
+
 from alembic import op
 from sqlalchemy import Column, Integer
 

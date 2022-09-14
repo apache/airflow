@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import atexit
 import functools
 import json
@@ -22,7 +24,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Callable
 
 import pendulum
 import sqlalchemy
@@ -74,10 +76,10 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('logging', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
-SQL_ALCHEMY_CONN: Optional[str] = None
-PLUGINS_FOLDER: Optional[str] = None
-LOGGING_CLASS_PATH: Optional[str] = None
-DONOT_MODIFY_HANDLERS: Optional[bool] = None
+SQL_ALCHEMY_CONN: str | None = None
+PLUGINS_FOLDER: str | None = None
+LOGGING_CLASS_PATH: str | None = None
+DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
 engine: Engine
@@ -223,7 +225,7 @@ def get_airflow_context_vars(context):
     return {}
 
 
-def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
     """
     This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
 
@@ -637,7 +639,7 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-DASHBOARD_UIALERTS: List["UIAlert"] = []
+DASHBOARD_UIALERTS: list[UIAlert] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

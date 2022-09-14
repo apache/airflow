@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Iterable
 
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
@@ -141,7 +142,7 @@ class Pool(Base):
         *,
         lock_rows: bool = False,
         session: Session = NEW_SESSION,
-    ) -> Dict[str, PoolStats]:
+    ) -> dict[str, PoolStats]:
         """
         Get Pool stats (Number of Running, Queued, Open & Total tasks)
 
@@ -154,14 +155,14 @@ class Pool(Base):
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
-        pools: Dict[str, PoolStats] = {}
+        pools: dict[str, PoolStats] = {}
 
         query = session.query(Pool.pool, Pool.slots)
 
         if lock_rows:
             query = with_row_locks(query, session=session, **nowait(session))
 
-        pool_rows: Iterable[Tuple[str, int]] = query.all()
+        pool_rows: Iterable[tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
                 total_slots = float('inf')  # type: ignore
@@ -178,7 +179,7 @@ class Pool(Base):
             # Some databases return decimal.Decimal here.
             count = int(count)
 
-            stats_dict: Optional[PoolStats] = pools.get(pool_name)
+            stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:
                 continue
             # TypedDict key must be a string literal, so we use if-statements to set value

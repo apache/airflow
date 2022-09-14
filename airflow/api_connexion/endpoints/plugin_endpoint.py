@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from airflow.api_connexion import security
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema

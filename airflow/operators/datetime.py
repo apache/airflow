@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import warnings
-from typing import Iterable, Union
+from typing import Iterable
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
@@ -47,10 +48,10 @@ class BranchDateTimeOperator(BaseBranchOperator):
     def __init__(
         self,
         *,
-        follow_task_ids_if_true: Union[str, Iterable[str]],
-        follow_task_ids_if_false: Union[str, Iterable[str]],
-        target_lower: Union[datetime.datetime, datetime.time, None],
-        target_upper: Union[datetime.datetime, datetime.time, None],
+        follow_task_ids_if_true: str | Iterable[str],
+        follow_task_ids_if_false: str | Iterable[str],
+        target_lower: datetime.datetime | datetime.time | None,
+        target_upper: datetime.datetime | datetime.time | None,
         use_task_logical_date: bool = False,
         use_task_execution_date: bool = False,
         **kwargs,
@@ -75,7 +76,7 @@ class BranchDateTimeOperator(BaseBranchOperator):
                 stacklevel=2,
             )
 
-    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:
             now = context["logical_date"]
         else:
@@ -95,8 +96,8 @@ class BranchDateTimeOperator(BaseBranchOperator):
 
 def target_times_as_dates(
     base_date: datetime.datetime,
-    lower: Union[datetime.datetime, datetime.time, None],
-    upper: Union[datetime.datetime, datetime.time, None],
+    lower: datetime.datetime | datetime.time | None,
+    upper: datetime.datetime | datetime.time | None,
 ):
     """Ensures upper and lower time targets are datetimes by combining them with base_date"""
     if isinstance(lower, datetime.datetime) and isinstance(upper, datetime.datetime):

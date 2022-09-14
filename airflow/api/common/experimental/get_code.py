@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Get code APIs."""
+from __future__ import annotations
+
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag

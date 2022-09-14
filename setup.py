@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
+from __future__ import annotations
+
 import glob
 import json
 import logging
@@ -27,7 +29,7 @@ from copy import deepcopy
 from os.path import relpath
 from pathlib import Path
 from textwrap import wrap
-from typing import Dict, Iterable, List, Set
+from typing import Iterable
 
 from setuptools import Command, Distribution, find_namespace_packages, setup
 from setuptools.command.develop import develop as develop_orig
@@ -61,7 +63,7 @@ DEPS = "deps"
 # provider separately. They are loaded here and if you want to modify them, you need to modify
 # corresponding provider.yaml file.
 #
-def fill_provider_dependencies() -> Dict[str, Dict[str, List[str]]]:
+def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
         return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
     except Exception as e:
@@ -89,7 +91,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options: List[str] = []
+    user_options: list[str] = []
 
     def initialize_options(self) -> None:
         """Set default values for options."""
@@ -98,7 +100,7 @@ class CleanCommand(Command):
         """Set final values for options."""
 
     @staticmethod
-    def rm_all_files(files: List[str]) -> None:
+    def rm_all_files(files: list[str]) -> None:
         """Remove all files from the list"""
         for file in files:
             try:
@@ -125,7 +127,7 @@ class CompileAssets(Command):
     """
 
     description = "Compile and build the frontend assets"
-    user_options: List[str] = []
+    user_options: list[str] = []
 
     def initialize_options(self) -> None:
         """Set default values for options."""
@@ -147,7 +149,7 @@ class ListExtras(Command):
     """
 
     description = "List available extras"
-    user_options: List[str] = []
+    user_options: list[str] = []
 
     def initialize_options(self) -> None:
         """Set default values for options."""
@@ -407,12 +409,12 @@ devel_only = [
 ]
 
 
-def get_provider_dependencies(provider_name: str) -> List[str]:
+def get_provider_dependencies(provider_name: str) -> list[str]:
     return PROVIDER_DEPENDENCIES[provider_name][DEPS]
 
 
-def get_unique_dependency_list(req_list_iterable: Iterable[List[str]]):
-    _all_reqs: Set[str] = set()
+def get_unique_dependency_list(req_list_iterable: Iterable[list[str]]):
+    _all_reqs: set[str] = set()
     for req_list in req_list_iterable:
         for req in req_list:
             _all_reqs.add(req)
@@ -447,14 +449,14 @@ devel_hadoop = get_unique_dependency_list(
 # The 'apache.atlas' and 'apache.webhdfs' are extras that provide additional libraries
 # but they do not have separate providers (yet?), they are merely there to add extra libraries
 # That can be used in custom python/bash operators.
-ADDITIONAL_EXTRAS_DEPENDENCIES: Dict[str, List[str]] = {
+ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     'apache.atlas': atlas,
     'apache.webhdfs': webhdfs,
 }
 
 # Those are extras that are extensions of the 'core' Airflow. They provide additional features
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
-CORE_EXTRAS_DEPENDENCIES: Dict[str, List[str]] = {
+CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     'async': async_packages,
     'celery': celery,
     'cgroups': cgroups,
@@ -474,7 +476,7 @@ CORE_EXTRAS_DEPENDENCIES: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
 }
 
-EXTRAS_DEPENDENCIES: Dict[str, List[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
+EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
 
 def add_extras_for_all_providers() -> None:
@@ -495,7 +497,7 @@ add_additional_extras()
 #############################################################################################################
 
 # Dictionary of aliases from 1.10 - deprecated in Airflow 2.*
-EXTRAS_DEPRECATED_ALIASES: Dict[str, str] = {
+EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     'atlas': 'apache.atlas',
     'aws': 'amazon',
     'azure': 'microsoft.azure',
@@ -516,12 +518,12 @@ EXTRAS_DEPRECATED_ALIASES: Dict[str, str] = {
     'winrm': 'microsoft.winrm',
 }
 
-EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: List[str] = [
+EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: list[str] = [
     "crypto",
     "webhdfs",
 ]
 
-EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS: List[str] = [
+EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS: list[str] = [
     "jira",
 ]
 
@@ -587,8 +589,8 @@ ALL_DB_PROVIDERS = [
 ]
 
 
-def get_all_db_dependencies() -> List[str]:
-    _all_db_reqs: Set[str] = set()
+def get_all_db_dependencies() -> list[str]:
+    _all_db_reqs: set[str] = set()
     for provider in ALL_DB_PROVIDERS:
         for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
             _all_db_reqs.add(req)
@@ -626,7 +628,7 @@ PACKAGES_EXCLUDED_FOR_ALL = []
 PACKAGES_EXCLUDED_FOR_ALL.extend(['snakebite'])
 
 
-def is_package_excluded(package: str, exclusion_list: List[str]) -> bool:
+def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
     """
     Checks if package should be excluded.
 
@@ -670,13 +672,13 @@ EXTRAS_DEPENDENCIES["devel_all"] = devel_all
 EXTRAS_DEPENDENCIES["devel_ci"] = devel_ci
 
 
-def sort_extras_dependencies() -> Dict[str, List[str]]:
+def sort_extras_dependencies() -> dict[str, list[str]]:
     """
     The dictionary order remains when keys() are retrieved.
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
-    sorted_dependencies: Dict[str, List[str]] = {}
+    sorted_dependencies: dict[str, list[str]] = {}
     sorted_extra_ids = sorted(EXTRAS_DEPENDENCIES.keys())
     for extra_id in sorted_extra_ids:
         sorted_dependencies[extra_id] = sorted(EXTRAS_DEPENDENCIES[extra_id])
@@ -708,7 +710,7 @@ def get_provider_package_name_from_package_id(package_id: str) -> str:
     return f"apache-airflow-providers-{package_suffix}"
 
 
-def get_excluded_providers() -> List[str]:
+def get_excluded_providers() -> list[str]:
     """Returns packages excluded for the current python version."""
     return []
 
@@ -755,7 +757,7 @@ class AirflowDistribution(Distribution):
             )
 
 
-def replace_extra_dependencies_with_provider_packages(extra: str, providers: List[str]) -> None:
+def replace_extra_dependencies_with_provider_packages(extra: str, providers: list[str]) -> None:
     """
     Replaces extra dependencies with provider package. The intention here is that when
     the provider is added as dependency of extra, there is no need to add the dependencies
@@ -802,7 +804,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: Lis
         ]
 
 
-def add_provider_packages_to_extra_dependencies(extra: str, providers: List[str]) -> None:
+def add_provider_packages_to_extra_dependencies(extra: str, providers: list[str]) -> None:
     """
     Adds provider packages as dependencies to extra. This is used to add provider packages as dependencies
     to the "bulk" kind of extras. Those bulk extras do not have the detailed 'extra' dependencies as

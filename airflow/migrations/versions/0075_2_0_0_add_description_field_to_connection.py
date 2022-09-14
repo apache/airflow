@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add description field to ``connection`` table
 
 Revision ID: 61ec73d9401f
@@ -23,6 +22,7 @@ Revises: 2c6edca13270
 Create Date: 2020-09-10 14:56:30.279248
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

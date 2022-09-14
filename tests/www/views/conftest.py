@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import Any, Dict, Generator, List, NamedTuple
+from typing import Any, Generator, NamedTuple
 
 import flask
 import jinja2
@@ -122,7 +124,7 @@ def user_client(app):
 
 class _TemplateWithContext(NamedTuple):
     template: jinja2.environment.Template
-    context: Dict[str, Any]
+    context: dict[str, Any]
 
     @property
     def name(self):
@@ -172,7 +174,7 @@ class _TemplateWithContext(NamedTuple):
 @pytest.fixture(scope="module")
 def capture_templates(app):
     @contextmanager
-    def manager() -> Generator[List[_TemplateWithContext], None, None]:
+    def manager() -> Generator[list[_TemplateWithContext], None, None]:
         recorded = []
 
         def record(sender, template, context, **extra):

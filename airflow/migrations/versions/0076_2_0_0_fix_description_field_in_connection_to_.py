@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Fix description field in ``connection`` to be ``text``
 
 Revision ID: 64a7d6477aae
@@ -23,6 +22,7 @@ Revises: f5b5ec089444
 Create Date: 2020-11-25 08:56:11.866607
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

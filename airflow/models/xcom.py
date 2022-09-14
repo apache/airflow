@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import inspect
@@ -23,7 +24,7 @@ import logging
 import pickle
 import warnings
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Iterable, cast, overload
 
 import pendulum
 from sqlalchemy import (
@@ -171,10 +172,10 @@ class BaseXCom(Base, LoggingMixin):
         value: Any,
         task_id: str,
         dag_id: str,
-        execution_date: Optional[datetime.datetime] = None,
+        execution_date: datetime.datetime | None = None,
         session: Session = NEW_SESSION,
         *,
-        run_id: Optional[str] = None,
+        run_id: str | None = None,
         map_index: int = -1,
     ) -> None:
         """:sphinx-autoapi-skip:"""
@@ -236,8 +237,8 @@ class BaseXCom(Base, LoggingMixin):
     def get_value(
         cls,
         *,
-        ti_key: "TaskInstanceKey",
-        key: Optional[str] = None,
+        ti_key: TaskInstanceKey,
+        key: str | None = None,
         session: Session = NEW_SESSION,
     ) -> Any:
         """Retrieve an XCom value for a task instance.
@@ -269,13 +270,13 @@ class BaseXCom(Base, LoggingMixin):
     def get_one(
         cls,
         *,
-        key: Optional[str] = None,
-        dag_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        run_id: Optional[str] = None,
-        map_index: Optional[int] = None,
+        key: str | None = None,
+        dag_id: str | None = None,
+        task_id: str | None = None,
+        run_id: str | None = None,
+        map_index: int | None = None,
         session: Session = NEW_SESSION,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
@@ -312,28 +313,28 @@ class BaseXCom(Base, LoggingMixin):
     def get_one(
         cls,
         execution_date: datetime.datetime,
-        key: Optional[str] = None,
-        task_id: Optional[str] = None,
-        dag_id: Optional[str] = None,
+        key: str | None = None,
+        task_id: str | None = None,
+        dag_id: str | None = None,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
     def get_one(
         cls,
-        execution_date: Optional[datetime.datetime] = None,
-        key: Optional[str] = None,
-        task_id: Optional[str] = None,
-        dag_id: Optional[str] = None,
+        execution_date: datetime.datetime | None = None,
+        key: str | None = None,
+        task_id: str | None = None,
+        dag_id: str | None = None,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
         *,
-        run_id: Optional[str] = None,
-        map_index: Optional[int] = None,
-    ) -> Optional[Any]:
+        run_id: str | None = None,
+        map_index: int | None = None,
+    ) -> Any | None:
         """:sphinx-autoapi-skip:"""
         if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
@@ -379,12 +380,12 @@ class BaseXCom(Base, LoggingMixin):
         cls,
         *,
         run_id: str,
-        key: Optional[str] = None,
-        task_ids: Union[str, Iterable[str], None] = None,
-        dag_ids: Union[str, Iterable[str], None] = None,
-        map_indexes: Union[int, Iterable[int], None] = None,
+        key: str | None = None,
+        task_ids: str | Iterable[str] | None = None,
+        dag_ids: str | Iterable[str] | None = None,
+        map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         session: Session = NEW_SESSION,
     ) -> Query:
         """Composes a query to get one or more XCom entries.
@@ -416,12 +417,12 @@ class BaseXCom(Base, LoggingMixin):
     def get_many(
         cls,
         execution_date: datetime.datetime,
-        key: Optional[str] = None,
-        task_ids: Union[str, Iterable[str], None] = None,
-        dag_ids: Union[str, Iterable[str], None] = None,
-        map_indexes: Union[int, Iterable[int], None] = None,
+        key: str | None = None,
+        task_ids: str | Iterable[str] | None = None,
+        dag_ids: str | Iterable[str] | None = None,
+        map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         session: Session = NEW_SESSION,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
@@ -430,16 +431,16 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def get_many(
         cls,
-        execution_date: Optional[datetime.datetime] = None,
-        key: Optional[str] = None,
-        task_ids: Optional[Union[str, Iterable[str]]] = None,
-        dag_ids: Optional[Union[str, Iterable[str]]] = None,
-        map_indexes: Union[int, Iterable[int], None] = None,
+        execution_date: datetime.datetime | None = None,
+        key: str | None = None,
+        task_ids: str | Iterable[str] | None = None,
+        dag_ids: str | Iterable[str] | None = None,
+        map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         session: Session = NEW_SESSION,
         *,
-        run_id: Optional[str] = None,
+        run_id: str | None = None,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
         from airflow.models.dagrun import DagRun
@@ -491,7 +492,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def delete(cls, xcoms: Union["XCom", Iterable["XCom"]], session: Session) -> None:
+    def delete(cls, xcoms: XCom | Iterable[XCom], session: Session) -> None:
         """Delete one or multiple XCom entries."""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
@@ -509,7 +510,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: str,
         task_id: str,
         run_id: str,
-        map_index: Optional[int] = None,
+        map_index: int | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """Clear all XCom data from the database for the given task instance.
@@ -541,13 +542,13 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def clear(
         cls,
-        execution_date: Optional[pendulum.DateTime] = None,
-        dag_id: Optional[str] = None,
-        task_id: Optional[str] = None,
+        execution_date: pendulum.DateTime | None = None,
+        dag_id: str | None = None,
+        task_id: str | None = None,
         session: Session = NEW_SESSION,
         *,
-        run_id: Optional[str] = None,
-        map_index: Optional[int] = None,
+        run_id: str | None = None,
+        map_index: int | None = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         from airflow.models import DagRun
@@ -583,11 +584,11 @@ class BaseXCom(Base, LoggingMixin):
     def serialize_value(
         value: Any,
         *,
-        key: Optional[str] = None,
-        task_id: Optional[str] = None,
-        dag_id: Optional[str] = None,
-        run_id: Optional[str] = None,
-        map_index: Optional[int] = None,
+        key: str | None = None,
+        task_id: str | None = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        map_index: int | None = None,
     ):
         """Serialize XCom value to str or pickled object"""
         if conf.getboolean('core', 'enable_xcom_pickling'):
@@ -604,7 +605,7 @@ class BaseXCom(Base, LoggingMixin):
             raise
 
     @staticmethod
-    def deserialize_value(result: "XCom") -> Any:
+    def deserialize_value(result: XCom) -> Any:
         """Deserialize XCom value from str or pickle object"""
         if result.value is None:
             return None
@@ -631,7 +632,7 @@ class BaseXCom(Base, LoggingMixin):
         return BaseXCom.deserialize_value(self)
 
 
-def _patch_outdated_serializer(clazz: Type[BaseXCom], params: Iterable[str]) -> None:
+def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> None:
     """Patch a custom ``serialize_value`` to accept the modern signature.
 
     To give custom XCom backends more flexibility with how they store values, we
@@ -656,7 +657,7 @@ def _patch_outdated_serializer(clazz: Type[BaseXCom], params: Iterable[str]) -> 
     clazz.serialize_value = _shim  # type: ignore[assignment]
 
 
-def _get_function_params(function) -> List[str]:
+def _get_function_params(function) -> list[str]:
     """
     Returns the list of variables names of a function
 
@@ -670,7 +671,7 @@ def _get_function_params(function) -> List[str]:
     return bound_arguments
 
 
-def resolve_xcom_backend() -> Type[BaseXCom]:
+def resolve_xcom_backend() -> type[BaseXCom]:
     """Resolves custom XCom class
 
     Confirms that custom XCom class extends the BaseXCom.

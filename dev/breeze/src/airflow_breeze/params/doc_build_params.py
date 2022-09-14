@@ -14,17 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import List, Tuple
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 
 
 @dataclass
 class DocBuildParams:
-    package_filter: Tuple[str]
+    package_filter: tuple[str]
     docs_only: bool
     spellcheck_only: bool
     for_production: bool
@@ -32,7 +32,7 @@ class DocBuildParams:
     github_actions = os.environ.get('GITHUB_ACTIONS', "false")
 
     @property
-    def args_doc_builder(self) -> List[str]:
+    def args_doc_builder(self) -> list[str]:
         doc_args = []
         if self.docs_only:
             doc_args.append("--docs-only")

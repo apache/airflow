@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``pool_slots`` field to ``task_instance``
 
 Revision ID: a4c2fd67d16b
@@ -23,6 +22,7 @@ Revises: 7939bcff74ba
 Create Date: 2020-01-14 03:35:01.161519
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

@@ -20,6 +20,8 @@ API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
+from __future__ import annotations
+
 import copy
 import datetime
 import hashlib
@@ -28,7 +30,6 @@ import re
 import uuid
 import warnings
 from functools import reduce
-from typing import List, Optional, Union
 
 from dateutil import parser
 from kubernetes.client import models as k8s
@@ -100,8 +101,8 @@ class PodGenerator:
 
     def __init__(
         self,
-        pod: Optional[k8s.V1Pod] = None,
-        pod_template_file: Optional[str] = None,
+        pod: k8s.V1Pod | None = None,
+        pod_template_file: str | None = None,
         extract_xcom: bool = True,
     ):
         if not pod_template_file and not pod:
@@ -147,7 +148,7 @@ class PodGenerator:
         return pod_cp
 
     @staticmethod
-    def from_obj(obj) -> Optional[Union[dict, k8s.V1Pod]]:
+    def from_obj(obj) -> dict | k8s.V1Pod | None:
         """Converts to pod from obj"""
         if obj is None:
             return None
@@ -181,7 +182,7 @@ class PodGenerator:
             )
 
     @staticmethod
-    def from_legacy_obj(obj) -> Optional[k8s.V1Pod]:
+    def from_legacy_obj(obj) -> k8s.V1Pod | None:
         """Converts to pod from obj"""
         if obj is None:
             return None
@@ -218,7 +219,7 @@ class PodGenerator:
         return PodGeneratorDeprecated(**namespaced).gen_pod()
 
     @staticmethod
-    def reconcile_pods(base_pod: k8s.V1Pod, client_pod: Optional[k8s.V1Pod]) -> k8s.V1Pod:
+    def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
         """
         :param base_pod: has the base attributes which are overwritten if they exist
             in the client pod and remain if they do not exist in the client_pod
@@ -262,8 +263,8 @@ class PodGenerator:
 
     @staticmethod
     def reconcile_specs(
-        base_spec: Optional[k8s.V1PodSpec], client_spec: Optional[k8s.V1PodSpec]
-    ) -> Optional[k8s.V1PodSpec]:
+        base_spec: k8s.V1PodSpec | None, client_spec: k8s.V1PodSpec | None
+    ) -> k8s.V1PodSpec | None:
         """
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
@@ -286,8 +287,8 @@ class PodGenerator:
 
     @staticmethod
     def reconcile_containers(
-        base_containers: List[k8s.V1Container], client_containers: List[k8s.V1Container]
-    ) -> List[k8s.V1Container]:
+        base_containers: list[k8s.V1Container], client_containers: list[k8s.V1Container]
+    ) -> list[k8s.V1Container]:
         """
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
@@ -321,13 +322,13 @@ class PodGenerator:
         pod_id: str,
         try_number: int,
         kube_image: str,
-        date: Optional[datetime.datetime],
-        args: List[str],
-        pod_override_object: Optional[k8s.V1Pod],
+        date: datetime.datetime | None,
+        args: list[str],
+        pod_override_object: k8s.V1Pod | None,
         base_worker_pod: k8s.V1Pod,
         namespace: str,
         scheduler_job_id: str,
-        run_id: Optional[str] = None,
+        run_id: str | None = None,
         map_index: int = -1,
     ) -> k8s.V1Pod:
         """
@@ -436,7 +437,7 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(pod_id: str) -> Optional[str]:
+    def make_unique_pod_id(pod_id: str) -> str | None:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253

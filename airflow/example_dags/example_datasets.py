@@ -36,6 +36,8 @@ example_dataset_dag4_req_dag1_dag2 should run.
 Dags example_dataset_dag5_req_dag1_D and example_dataset_dag6_req_DD should not run because they depend on
 datasets that never get updated.
 """
+from __future__ import annotations
+
 import pendulum
 
 from airflow import DAG, Dataset

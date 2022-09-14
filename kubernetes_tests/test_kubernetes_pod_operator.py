@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -23,7 +25,6 @@ import sys
 import textwrap
 import unittest
 from copy import copy
-from typing import Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -135,7 +136,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             },
         }
 
-    def _get_labels_selector(self) -> Optional[str]:
+    def _get_labels_selector(self) -> str | None:
         if not self.labels:
             return None
         return ",".join([f'{key}={value}' for key, value in enumerate(self.labels)])

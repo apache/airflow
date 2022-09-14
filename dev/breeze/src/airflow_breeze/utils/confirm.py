@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import sys
 from enum import Enum
-from typing import Optional
 
 STANDARD_TIMEOUT = 10
 
@@ -28,18 +29,18 @@ class Answer(Enum):
     QUIT = "q"
 
 
-forced_answer: Optional[str] = None
+forced_answer: str | None = None
 
 
-def set_forced_answer(answer: Optional[str]):
+def set_forced_answer(answer: str | None):
     global forced_answer
     forced_answer = answer
 
 
 def user_confirm(
     message: str,
-    timeout: Optional[float] = None,
-    default_answer: Optional[Answer] = Answer.NO,
+    timeout: float | None = None,
+    default_answer: Answer | None = Answer.NO,
     quit_allowed: bool = True,
 ) -> Answer:
     """

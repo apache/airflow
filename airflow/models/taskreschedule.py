@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """TaskReschedule tracks rescheduled task instances."""
+from __future__ import annotations
 
 import datetime
 from typing import TYPE_CHECKING
@@ -74,7 +75,7 @@ class TaskReschedule(Base):
 
     def __init__(
         self,
-        task: "BaseOperator",
+        task: BaseOperator,
         run_id: str,
         try_number: int,
         start_date: datetime.datetime,

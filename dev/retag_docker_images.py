@@ -16,7 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 #
 # This scripts re-tags images from one branch to another. Since we keep
 # images "per-branch" we sometimes need to "clone" the current
@@ -27,7 +28,6 @@
 # * when renaming a branch
 #
 import subprocess
-from typing import List
 
 import rich_click as click
 
@@ -46,7 +46,7 @@ GHCR_IO_IMAGES = [
 def pull_push_all_images(
     source_prefix: str,
     target_prefix: str,
-    images: List[str],
+    images: list[str],
     source_branch: str,
     source_repo: str,
     target_branch: str,

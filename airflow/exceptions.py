@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
+from __future__ import annotations
+
 import datetime
 import warnings
 from http import HTTPStatus
-from typing import Any, Dict, List, NamedTuple, Optional, Sized
+from typing import Any, NamedTuple, Sized
 
 
 class AirflowException(Exception):
@@ -200,7 +201,7 @@ class DuplicateTaskIdFound(AirflowException):
 class TaskAlreadyInTaskGroup(AirflowException):
     """Raise when a Task cannot be added to a TaskGroup since it already belongs to another TaskGroup."""
 
-    def __init__(self, task_id: str, existing_group_id: Optional[str], new_group_id: str) -> None:
+    def __init__(self, task_id: str, existing_group_id: str | None, new_group_id: str) -> None:
         super().__init__(task_id, new_group_id)
         self.task_id = task_id
         self.existing_group_id = existing_group_id
@@ -262,7 +263,7 @@ class BackfillUnfinished(AirflowException):
 class FileSyntaxError(NamedTuple):
     """Information about a single error in a file."""
 
-    line_no: Optional[int]
+    line_no: int | None
     message: str
 
     def __str__(self):
@@ -278,7 +279,7 @@ class AirflowFileParseException(AirflowException):
     :param parse_errors: File syntax errors
     """
 
-    def __init__(self, msg: str, file_path: str, parse_errors: List[FileSyntaxError]) -> None:
+    def __init__(self, msg: str, file_path: str, parse_errors: list[FileSyntaxError]) -> None:
         super().__init__(msg)
         self.msg = msg
         self.file_path = file_path
@@ -316,8 +317,8 @@ class TaskDeferred(BaseException):
         *,
         trigger,
         method_name: str,
-        kwargs: Optional[Dict[str, Any]] = None,
-        timeout: Optional[datetime.timedelta] = None,
+        kwargs: dict[str, Any] | None = None,
+        timeout: datetime.timedelta | None = None,
     ):
         super().__init__()
         self.trigger = trigger
@@ -343,12 +344,12 @@ class PodReconciliationError(AirflowException):
 class RemovedInAirflow3Warning(DeprecationWarning):
     """Issued for usage of deprecated features that will be removed in Airflow3."""
 
-    deprecated_since: Optional[str] = None
+    deprecated_since: str | None = None
     "Indicates the airflow version that started raising this deprecation warning"
 
 
 class AirflowProviderDeprecationWarning(DeprecationWarning):
     """Issued for usage of deprecated features of Airflow provider."""
 
-    deprecated_provider_since: Optional[str] = None
+    deprecated_provider_since: str | None = None
     "Indicates the provider version that started raising this deprecation warning"

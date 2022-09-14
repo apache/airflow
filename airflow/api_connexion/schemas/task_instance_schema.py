@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -77,7 +78,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
 class TaskInstanceCollection(NamedTuple):
     """List of task instances with metadata"""
 
-    task_instances: List[Tuple[TaskInstance, Optional[SlaMiss]]]
+    task_instances: list[tuple[TaskInstance, SlaMiss | None]]
     total_entries: int
 
 
@@ -173,7 +174,7 @@ class TaskInstanceReferenceSchema(Schema):
 class TaskInstanceReferenceCollection(NamedTuple):
     """List of objects with metadata about taskinstance and dag_run_id"""
 
-    task_instances: List[Tuple[TaskInstance, str]]
+    task_instances: list[tuple[TaskInstance, str]]
 
 
 class TaskInstanceReferenceCollectionSchema(Schema):

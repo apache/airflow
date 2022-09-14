@@ -21,6 +21,8 @@
     For more information on how the CeleryExecutor works, take a look at the guide:
     :ref:`executor:CeleryExecutor`
 """
+from __future__ import annotations
+
 import datetime
 import logging
 import math
@@ -33,7 +35,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import cpu_count
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -97,7 +99,7 @@ def execute_command(command_to_exec: CommandType) -> None:
             raise
 
 
-def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
+def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = None) -> None:
     pid = os.fork()
     if pid:
         # In parent, wait for the child
@@ -136,7 +138,7 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str]
         os._exit(ret)
 
 
-def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
+def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | None = None) -> None:
     env = os.environ.copy()
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
@@ -169,7 +171,7 @@ TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
-) -> Tuple[TaskInstanceKey, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
+) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
     """Sends task to executor."""
     key, command, queue, task_to_run = task_tuple
     try:
@@ -238,11 +240,11 @@ class CeleryExecutor(BaseExecutor):
             self._sync_parallelism = max(1, cpu_count() - 1)
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
-        self.stalled_task_timeouts: Dict[TaskInstanceKey, datetime.datetime] = {}
+        self.stalled_task_timeouts: dict[TaskInstanceKey, datetime.datetime] = {}
         self.stalled_task_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'stalled_task_timeout', fallback=0)
         )
-        self.adopted_task_timeouts: Dict[TaskInstanceKey, datetime.datetime] = {}
+        self.adopted_task_timeouts: dict[TaskInstanceKey, datetime.datetime] = {}
         self.task_adoption_timeout = (
             datetime.timedelta(seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600))
             or self.stalled_task_timeout
@@ -262,7 +264,7 @@ class CeleryExecutor(BaseExecutor):
         """
         return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
 
-    def _process_tasks(self, task_tuples: List[TaskTuple]) -> None:
+    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
         first_task = next(t[3] for t in task_tuples_to_send)
 
@@ -307,7 +309,7 @@ class CeleryExecutor(BaseExecutor):
                 # If the task runs _really quickly_ we may already have a result!
                 self.update_task_state(key, result.state, getattr(result, 'info', None))
 
-    def _send_tasks_to_celery(self, task_tuples_to_send: List[TaskInstanceInCelery]):
+    def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
             # One tuple, or max one process -> send it in the main thread.
             return list(map(send_task_to_executor, task_tuples_to_send))
@@ -354,8 +356,8 @@ class CeleryExecutor(BaseExecutor):
             self._send_stalled_tis_back_to_scheduler(timedout_keys)
 
     def _get_timedout_ti_keys(
-        self, task_timeouts: Dict[TaskInstanceKey, datetime.datetime]
-    ) -> List[TaskInstanceKey]:
+        self, task_timeouts: dict[TaskInstanceKey, datetime.datetime]
+    ) -> list[TaskInstanceKey]:
         """
         These timeouts exist to check to see if any of our tasks have not progressed
         in the expected time. This can happen for few different reasons, usually related
@@ -387,7 +389,7 @@ class CeleryExecutor(BaseExecutor):
 
     @provide_session
     def _send_stalled_tis_back_to_scheduler(
-        self, keys: List[TaskInstanceKey], session: Session = NEW_SESSION
+        self, keys: list[TaskInstanceKey], session: Session = NEW_SESSION
     ) -> None:
         try:
             session.query(TaskInstance).filter(
@@ -536,7 +538,7 @@ class CeleryExecutor(BaseExecutor):
         return not_adopted_tis
 
     def _set_celery_pending_task_timeout(
-        self, key: TaskInstanceKey, timeout_type: Optional[_CeleryPendingTaskTimeoutType]
+        self, key: TaskInstanceKey, timeout_type: _CeleryPendingTaskTimeoutType | None
     ) -> None:
         """
         We use the fact that dicts maintain insertion order, and the the timeout for a
@@ -551,7 +553,7 @@ class CeleryExecutor(BaseExecutor):
             self.stalled_task_timeouts[key] = utcnow() + self.stalled_task_timeout
 
 
-def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback], Any]:
+def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
     """
     Fetch and return the state of the given celery task. The scope of this function is
     global so that it can be called by subprocesses in the pool.
@@ -586,7 +588,7 @@ class BulkStateFetcher(LoggingMixin):
         super().__init__()
         self._sync_parallelism = sync_parallelism
 
-    def _tasks_list_to_task_ids(self, async_tasks) -> Set[str]:
+    def _tasks_list_to_task_ids(self, async_tasks) -> set[str]:
         return {a.task_id for a in async_tasks}
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:

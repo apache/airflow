@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add unique constraint to ``conn_id``
 
 Revision ID: 8d48763f6d53
@@ -23,6 +22,7 @@ Revises: 8f966b9c467a
 Create Date: 2020-05-03 16:55:01.834231
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

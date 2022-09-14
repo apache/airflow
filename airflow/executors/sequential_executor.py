@@ -22,8 +22,10 @@ SequentialExecutor
     For more information on how the SequentialExecutor works, take a look at the guide:
     :ref:`executor:SequentialExecutor`
 """
+from __future__ import annotations
+
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKey
@@ -48,8 +50,8 @@ class SequentialExecutor(BaseExecutor):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:
         self.validate_airflow_tasks_run_command(command)
         self.commands_to_run.append((key, command))

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import signal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import psutil
 from sqlalchemy.exc import OperationalError
@@ -52,9 +53,9 @@ class LocalTaskJob(BaseJob):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        pickle_id: Optional[str] = None,
-        pool: Optional[str] = None,
-        external_executor_id: Optional[str] = None,
+        pickle_id: str | None = None,
+        pool: str | None = None,
+        external_executor_id: str | None = None,
         *args,
         **kwargs,
     ):

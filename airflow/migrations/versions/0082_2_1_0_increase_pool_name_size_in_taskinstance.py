@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Increase maximum length of pool name in ``task_instance`` table to ``256`` characters
 
 Revision ID: 90d1635d7b86
@@ -23,6 +22,7 @@ Revises: 2e42bb497a22
 Create Date: 2021-04-05 09:37:54.848731
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

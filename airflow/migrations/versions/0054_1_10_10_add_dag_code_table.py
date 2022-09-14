@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``dag_code`` table
 
 Revision ID: 952da73b5eff
@@ -23,6 +22,7 @@ Revises: 852ae6c715af
 Create Date: 2020-03-12 12:39:01.797462
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add has_import_errors column to DagModel
 
 Revision ID: be2bfac3da23
@@ -23,6 +22,7 @@ Revises: 7b2661a43ba3
 Create Date: 2021-11-04 20:33:11.009547
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

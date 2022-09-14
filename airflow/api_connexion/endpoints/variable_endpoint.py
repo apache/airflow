@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import Optional
 
 from flask import Response
 from marshmallow import ValidationError
@@ -56,9 +57,9 @@ def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Respon
 @provide_session
 def get_variables(
     *,
-    limit: Optional[int],
+    limit: int | None,
     order_by: str = "id",
-    offset: Optional[int] = None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> Response:
     """Get all variable values"""

@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import os
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import jsonschema
 import yaml
@@ -28,7 +29,7 @@ ROOT_DIR = Path(__file__).parents[2].resolve()
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
 
 
-def _load_schema() -> Dict[str, Any]:
+def _load_schema() -> dict[str, Any]:
     with open(PROVIDER_DATA_SCHEMA_PATH) as schema_file:
         content = json.load(schema_file)
     return content
@@ -53,7 +54,7 @@ def get_provider_yaml_paths():
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
 
 
-def load_package_data() -> List[Dict[str, Any]]:
+def load_package_data() -> list[dict[str, Any]]:
     """
     Load all data from providers files
 

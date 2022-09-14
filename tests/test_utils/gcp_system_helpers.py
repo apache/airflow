@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import tempfile
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
-from typing import List, Optional, Sequence
+from typing import Sequence
 from unittest import mock
 
 import pytest
@@ -65,9 +67,9 @@ def resolve_full_gcp_key_path(key: str) -> str:
 
 @contextmanager
 def provide_gcp_context(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence] = None,
-    project_id: Optional[str] = None,
+    key_file_path: str | None = None,
+    scopes: Sequence | None = None,
+    project_id: str | None = None,
 ):
     """
     Context manager that provides:
@@ -134,7 +136,7 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def execute_with_ctx(
-        cls, cmd: List[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None, silent: bool = False
+        cls, cmd: list[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None, silent: bool = False
     ):
         """
         Executes command with context created by provide_gcp_context and activated
@@ -145,7 +147,7 @@ class GoogleSystemTest(SystemTest):
             cls.execute_cmd(cmd=cmd, silent=silent)
 
     @classmethod
-    def create_gcs_bucket(cls, name: str, location: Optional[str] = None) -> None:
+    def create_gcs_bucket(cls, name: str, location: str | None = None) -> None:
         bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
         cmd = ["gsutil", "mb"]
         if location:

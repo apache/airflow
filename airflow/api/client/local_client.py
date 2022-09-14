@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Local client API"""
+from __future__ import annotations
 
 from airflow.api.client import api_client
 from airflow.api.common import delete_dag, trigger_dag

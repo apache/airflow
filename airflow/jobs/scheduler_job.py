@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import itertools
 import logging
 import multiprocessing
@@ -27,7 +28,7 @@ import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
 
 from sqlalchemy import func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -115,8 +116,8 @@ class SchedulerJob(BaseJob):
         num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat('scheduler', 'scheduler_idle_sleep_time'),
         do_pickle: bool = False,
-        log: Optional[logging.Logger] = None,
-        processor_poll_interval: Optional[float] = None,
+        log: logging.Logger | None = None,
+        processor_poll_interval: float | None = None,
         *args,
         **kwargs,
     ):
@@ -152,10 +153,10 @@ class SchedulerJob(BaseJob):
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
-        self.processor_agent: Optional["DagFileProcessorAgent"] = None
+        self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._paused_dag_without_running_dagruns: Set = set()
+        self._paused_dag_without_running_dagruns: set = set()
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
@@ -163,7 +164,7 @@ class SchedulerJob(BaseJob):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
-    def _exit_gracefully(self, signum: int, frame: Optional["FrameType"]) -> None:
+    def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -174,7 +175,7 @@ class SchedulerJob(BaseJob):
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
-    def _debug_dump(self, signum: int, frame: Optional["FrameType"]) -> None:
+    def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
         if not _is_parent_process():
             # Only the parent process should perform the debug dump.
             return
@@ -189,7 +190,7 @@ class SchedulerJob(BaseJob):
         self.executor.debug_dump()
         self.log.info("-" * 80)
 
-    def is_alive(self, grace_multiplier: Optional[float] = None) -> bool:
+    def is_alive(self, grace_multiplier: float | None = None) -> bool:
         """
         Is this SchedulerJob alive?
 
@@ -211,8 +212,8 @@ class SchedulerJob(BaseJob):
         )
 
     def __get_concurrency_maps(
-        self, states: List[TaskInstanceState], session: Session
-    ) -> Tuple[DefaultDict[str, int], DefaultDict[Tuple[str, str], int]]:
+        self, states: list[TaskInstanceState], session: Session
+    ) -> tuple[DefaultDict[str, int], DefaultDict[tuple[str, str], int]]:
         """
         Get the concurrency maps.
 
@@ -221,20 +222,20 @@ class SchedulerJob(BaseJob):
          a map from (dag_id, task_id) to # of task instances in the given state list
         :rtype: tuple[dict[str, int], dict[tuple[str, str], int]]
         """
-        ti_concurrency_query: List[Tuple[str, str, int]] = (
+        ti_concurrency_query: list[tuple[str, str, int]] = (
             session.query(TI.task_id, TI.dag_id, func.count('*'))
             .filter(TI.state.in_(states))
             .group_by(TI.task_id, TI.dag_id)
         ).all()
         dag_map: DefaultDict[str, int] = defaultdict(int)
-        task_map: DefaultDict[Tuple[str, str], int] = defaultdict(int)
+        task_map: DefaultDict[tuple[str, str], int] = defaultdict(int)
         for result in ti_concurrency_query:
             task_id, dag_id, count = result
             dag_map[dag_id] += count
             task_map[(dag_id, task_id)] = count
         return dag_map, task_map
 
-    def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> List[TI]:
+    def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
         dag max_active_tasks, executor state, and priority.
@@ -245,7 +246,7 @@ class SchedulerJob(BaseJob):
         from airflow.models.pool import Pool
         from airflow.utils.db import DBLocks
 
-        executable_tis: List[TI] = []
+        executable_tis: list[TI] = []
 
         if session.get_bind().dialect.name == "postgresql":
             # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
@@ -280,7 +281,7 @@ class SchedulerJob(BaseJob):
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         dag_active_tasks_map: DefaultDict[str, int]
-        task_concurrency_map: DefaultDict[Tuple[str, str], int]
+        task_concurrency_map: DefaultDict[tuple[str, str], int]
         dag_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
             states=list(EXECUTION_STATES), session=session
         )
@@ -290,8 +291,8 @@ class SchedulerJob(BaseJob):
         num_starving_tasks_total = 0
 
         # dag and task ids that can't be queued because of concurrency limits
-        starved_dags: Set[str] = set()
-        starved_tasks: Set[Tuple[str, str]] = set()
+        starved_dags: set[str] = set()
+        starved_tasks: set[tuple[str, str]] = set()
 
         pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
 
@@ -328,7 +329,7 @@ class SchedulerJob(BaseJob):
 
             query = query.limit(max_tis)
 
-            task_instances_to_examine: List[TI] = with_row_locks(
+            task_instances_to_examine: list[TI] = with_row_locks(
                 query,
                 of=TI,
                 session=session,
@@ -441,7 +442,7 @@ class SchedulerJob(BaseJob):
                         ).update({TI.state: TaskInstanceState.FAILED}, synchronize_session='fetch')
                         continue
 
-                    task_concurrency_limit: Optional[int] = None
+                    task_concurrency_limit: int | None = None
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
@@ -513,7 +514,7 @@ class SchedulerJob(BaseJob):
             make_transient(ti)
         return executable_tis
 
-    def _enqueue_task_instances_with_queued_state(self, task_instances: List[TI], session: Session) -> None:
+    def _enqueue_task_instances_with_queued_state(self, task_instances: list[TI], session: Session) -> None:
         """
         Takes task_instances, which should have been set to queued, and enqueues them
         with the executor.
@@ -574,9 +575,9 @@ class SchedulerJob(BaseJob):
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str, int], int] = {}
+        ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = self.executor.get_event_buffer()
-        tis_with_right_state: List[TaskInstanceKey] = []
+        tis_with_right_state: list[TaskInstanceKey] = []
 
         # Report execution
         for ti_key, value in event_buffer.items():
@@ -1075,7 +1076,7 @@ class SchedulerJob(BaseJob):
     def _create_dag_runs_dataset_triggered(
         self,
         dag_models: Collection[DagModel],
-        dataset_triggered_dag_info: Dict[str, Tuple[datetime, datetime]],
+        dataset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by datasets, create dag runs."""
@@ -1087,7 +1088,7 @@ class SchedulerJob(BaseJob):
             dag_id: timezone.coerce_datetime(last_time)
             for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
         }
-        existing_dagruns: Set[Tuple[str, timezone.DateTime]] = set(
+        existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.query(DagRun.dag_id, DagRun.execution_date).filter(
                 tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
             )
@@ -1230,14 +1231,14 @@ class SchedulerJob(BaseJob):
         self,
         dag_run: DagRun,
         session: Session,
-    ) -> Optional[DagCallbackRequest]:
+    ) -> DagCallbackRequest | None:
         """
         Make scheduling decisions about an individual dag run
 
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        callback: Optional[DagCallbackRequest] = None
+        callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
 
@@ -1314,9 +1315,7 @@ class SchedulerJob(BaseJob):
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
 
-    def _send_dag_callbacks_to_processor(
-        self, dag: DAG, callback: Optional[DagCallbackRequest] = None
-    ) -> None:
+    def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
         self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.executor.send_callback(callback)

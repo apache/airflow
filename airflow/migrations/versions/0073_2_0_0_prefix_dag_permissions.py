@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Prefix DAG permissions.
 
 Revision ID: 849da589634d
@@ -23,6 +22,7 @@ Revises: 45ba3f1493b9
 Create Date: 2020-10-01 17:25:10.006322
 
 """
+from __future__ import annotations
 
 from flask_appbuilder import SQLA
 

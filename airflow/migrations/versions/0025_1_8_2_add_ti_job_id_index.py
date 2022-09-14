@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Create index on ``job_id`` column in ``task_instance`` table
 
 Revision ID: 947454bf1dff
@@ -23,6 +22,8 @@ Revises: bdaa763e6c56
 Create Date: 2017-08-15 15:12:13.845074
 
 """
+from __future__ import annotations
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
