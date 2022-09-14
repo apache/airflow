@@ -463,6 +463,7 @@ def dag_test(args, session=None):
 
         """
         format = logging.Formatter("\t[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
+        print(f"adding logger to {ti.task_id}")
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(format)
         if not ti.log.handlers:  # only add log handler once
@@ -531,15 +532,15 @@ def _run_task(ti: TaskInstance, session=None):
         ti: TaskInstance to run
     """
     current_task = ti.render_templates(ti.get_template_context())
-    log.info(f"*****************************************************")
-    log.info(f"Running task {current_task.task_id}")
+    log.info("*****************************************************")
+    log.info("Running task %s", current_task.task_id)
     try:
         xcom_value = current_task.execute(context=ti.get_template_context())
         ti.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
-        log.info(f"{current_task.task_id} ran successfully!")
+        log.info("%s ran successfully!", current_task.task_id)
     except AirflowSkipException as e:
         log.info("Task Skipped, continuing")
-    log.info(f"*****************************************************")
+    log.info("*****************************************************")
 
     ti.set_state(State.SUCCESS)
 
