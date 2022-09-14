@@ -24,7 +24,7 @@ When you create new or modify existing DAG files, it is necessary to deploy them
 Bake DAGs in Docker image
 -------------------------
 
-This option uses the Docker image containing the latest DAG code. 
+This option uses the Docker image containing the latest DAG code.
 
 This method requires redeploying the services in the helm chart with the new docker image in order to use the new DAG code. This might be a good      option if DAG code is not expected to change frequently.
 
