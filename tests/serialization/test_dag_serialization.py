@@ -1961,7 +1961,62 @@ def test_operator_expand_xcomarg_serde():
 
 
 @pytest.mark.parametrize("strict", [True, False])
-def test_operator_expand_kwargs_serde(strict):
+def test_operator_expand_kwargs_literal_serde(strict):
+    from airflow.models.xcom_arg import PlainXComArg, XComArg
+    from airflow.serialization.serialized_objects import _XComRef
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(
+            [{"a": "x"}, {"a": XComArg(task1)}],
+            strict=strict,
+        )
+
+    serialized = SerializedBaseOperator.serialize(mapped)
+    assert serialized == {
+        '_is_empty': False,
+        '_is_mapped': True,
+        '_task_module': 'tests.test_utils.mock_operators',
+        '_task_type': 'MockOperator',
+        'downstream_task_ids': [],
+        'expand_input': {
+            "type": "list-of-dicts",
+            "value": [
+                {"__type": "dict", "__var": {"a": "x"}},
+                {
+                    "__type": "dict",
+                    "__var": {"a": {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
+                },
+            ],
+        },
+        'partial_kwargs': {},
+        'task_id': 'task_2',
+        'template_fields': ['arg1', 'arg2'],
+        'template_ext': [],
+        'template_fields_renderers': {},
+        'operator_extra_links': [],
+        'ui_color': '#fff',
+        'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": strict,
+        '_expand_input_attr': 'expand_input',
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
+    assert op._disallow_kwargs_override == strict
+
+    # The XComArg can't be deserialized before the DAG is.
+    expand_value = op.expand_input.value
+    assert expand_value == [{"a": "x"}, {"a": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})}]
+
+    serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    resolved_expand_value = serialized_dag.task_dict['task_2'].expand_input.value
+    resolved_expand_value == [{"a": "x"}, {"a": PlainXComArg(serialized_dag.task_dict['op1'])}]
+
+
+@pytest.mark.parametrize("strict", [True, False])
+def test_operator_expand_kwargs_xcomarg_serde(strict):
     from airflow.models.xcom_arg import PlainXComArg, XComArg
     from airflow.serialization.serialized_objects import _XComRef
 

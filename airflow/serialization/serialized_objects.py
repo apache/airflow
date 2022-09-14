@@ -17,6 +17,7 @@
 """Serialized DAG and BaseOperator"""
 from __future__ import annotations
 
+import collections.abc
 import datetime
 import enum
 import logging
@@ -24,7 +25,7 @@ import warnings
 import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Type
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Type, Union
 
 import cattr
 import lazy_object_proxy
@@ -207,6 +208,26 @@ class _XComRef(NamedTuple):
         return deserialize_xcom_arg(self.data, dag)
 
 
+# These two should be kept in sync. Note that these are intentionally not using
+# the type declarations in expandinput.py so we always remember to update
+# serialization logic when adding new ExpandInput variants. If you add things to
+# the unions, be sure to update _ExpandInputRef to match.
+_ExpandInputOriginalValue = Union[
+    # For .expand(**kwargs).
+    Mapping[str, Any],
+    # For expand_kwargs(arg).
+    XComArg,
+    Collection[Union[XComArg, Mapping[str, Any]]],
+]
+_ExpandInputSerializedValue = Union[
+    # For .expand(**kwargs).
+    Mapping[str, Any],
+    # For expand_kwargs(arg).
+    _XComRef,
+    Collection[Union[_XComRef, Mapping[str, Any]]],
+]
+
+
 class _ExpandInputRef(NamedTuple):
     """Used to store info needed to create a mapped operator's expand input.
 
@@ -215,13 +236,29 @@ class _ExpandInputRef(NamedTuple):
     """
 
     key: str
-    value: _XComRef | dict[str, Any]
+    value: _ExpandInputSerializedValue
+
+    @classmethod
+    def validate_expand_input_value(cls, value: _ExpandInputOriginalValue) -> None:
+        """Validate we've covered all ``ExpandInput.value`` types.
+
+        This function does not actually do anything, but is called during
+        serialization so Mypy will *statically* check we have handled all
+        possible ExpandInput cases.
+        """
 
     def deref(self, dag: DAG) -> ExpandInput:
+        """De-reference into a concrete ExpandInput object.
+
+        If you add more cases here, be sure to update _ExpandInputOriginalValue
+        and _ExpandInputSerializedValue to match the logic.
+        """
         if isinstance(self.value, _XComRef):
             value: Any = self.value.deref(dag)
-        else:
+        elif isinstance(self.value, collections.abc.Mapping):
             value = {k: v.deref(dag) if isinstance(v, _XComRef) else v for k, v in self.value.items()}
+        else:
+            value = [v.deref(dag) if isinstance(v, _XComRef) else v for v in self.value]
         return create_expand_input(self.key, value)
 
 
@@ -663,6 +700,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialized_op = cls._serialize_node(op, include_deps=op.deps != MappedOperator.deps_for(BaseOperator))
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
+        if TYPE_CHECKING:  # Let Mypy check the input type for us!
+            _ExpandInputRef.validate_expand_input_value(expansion_kwargs.value)
         serialized_op[op._expand_input_attr] = {
             "type": get_map_type_key(expansion_kwargs),
             "value": cls.serialize(expansion_kwargs.value),
