@@ -2479,7 +2479,7 @@ class DAG(LoggingMixin):
             for ti in schedulable_tis:
                 add_logger_if_needed(ti)
                 ti.task = tasks[ti.task_id]
-                _run_task(ti)
+                _run_task(ti, session=session)
 
     @provide_session
     def create_dagrun(
@@ -3553,8 +3553,7 @@ class DagContext:
             return None
 
 
-@provide_session
-def _run_task(ti: TaskInstance, session=None):
+def _run_task(ti: TaskInstance, session):
     """
     Run a single task instance, and push result to Xcom for downstream tasks. Bypasses a lot of
     extra steps used in `task.run` to keep our local running as fast as possible
@@ -3565,6 +3564,7 @@ def _run_task(ti: TaskInstance, session=None):
     log.info("Running task %s", ti.task_id)
     try:
         ti._run_raw_task(session=session)
+        session.flush()
         log.info("%s ran successfully!", ti.task_id)
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
