@@ -610,7 +610,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_EXTRAS": "airflow_extras",
-    "DEFAULT_CONSTRAINTS_BRANCH": "default-constraints-branch",
+    "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
     "AIRFLOW_CONSTRAINTS_REFERENCE": "airflow_constraints_reference",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
