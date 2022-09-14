@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 import boto3
 
@@ -142,7 +141,7 @@ def delete_job_queue(job_queue_name):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_logs(env_id: str) -> None:
-    generated_log_groups: List[Tuple[str, Optional[str]]] = [
+    generated_log_groups: list[tuple[str, str | None]] = [
         # Format: ('log group name', 'log stream prefix')
         ('/aws/batch/job', env_id),
     ]
