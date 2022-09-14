@@ -40,9 +40,11 @@ https://airflow.apache.org/concepts.html#variables
 
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -80,7 +82,7 @@ body = {"name": FUNCTION_NAME, "entryPoint": ENTRYPOINT, "runtime": RUNTIME, "ht
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args: Dict[str, Any] = {'retries': 3}
+default_args: dict[str, Any] = {'retries': 3}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
