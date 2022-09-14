@@ -550,7 +550,7 @@ def _get_or_create_dagrun(
     execution_date: datetime,
     run_id: str,
     session: Session,
-) -> object:
+) -> DagRun:
 
     log.info("dagrun id:" + dag.dag_id)
     dr: DagRun = (
