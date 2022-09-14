@@ -29,7 +29,7 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Callable, Generator, List, Optional, Sequence, Set, TypeVar, cast, overload
+from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -47,6 +47,10 @@ from airflow.version import version
 
 RT = TypeVar('RT')
 T = TypeVar("T", bound=Callable)
+
+# GCSHook has a method named 'list' (to junior devs: please don't do this), so
+# we need to create an alias to prevent Mypy being confused.
+List = list
 
 # Use default timeout from google-cloud-storage
 DEFAULT_TIMEOUT = 60
@@ -127,7 +131,7 @@ class GCSHook(GoogleBaseHook):
     connection.
     """
 
-    _conn = None  # type: Optional[storage.Client]
+    _conn: storage.Client | None = None
 
     def __init__(
         self,
@@ -671,7 +675,7 @@ class GCSHook(GoogleBaseHook):
         except NotFound:
             self.log.info("Bucket %s not exists", bucket_name)
 
-    def list(self, bucket_name, versions=None, max_results=None, prefix=None, delimiter=None) -> list:
+    def list(self, bucket_name, versions=None, max_results=None, prefix=None, delimiter=None) -> List:
         """
         List all objects from the bucket with the give string prefix in name
 
@@ -1127,11 +1131,11 @@ class GCSHook(GoogleBaseHook):
         # Determine objects to copy and delete
         to_copy = source_names - destination_names
         to_delete = destination_names - source_names
-        to_copy_blobs = {source_names_index[a] for a in to_copy}  # type: Set[storage.Blob]
-        to_delete_blobs = {destination_names_index[a] for a in to_delete}  # type: Set[storage.Blob]
+        to_copy_blobs: set[storage.Blob] = {source_names_index[a] for a in to_copy}
+        to_delete_blobs: set[storage.Blob] = {destination_names_index[a] for a in to_delete}
         # Find names that are in both buckets
         names_to_check = source_names.intersection(destination_names)
-        to_rewrite_blobs = set()  # type: Set[storage.Blob]
+        to_rewrite_blobs: set[storage.Blob] = set()
         # Compare objects based on crc32
         for current_name in names_to_check:
             source_blob = source_names_index[current_name]
