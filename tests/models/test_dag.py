@@ -2102,10 +2102,16 @@ class TestDag:
 
 
 class TestDagModel:
-    def setup_method(self):
+    def _clean(self):
         clear_db_dags()
         clear_db_datasets()
         clear_db_runs()
+
+    def setup_method(self):
+        self._clean()
+
+    def teardown_method(self):
+        self._clean()
 
     def test_dags_needing_dagruns_not_too_early(self):
         dag = DAG(dag_id='far_future_dag', start_date=timezone.datetime(2038, 1, 1))
