@@ -535,6 +535,7 @@ def _run_task(ti: TaskInstance, session):
     log.info("Running task %s", ti.task_id)
     try:
         ti._run_raw_task(session=session)
+        session.flush()
         log.info("%s ran successfully!", ti.task_id)
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
