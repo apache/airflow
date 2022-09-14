@@ -524,8 +524,7 @@ def dag_test(args, session=None):
             print(dot_graph.source)
 
 
-@provide_session
-def _run_task(ti: TaskInstance, session=None):
+def _run_task(ti: TaskInstance, session):
     """
     Run a single task instance, and push result to Xcom for downstream tasks. Bypasses a lot of
     extra steps used in `task.run` to keep our local running as fast as possible
