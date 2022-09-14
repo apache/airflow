@@ -31,7 +31,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Callable, DefaultDict, Dict, Iterator, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_, tuple_
@@ -1218,7 +1218,15 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        tis: List[TI] = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model')).all()
+        query = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model'))
+        # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
+        # multi-schedulers
+        tis: Iterator[TI] = with_row_locks(
+            query,
+            of=TI,
+            session=session,
+            **skip_locked(session=session),
+        )
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
