@@ -36,8 +36,7 @@ from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, BackfillUnfinished, RemovedInAirflow3Warning
-from airflow.executors.debug_executor import DebugExecutor
+from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
@@ -542,9 +541,12 @@ def _run_task(ti: TaskInstance, session=None):
     current_task = ti.render_templates(ti.get_template_context())
     log.info(f"*****************************************************")
     log.info(f"Running task {current_task.task_id}")
-    xcom_value = current_task.execute(context=ti.get_template_context())
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
-    log.info(f"{current_task.task_id} ran successfully!")
+    try:
+        xcom_value = current_task.execute(context=ti.get_template_context())
+        ti.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+        log.info(f"{current_task.task_id} ran successfully!")
+    except AirflowSkipException as e:
+        log.info("Task Skipped, continuing")
     log.info(f"*****************************************************")
 
     ti.set_state(State.SUCCESS)
