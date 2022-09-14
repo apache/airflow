@@ -357,6 +357,28 @@ class TestDagBag:
             assert dag, f"{dag_id} was bagged"
             assert dag.fileloc.endswith(path)
 
+    def test_dag_registration_with_failure(self):
+        dagbag = models.DagBag(dag_folder=os.devnull, include_examples=False)
+        found = dagbag.process_file(str(TEST_DAGS_FOLDER / 'test_invalid_dup_task.py'))
+        assert [] == found
+
+    @pytest.fixture()
+    def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> Iterator[str]:
+        failing_dag_file = TEST_DAGS_FOLDER / 'test_invalid_dup_task.py'
+        working_dag_file = TEST_DAGS_FOLDER / 'test_example_bash_operator.py'
+        zipped = os.path.join(tmp_path, "test_zip_invalid_dup_task.zip")
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.write(failing_dag_file, os.path.basename(failing_dag_file))
+            zf.write(working_dag_file, os.path.basename(working_dag_file))
+        yield zipped
+        os.unlink(zipped)
+
+    def test_dag_registration_with_failure_zipped(self, zip_with_valid_dag_and_dup_tasks):
+        dagbag = models.DagBag(dag_folder=os.devnull, include_examples=False)
+        found = dagbag.process_file(zip_with_valid_dag_and_dup_tasks)
+        assert 1 == len(found)
+        assert ['test_example_bash_operator'] == [dag.dag_id for dag in found]
+
     @patch.object(DagModel, "get_current")
     def test_refresh_py_dag(self, mock_dagmodel):
         """
