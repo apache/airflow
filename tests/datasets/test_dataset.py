@@ -14,29 +14,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import Any
-from urllib.parse import urlparse
+import pytest
 
-import attr
+from airflow.datasets import Dataset
+from airflow.operators.empty import EmptyOperator
 
 
-@attr.define()
-class Dataset:
-    """A Dataset is used for marking data dependencies between workflows."""
+@pytest.mark.parametrize(
+    ["uri"],
+    [
+        pytest.param("", id="empty"),
+        pytest.param("\n\t", id="whitespace"),
+        pytest.param("a" * 3001, id="too_long"),
+        pytest.param("airflow:" * 3001, id="reserved_scheme"),
+        pytest.param("😊" * 3001, id="non-ascii"),
+    ],
+)
+def test_invalid_uris(uri):
+    with pytest.raises(ValueError):
+        Dataset(uri=uri)
 
-    uri: str = attr.field(validator=[attr.validators.min_len(1), attr.validators.max_len(3000)])
-    extra: dict[str, Any] | None = None
 
-    @uri.validator
-    def _check_uri(self, attr, uri: str):
-        if uri.isspace():
-            raise ValueError(f'{attr.name} cannot be just whitespace')
-        try:
-            uri.encode('ascii')
-        except UnicodeEncodeError:
-            raise ValueError(f'{attr.name!r} must be ascii')
-        parsed = urlparse(uri)
-        if parsed.scheme and parsed.scheme.lower() == 'airflow':
-            raise ValueError(f'{attr.name!r} scheme `airflow` is reserved')
+def test_uri_with_scheme():
+    dataset = Dataset(uri="s3://example_dataset")
+    EmptyOperator(task_id="task1", outlets=[dataset])
+
+
+def test_uri_without_scheme():
+    dataset = Dataset(uri="example_dataset")
+    EmptyOperator(task_id="task1", outlets=[dataset])
