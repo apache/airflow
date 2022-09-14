@@ -214,7 +214,7 @@ class PodLauncher(LoggingMixin):
     def base_container_is_running(self, pod: V1Pod):
         """Tests if base container is running"""
         event = self.read_pod(pod)
-        status = next(iter(filter(lambda s: s.name == 'base', event.status.container_statuses)), None)
+        status = next((s for s in event.status.container_statuses if s.name == 'base'), None)
         if not status:
             return False
         return status.state.running is not None
