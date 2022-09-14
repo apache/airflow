@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Serialized DAG table in database."""
+from __future__ import annotations
 
 import hashlib
 import logging
 import zlib
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
@@ -93,7 +93,7 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG, processor_subdir: Optional[str] = None):
+    def __init__(self, dag: DAG, processor_subdir: str | None = None):
         self.dag_id = dag.dag_id
         self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
@@ -124,8 +124,8 @@ class SerializedDagModel(Base):
     def write_dag(
         cls,
         dag: DAG,
-        min_update_interval: Optional[int] = None,
-        processor_subdir: Optional[str] = None,
+        min_update_interval: int | None = None,
+        processor_subdir: str | None = None,
         session: Session = None,
     ) -> bool:
         """Serializes a DAG and writes it into database.
@@ -179,7 +179,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session: Session = None) -> Dict[str, 'SerializedDAG']:
+    def read_all_dags(cls, session: Session = None) -> dict[str, SerializedDAG]:
         """Reads all DAGs in serialized_dag table.
 
         :param session: ORM Session
@@ -237,7 +237,7 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def remove_deleted_dags(
-        cls, alive_dag_filelocs: List[str], processor_subdir: Optional[str] = None, session=None
+        cls, alive_dag_filelocs: list[str], processor_subdir: str | None = None, session=None
     ):
         """Deletes DAGs not included in alive_dag_filelocs.
 
@@ -275,7 +275,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag(cls, dag_id: str, session: Session = None) -> Optional['SerializedDAG']:
+    def get_dag(cls, dag_id: str, session: Session = None) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:
             return row.dag
@@ -283,7 +283,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get(cls, dag_id: str, session: Session = None) -> Optional['SerializedDagModel']:
+    def get(cls, dag_id: str, session: Session = None) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
         It will cope with being passed the ID of a subdag by looking up the
@@ -304,7 +304,7 @@ class SerializedDagModel(Base):
 
     @staticmethod
     @provide_session
-    def bulk_sync_to_db(dags: List[DAG], processor_subdir: Optional[str] = None, session: Session = None):
+    def bulk_sync_to_db(dags: list[DAG], processor_subdir: str | None = None, session: Session = None):
         """
         Saves DAGs as Serialized DAG objects in the database. Each
         DAG is saved in a separate database query.
@@ -324,7 +324,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> Optional[datetime]:
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime | None:
         """
         Get the date when the Serialized DAG associated to DAG was last updated
         in serialized_dag table
@@ -336,7 +336,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_max_last_updated_datetime(cls, session: Session = None) -> Optional[datetime]:
+    def get_max_last_updated_datetime(cls, session: Session = None) -> datetime | None:
         """
         Get the maximum date when any DAG was last updated in serialized_dag table
 
@@ -346,7 +346,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> Optional[str]:
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str | None:
         """
         Get the latest DAG version for a given DAG ID.
 
@@ -359,7 +359,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag_dependencies(cls, session: Session = None) -> Dict[str, List['DagDependency']]:
+    def get_dag_dependencies(cls, session: Session = None) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs
 

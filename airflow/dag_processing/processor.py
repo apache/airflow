@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import logging
@@ -25,7 +26,7 @@ import time
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import TYPE_CHECKING, Iterator, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Iterator
 
 from setproctitle import setproctitle
 from sqlalchemy import exc, func, or_
@@ -74,9 +75,9 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         self,
         file_path: str,
         pickle_dags: bool,
-        dag_ids: Optional[List[str]],
+        dag_ids: list[str] | None,
         dag_directory: str,
-        callback_requests: List[CallbackRequest],
+        callback_requests: list[CallbackRequest],
     ):
         super().__init__()
         self._file_path = file_path
@@ -86,18 +87,18 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         self._callback_requests = callback_requests
 
         # The process that was launched to process the given .
-        self._process: Optional[multiprocessing.process.BaseProcess] = None
+        self._process: multiprocessing.process.BaseProcess | None = None
         # The result of DagFileProcessor.process_file(file_path).
-        self._result: Optional[Tuple[int, int]] = None
+        self._result: tuple[int, int] | None = None
         # Whether the process is done running.
         self._done = False
         # When the process started.
-        self._start_time: Optional[datetime.datetime] = None
+        self._start_time: datetime.datetime | None = None
         # This ID is use to uniquely name the process / thread that's launched
         # by this processor instance
         self._instance_id = DagFileProcessorProcess.class_creation_counter
 
-        self._parent_channel: Optional[MultiprocessingConnection] = None
+        self._parent_channel: MultiprocessingConnection | None = None
         DagFileProcessorProcess.class_creation_counter += 1
 
     @property
@@ -110,10 +111,10 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         parent_channel: MultiprocessingConnection,
         file_path: str,
         pickle_dags: bool,
-        dag_ids: Optional[List[str]],
+        dag_ids: list[str] | None,
         thread_name: str,
         dag_directory: str,
-        callback_requests: List[CallbackRequest],
+        callback_requests: list[CallbackRequest],
     ) -> None:
         """
         Process the given file.
@@ -154,7 +155,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
             log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
             dag_file_processor = DagFileProcessor(dag_ids=dag_ids, dag_directory=dag_directory, log=log)
-            result: Tuple[int, int] = dag_file_processor.process_file(
+            result: tuple[int, int] = dag_file_processor.process_file(
                 file_path=file_path,
                 pickle_dags=pickle_dags,
                 callback_requests=callback_requests,
@@ -269,7 +270,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         return self._process.pid
 
     @property
-    def exit_code(self) -> Optional[int]:
+    def exit_code(self) -> int | None:
         """
         After the process is finished, this can be called to get the return code
 
@@ -326,7 +327,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         return False
 
     @property
-    def result(self) -> Optional[Tuple[int, int]]:
+    def result(self) -> tuple[int, int] | None:
         """
         :return: result of running DagFileProcessor.process_file()
         :rtype: tuple[int, int] or None
@@ -370,12 +371,12 @@ class DagFileProcessor(LoggingMixin):
 
     UNIT_TEST_MODE: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
 
-    def __init__(self, dag_ids: Optional[List[str]], dag_directory: str, log: logging.Logger):
+    def __init__(self, dag_ids: list[str] | None, dag_directory: str, log: logging.Logger):
         super().__init__()
         self.dag_ids = dag_ids
         self._log = log
         self._dag_directory = dag_directory
-        self.dag_warnings: Set[Tuple[str, str]] = set()
+        self.dag_warnings: set[tuple[str, str]] = set()
 
     @provide_session
     def manage_slas(self, dag: DAG, session: Session = None) -> None:
@@ -453,19 +454,19 @@ class DagFileProcessor(LoggingMixin):
                 session.add_all(sla_misses)
         session.commit()
 
-        slas: List[SlaMiss] = (
+        slas: list[SlaMiss] = (
             session.query(SlaMiss)
             .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
             .all()
         )
         if slas:
-            sla_dates: List[datetime.datetime] = [sla.execution_date for sla in slas]
-            fetched_tis: List[TI] = (
+            sla_dates: list[datetime.datetime] = [sla.execution_date for sla in slas]
+            fetched_tis: list[TI] = (
                 session.query(TI)
                 .filter(TI.state != State.SUCCESS, TI.execution_date.in_(sla_dates), TI.dag_id == dag.dag_id)
                 .all()
             )
-            blocking_tis: List[TI] = []
+            blocking_tis: list[TI] = []
             for ti in fetched_tis:
                 if ti.task_id in dag.task_ids:
                     ti.task = dag.get_task(ti.task_id)
@@ -511,7 +512,7 @@ class DagFileProcessor(LoggingMixin):
                     continue
                 tasks_missed_sla.append(task)
 
-            emails: Set[str] = set()
+            emails: set[str] = set()
             for task in tasks_missed_sla:
                 if task.email:
                     if isinstance(task.email, str):
@@ -626,7 +627,7 @@ class DagFileProcessor(LoggingMixin):
 
     @provide_session
     def execute_callbacks(
-        self, dagbag: DagBag, callback_requests: List[CallbackRequest], session: Session = NEW_SESSION
+        self, dagbag: DagBag, callback_requests: list[CallbackRequest], session: Session = NEW_SESSION
     ) -> None:
         """
         Execute on failure callbacks. These objects can come from SchedulerJob or from
@@ -655,7 +656,7 @@ class DagFileProcessor(LoggingMixin):
         session.flush()
 
     def execute_callbacks_without_dag(
-        self, callback_requests: List[CallbackRequest], session: Session
+        self, callback_requests: list[CallbackRequest], session: Session
     ) -> None:
         """
         Execute what callbacks we can as "best effort" when the dag cannot be found/had parse errors.
@@ -682,14 +683,12 @@ class DagFileProcessor(LoggingMixin):
             dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
         )
 
-    def _execute_task_callbacks(
-        self, dagbag: Optional[DagBag], request: TaskCallbackRequest, session: Session
-    ):
+    def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
         if not request.is_failure_callback:
             return
 
         simple_ti = request.simple_task_instance
-        ti: Optional[TI] = (
+        ti: TI | None = (
             session.query(TI)
             .filter_by(
                 dag_id=simple_ti.dag_id,
@@ -702,7 +701,7 @@ class DagFileProcessor(LoggingMixin):
         if not ti:
             return
 
-        task: Optional["Operator"] = None
+        task: Operator | None = None
 
         if dagbag and simple_ti.dag_id in dagbag.dags:
             dag = dagbag.dags[simple_ti.dag_id]
@@ -732,10 +731,10 @@ class DagFileProcessor(LoggingMixin):
     def process_file(
         self,
         file_path: str,
-        callback_requests: List[CallbackRequest],
+        callback_requests: list[CallbackRequest],
         pickle_dags: bool = False,
         session: Session = NEW_SESSION,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -787,7 +786,7 @@ class DagFileProcessor(LoggingMixin):
         if pickle_dags:
             paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
-            unpaused_dags: List[DAG] = [
+            unpaused_dags: list[DAG] = [
                 dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
             ]
 

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``serialized_dag`` table
 
 Revision ID: d38e04c12aa2
@@ -23,6 +22,8 @@ Revises: 6e96a59344a4
 Create Date: 2019-08-01 14:39:35.616417
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql

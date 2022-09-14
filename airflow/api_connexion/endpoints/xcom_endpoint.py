@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
-from typing import Optional
 
 from flask import g
 from sqlalchemy import and_
@@ -47,8 +48,8 @@ def get_xcom_entries(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    limit: Optional[int],
-    offset: Optional[int] = None,
+    limit: int | None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all XCom values"""

@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import ast
 import sys
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     if airflow_version.is_devrelease or 'b' in (airflow_version.pre or ()):
         exit(0)
     versions = read_revision_heads_map()
-    if airflow_version not in versions:
+    if airflow_version.base_version not in versions:
         print("Current airflow version is not in the REVISION_HEADS_MAP")
         print("Current airflow version:", airflow_version)
         print("Please add the version to the REVISION_HEADS_MAP at:", DB_FILE)

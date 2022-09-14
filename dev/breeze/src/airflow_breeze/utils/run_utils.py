@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Useful tools for running commands."""
+from __future__ import annotations
+
 import contextlib
 import os
 import re
@@ -25,7 +27,7 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Mapping, Union
 
 from rich.markup import escape
 
@@ -41,17 +43,17 @@ OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
-    cmd: List[str],
-    title: Optional[str] = None,
+    cmd: list[str],
+    title: str | None = None,
     *,
     check: bool = True,
     verbose: bool = False,
     dry_run: bool = False,
     no_output_dump_on_exception: bool = False,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
-    input: Optional[str] = None,
-    output: Optional[Output] = None,
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+    input: str | None = None,
+    output: Output | None = None,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -160,11 +162,11 @@ def run_command(
             return ex
 
 
-def get_environments_to_print(env: Optional[Mapping[str, str]]):
+def get_environments_to_print(env: Mapping[str, str] | None):
     if not env:
         return ""
-    system_env: Dict[str, str] = {}
-    my_env: Dict[str, str] = {}
+    system_env: dict[str, str] = {}
+    my_env: dict[str, str] = {}
     for key, val in env.items():
         if os.environ.get(key) == val:
             system_env[key] = val

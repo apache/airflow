@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-from typing import Mapping, Optional
+from typing import Mapping
 from unittest import mock
 from unittest.mock import call
 
@@ -73,8 +74,8 @@ class TestDagRun:
         self,
         dag: DAG,
         *,
-        task_states: Optional[Mapping[str, TaskInstanceState]] = None,
-        execution_date: Optional[datetime.datetime] = None,
+        task_states: Mapping[str, TaskInstanceState] | None = None,
+        execution_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         session: Session,
     ):

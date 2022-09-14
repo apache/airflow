@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import functools
 import importlib
 import sys
 import warnings
 from types import ModuleType
-from typing import Dict
 
 
-def getattr_with_deprecation(imports: Dict[str, str], module: str, name: str):
+def getattr_with_deprecation(imports: dict[str, str], module: str, name: str):
     target_class_full_name = imports.get(name)
     if not target_class_full_name:
         raise AttributeError(f"The module `{module!r}` has no attribute `{name!r}`")
@@ -36,7 +36,7 @@ def getattr_with_deprecation(imports: Dict[str, str], module: str, name: str):
     return getattr(importlib.import_module(new_module), new_class_name)
 
 
-def add_deprecated_classes(module_imports: Dict[str, Dict[str, str]], package: str):
+def add_deprecated_classes(module_imports: dict[str, dict[str, str]], package: str):
     for module_name, imports in module_imports.items():
         full_module_name = f"{package}.{module_name}"
         module_type = ModuleType(full_module_name)

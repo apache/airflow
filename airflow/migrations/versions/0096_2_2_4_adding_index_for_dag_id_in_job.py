@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add index for ``dag_id`` column in ``job`` table.
 
 Revision ID: 587bdf053233
@@ -23,6 +22,7 @@ Revises: c381b21cb7e4
 Create Date: 2021-12-14 10:20:12.482940
 
 """
+from __future__ import annotations
 
 from alembic import op
 

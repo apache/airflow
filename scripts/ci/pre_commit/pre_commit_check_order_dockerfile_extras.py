@@ -19,11 +19,12 @@
 """
 Test for an order of dependencies in setup.py
 """
+from __future__ import annotations
+
 import difflib
 import sys
 import textwrap
 from pathlib import Path
-from typing import List
 
 from rich import print
 
@@ -54,7 +55,7 @@ class ConsoleDiff(difflib.Differ):
                 yield f'{tag} {x[i]}'
 
 
-def _check_list_sorted(the_list: List[str], message: str) -> bool:
+def _check_list_sorted(the_list: list[str], message: str) -> bool:
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is [green]ok[/]")
@@ -69,14 +70,14 @@ def _check_list_sorted(the_list: List[str], message: str) -> bool:
 
 
 def get_replaced_content(
-    content: List[str],
-    extras_list: List[str],
+    content: list[str],
+    extras_list: list[str],
     start_line: str,
     end_line: str,
     prefix: str,
     suffix: str,
     add_empty_lines: bool,
-) -> List[str]:
+) -> list[str]:
     result = []
     is_copying = True
     for line in content:

@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -68,7 +70,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
 class ConnectionCollection(NamedTuple):
     """List of Connections with meta"""
 
-    connections: List[Connection]
+    connections: list[Connection]
     total_entries: int
 
 

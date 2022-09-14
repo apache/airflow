@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import multiprocessing as mp
 
@@ -49,7 +50,7 @@ from airflow_breeze.utils.custom_param_types import (
 from airflow_breeze.utils.recording import generating_command_images
 
 
-def _set_default_from_parent(ctx: "click.core.Context", option: "click.core.Option", value):
+def _set_default_from_parent(ctx: click.core.Context, option: click.core.Option, value):
     from click.core import ParameterSource
 
     if (
