@@ -55,6 +55,13 @@ argument.
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
+.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_python_render_sql]
+    :end-before: [END howto_operator_python_render_sql]
+
+
 
 
 .. _howto/operator:PythonVirtualenvOperator:
