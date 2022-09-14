@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``conf`` column in ``dag_run`` table
 
 Revision ID: 40e67319e3a9

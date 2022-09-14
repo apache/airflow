@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import io
@@ -26,7 +27,6 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -1697,8 +1697,8 @@ class TestDag:
     )
     def test_clear_dag(
         self,
-        ti_state_begin: Optional[TaskInstanceState],
-        ti_state_end: Optional[TaskInstanceState],
+        ti_state_begin: TaskInstanceState | None,
+        ti_state_end: TaskInstanceState | None,
     ):
         dag_id = 'test_clear_dag'
         self._clean_up(dag_id)
@@ -1905,7 +1905,7 @@ class TestDag:
             catchup=True,
         )
 
-        def _check_logs(records: List[logging.LogRecord], data_interval: DataInterval) -> None:
+        def _check_logs(records: list[logging.LogRecord], data_interval: DataInterval) -> None:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
@@ -2809,7 +2809,7 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
         pytest.param(['a normal tag', 'a' * 101], False, id="two tags and one of them is of length > 100"),
     ],
 )
-def test__tags_length(tags: List[str], should_pass: bool):
+def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         models.DAG('test-dag', tags=tags)
     else:

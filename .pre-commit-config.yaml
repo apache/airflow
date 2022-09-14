@@ -215,7 +215,11 @@ repos:
         args: ["--py37-plus"]
         # We need to exclude gcs hook from pyupgrade because it has public "list" command which clashes
         # with `list` that is used as type
-        exclude: ^airflow/_vendor/|^airflow/providers/google/cloud/hooks/gcs.py$
+        # Test Python tests if different kinds of typing including one that does not have
+        # __future__ annotations, so it should be left without automated upgrade
+        # BaseOperator is disabled because replacing ClassVar[List[Type with corresponding list/type causes the attr to fail
+        # see https://github.com/apache/airflow/pull/26290#issuecomment-1246014807
+        exclude: ^airflow/_vendor/|^airflow/providers/google/cloud/hooks/gcs.py$|^test/decorators/test_python.py$|^airflow/models/baseoperator.py$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:

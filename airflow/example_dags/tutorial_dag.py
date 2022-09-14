@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 ### DAG Tutorial Documentation
 This DAG is demonstrating an Extract -> Transform -> Load pipeline
 """
+from __future__ import annotations
+
 # [START tutorial]
 # [START import_module]
 import json

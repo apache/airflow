@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Roles sub-commands"""
+from __future__ import annotations
+
 import json
 import os
 
