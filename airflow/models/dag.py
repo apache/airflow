@@ -54,6 +54,7 @@ import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
@@ -3066,6 +3067,7 @@ class DagModel(Base):
         "DagScheduleDatasetReference",
         cascade='all, delete, delete-orphan',
     )
+    schedule_datasets = association_proxy('schedule_dataset_references', 'dataset')
     task_outlet_dataset_references = relationship(
         "TaskOutletDatasetReference",
         cascade='all, delete, delete-orphan',
@@ -3235,7 +3237,7 @@ class DagModel(Base):
         transaction is committed it will be unlocked.
         """
         # these dag ids are triggered by datasets, and they are ready to go.
-        dataset_triggered_dag_info_list = {
+        dataset_triggered_dag_info = {
             x.dag_id: (x.first_queued_time, x.last_queued_time)
             for x in session.query(
                 DagScheduleDatasetReference.dag_id,
@@ -3247,12 +3249,27 @@ class DagModel(Base):
             .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
             .all()
         }
-        dataset_triggered_dag_ids = list(dataset_triggered_dag_info_list.keys())
+        dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
+        if dataset_triggered_dag_ids:
+            exclusion_list = {
+                x.dag_id
+                for x in (
+                    session.query(DagModel.dag_id)
+                    .join(DagRun.dag_model)
+                    .filter(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
+                    .filter(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                    .group_by(DagModel.dag_id)
+                    .having(func.count() >= func.max(DagModel.max_active_runs))
+                    .all()
+                )
+            }
+            if exclusion_list:
+                dataset_triggered_dag_ids -= exclusion_list
+                dataset_triggered_dag_info = {
+                    k: v for k, v in dataset_triggered_dag_info.items() if k not in exclusion_list
+                }
 
-        # TODO[HA]: Bake this query, it is run _A lot_
-        # We limit so that _one_ scheduler doesn't try to do all the creation
-        # of dag runs
-
+        # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
         query = (
             session.query(cls)
             .filter(
@@ -3270,7 +3287,7 @@ class DagModel(Base):
 
         return (
             with_row_locks(query, of=cls, session=session, **skip_locked(session=session)),
-            dataset_triggered_dag_info_list,
+            dataset_triggered_dag_info,
         )
 
     def calculate_dagrun_date_fields(
