@@ -22,6 +22,8 @@ Revises: 2e541a1dcfed
 Create Date: 2015-10-29 08:36:31.726728
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 
