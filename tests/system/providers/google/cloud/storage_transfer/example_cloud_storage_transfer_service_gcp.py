@@ -28,6 +28,8 @@ This DAG relies on the following OS environment variables
 * GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 from pathlib import Path

@@ -15,8 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Cloud Tasks links."""
-from typing import TYPE_CHECKING, Optional
+"""This module contains Google Storage Transfer Service links."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
@@ -42,7 +45,7 @@ class CloudStorageTransferLinkHelper:
     """Helper class for Storage Transfer links"""
 
     @staticmethod
-    def extract_parts(operation_name: Optional[str]):
+    def extract_parts(operation_name: str | None):
         if not operation_name:
             return "", ""
         transfer_operation = operation_name.split("/")[1]
@@ -59,7 +62,7 @@ class CloudStorageTransferListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         project_id: str,
     ):
@@ -80,7 +83,7 @@ class CloudStorageTransferJobLink(BaseGoogleLink):
     @staticmethod
     def persist(
         task_instance,
-        context: "Context",
+        context: Context,
         project_id: str,
         job_name: str,
     ):
@@ -107,7 +110,7 @@ class CloudStorageTransferDetailsLink(BaseGoogleLink):
     @staticmethod
     def persist(
         task_instance,
-        context: "Context",
+        context: Context,
         project_id: str,
         operation_name: str,
     ):
