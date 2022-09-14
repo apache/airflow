@@ -2458,7 +2458,12 @@ class DAG(LoggingMixin):
                 ti.log.addHandler(handler)
 
         execution_date = execution_date or timezone.utcnow()
-        self.clear(start_date=execution_date, end_date=execution_date, dag_run_state=False)  # type: ignore
+        self.clear(
+            start_date=execution_date,
+            end_date=execution_date,
+            dag_run_state=False,  # type: ignore
+            session=session,
+        )
 
         dr: DagRun = _get_or_create_dagrun(
             dag=self,
@@ -3561,7 +3566,10 @@ def _run_task(ti: TaskInstance, session):
         ti: TaskInstance to run
     """
     log.info("*****************************************************")
-    log.info("Running task %s", ti.task_id)
+    if ti.map_index > 0:
+        log.info("Running task %s index %d", ti.task_id, ti.map_index)
+    else:
+        log.info("Running task %s", ti.task_id)
     try:
         ti._run_raw_task(session=session)
         session.flush()
