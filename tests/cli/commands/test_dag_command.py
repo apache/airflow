@@ -645,9 +645,7 @@ class TestCliDags(unittest.TestCase):
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
-                mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
-                ),
+                mock.call().test(execution_date=mock.ANY, run_conf=None, session=mock.ANY),
             ]
         )
 
@@ -669,7 +667,9 @@ class TestCliDags(unittest.TestCase):
             [
                 mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf={"dag_run_conf_param": "param_value"},
+                    session=mock.ANY,
                 ),
             ]
         )
