@@ -226,6 +226,7 @@ command.
 Those are all available commands for Breeze and details about the commands are described below:
 
 .. image:: ./images/breeze/output-commands.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-commands.svg
   :width: 100%
   :alt: Breeze commands
 
@@ -406,6 +407,7 @@ easily identify the location the problems with documentation originated from.
 Those are all available flags of ``build-docs`` command:
 
 .. image:: ./images/breeze/output_build-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_build-docs.svg
   :width: 100%
   :alt: Breeze build documentation
 
@@ -467,6 +469,7 @@ If you ever need to get a list of the files that will be checked (for troublesho
 Those are all available flags of ``static-checks`` command:
 
 .. image:: ./images/breeze/output_static-checks.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_static-checks.svg
   :width: 100%
   :alt: Breeze static checks
 
@@ -502,6 +505,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 Those are all available flags of ``start-airflow`` command:
 
 .. image:: ./images/breeze/output_start-airflow.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_start-airflow.svg
   :width: 100%
   :alt: Breeze start-airflow
 
@@ -526,6 +530,7 @@ way as when you enter the environment. You can do it multiple times and open as 
 Those are all available flags of ``exec`` command:
 
 .. image:: ./images/breeze/output_exec.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_exec.svg
   :width: 100%
   :alt: Breeze exec
 
@@ -537,6 +542,7 @@ Airflow webserver needs to prepare www assets - compiled with node and yarn. The
 command takes care about it. This is needed when you want to run webserver inside of the breeze.
 
 .. image:: ./images/breeze/output_compile-www-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_compile-www-assets.svg
   :width: 100%
   :alt: Breeze compile-www-assets
 
@@ -552,6 +558,7 @@ Those are all available flags of ``cleanup`` command:
 
 
 .. image:: ./images/breeze/output_cleanup.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
   :alt: Breeze setup cleanup
 
@@ -568,6 +575,7 @@ and you can also use it to execute arbitrary commands inside the container.
 Those are all available flags of ``shell`` command:
 
 .. image:: ./images/breeze/output_shell.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_shell.svg
   :width: 100%
   :alt: Breeze shell
 
@@ -587,6 +595,7 @@ You can always stop it via:
 Those are all available flags of ``stop`` command:
 
 .. image:: ./images/breeze/output_stop.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_stop.svg
   :width: 100%
   :alt: Breeze stop
 
@@ -632,6 +641,7 @@ types easily. You can run unit tests in different ways, either interactively run
 Here is the detailed set of options for the ``breeze testing`` command.
 
 .. image:: ./images/breeze/output_testing.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing.svg
   :width: 100%
   :alt: Breeze testing
 
@@ -685,6 +695,7 @@ tests for airbyte and http providers.
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
 .. image:: ./images/breeze/output_testing_tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
 
@@ -695,6 +706,7 @@ You can use Breeze to run all Helm tests. Those tests are run inside the breeze 
 necessary tools installed there.
 
 .. image:: ./images/breeze/output_testing_helm-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_helm-tests.svg
   :width: 100%
   :alt: Breeze testing helm-tests
 
@@ -708,6 +720,7 @@ You can use Breeze to run all docker-compose tests. Those tests are run using Pr
 and they are running test with the Quick-start docker compose we have.
 
 .. image:: ./images/breeze/output_testing_docker-compose-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_docker-compose-tests.svg
   :width: 100%
   :alt: Breeze testing docker-compose-tests
 
@@ -744,6 +757,7 @@ You can read more about KinD that we use in `The documentation <https://kind.sig
 Here is the detailed set of options for the ``breeze k8s`` command.
 
 .. image:: ./images/breeze/output_k8s.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s.svg
   :width: 100%
   :alt: Breeze k8s
 
@@ -759,6 +773,7 @@ virtualenv. The Virtualenv is available in ``.build/.k8s-env/bin`` subdirectory 
 installation.
 
 .. image:: ./images/breeze/output_k8s_setup-env.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_setup-env.svg
   :width: 100%
   :alt: Breeze k8s setup-env
 
@@ -773,6 +788,7 @@ deleted if exists. You can also use it to create multiple clusters in parallel w
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_create-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_create-cluster.svg
   :width: 100%
   :alt: Breeze k8s create-cluster
 
@@ -785,6 +801,7 @@ You can delete current kubernetes cluster via ``breeze k8s delete-cluster`` comm
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_delete-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_delete-cluster.svg
   :width: 100%
   :alt: Breeze k8s delete-cluster
 
@@ -799,6 +816,7 @@ be done via ``breeze k8s build-k8s-image`` command. It can also be done in paral
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_build-k8s-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_build-k8s-image.svg
   :width: 100%
   :alt: Breeze k8s build-k8s-image
 
@@ -812,6 +830,7 @@ The K8S airflow images need to be uploaded to the KinD cluster. This can be done
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_upload-k8s-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_upload-k8s-image.svg
   :width: 100%
   :alt: Breeze k8s upload-k8s-image
 
@@ -825,6 +844,7 @@ for all clusters in parallel.
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_configure-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_configure-cluster.svg
   :width: 100%
   :alt: Breeze k8s configure-cluster
 
@@ -841,6 +861,7 @@ for all clusters in parallel.
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_deploy-airflow.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_deploy-airflow.svg
   :width: 100%
   :alt: Breeze k8s deploy-airflow
 
@@ -854,6 +875,7 @@ via ``breeze k8s status`` command. It can be also checked fora all clusters crea
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_status.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_status.svg
   :width: 100%
   :alt: Breeze k8s status
 
@@ -880,6 +902,7 @@ Run selected tests:
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_tests.svg
   :width: 100%
   :alt: Breeze k8s tests
 
@@ -947,6 +970,7 @@ be created and airflow deployed to it before running the tests):
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_shell.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_shell.svg
   :width: 100%
   :alt: Breeze k8s shell
 
@@ -969,6 +993,7 @@ downloading - it uses k9s docker image to run it and connect it to the right clu
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_k9s.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_k9s.svg
   :width: 100%
   :alt: Breeze k8s k9s
 
@@ -991,6 +1016,7 @@ so far by passing ``--all`` flag.
 All parameters of the command are here:
 
 .. image:: ./images/breeze/output_k8s_logs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_logs.svg
   :width: 100%
   :alt: Breeze k8s logs
 
@@ -1002,6 +1028,7 @@ The image building is usually run for users automatically when needed,
 but sometimes Breeze users might want to manually build, pull or verify the CI images.
 
 .. image:: ./images/breeze/output_ci-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image.svg
   :width: 100%
   :alt: Breeze ci-image
 
@@ -1027,6 +1054,7 @@ Building CI image
 Those are all available flags of ``ci-image build`` command:
 
 .. image:: ./images/breeze/output_ci-image_build.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_build.svg
   :width: 100%
   :alt: Breeze ci-image build
 
@@ -1038,6 +1066,7 @@ You can also pull the CI images locally in parallel with optional verification.
 Those are all available flags of ``pull`` command:
 
 .. image:: ./images/breeze/output_ci-image_pull.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_pull.svg
   :width: 100%
   :alt: Breeze ci-image pull
 
@@ -1050,6 +1079,7 @@ with an arbitrary image.
 Those are all available flags of ``verify`` command:
 
 .. image:: ./images/breeze/output_ci-image_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_verify.svg
   :width: 100%
   :alt: Breeze ci-image verify
 
@@ -1061,6 +1091,7 @@ use the PROD image, the regular docker build commands are recommended. See
 `building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
 
 .. image:: ./images/breeze/output_prod-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image.svg
   :width: 100%
   :alt: Breeze prod-image
 
@@ -1117,6 +1148,7 @@ Building PROD image
 Those are all available flags of ``build-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_build.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_build.svg
   :width: 100%
   :alt: Breeze prod-image build
 
@@ -1128,6 +1160,7 @@ You can also pull PROD images in parallel with optional verification.
 Those are all available flags of ``pull-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_pull.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_pull.svg
   :width: 100%
   :alt: Breeze prod-image pull
 
@@ -1140,6 +1173,7 @@ with an arbitrary image.
 Those are all available flags of ``verify-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_verify.svg
   :width: 100%
   :alt: Breeze prod-image verify
 
@@ -1154,6 +1188,7 @@ host operating system for Breeze autocompletion.
 Those are all available flags of ``setup`` command:
 
 .. image:: ./images/breeze/output_setup.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup.svg
   :width: 100%
   :alt: Breeze setup
 
@@ -1177,6 +1212,7 @@ rather than colours.
 Those are all available flags of ``setup config`` command:
 
 .. image:: ./images/breeze/output_setup_config.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_config.svg
   :width: 100%
   :alt: Breeze setup config
 
@@ -1194,6 +1230,7 @@ also force reinstalling the autocomplete via:
 Those are all available flags of ``setup-autocomplete`` command:
 
 .. image:: ./images/breeze/output_setup_autocomplete.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_autocomplete.svg
   :width: 100%
   :alt: Breeze setup autocomplete
 
@@ -1206,6 +1243,7 @@ Breeze is installed from and details about setup hashes.
 Those are all available flags of ``version`` command:
 
 .. image:: ./images/breeze/output_setup_version.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_version.svg
   :width: 100%
   :alt: Breeze version
 
@@ -1216,6 +1254,7 @@ Breeze self-upgrade
 You can self-upgrade breeze automatically. Those are all available flags of ``self-upgrade`` command:
 
 .. image:: ./images/breeze/output_setup_self-upgrade.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_self-upgrade.svg
   :width: 100%
   :alt: Breeze setup self-upgrade
 
@@ -1234,6 +1273,7 @@ only those that need regeneration). You can also run the command with ``--check-
 check if there are any images that need regeneration.
 
 .. image:: ./images/breeze/output_setup_regenerate-command-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_regenerate-command-images.svg
   :width: 100%
   :alt: Breeze setup regenerate-command-images
 
@@ -1244,6 +1284,7 @@ CI tasks
 Breeze hase a number of commands that are mostly used in CI environment to perform cleanup.
 
 .. image:: ./images/breeze/output_ci.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci.svg
   :width: 100%
   :alt: Breeze ci commands
 
@@ -1257,6 +1298,7 @@ manually run resource check any time by ``breeze ci resource-check`` command.
 Those are all available flags of ``resource-check`` command:
 
 .. image:: ./images/breeze/output_ci_resource-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_resource-check.svg
   :width: 100%
   :alt: Breeze ci resource-check
 
@@ -1270,6 +1312,7 @@ that might be a bit invasive - such are removing swap file and complete pruning 
 Those are all available flags of ``free-space`` command:
 
 .. image:: ./images/breeze/output_ci_free-space.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_free-space.svg
   :width: 100%
   :alt: Breeze ci free-space
 
@@ -1289,6 +1332,7 @@ by the root user, you can fix the ownership of those files by running :
 Those are all available flags of ``fix-ownership`` command:
 
 .. image:: ./images/breeze/output_ci_fix-ownership.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_fix-ownership.svg
   :width: 100%
   :alt: Breeze ci fix-ownership
 
@@ -1306,6 +1350,7 @@ found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 Those are all available flags of ``selective-check`` command:
 
 .. image:: ./images/breeze/output_ci_selective-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_selective-check.svg
   :width: 100%
   :alt: Breeze ci selective-check
 
@@ -1319,6 +1364,7 @@ is stored in GITHUB_CONTEXT. Rather than using some jq/bash commands, we retriev
 Those are all available flags of ``get-workflow-info`` command:
 
 .. image:: ./images/breeze/output_ci_get-workflow-info.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_get-workflow-info.svg
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
@@ -1335,6 +1381,7 @@ which new dependency might have caused the backtracking. The whole process is de
 Those are all available flags of ``find-newer-dependencies`` command:
 
 .. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
   :width: 100%
   :alt: Breeze ci find-newer-dependencies
 
@@ -1345,6 +1392,7 @@ Maintainers also can use Breeze for other purposes (those are commands that regu
 do not need or have no access to run). Those are usually connected with releasing Airflow:
 
 .. image:: ./images/breeze/output_release-management.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management.svg
   :width: 100%
   :alt: Breeze release management
 
@@ -1382,6 +1430,7 @@ importable, but you can add ``--skip-package-verification`` to skip it.
 You can also add ``--answer yes`` to perform non-interactive build.
 
 .. image:: ./images/breeze/output_release-management_prepare-provider-documentation.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-provider-documentation.svg
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
@@ -1414,6 +1463,7 @@ You can see all providers available by running this command:
      breeze release-management prepare-provider-packages --help
 
 .. image:: ./images/breeze/output_release-management_prepare-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-provider-packages.svg
   :width: 100%
   :alt: Breeze prepare-provider-packages
 
@@ -1437,6 +1487,7 @@ You can also run the verification with an earlier airflow version to check for c
 All the command parameters are here:
 
 .. image:: ./images/breeze/output_release-management_verify-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
 
@@ -1460,6 +1511,7 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
      breeze release-management prepare-airflow-package --package-format=wheel
 
 .. image:: ./images/breeze/output_release-management_prepare-airflow-package.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-package
 
@@ -1504,6 +1556,7 @@ Constraints are generated separately for each python version and there are separ
 Those are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/breeze/output_release-management_generate-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-constraints.svg
   :width: 100%
   :alt: Breeze generate-constraints
 
@@ -1542,6 +1595,7 @@ step can be skipped if you pass the ``--skip-latest`` flag.
 These are all of the available flags for the ``release-prod-images`` command:
 
 .. image:: ./images/breeze/output_release-management_release-prod-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_release-prod-images.svg
   :width: 100%
   :alt: Breeze release management release prod images
 
@@ -1560,6 +1614,7 @@ Then, next time when you start Breeze, it will have the data pre-populated.
 Those are all available flags of ``stop`` command:
 
 .. image:: ./images/breeze/output-stop.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-stop.svg
   :width: 100%
   :alt: Breeze stop
 
