@@ -45,7 +45,7 @@ securityContext: {}
 # Used for mount paths
 airflowHome: /opt/airflow
 
-# Default airflow repository -- overrides all the specific images below
+# Default airflow repository -- overridden by all the specific images below
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
