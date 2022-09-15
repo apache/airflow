@@ -2440,7 +2440,7 @@ class DAG(LoggingMixin):
     def test(
         self,
         execution_date: datetime | None = None,
-        run_conf: dict[str, Any] = None,
+        run_conf: dict[str, Any] | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
@@ -2480,7 +2480,7 @@ class DAG(LoggingMixin):
         )
 
         tasks = self.task_dict
-        log.info("starting dagrun")
+        self.log.info("starting dagrun")
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
