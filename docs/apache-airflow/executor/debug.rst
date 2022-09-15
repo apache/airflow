@@ -21,13 +21,6 @@ Testing DAGs with dag.test()
 To debug DAGs in an IDE, you can set up the ``dag.test`` command in your dag file and run through your DAG in a single
 serialized python process.
 
-The ``dag.test`` command has the following benefits over the :class:`~airflow.executors.debug_executor.DebugExecutor`
-class, which is now deprecated:
-
-1. It does not require running an executor at all. Tasks are run one at a time with no executor or scheduler logs.
-2. It is significantly faster than running code with a DebugExecutor as it does not need to go through a scheduler loop
-3. It does not perform a backfill
-
 This approach can be used with any supported database (including a local SQLite database) and will
 ``fail fast`` as all tasks run in a single process.
 
@@ -40,6 +33,16 @@ To set up ``dag.test``, add these two lines to the bottom of your dag file:
 
 and that's it! You can add argument such as ``execution_date`` if you want to test argument-specific dagruns, but otherwise
 you can run or debug DAGs as needed
+
+Comparison with DebugExecutor
+******************************
+
+The ``dag.test`` command has the following benefits over the :class:`~airflow.executors.debug_executor.DebugExecutor`
+class, which is now deprecated:
+
+1. It does not require running an executor at all. Tasks are run one at a time with no executor or scheduler logs.
+2. It is significantly faster than running code with a DebugExecutor as it does not need to go through a scheduler loop
+3. It does not perform a backfill
 
 
 Debugging Airflow DAGs on the command line
