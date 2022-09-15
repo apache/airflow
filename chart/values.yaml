@@ -1368,6 +1368,8 @@ statsd:
   # Additional mappings for StatsD exporter.
   extraMappings: []
 
+  podAnnotations: {}
+
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer

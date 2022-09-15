@@ -353,6 +353,19 @@ class TestServiceAccountAnnotations:
                 "example": "redis",
             },
         ),
+        (
+            {
+                "statsd": {
+                    "podAnnotations": {
+                        "example": "statsd",
+                    },
+                },
+            },
+            "templates/statsd/statsd-deployment.yaml",
+            {
+                "example": "statsd",
+            },
+        ),
     ],
 )
 class TestPerComponentPodAnnotations:
