@@ -789,7 +789,7 @@ class SchedulerJob(BaseJob):
                     session.query(DagRun)
                     .filter(
                         DagRun.dag_id == dag_id,
-                        DagRun.state == State.RUNNING,
+                        DagRun.state == DagRunState.RUNNING,
                         DagRun.run_type != DagRunType.BACKFILL_JOB,
                     )
                     .all()
