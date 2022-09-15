@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
+from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only
 __all__ = [

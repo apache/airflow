@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Mask sensitive information from logs"""
+from __future__ import annotations
+
 import collections
 import logging
 import re
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Set, TextIO, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
@@ -72,7 +74,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) -> None:
+def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     """
     Mask a secret from appearing in the task logs.
 
@@ -90,13 +92,13 @@ def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) 
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: Redactable, name: Optional[str] = None) -> Redacted:
+def redact(value: Redactable, name: str | None = None) -> Redacted:
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name)
 
 
 @cache
-def _secrets_masker() -> "SecretsMasker":
+def _secrets_masker() -> SecretsMasker:
     for flt in logging.getLogger('airflow.task').filters:
         if isinstance(flt, SecretsMasker):
             return flt
@@ -111,8 +113,8 @@ def _secrets_masker() -> "SecretsMasker":
 class SecretsMasker(logging.Filter):
     """Redact secrets from logs"""
 
-    replacer: Optional[re.Pattern] = None
-    patterns: Set[str]
+    replacer: re.Pattern | None = None
+    patterns: set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
@@ -188,7 +190,7 @@ class SecretsMasker(logging.Filter):
         else:
             return item
 
-    def _redact(self, item: Redactable, name: Optional[str], depth: int) -> Redacted:
+    def _redact(self, item: Redactable, name: str | None, depth: int) -> Redacted:
         # Avoid spending too much effort on redacting on deeply nested
         # structures. This also avoid infinite recursion if a structure has
         # reference to self.
@@ -229,7 +231,7 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
-    def redact(self, item: Redactable, name: Optional[str] = None) -> Redacted:
+    def redact(self, item: Redactable, name: str | None = None) -> Redacted:
         """Redact an any secrets found in ``item``, if it is a string.
 
         If ``name`` is given, and it's a "sensitive" name (see
@@ -238,7 +240,7 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: Union[str, dict, Iterable], name: Optional[str] = None):
+    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
         """Add a new secret to be masked to this filter instance."""
         from airflow.configuration import conf
 

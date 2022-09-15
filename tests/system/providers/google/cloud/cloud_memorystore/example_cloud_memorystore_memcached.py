@@ -18,6 +18,8 @@
 """
 Example Airflow DAG for Google Cloud Memorystore Memcached service.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

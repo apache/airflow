@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow operators."""
+from __future__ import annotations
+
 import copy
 import re
 import warnings
 from contextlib import ExitStack
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -134,18 +136,18 @@ class DataflowConfiguration:
         *,
         job_name: str = "{{task.task_id}}",
         append_job_name: bool = True,
-        project_id: Optional[str] = None,
-        location: Optional[str] = DEFAULT_DATAFLOW_LOCATION,
+        project_id: str | None = None,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 5 * 60,
-        wait_until_finished: Optional[bool] = None,
-        multiple_jobs: Optional[bool] = None,
+        cancel_timeout: int | None = 5 * 60,
+        wait_until_finished: bool | None = None,
+        multiple_jobs: bool | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-        service_account: Optional[str] = None,
+        service_account: str | None = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -332,18 +334,18 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         *,
         jar: str,
         job_name: str = "{{task.task_id}}",
-        dataflow_default_options: Optional[dict] = None,
-        options: Optional[dict] = None,
-        project_id: Optional[str] = None,
+        dataflow_default_options: dict | None = None,
+        options: dict | None = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        job_class: Optional[str] = None,
+        job_class: str | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
         multiple_jobs: bool = False,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -375,10 +377,10 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id = None
-        self.beam_hook: Optional[BeamHook] = None
-        self.dataflow_hook: Optional[DataflowHook] = None
+        self.beam_hook: BeamHook | None = None
+        self.dataflow_hook: DataflowHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
@@ -601,18 +603,18 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         *,
         template: str,
         job_name: str = "{{task.task_id}}",
-        options: Optional[Dict[str, Any]] = None,
-        dataflow_default_options: Optional[Dict[str, Any]] = None,
-        parameters: Optional[Dict[str, str]] = None,
-        project_id: Optional[str] = None,
+        options: dict[str, Any] | None = None,
+        dataflow_default_options: dict[str, Any] | None = None,
+        parameters: dict[str, str] | None = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        environment: Optional[Dict] = None,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        environment: dict | None = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
         append_job_name: bool = True,
         **kwargs,
     ) -> None:
@@ -628,14 +630,14 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.job = None
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
         self.impersonation_chain = impersonation_chain
         self.environment = environment
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.append_job_name = append_job_name
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -746,15 +748,15 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
     def __init__(
         self,
-        body: Dict,
+        body: dict,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -768,10 +770,10 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job = None
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -860,13 +862,13 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self,
         job_name: str,
         query: str,
-        options: Dict[str, Any],
+        options: dict[str, Any],
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         drain_pipeline: bool = False,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -881,9 +883,9 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.drain_pipeline = drain_pipeline
         self.impersonation_chain = impersonation_chain
         self.job = None
-        self.hook: Optional[DataflowHook] = None
+        self.hook: DataflowHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1024,20 +1026,20 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         *,
         py_file: str,
         job_name: str = "{{task.task_id}}",
-        dataflow_default_options: Optional[dict] = None,
-        options: Optional[dict] = None,
+        dataflow_default_options: dict | None = None,
+        options: dict | None = None,
         py_interpreter: str = "python3",
-        py_options: Optional[List[str]] = None,
-        py_requirements: Optional[List[str]] = None,
+        py_options: list[str] | None = None,
+        py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         poll_sleep: int = 10,
         drain_pipeline: bool = False,
-        cancel_timeout: Optional[int] = 10 * 60,
-        wait_until_finished: Optional[bool] = None,
+        cancel_timeout: int | None = 10 * 60,
+        wait_until_finished: bool | None = None,
         **kwargs,
     ) -> None:
         # TODO: Remove one day
@@ -1069,10 +1071,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id = None
-        self.beam_hook: Optional[BeamHook] = None
-        self.dataflow_hook: Optional[DataflowHook] = None
+        self.beam_hook: BeamHook | None = None
+        self.dataflow_hook: DataflowHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Execute the python dataflow job."""
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(

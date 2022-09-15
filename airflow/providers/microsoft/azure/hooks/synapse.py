@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Union
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.spark import SparkClient
@@ -58,7 +59,7 @@ class AzureSynapseHook(BaseHook):
     hook_name: str = 'Azure Synapse'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -74,7 +75,7 @@ class AzureSynapseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'extra'],
@@ -82,8 +83,8 @@ class AzureSynapseHook(BaseHook):
         }
 
     def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ''):
-        self.job_id: Optional[int] = None
-        self._conn: Optional[SparkClient] = None
+        self.job_id: int | None = None
+        self._conn: SparkClient | None = None
         self.conn_id = azure_synapse_conn_id
         self.spark_pool = spark_pool
         super().__init__()
@@ -146,8 +147,8 @@ class AzureSynapseHook(BaseHook):
 
     def wait_for_job_run_status(
         self,
-        job_id: Optional[int],
-        expected_statuses: Union[str, Set[str]],
+        job_id: int | None,
+        expected_statuses: str | set[str],
         check_interval: int = 60,
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:

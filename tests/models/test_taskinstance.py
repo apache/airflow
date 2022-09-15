@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import operator
@@ -24,7 +25,7 @@ import signal
 import sys
 import urllib
 from traceback import format_exception
-from typing import List, Optional, Union, cast
+from typing import cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
 from uuid import uuid4
@@ -102,10 +103,10 @@ def test_pool():
 
 
 class CallbackWrapper:
-    task_id: Optional[str] = None
-    dag_id: Optional[str] = None
-    execution_date: Optional[datetime.datetime] = None
-    task_state_in_callback: Optional[str] = None
+    task_id: str | None = None
+    dag_id: str | None = None
+    execution_date: datetime.datetime | None = None
+    task_state_in_callback: str | None = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
@@ -1801,9 +1802,9 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: Union[str, datetime.timedelta, None],
+        schedule_interval: str | datetime.timedelta | None,
         catchup: bool,
-        scenario: List[TaskInstanceState],
+        scenario: list[TaskInstanceState],
         dag_maker,
     ) -> list:
         dag_id = 'test_previous_dates'

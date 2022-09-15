@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+from __future__ import annotations
+
 import logging
 import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
@@ -46,9 +48,9 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: Optional[logging.FileHandler] = None
+        self.handler: logging.FileHandler | None = None
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
@@ -59,7 +61,7 @@ class FileTaskHandler(logging.Handler):
                 stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
-    def set_context(self, ti: "TaskInstance"):
+    def set_context(self, ti: TaskInstance):
         """
         Provide task_instance context to airflow task handler.
 
@@ -83,7 +85,7 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
@@ -128,7 +130,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti: "TaskInstance", try_number: int, metadata: Optional[Dict[str, Any]] = None):
+    def _read(self, ti: "TaskInstance", try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -42,7 +43,7 @@ class CloudBuildLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         build_id: str,
         project_id: str,
@@ -66,7 +67,7 @@ class CloudBuildListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         project_id: str,
     ):
@@ -88,7 +89,7 @@ class CloudBuildTriggersListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         project_id: str,
     ):
@@ -110,7 +111,7 @@ class CloudBuildTriggerDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         project_id: str,
         trigger_id: str,

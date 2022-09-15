@@ -18,6 +18,8 @@
 """
 Example use of Neo4j related operators.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

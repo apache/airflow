@@ -14,10 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import json
-from typing import Type
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -113,7 +112,7 @@ def hook():
         (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
     ],
 )
-def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: Type):
+def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: type):
     hook = AzureSynapseHook(connection_id)
 
     with patch.object(hook, "_create_client") as mock_create_client:

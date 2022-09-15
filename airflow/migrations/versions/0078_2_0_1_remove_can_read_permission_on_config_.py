@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role
 
 Revision ID: 82b7c48c147f
@@ -23,6 +22,8 @@ Revises: e959f08ac86c
 Create Date: 2021-02-04 12:45:58.138224
 
 """
+from __future__ import annotations
+
 import logging
 
 from airflow.security import permissions

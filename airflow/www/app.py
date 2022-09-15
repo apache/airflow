@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import warnings
 from datetime import timedelta
 from tempfile import gettempdir
-from typing import Optional
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -52,7 +52,7 @@ from airflow.www.extensions.init_views import (
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 
-app: Optional[Flask] = None
+app: Flask | None = None
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst

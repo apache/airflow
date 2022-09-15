@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains Google Cloud Looker sensors."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
@@ -47,9 +47,9 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
         self.materialization_id = materialization_id
         self.looker_conn_id = looker_conn_id
         self.cancel_on_kill = cancel_on_kill
-        self.hook: Optional[LookerHook] = None
+        self.hook: LookerHook | None = None
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
 
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 

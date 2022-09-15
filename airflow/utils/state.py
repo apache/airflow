@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, FrozenSet, Tuple
 
 from airflow.settings import STATE_COLORS
-from airflow.utils.types import Optional
 
 
 class TaskInstanceState(str, Enum):
@@ -98,16 +97,16 @@ class State:
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
 
-    task_states: Tuple[Optional[TaskInstanceState], ...] = (None,) + tuple(TaskInstanceState)
+    task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
 
-    dag_states: Tuple[DagRunState, ...] = (
+    dag_states: tuple[DagRunState, ...] = (
         DagRunState.QUEUED,
         DagRunState.SUCCESS,
         DagRunState.RUNNING,
         DagRunState.FAILED,
     )
 
-    state_color: Dict[Optional[TaskInstanceState], str] = {
+    state_color: dict[TaskInstanceState | None, str] = {
         None: 'lightblue',
         TaskInstanceState.QUEUED: 'gray',
         TaskInstanceState.RUNNING: 'lime',
@@ -138,12 +137,12 @@ class State:
             return 'white'
         return 'black'
 
-    running: FrozenSet[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
+    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
     """
     A list of states indicating that a task is being executed.
     """
 
-    finished: FrozenSet[TaskInstanceState] = frozenset(
+    finished: frozenset[TaskInstanceState] = frozenset(
         [
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
@@ -161,7 +160,7 @@ class State:
     case, it is no longer running.
     """
 
-    unfinished: FrozenSet[Optional[TaskInstanceState]] = frozenset(
+    unfinished: frozenset[TaskInstanceState | None] = frozenset(
         [
             None,
             TaskInstanceState.SCHEDULED,
@@ -179,14 +178,14 @@ class State:
     a run or has not even started.
     """
 
-    failed_states: FrozenSet[TaskInstanceState] = frozenset(
+    failed_states: frozenset[TaskInstanceState] = frozenset(
         [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
     )
     """
     A list of states indicating that a task or dag is a failed state.
     """
 
-    success_states: FrozenSet[TaskInstanceState] = frozenset(
+    success_states: frozenset[TaskInstanceState] = frozenset(
         [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
     )
     """

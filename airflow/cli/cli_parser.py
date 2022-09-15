@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Command-line interface"""
+from __future__ import annotations
 
 import argparse
 import json
@@ -24,7 +25,7 @@ import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
-from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
+from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
 
@@ -262,6 +263,9 @@ ARG_REVISION_RANGE = Arg(
 )
 
 # list_dag_runs
+ARG_DAG_ID_REQ_FLAG = Arg(
+    ("-d", "--dag-id"), required=True, help="The id of the dag"
+)  # TODO: convert this to a positional arg in Airflow 3
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
@@ -960,8 +964,8 @@ class ActionCommand(NamedTuple):
     help: str
     func: Callable
     args: Iterable[Arg]
-    description: Optional[str] = None
-    epilog: Optional[str] = None
+    description: str | None = None
+    epilog: str | None = None
 
 
 class GroupCommand(NamedTuple):
@@ -970,8 +974,8 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
-    description: Optional[str] = None
-    epilog: Optional[str] = None
+    description: str | None = None
+    epilog: str | None = None
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
@@ -1007,7 +1011,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
         args=(
-            ARG_DAG_ID,
+            ARG_DAG_ID_REQ_FLAG,
             ARG_NO_BACKFILL,
             ARG_STATE,
             ARG_OUTPUT,
@@ -1801,7 +1805,7 @@ JOBS_COMMANDS = (
     ),
 )
 
-airflow_commands: List[CLICommand] = [
+airflow_commands: list[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
@@ -1999,7 +2003,7 @@ airflow_commands: List[CLICommand] = [
         args=tuple(),
     ),
 ]
-ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
+ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
 
 def _remove_dag_id_opt(command: ActionCommand):
@@ -2008,7 +2012,7 @@ def _remove_dag_id_opt(command: ActionCommand):
     return ActionCommand(**cmd)
 
 
-dag_cli_commands: List[CLICommand] = [
+dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
@@ -2024,7 +2028,7 @@ dag_cli_commands: List[CLICommand] = [
         subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ['list', 'test', 'run']],
     ),
 ]
-DAG_CLI_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
+DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
 class AirflowHelpFormatter(argparse.HelpFormatter):

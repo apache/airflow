@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Bigtable operators."""
+from __future__ import annotations
+
 import enum
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
@@ -106,16 +108,16 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         instance_id: str,
         main_cluster_id: str,
         main_cluster_zone: str,
-        project_id: Optional[str] = None,
-        replica_clusters: Optional[List[Dict[str, str]]] = None,
-        instance_display_name: Optional[str] = None,
-        instance_type: Optional[enums.Instance.Type] = None,
-        instance_labels: Optional[Dict] = None,
-        cluster_nodes: Optional[int] = None,
-        cluster_storage_type: Optional[enums.StorageType] = None,
-        timeout: Optional[float] = None,
+        project_id: str | None = None,
+        replica_clusters: list[dict[str, str]] | None = None,
+        instance_display_name: str | None = None,
+        instance_type: enums.Instance.Type | None = None,
+        instance_labels: dict | None = None,
+        cluster_nodes: int | None = None,
+        cluster_storage_type: enums.StorageType | None = None,
+        timeout: float | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -134,7 +136,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -212,13 +214,13 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self,
         *,
         instance_id: str,
-        project_id: Optional[str] = None,
-        instance_display_name: Optional[str] = None,
-        instance_type: Optional[Union[enums.Instance.Type, enum.IntEnum]] = None,
-        instance_labels: Optional[Dict] = None,
-        timeout: Optional[float] = None,
+        project_id: str | None = None,
+        instance_display_name: str | None = None,
+        instance_type: enums.Instance.Type | enum.IntEnum | None = None,
+        instance_labels: dict | None = None,
+        timeout: float | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -232,7 +234,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -292,9 +294,9 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         self,
         *,
         instance_id: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -304,7 +306,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -368,11 +370,11 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         *,
         instance_id: str,
         table_id: str,
-        project_id: Optional[str] = None,
-        initial_split_keys: Optional[List] = None,
-        column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
+        project_id: str | None = None,
+        initial_split_keys: list | None = None,
+        column_families: dict[str, GarbageCollectionRule] | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -406,7 +408,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
                 return False
         return True
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -472,10 +474,10 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         *,
         instance_id: str,
         table_id: str,
-        project_id: Optional[str] = None,
-        app_profile_id: Optional[str] = None,
+        project_id: str | None = None,
+        app_profile_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -487,7 +489,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -553,9 +555,9 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         instance_id: str,
         cluster_id: str,
         nodes: int,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -567,7 +569,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

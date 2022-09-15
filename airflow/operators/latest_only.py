@@ -19,7 +19,9 @@
 This module contains an operator to run downstream tasks only for the
 latest scheduled DagRun
 """
-from typing import TYPE_CHECKING, Iterable, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable
 
 import pendulum
 
@@ -44,15 +46,15 @@ class LatestOnlyOperator(BaseBranchOperator):
 
     ui_color = '#e9ffdb'  # nyanza
 
-    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
-        dag_run: "DagRun" = context["dag_run"]
+        dag_run: DagRun = context["dag_run"]
         if dag_run.external_trigger:
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return list(context['task'].get_direct_relative_ids(upstream=False))
 
-        dag: "DAG" = context["dag"]
+        dag: DAG = context["dag"]
         next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
         now = pendulum.now('UTC')
 

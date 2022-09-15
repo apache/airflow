@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default configuration for the Airflow webserver"""
+from __future__ import annotations
+
 import os
 
 from airflow.www.fab_security.manager import AUTH_DB

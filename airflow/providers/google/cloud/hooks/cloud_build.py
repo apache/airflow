@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Hook for Google Cloud Build service."""
+from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
@@ -55,13 +55,13 @@ class CloudBuildHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
         )
-        self._client: Optional[CloudBuildClient] = None
+        self._client: CloudBuildClient | None = None
 
     def _get_build_id_from_operation(self, operation: Operation) -> str:
         """
@@ -94,9 +94,9 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Build:
         """
         Cancels a build in progress.
@@ -129,12 +129,12 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build(
         self,
-        build: Union[Dict, Build],
+        build: dict | Build,
         project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Build:
         """
         Starts a build with the specified configuration.
@@ -177,11 +177,11 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build_trigger(
         self,
-        trigger: Union[dict, BuildTrigger],
+        trigger: dict | BuildTrigger,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> BuildTrigger:
         """
         Creates a new BuildTrigger.
@@ -218,9 +218,9 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         trigger_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a BuildTrigger by its project ID and trigger ID.
@@ -252,9 +252,9 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Build:
         """
         Returns information about a previously requested build.
@@ -290,9 +290,9 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         trigger_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> BuildTrigger:
         """
         Returns information about a BuildTrigger.
@@ -328,12 +328,12 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[BuildTrigger]:
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> list[BuildTrigger]:
         """
         Lists existing BuildTriggers.
 
@@ -377,13 +377,13 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        page_size: Optional[int] = None,
-        page_token: Optional[int] = None,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> List[Build]:
+        page_size: int | None = None,
+        page_token: int | None = None,
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> list[Build]:
         """
         Lists previously requested builds.
 
@@ -430,9 +430,9 @@ class CloudBuildHook(GoogleBaseHook):
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Build:
         """
         Creates a new build based on the specified build. This method creates a new build
@@ -476,12 +476,12 @@ class CloudBuildHook(GoogleBaseHook):
     def run_build_trigger(
         self,
         trigger_id: str,
-        source: Union[dict, RepoSource],
+        source: dict | RepoSource,
         project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Build:
         """
         Runs a BuildTrigger at a particular source revision.
@@ -526,11 +526,11 @@ class CloudBuildHook(GoogleBaseHook):
     def update_build_trigger(
         self,
         trigger_id: str,
-        trigger: Union[dict, BuildTrigger],
+        trigger: dict | BuildTrigger,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> BuildTrigger:
         """
         Updates a BuildTrigger by its project ID and trigger ID.

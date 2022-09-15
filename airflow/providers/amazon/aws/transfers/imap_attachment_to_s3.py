@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to transfer mail attachments from a mail server into s3 bucket."""
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -64,7 +66,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         imap_mail_filter: str = 'All',
         s3_overwrite: bool = False,
         imap_conn_id: str = 'imap_default',
-        s3_conn_id: Optional[str] = None,
+        s3_conn_id: str | None = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
@@ -83,7 +85,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         self.imap_conn_id = imap_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """
         This function executes the transfer from the email server (via imap) into s3.
 
