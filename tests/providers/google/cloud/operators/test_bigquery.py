@@ -732,6 +732,33 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
             location=TEST_DATASET_LOCATION,
         )
 
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_bigquery_getdata_operator_when_no_selected_fields(self, mock_hook):
+
+        max_results = 100
+        operator = BigQueryGetDataOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            max_results=max_results,
+            location=TEST_DATASET_LOCATION,
+        )
+        operator.execute(None)
+
+        mock_hook.return_value.get_schema.assert_called_once_with(
+            project_id=TEST_GCP_PROJECT_ID, dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID
+        )
+
+        mock_hook.return_value.list_rows.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            max_results=max_results,
+            location=TEST_DATASET_LOCATION,
+            selected_fields=None,
+        )
+
 
 class TestBigQueryTableDeleteOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')

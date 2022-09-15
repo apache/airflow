@@ -428,7 +428,11 @@ class BigQueryGetDataOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> list:
         self.log.info(
-            'Fetching Data from %s.%s.%s max results: %s', self.project_id, self.dataset_id, self.table_id, self.max_results
+            'Fetching Data from %s.%s.%s max results: %s',
+            self.project_id,
+            self.dataset_id,
+            self.table_id,
+            self.max_results,
         )
 
         hook = BigQueryHook(
