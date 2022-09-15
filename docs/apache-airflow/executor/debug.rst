@@ -28,7 +28,7 @@ class, which is now deprecated:
 2. It is significantly faster than running code with a DebugExecutor as it does not need to go through a scheduler loop
 3. It does not perform a backfill
 
-This executor can be used with any supported database (including a local SQLite database) and will
+This approach can be used with any supported database (including a local SQLite database) and will
 ``fail fast`` as all tasks run in a single process.
 
 To set up ``dag.test``, add these two lines to the bottom of your dag file:
