@@ -2437,7 +2437,12 @@ class DAG(LoggingMixin):
         args.func(args, self)
 
     @provide_session
-    def test(self, execution_date: datetime | None = None, run_conf=None, session=None):
+    def test(
+        self,
+        execution_date: datetime | None = None,
+        run_conf: dict[str, Any] = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
 
         def add_logger_if_needed(ti: TaskInstance):
