@@ -22,6 +22,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     #        min   hr    dom   mon   dow
     - cron: '11    01    *     *     *'     # daily at 1.11am
+  workflow_dispatch:
+  # only users with write access to apache/airflow can run manually
+  # https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow
 
 permissions:
   contents: write
