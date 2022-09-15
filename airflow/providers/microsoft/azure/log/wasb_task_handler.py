@@ -105,7 +105,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number: int, metadata: dict[str, Any] | None = None) -> tuple[str, dict[str, bool]]:
+    def _read(
+        self, ti, try_number: int, metadata: dict[str, Any] | None = None
+    ) -> tuple[str, dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.

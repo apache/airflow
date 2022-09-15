@@ -130,7 +130,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti: "TaskInstance", try_number: int, metadata: dict[str, Any] | None = None):
+    def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
