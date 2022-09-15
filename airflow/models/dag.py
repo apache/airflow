@@ -2436,6 +2436,7 @@ class DAG(LoggingMixin):
         args = parser.parse_args()
         args.func(args, self)
 
+    @provide_session
     def test(self, execution_date: datetime | None = None, run_conf=None, session=None):
         """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
 
@@ -2448,13 +2449,12 @@ class DAG(LoggingMixin):
                 ti: The taskinstance that will receive a logger
 
             """
-            format = logging.Formatter(
-                "\t[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
-            )
-            print(f"adding logger to {ti.task_id}")
+            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
             handler = logging.StreamHandler(sys.stdout)
+            handler.level = logging.INFO
             handler.setFormatter(format)
-            if not ti.log.handlers:  # only add log handler once
+            handler_classes = [h.__class__.__name__ for h in ti.log.handlers]
+            if "StreamHandler" not in handler_classes:  # only add log handler once
                 ti.log.addHandler(handler)
 
         execution_date = execution_date or timezone.utcnow()
@@ -3577,7 +3577,6 @@ def _run_task(ti: TaskInstance, session):
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
-    ti.set_state(State.SUCCESS)
 
 
 def _get_or_create_dagrun(
