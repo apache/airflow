@@ -202,8 +202,17 @@ function install_airflow_from_wheel() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
+        set +e
         pip install "${airflow_package}${extras}" --constraint \
             "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo
+            pip install "${airflow_package}${extras}"
+        fi
     fi
 }
 
@@ -232,8 +241,17 @@ function install_airflow_from_sdist() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
+        set +e
         pip install "${airflow_package}${extras}" --constraint \
             "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo
+            pip install "${airflow_package}${extras}"
+        fi
     fi
 }
 
