@@ -37,7 +37,7 @@ class TestDatasetEndpoint:
     def cleanup(self):
         clear_db_datasets()
         yield
-        # clear_db_datasets()
+        clear_db_datasets()
 
 
 class TestGetDatasets(TestDatasetEndpoint):
