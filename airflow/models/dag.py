@@ -2458,8 +2458,8 @@ class DAG(LoggingMixin):
             handler = logging.StreamHandler(sys.stdout)
             handler.level = logging.INFO
             handler.setFormatter(format)
-            handler_classes = [h.__class__.__name__ for h in ti.log.handlers]
-            if "StreamHandler" not in handler_classes:  # only add log handler once
+            # only add log handler once
+            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
                 ti.log.addHandler(handler)
 
         execution_date = execution_date or timezone.utcnow()
