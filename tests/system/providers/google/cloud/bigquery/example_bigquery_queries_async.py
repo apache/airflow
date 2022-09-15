@@ -25,25 +25,25 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCheckAsyncOperator,
+    BigQueryCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryGetDataAsyncOperator,
-    BigQueryInsertJobAsyncOperator,
-    BigQueryIntervalCheckAsyncOperator,
-    BigQueryValueCheckAsyncOperator,
+    BigQueryGetDataOperator,
+    BigQueryInsertJobOperator,
+    BigQueryIntervalCheckOperator,
+    BigQueryValueCheckOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.getenv("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
 DAG_ID = "bigquery_queries_async"
+
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 LOCATION = "us"
-EXECUTION_TIMEOUT = 6
 
 TABLE_1 = "table1"
 TABLE_2 = "table2"
@@ -62,15 +62,44 @@ INSERT_ROWS_QUERY = (
     f"(42, 'fishy fish', '{INSERT_DATE}');"
 )
 
+
+CONFIGURATION = {
+    "query": {
+        "query": f"""DECLARE success BOOL;
+        DECLARE size_bytes INT64;
+        DECLARE row_count INT64;
+        DECLARE DELAY_TIME DATETIME;
+        DECLARE WAIT STRING;
+        SET success = FALSE;
+
+        SELECT row_count = (SELECT row_count FROM {DATASET}.__TABLES__ WHERE table_id='NON_EXISTING_TABLE');
+        IF row_count > 0  THEN
+            SELECT 'Table Exists!' as message, retry_count as retries;
+            SET success = TRUE;
+        ELSE
+            SELECT 'Table does not exist' as message, row_count;
+            SET WAIT = 'TRUE';
+            SET DELAY_TIME = DATETIME_ADD(CURRENT_DATETIME,INTERVAL 1 MINUTE);
+            WHILE WAIT = 'TRUE' DO
+                IF (DELAY_TIME < CURRENT_DATETIME) THEN
+                    SET WAIT = 'FALSE';
+                END IF;
+            END WHILE;
+        END IF;""",
+        "useLegacySql": False,
+    }
+}
+
+
 default_args = {
-    "execution_timeout": timedelta(hours=EXECUTION_TIMEOUT),
-    "retries": int(os.getenv("DEFAULT_TASK_RETRIES", 2)),
-    "retry_delay": timedelta(seconds=int(os.getenv("DEFAULT_RETRY_DELAY_SECONDS", 60))),
+    "execution_timeout": timedelta(hours=6),
+    "retries": 2,
+    "retry_delay": timedelta(seconds=60),
 }
 
 with DAG(
-    dag_id="example_async_bigquery_queries_async",
-    schedule=None,
+    dag_id=DAG_ID,
+    schedule='@once',
     start_date=datetime(2022, 1, 1),
     catchup=False,
     default_args=default_args,
@@ -91,14 +120,15 @@ with DAG(
         location=LOCATION,
     )
 
-    create_dataset >> create_table_1
-
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", dataset_id=DATASET, delete_contents=True, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_dataset",
+        dataset_id=DATASET,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_bigquery_insert_job_async]
-    insert_query_job = BigQueryInsertJobAsyncOperator(
+    insert_query_job = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration={
             "query": {
@@ -107,11 +137,12 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_insert_job_async]
 
     # [START howto_operator_bigquery_select_job_async]
-    select_query_job = BigQueryInsertJobAsyncOperator(
+    select_query_job = BigQueryInsertJobOperator(
         task_id="select_query_job",
         configuration={
             "query": {
@@ -120,32 +151,35 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_select_job_async]
 
     # [START howto_operator_bigquery_value_check_async]
-    check_value = BigQueryValueCheckAsyncOperator(
+    check_value = BigQueryValueCheckOperator(
         task_id="check_value",
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         pass_value=2,
         use_legacy_sql=False,
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_value_check_async]
 
     # [START howto_operator_bigquery_interval_check_async]
-    check_interval = BigQueryIntervalCheckAsyncOperator(
+    check_interval = BigQueryIntervalCheckOperator(
         task_id="check_interval",
         table=f"{DATASET}.{TABLE_1}",
         days_back=1,
         metrics_thresholds={"COUNT(*)": 1.5},
         use_legacy_sql=False,
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_interval_check_async]
 
     # [START howto_operator_bigquery_multi_query_async]
-    bigquery_execute_multi_query = BigQueryInsertJobAsyncOperator(
+    bigquery_execute_multi_query = BigQueryInsertJobOperator(
         task_id="execute_multi_query",
         configuration={
             "query": {
@@ -157,17 +191,19 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_multi_query_async]
 
     # [START howto_operator_bigquery_get_data_async]
-    get_data = BigQueryGetDataAsyncOperator(
+    get_data = BigQueryGetDataOperator(
         task_id="get_data",
         dataset_id=DATASET,
         table_id=TABLE_1,
         max_results=10,
         selected_fields="value,name",
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_get_data_async]
 
@@ -178,16 +214,17 @@ with DAG(
     )
 
     # [START howto_operator_bigquery_check_async]
-    check_count = BigQueryCheckAsyncOperator(
+    check_count = BigQueryCheckOperator(
         task_id="check_count",
         sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
         use_legacy_sql=False,
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_check_async]
 
     # [START howto_operator_bigquery_execute_query_save_async]
-    execute_query_save = BigQueryInsertJobAsyncOperator(
+    execute_query_save = BigQueryInsertJobOperator(
         task_id="execute_query_save",
         configuration={
             "query": {
@@ -201,48 +238,31 @@ with DAG(
             }
         },
         location=LOCATION,
+        deferrable=True,
     )
     # [END howto_operator_bigquery_execute_query_save_async]
 
-    execute_long_running_query = BigQueryInsertJobAsyncOperator(
+    execute_long_running_query = BigQueryInsertJobOperator(
         task_id="execute_long_running_query",
-        configuration={
-            "query": {
-                "query": f"""DECLARE success BOOL;
-    DECLARE size_bytes INT64;
-    DECLARE row_count INT64;
-    DECLARE DELAY_TIME DATETIME;
-    DECLARE WAIT STRING;
-    SET success = FALSE;
-
-    SELECT row_count = (SELECT row_count FROM {DATASET}.__TABLES__ WHERE table_id='NON_EXISTING_TABLE');
-    IF row_count > 0  THEN
-        SELECT 'Table Exists!' as message, retry_count as retries;
-        SET success = TRUE;
-    ELSE
-        SELECT 'Table does not exist' as message, row_count;
-        SET WAIT = 'TRUE';
-        SET DELAY_TIME = DATETIME_ADD(CURRENT_DATETIME,INTERVAL 1 MINUTE);
-        WHILE WAIT = 'TRUE' DO
-          IF (DELAY_TIME < CURRENT_DATETIME) THEN
-              SET WAIT = 'FALSE';
-          END IF;
-        END WHILE;
-    END IF;""",
-                "useLegacySql": False,
-            }
-        },
+        configuration=CONFIGURATION,
         location=LOCATION,
+        deferrable=True,
     )
 
-    end = EmptyOperator(task_id="end")
-
-    create_table_1 >> insert_query_job >> select_query_job >> check_count
+    create_dataset >> create_table_1 >> insert_query_job
+    insert_query_job >> select_query_job >> check_count
     insert_query_job >> get_data >> get_data_result
     insert_query_job >> execute_query_save >> bigquery_execute_multi_query
     insert_query_job >> execute_long_running_query >> check_value >> check_interval
     [check_count, check_interval, bigquery_execute_multi_query, get_data_result] >> delete_dataset
-    [check_count, check_interval, bigquery_execute_multi_query, get_data_result, delete_dataset] >> end
+
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 
 from tests.system.utils import get_test_run  # noqa: E402
