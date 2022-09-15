@@ -2929,6 +2929,58 @@ components:
         notification_sent:
           type: boolean
 
+    Trigger:
+      type: object
+      properties:
+        id:
+          type: integer
+        classpath:
+          type: string
+        kwargs:
+          type: string
+        created_date:
+          type: string
+          format: datetime
+        triggerer_id:
+          type: integer
+          nullable: true
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        dag_id:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        job_type:
+          type: string
+          nullable: true
+        start_date:
+          type: string
+          format: datetime
+          nullable: true
+        end_date:
+          type: string
+          format: datetime
+          nullable: true
+        latest_heartbeat:
+          type: string
+          format: datetime
+          nullable: true
+        executor_class:
+          type: string
+          nullable: true
+        hostname:
+          type: string
+          nullable: true
+        unixname:
+          type: string
+          nullable: true
+
     TaskInstance:
       type: object
       properties:
@@ -3001,6 +3053,12 @@ components:
 
             *New in version 2.3.0*
           type: object
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+          nullable: true
+        triggerer_job:
+          $ref: '#/components/schemas/Job'
+          nullable: true
 
     TaskInstanceCollection:
       type: object
