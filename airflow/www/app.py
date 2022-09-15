@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import warnings
 from datetime import timedelta
 from tempfile import gettempdir
-from typing import Optional
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -31,6 +31,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
+from airflow.models import import_all_models
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
@@ -51,7 +52,7 @@ from airflow.www.extensions.init_views import (
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 
-app: Optional[Flask] = None
+app: Flask | None = None
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
@@ -108,7 +109,7 @@ def create_app(config=None, testing=False):
         flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     # Configure the JSON encoder used by `|tojson` filter from Flask
-    flask_app.json_encoder = AirflowJsonEncoder
+    flask_app.json_provider_class = AirflowJsonEncoder
 
     csrf.init_app(flask_app)
 
@@ -131,6 +132,8 @@ def create_app(config=None, testing=False):
 
     configure_logging()
     configure_manifest_files(flask_app)
+
+    import_all_models()
 
     with flask_app.app_context():
         init_appbuilder(flask_app)

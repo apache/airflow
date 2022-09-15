@@ -88,6 +88,20 @@ To create Amazon Redshift cluster snapshot you can use
   :start-after: [START howto_operator_redshift_create_cluster_snapshot]
   :end-before: [END howto_operator_redshift_create_cluster_snapshot]
 
+.. _howto/operator:RedshiftDeleteClusterSnapshotOperator:
+
+Delete an Amazon Redshift cluster snapshot
+==========================================
+
+To delete Amazon Redshift cluster snapshot you can use
+:class:`RedshiftDeleteClusterSnapshotOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_cluster.py
+  :language: python
+  :dedent: 4
+  :start-after: [START howto_operator_redshift_delete_cluster_snapshot]
+  :end-before: [END howto_operator_redshift_delete_cluster_snapshot]
+
 .. _howto/operator:RedshiftDeleteClusterOperator:
 
 Delete an Amazon Redshift cluster

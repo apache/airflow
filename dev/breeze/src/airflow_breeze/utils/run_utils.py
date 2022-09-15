@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Useful tools for running commands."""
+from __future__ import annotations
+
 import contextlib
 import os
 import re
@@ -25,11 +27,12 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Mapping, Union
 
 from rich.markup import escape
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -40,17 +43,17 @@ OPTION_MATCHER = re.compile(r"^[A-Z_]*=.*$")
 
 
 def run_command(
-    cmd: List[str],
-    title: Optional[str] = None,
+    cmd: list[str],
+    title: str | None = None,
     *,
     check: bool = True,
     verbose: bool = False,
     dry_run: bool = False,
     no_output_dump_on_exception: bool = False,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
-    input: Optional[str] = None,
-    output: Optional[Output] = None,
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+    input: str | None = None,
+    output: Output | None = None,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -159,11 +162,11 @@ def run_command(
             return ex
 
 
-def get_environments_to_print(env: Optional[Mapping[str, str]]):
+def get_environments_to_print(env: Mapping[str, str] | None):
     if not env:
         return ""
-    system_env: Dict[str, str] = {}
-    my_env: Dict[str, str] = {}
+    system_env: dict[str, str] = {}
+    my_env: dict[str, str] = {}
     for key, val in env.items():
         if os.environ.get(key) == val:
             system_env[key] = val
@@ -353,13 +356,7 @@ def filter_out_none(**kwargs) -> dict:
     return kwargs
 
 
-def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction: str) -> None:
-    skip_image_pre_commits = os.environ.get('SKIP_IMAGE_PRE_COMMITS', "false")
-    if skip_image_pre_commits[0].lower() == "t":
-        get_console().print(
-            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
-        )
-        sys.exit(0)
+def check_if_image_exists(image: str, verbose: bool, dry_run: bool) -> bool:
     cmd_result = run_command(
         ["docker", "inspect", image],
         stdout=subprocess.DEVNULL,
@@ -368,22 +365,30 @@ def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction:
         verbose=verbose,
         dry_run=dry_run,
     )
-    if cmd_result.returncode != 0:
-        print(f'[red]The image {image} is not available.[/]\n')
-        print(f"\n[yellow]Please run at the earliest convenience:[/]\n\n{instruction}\n\n")
-        sys.exit(1)
+    return cmd_result.returncode == 0
 
 
-def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
-    github_repository = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
+def get_ci_image_for_pre_commits(verbose: bool, dry_run: bool) -> str:
+    github_repository = os.environ.get('GITHUB_REPOSITORY', APACHE_AIRFLOW_GITHUB_REPOSITORY)
     python_version = "3.7"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
-    fail_if_image_missing(
+    skip_image_pre_commits = os.environ.get('SKIP_IMAGE_PRE_COMMITS', "false")
+    if skip_image_pre_commits[0].lower() == "t":
+        get_console().print(
+            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
+        )
+        sys.exit(0)
+    if not check_if_image_exists(
         image=airflow_image,
         verbose=verbose,
         dry_run=dry_run,
-        instruction=f"breeze ci-image build --python {python_version}",
-    )
+    ):
+        get_console().print(f'[red]The image {airflow_image} is not available.[/]\n')
+        get_console().print(
+            f"\n[yellow]Please run this to fix it:[/]\n\n"
+            f"breeze ci-image build --python {python_version}\n\n"
+        )
+        sys.exit(1)
     return airflow_image
 
 

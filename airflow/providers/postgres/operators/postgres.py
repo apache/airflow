@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from psycopg2.sql import SQL, Identifier
 
@@ -53,12 +55,12 @@ class PostgresOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         postgres_conn_id: str = 'postgres_default',
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        database: Optional[str] = None,
-        runtime_parameters: Optional[Mapping] = None,
+        parameters: Iterable | Mapping | None = None,
+        database: str | None = None,
+        runtime_parameters: Mapping | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,9 +70,9 @@ class PostgresOperator(BaseOperator):
         self.parameters = parameters
         self.database = database
         self.runtime_parameters = runtime_parameters
-        self.hook: Optional[PostgresHook] = None
+        self.hook: PostgresHook | None = None
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         if self.runtime_parameters:
             final_sql = []

@@ -14,15 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
-# (https://github.com/dpgaspar/Flask-AppBuilder).
-# Copyright 2013, Daniel Vaz Gaspar
-
+from __future__ import annotations
 
 import logging
 from functools import reduce
-from typing import Dict, List, Union
 
 from flask import Blueprint, current_app, url_for
 from flask_appbuilder import BaseView, __version__
@@ -45,6 +40,9 @@ from sqlalchemy.orm import Session
 from airflow import settings
 from airflow.configuration import conf
 
+# This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
+# (https://github.com/dpgaspar/Flask-AppBuilder).
+# Copyright 2013, Daniel Vaz Gaspar
 # This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
 log = logging.getLogger("flask_appbuilder.base")
 
@@ -91,7 +89,7 @@ class AirflowAppBuilder:
     You can also create everything as an application factory.
     """
 
-    baseviews: List[Union[BaseView, Session]] = []
+    baseviews: list[BaseView | Session] = []
     security_manager_class = None
     # Flask app
     app = None
@@ -538,7 +536,7 @@ class AirflowAppBuilder:
         """
         self.sm.security_cleanup(self.baseviews, self.menu)
 
-    def security_converge(self, dry=False) -> Dict:
+    def security_converge(self, dry=False) -> dict:
         """
             This method is useful when you use:
             - `class_permission_name`

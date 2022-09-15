@@ -19,6 +19,7 @@
 """
 Make sure there aren't duplicate entries in changelogs
 """
+from __future__ import annotations
 
 import re
 import sys

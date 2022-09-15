@@ -19,13 +19,14 @@
 This module contains operator for copying
 data from Cassandra to Google Cloud Storage in JSON format.
 """
+from __future__ import annotations
 
 import json
 from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NewType, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, NewType, Sequence
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -99,14 +100,14 @@ class CassandraToGCSOperator(BaseOperator):
         cql: str,
         bucket: str,
         filename: str,
-        schema_filename: Optional[str] = None,
+        schema_filename: str | None = None,
         approx_max_file_size_bytes: int = 1900000000,
         gzip: bool = False,
         cassandra_conn_id: str = 'cassandra_default',
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        query_timeout: Union[float, None, NotSetType] = NOT_SET,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        query_timeout: float | None | NotSetType = NOT_SET,
         encode_uuid: bool = True,
         **kwargs,
     ) -> None:
@@ -151,7 +152,7 @@ class CassandraToGCSOperator(BaseOperator):
         'VarcharType': 'STRING',
     }
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
 
         query_extra = {}
@@ -260,11 +261,11 @@ class CassandraToGCSOperator(BaseOperator):
             gzip=self.gzip,
         )
 
-    def generate_data_dict(self, names: Iterable[str], values: Any) -> Dict[str, Any]:
+    def generate_data_dict(self, names: Iterable[str], values: Any) -> dict[str, Any]:
         """Generates data structure that will be stored as file in GCS."""
         return {n: self.convert_value(v) for n, v in zip(names, values)}
 
-    def convert_value(self, value: Optional[Any]) -> Optional[Any]:
+    def convert_value(self, value: Any | None) -> Any | None:
         """Convert value to BQ type."""
         if not value:
             return value
@@ -294,11 +295,11 @@ class CassandraToGCSOperator(BaseOperator):
         else:
             raise AirflowException('Unexpected value: ' + str(value))
 
-    def convert_array_types(self, value: Union[List[Any], SortedSet]) -> List[Any]:
+    def convert_array_types(self, value: list[Any] | SortedSet) -> list[Any]:
         """Maps convert_value over array."""
         return [self.convert_value(nested_value) for nested_value in value]
 
-    def convert_user_type(self, value: Any) -> Dict[str, Any]:
+    def convert_user_type(self, value: Any) -> dict[str, Any]:
         """
         Converts a user type to RECORD that contains n fields, where n is the
         number of attributes. Each element in the user type class will be converted to its
@@ -308,7 +309,7 @@ class CassandraToGCSOperator(BaseOperator):
         values = [self.convert_value(getattr(value, name)) for name in names]
         return self.generate_data_dict(names, values)
 
-    def convert_tuple_type(self, values: Tuple[Any]) -> Dict[str, Any]:
+    def convert_tuple_type(self, values: tuple[Any]) -> dict[str, Any]:
         """
         Converts a tuple to RECORD that contains n fields, each will be converted
         to its corresponding data type in bq and will be named 'field_<index>', where
@@ -317,7 +318,7 @@ class CassandraToGCSOperator(BaseOperator):
         names = ['field_' + str(i) for i in range(len(values))]
         return self.generate_data_dict(names, values)
 
-    def convert_map_type(self, value: OrderedMapSerializedKey) -> List[Dict[str, Any]]:
+    def convert_map_type(self, value: OrderedMapSerializedKey) -> list[dict[str, Any]]:
         """
         Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
         each will be converted to its corresponding data type in BQ.
@@ -328,9 +329,9 @@ class CassandraToGCSOperator(BaseOperator):
         return converted_map
 
     @classmethod
-    def generate_schema_dict(cls, name: str, type_: Any) -> Dict[str, Any]:
+    def generate_schema_dict(cls, name: str, type_: Any) -> dict[str, Any]:
         """Generates BQ schema."""
-        field_schema: Dict[str, Any] = {}
+        field_schema: dict[str, Any] = {}
         field_schema.update({'name': name})
         field_schema.update({'type_': cls.get_bq_type(type_)})
         field_schema.update({'mode': cls.get_bq_mode(type_)})
@@ -340,14 +341,14 @@ class CassandraToGCSOperator(BaseOperator):
         return field_schema
 
     @classmethod
-    def get_bq_fields(cls, type_: Any) -> List[Dict[str, Any]]:
+    def get_bq_fields(cls, type_: Any) -> list[dict[str, Any]]:
         """Converts non simple type value to BQ representation."""
         if cls.is_simple_type(type_):
             return []
 
         # In case of not simple type
-        names: List[str] = []
-        types: List[Any] = []
+        names: list[str] = []
+        types: list[Any] = []
         if cls.is_array_type(type_) and cls.is_record_type(type_.subtypes[0]):
             names = type_.subtypes[0].fieldnames
             types = type_.subtypes[0].subtypes

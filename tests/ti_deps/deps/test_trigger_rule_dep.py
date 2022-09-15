@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -24,6 +26,7 @@ from airflow import settings
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -79,6 +82,7 @@ class TestTriggerRuleDep:
                 upstream_failed=2,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -98,6 +102,7 @@ class TestTriggerRuleDep:
                 upstream_failed=2,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -118,6 +123,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -138,6 +144,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -152,6 +159,7 @@ class TestTriggerRuleDep:
                 upstream_failed=2,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -171,6 +179,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -190,6 +199,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -210,6 +220,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -231,6 +242,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                dep_context=DepContext(),
                 session=Mock(),
             )
         )
@@ -252,6 +264,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -271,6 +284,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                dep_context=DepContext(),
                 session=Mock(),
             )
         )
@@ -293,6 +307,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=3,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -315,6 +330,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -336,6 +352,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                dep_context=DepContext(),
                 session=Mock(),
             )
         )
@@ -359,6 +376,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=3,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -379,6 +397,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -398,6 +417,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -418,6 +438,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -437,6 +458,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -460,6 +482,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -475,6 +498,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=True,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -494,6 +518,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )
@@ -517,6 +542,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -532,6 +558,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=3,
                     flag_upstream_failed=True,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -553,6 +580,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=2,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -569,6 +597,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=2,
                     flag_upstream_failed=True,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -585,6 +614,7 @@ class TestTriggerRuleDep:
                     upstream_failed=0,
                     done=0,
                     flag_upstream_failed=False,
+                    dep_context=DepContext(),
                     session=session,
                 )
             )
@@ -606,6 +636,7 @@ class TestTriggerRuleDep:
                 upstream_failed=0,
                 done=1,
                 flag_upstream_failed=False,
+                dep_context=DepContext(),
                 session="Fake Session",
             )
         )

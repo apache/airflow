@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -29,6 +30,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
+    # [START howto_operator_kubernetes]
     @task.kubernetes(
         image="python:3.8-slim-buster",
         name="k8s_test",
@@ -59,6 +61,7 @@ with DAG(
     print_pattern_instance = print_pattern()
 
     execute_in_k8s_pod_instance >> print_pattern_instance
+    # [END howto_operator_kubernetes]
 
 
 from tests.system.utils import get_test_run

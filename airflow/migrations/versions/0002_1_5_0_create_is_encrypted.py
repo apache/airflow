@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``is_encrypted`` column in ``connection`` table
 
 Revision ID: 1507a7289a2f
@@ -23,6 +22,8 @@ Revises: e3a246e0dc1
 Create Date: 2015-08-18 18:57:51.927315
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 

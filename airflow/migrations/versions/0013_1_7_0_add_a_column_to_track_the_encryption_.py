@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add a column to track the encryption state of the 'Extra' field in connection
 
 Revision ID: bba5a7cfc896
@@ -23,6 +22,7 @@ Revises: bbc73705a13e
 Create Date: 2016-01-29 15:10:32.656425
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

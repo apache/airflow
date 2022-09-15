@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS SQS hook"""
-from typing import Dict, Optional
+from __future__ import annotations
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -37,7 +36,7 @@ class SqsHook(AwsBaseHook):
         kwargs["client_type"] = "sqs"
         super().__init__(*args, **kwargs)
 
-    def create_queue(self, queue_name: str, attributes: Optional[Dict] = None) -> Dict:
+    def create_queue(self, queue_name: str, attributes: dict | None = None) -> dict:
         """
         Create queue using connection object
 
@@ -56,9 +55,9 @@ class SqsHook(AwsBaseHook):
         queue_url: str,
         message_body: str,
         delay_seconds: int = 0,
-        message_attributes: Optional[Dict] = None,
-        message_group_id: Optional[str] = None,
-    ) -> Dict:
+        message_attributes: dict | None = None,
+        message_group_id: str | None = None,
+    ) -> dict:
         """
         Send message to the queue
 

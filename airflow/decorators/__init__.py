@@ -14,13 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import Any
 
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.branch_python import branch_task
+from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers_manager import ProvidersManager
@@ -34,7 +37,9 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
+    "external_python_task",
     "branch_task",
+    "short_circuit_task",
 ]
 
 
@@ -43,7 +48,9 @@ class TaskDecoratorCollection:
 
     python = staticmethod(python_task)
     virtualenv = staticmethod(virtualenv_task)
+    external_python = staticmethod(external_python_task)
     branch = staticmethod(branch_task)
+    short_circuit = staticmethod(short_circuit_task)
 
     __call__: Any = python  # Alias '@task' to '@task.python'.
 

@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """MySQL to GCS operator."""
+from __future__ import annotations
 
 import base64
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Dict
 
 from MySQLdb.constants import FIELD_TYPE
 
@@ -80,7 +80,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
         # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
         # for required fields because some MySQL timestamps can't be

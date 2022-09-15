@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -44,7 +45,7 @@ class EventLogSchema(SQLAlchemySchema):
 class EventLogCollection(NamedTuple):
     """List of import errors with metadata"""
 
-    event_logs: List[Log]
+    event_logs: list[Log]
     total_entries: int
 
 

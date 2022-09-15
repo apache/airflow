@@ -350,14 +350,14 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 Other configuration options
 ---------------------------
 
-There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:database>` for ``sqlalchemy_*`` option in ``[database]`` section.
 
 For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
-    export AIRFLOW__CORE__SQL_ALCHEMY_SCHEMA="airflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
 

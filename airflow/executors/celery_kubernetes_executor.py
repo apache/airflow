@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional, Sequence, Set, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -37,19 +39,19 @@ class CeleryKubernetesExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = True
-    callback_sink: Optional[BaseCallbackSink] = None
+    callback_sink: BaseCallbackSink | None = None
 
     KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
-        self._job_id: Optional[int] = None
+        self._job_id: int | None = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
         self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
-    def queued_tasks(self) -> Dict[TaskInstanceKey, QueuedTaskInstanceType]:
+    def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
         """Return queued tasks from celery and kubernetes executor"""
         queued_tasks = self.celery_executor.queued_tasks.copy()
         queued_tasks.update(self.kubernetes_executor.queued_tasks)
@@ -57,12 +59,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return queued_tasks
 
     @property
-    def running(self) -> Set[TaskInstanceKey]:
+    def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from celery and kubernetes executor"""
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
     @property
-    def job_id(self) -> Optional[int]:
+    def job_id(self) -> int | None:
         """
         This is a class attribute in BaseExecutor but since this is not really an executor, but a wrapper
         of executors we implement as property so we can have custom setter.
@@ -70,7 +72,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self._job_id
 
     @job_id.setter
-    def job_id(self, value: Optional[int]) -> None:
+    def job_id(self, value: int | None) -> None:
         """job_id is manipulated by SchedulerJob.  We must propagate the job_id to wrapped executors."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
@@ -91,7 +93,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         task_instance: TaskInstance,
         command: CommandType,
         priority: int = 1,
-        queue: Optional[str] = None,
+        queue: str | None = None,
     ) -> None:
         """Queues command via celery or kubernetes executor"""
         executor = self._router(task_instance)
@@ -102,13 +104,13 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: Optional[str] = None,
+        pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        pool: Optional[str] = None,
-        cfg_path: Optional[str] = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
     ) -> None:
         """Queues task instance via celery or kubernetes executor"""
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
@@ -144,8 +146,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.kubernetes_executor.heartbeat()
 
     def get_event_buffer(
-        self, dag_ids: Optional[List[str]] = None
-    ) -> Dict[TaskInstanceKey, EventBufferValueType]:
+        self, dag_ids: list[str] | None = None
+    ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
         Returns and flush the event buffer from celery and kubernetes executor
 
@@ -184,7 +186,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.celery_executor.terminate()
         self.kubernetes_executor.terminate()
 
-    def _router(self, simple_task_instance: SimpleTaskInstance) -> Union[CeleryExecutor, KubernetesExecutor]:
+    def _router(self, simple_task_instance: SimpleTaskInstance) -> CeleryExecutor | KubernetesExecutor:
         """
         Return either celery_executor or kubernetes_executor
 

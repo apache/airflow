@@ -18,6 +18,8 @@
 """
 This is an example dag for using a Kubernetes Executor Configuration.
 """
+from __future__ import annotations
+
 import logging
 import os
 

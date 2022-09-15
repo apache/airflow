@@ -19,11 +19,13 @@
 This module contains a mechanism for providing temporary
 Google Cloud authentication.
 """
+from __future__ import annotations
+
 import json
 import logging
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Collection, Dict, Generator, Optional, Sequence, Tuple, Union
+from typing import Collection, Generator, Sequence
 from urllib.parse import urlencode
 
 import google.auth
@@ -44,9 +46,9 @@ _DEFAULT_SCOPES: Sequence[str] = ('https://www.googleapis.com/auth/cloud-platfor
 
 
 def build_gcp_conn(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence[str]] = None,
-    project_id: Optional[str] = None,
+    key_file_path: str | None = None,
+    scopes: Sequence[str] | None = None,
+    project_id: str | None = None,
 ) -> str:
     """
     Builds a uri that can be used as :envvar:`AIRFLOW_CONN_{CONN_ID}` with provided service key,
@@ -75,8 +77,8 @@ def build_gcp_conn(
 
 @contextmanager
 def provide_gcp_credentials(
-    key_file_path: Optional[str] = None,
-    key_file_dict: Optional[Dict] = None,
+    key_file_path: str | None = None,
+    key_file_dict: dict | None = None,
 ) -> Generator[None, None, None]:
     """
     Context manager that provides a Google Cloud credentials for application supporting
@@ -111,9 +113,9 @@ def provide_gcp_credentials(
 
 @contextmanager
 def provide_gcp_connection(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence] = None,
-    project_id: Optional[str] = None,
+    key_file_path: str | None = None,
+    scopes: Sequence | None = None,
+    project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
     Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
@@ -135,9 +137,9 @@ def provide_gcp_connection(
 
 @contextmanager
 def provide_gcp_conn_and_credentials(
-    key_file_path: Optional[str] = None,
-    scopes: Optional[Sequence] = None,
-    project_id: Optional[str] = None,
+    key_file_path: str | None = None,
+    scopes: Sequence | None = None,
+    project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
     Context manager that provides both:
@@ -194,15 +196,15 @@ class _CredentialProvider(LoggingMixin):
 
     def __init__(
         self,
-        key_path: Optional[str] = None,
-        keyfile_dict: Optional[Dict[str, str]] = None,
-        key_secret_name: Optional[str] = None,
-        key_secret_project_id: Optional[str] = None,
-        scopes: Optional[Collection[str]] = None,
-        delegate_to: Optional[str] = None,
+        key_path: str | None = None,
+        keyfile_dict: dict[str, str] | None = None,
+        key_secret_name: str | None = None,
+        key_secret_project_id: str | None = None,
+        scopes: Collection[str] | None = None,
+        delegate_to: str | None = None,
         disable_logging: bool = False,
-        target_principal: Optional[str] = None,
-        delegates: Optional[Sequence[str]] = None,
+        target_principal: str | None = None,
+        delegates: Sequence[str] | None = None,
     ) -> None:
         super().__init__()
         key_options = [key_path, key_secret_name, keyfile_dict]
@@ -221,7 +223,7 @@ class _CredentialProvider(LoggingMixin):
         self.target_principal = target_principal
         self.delegates = delegates
 
-    def get_credentials_and_project(self) -> Tuple[google.auth.credentials.Credentials, str]:
+    def get_credentials_and_project(self) -> tuple[google.auth.credentials.Credentials, str]:
         """
         Get current credentials and project ID.
 
@@ -327,12 +329,12 @@ class _CredentialProvider(LoggingMixin):
             self.log.debug(*args, **kwargs)
 
 
-def get_credentials_and_project_id(*args, **kwargs) -> Tuple[google.auth.credentials.Credentials, str]:
+def get_credentials_and_project_id(*args, **kwargs) -> tuple[google.auth.credentials.Credentials, str]:
     """Returns the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 
 
-def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
+def _get_scopes(scopes: str | None = None) -> Sequence[str]:
     """
     Parse a comma-separated string containing OAuth2 scopes if `scopes` is provided.
     Otherwise, default scope will be returned.
@@ -345,8 +347,8 @@ def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
 
 
 def _get_target_principal_and_delegates(
-    impersonation_chain: Optional[Union[str, Sequence[str]]] = None
-) -> Tuple[Optional[str], Optional[Sequence[str]]]:
+    impersonation_chain: str | Sequence[str] | None = None,
+) -> tuple[str | None, Sequence[str] | None]:
     """
     Analyze contents of impersonation_chain and return target_principal (the service account
     to directly impersonate using short-term credentials, if any) and optional list of delegates

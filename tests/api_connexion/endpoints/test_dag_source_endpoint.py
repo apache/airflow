@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
 import os
-from typing import Optional
 
 import pytest
 
@@ -64,7 +65,7 @@ class TestGetSource:
         clear_db_dag_code()
 
     @staticmethod
-    def _get_dag_file_docstring(fileloc: str) -> Optional[str]:
+    def _get_dag_file_docstring(fileloc: str) -> str | None:
         with open(fileloc) as f:
             file_contents = f.read()
         module = ast.parse(file_contents)

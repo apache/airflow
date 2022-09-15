@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
-from typing import Collection, Optional
+from typing import Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
@@ -61,11 +63,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         *,
         base_log_folder: str,
         gcs_log_folder: str,
-        filename_template: Optional[str] = None,
-        gcp_key_path: Optional[str] = None,
-        gcp_keyfile_dict: Optional[dict] = None,
-        gcp_scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,
-        project_id: Optional[str] = None,
+        filename_template: str | None = None,
+        gcp_key_path: str | None = None,
+        gcp_keyfile_dict: dict | None = None,
+        gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
+        project_id: str | None = None,
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Apache Beam Hook."""
+from __future__ import annotations
+
 import json
 import os
 import select
@@ -24,7 +26,7 @@ import shutil
 import subprocess
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Optional
+from typing import Callable
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
@@ -50,7 +52,7 @@ class BeamRunnerType:
     Twister2Runner = "Twister2Runner"
 
 
-def beam_options_to_args(options: dict) -> List[str]:
+def beam_options_to_args(options: dict) -> list[str]:
     """
     Returns a formatted pipeline options from a dictionary of arguments
 
@@ -65,7 +67,7 @@ def beam_options_to_args(options: dict) -> List[str]:
     if not options:
         return []
 
-    args: List[str] = []
+    args: list[str] = []
     for attr, value in options.items():
         if value is None or (isinstance(value, bool) and value):
             args.append(f"--{attr}")
@@ -88,14 +90,14 @@ class BeamCommandRunner(LoggingMixin):
 
     def __init__(
         self,
-        cmd: List[str],
-        process_line_callback: Optional[Callable[[str], None]] = None,
-        working_directory: Optional[str] = None,
+        cmd: list[str],
+        process_line_callback: Callable[[str], None] | None = None,
+        working_directory: str | None = None,
     ) -> None:
         super().__init__()
         self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
         self.process_line_callback = process_line_callback
-        self.job_id: Optional[str] = None
+        self.job_id: str | None = None
 
         self._proc = subprocess.Popen(
             cmd,
@@ -173,9 +175,9 @@ class BeamHook(BaseHook):
     def _start_pipeline(
         self,
         variables: dict,
-        command_prefix: List[str],
-        process_line_callback: Optional[Callable[[str], None]] = None,
-        working_directory: Optional[str] = None,
+        command_prefix: list[str],
+        process_line_callback: Callable[[str], None] | None = None,
+        working_directory: str | None = None,
     ) -> None:
         cmd = command_prefix + [
             f"--runner={self.runner}",
@@ -193,11 +195,11 @@ class BeamHook(BaseHook):
         self,
         variables: dict,
         py_file: str,
-        py_options: List[str],
+        py_options: list[str],
         py_interpreter: str = "python3",
-        py_requirements: Optional[List[str]] = None,
+        py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
-        process_line_callback: Optional[Callable[[str], None]] = None,
+        process_line_callback: Callable[[str], None] | None = None,
     ):
         """
         Starts Apache Beam python pipeline.
@@ -266,8 +268,8 @@ class BeamHook(BaseHook):
         self,
         variables: dict,
         jar: str,
-        job_class: Optional[str] = None,
-        process_line_callback: Optional[Callable[[str], None]] = None,
+        job_class: str | None = None,
+        process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         """
         Starts Apache Beam Java pipeline.
@@ -292,7 +294,7 @@ class BeamHook(BaseHook):
         self,
         variables: dict,
         go_file: str,
-        process_line_callback: Optional[Callable[[str], None]] = None,
+        process_line_callback: Callable[[str], None] | None = None,
         should_init_module: bool = False,
     ) -> None:
         """

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import subprocess
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
@@ -57,22 +58,22 @@ class SparkSqlHook(BaseHook):
     def __init__(
         self,
         sql: str,
-        conf: Optional[str] = None,
+        conf: str | None = None,
         conn_id: str = default_conn_name,
-        total_executor_cores: Optional[int] = None,
-        executor_cores: Optional[int] = None,
-        executor_memory: Optional[str] = None,
-        keytab: Optional[str] = None,
-        principal: Optional[str] = None,
-        master: Optional[str] = None,
+        total_executor_cores: int | None = None,
+        executor_cores: int | None = None,
+        executor_memory: str | None = None,
+        keytab: str | None = None,
+        principal: str | None = None,
+        master: str | None = None,
         name: str = 'default-name',
-        num_executors: Optional[int] = None,
+        num_executors: int | None = None,
         verbose: bool = True,
-        yarn_queue: Optional[str] = None,
+        yarn_queue: str | None = None,
     ) -> None:
         super().__init__()
-        options: Dict = {}
-        conn: Optional[Connection] = None
+        options: dict = {}
+        conn: Connection | None = None
 
         try:
             conn = self.get_connection(conn_id)
@@ -109,7 +110,7 @@ class SparkSqlHook(BaseHook):
     def get_conn(self) -> Any:
         pass
 
-    def _prepare_command(self, cmd: Union[str, List[str]]) -> List[str]:
+    def _prepare_command(self, cmd: str | list[str]) -> list[str]:
         """
         Construct the spark-sql command to execute. Verbose output is enabled
         as default.

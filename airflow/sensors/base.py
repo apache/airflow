@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import functools
 import hashlib
 import time
 from datetime import timedelta
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable
 
 from airflow import settings
 from airflow.configuration import conf
@@ -63,7 +64,7 @@ class PokeReturnValue:
     :param xcom_value: An optional XCOM value to be returned by the operator.
     """
 
-    def __init__(self, is_done: bool, xcom_value: Optional[Any] = None) -> None:
+    def __init__(self, is_done: bool, xcom_value: Any | None = None) -> None:
         self.xcom_value = xcom_value
         self.is_done = is_done
 
@@ -145,7 +146,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     f"mode since it will take reschedule time over MySQL's TIMESTAMP limit."
                 )
 
-    def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
+    def poke(self, context: Context) -> bool | PokeReturnValue:
         """
         Function that the sensors defined while deriving this class should
         override.
@@ -153,7 +154,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         raise AirflowException('Override me.')
 
     def execute(self, context: Context) -> Any:
-        started_at: Union[datetime.datetime, float]
+        started_at: datetime.datetime | float
 
         if self.reschedule:
 
@@ -214,7 +215,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     def _get_next_poke_interval(
         self,
-        started_at: Union[datetime.datetime, float],
+        started_at: datetime.datetime | float,
         run_duration: Callable[[], float],
         try_number: int,
     ) -> float:

@@ -14,11 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# from __future__ import annotations
+from __future__ import annotations
 
 import logging
-from typing import Any, List, Tuple, Union
+from typing import Any, Union
 
 from docutils import nodes
 from docutils.nodes import Node, system_message
@@ -85,7 +84,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
             node.rawsource = node.astext()
 
 
-def substitution_code_role(*args, **kwargs) -> Tuple[List[Node], List[system_message]]:
+def substitution_code_role(*args, **kwargs) -> tuple[list[Node], list[system_message]]:
     """Decorate an inline code so that SubstitutionCodeBlockTransform will notice it"""
     [node], system_messages = code_role(*args, **kwargs)
     node[_SUBSTITUTION_OPTION_NAME] = True

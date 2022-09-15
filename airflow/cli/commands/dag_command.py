@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Dag sub-commands"""
+from __future__ import annotations
+
 import ast
 import errno
 import json
@@ -23,7 +24,6 @@ import logging
 import signal
 import subprocess
 import sys
-from typing import Optional
 
 from graphviz.dot import Dot
 from sqlalchemy.orm import Session
@@ -39,7 +39,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -295,7 +295,7 @@ def dag_next_execution(args):
             .filter(DagRun.dag_id == dag.dag_id)
             .subquery()
         )
-        max_date_run: Optional[DagRun] = (
+        max_date_run: DagRun | None = (
             session.query(DagRun)
             .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == max_date_subq.c.max_date)
             .one_or_none()
@@ -451,13 +451,21 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
 @cli_utils.action_cli
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+    run_conf = None
+    if args.conf:
+        try:
+            run_conf = json.loads(args.conf)
+        except ValueError as e:
+            raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
+    execution_date = args.execution_date or timezone.utcnow()
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=False)
+    dag.clear(start_date=execution_date, end_date=execution_date, dag_run_state=False)
     try:
         dag.run(
             executor=DebugExecutor(),
-            start_date=args.execution_date,
-            end_date=args.execution_date,
+            start_date=execution_date,
+            end_date=execution_date,
+            conf=run_conf,
             # Always run the DAG at least once even if no logical runs are
             # available. This does not make a lot of sense, but Airflow has
             # been doing this prior to 2.2 so we keep compatibility.
@@ -474,7 +482,7 @@ def dag_test(args, session=None):
             session.query(TaskInstance)
             .filter(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.execution_date == args.execution_date,
+                TaskInstance.execution_date == execution_date,
             )
             .all()
         )
@@ -495,6 +503,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION):
     session.query(SerializedDagModel).delete(synchronize_session=False)
 
     if not args.clear_only:
-        dagbag = DagBag()
-        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag = DagBag(process_subdir(args.subdir))
         dagbag.sync_to_db(session=session)

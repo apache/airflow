@@ -194,7 +194,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         exit ${ENVIRONMENT_EXIT_CODE}
     fi
-    # Create symbolic link to fix possible issues with kubectl config cmd-path
     mkdir -p /usr/lib/google-cloud-sdk/bin
     touch /usr/lib/google-cloud-sdk/bin/gcloud
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
@@ -371,7 +370,12 @@ else
         SELECTED_TESTS=()
         for provider in ${BASH_REMATCH[1]//,/ }
         do
-            SELECTED_TESTS+=("tests/providers/${provider//./\/}")
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                SELECTED_TESTS+=("${providers_dir}")
+            else
+                echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
         done
     else
         echo

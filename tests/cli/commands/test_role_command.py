@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import io
 import json
 from contextlib import redirect_stdout
@@ -57,6 +58,22 @@ class TestCliRoles:
 
         assert self.appbuilder.sm.find_role('FakeTeamA') is not None
         assert self.appbuilder.sm.find_role('FakeTeamB') is not None
+
+    def test_cli_delete_roles(self):
+        assert self.appbuilder.sm.find_role('FakeTeamA') is None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is None
+        assert self.appbuilder.sm.find_role('FakeTeamC') is None
+
+        self.appbuilder.sm.add_role("FakeTeamA")
+        self.appbuilder.sm.add_role("FakeTeamB")
+        self.appbuilder.sm.add_role("FakeTeamC")
+
+        args = self.parser.parse_args(['roles', 'delete', 'FakeTeamA', 'FakeTeamC'])
+        role_command.roles_delete(args)
+
+        assert self.appbuilder.sm.find_role('FakeTeamA') is None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamC') is None
 
     def test_cli_create_roles_is_reentrant(self):
         assert self.appbuilder.sm.find_role('FakeTeamA') is None
