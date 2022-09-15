@@ -46,7 +46,6 @@ class TestGetDatasets(TestDatasetEndpoint):
             DatasetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
-                extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
             )
@@ -87,7 +86,6 @@ class TestGetDatasets(TestDatasetEndpoint):
         datasets = [
             DatasetModel(
                 uri=f"s3://bucket/key/{i}",
-                extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
             )
@@ -117,7 +115,6 @@ class TestGetDatasets(TestDatasetEndpoint):
             DatasetModel(
                 id=i,
                 uri=string.ascii_lowercase[i],
-                extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
             )
