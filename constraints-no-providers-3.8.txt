@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-14T18:08:08Z
+# This constraints file was automatically generated on 2022-09-15T16:48:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -7,11 +7,11 @@
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-Authlib==0.15.5
+Authlib==1.1.0
 Babel==2.10.3
 ConfigUpdater==3.1.1
 Deprecated==1.2.13
-Flask-AppBuilder==4.1.3
+Flask-AppBuilder==4.1.4
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.0.1
@@ -19,7 +19,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
-Flask-WTF==0.15.1
+Flask-WTF==1.0.1
 Flask==2.2.2
 HeapDict==1.0.1
 Jinja2==3.1.2
@@ -32,7 +32,7 @@ Pygments==2.13.0
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.3
 SQLAlchemy==1.4.41
-WTForms==2.3.3
+WTForms==3.0.1
 Werkzeug==2.2.2
 alembic==1.8.1
 amqp==5.1.1
@@ -47,7 +47,7 @@ cachelib==0.9.0
 cachetools==5.2.0
 cattrs==22.1.0
 celery==5.2.7
-certifi==2022.6.15.2
+certifi==2022.9.14
 cffi==1.15.1
 cgroupspy==0.2.2
 charset-normalizer==2.1.1
