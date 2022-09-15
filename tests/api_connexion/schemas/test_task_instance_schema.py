@@ -92,6 +92,8 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
         }
         assert serialized_ti == expected_json
 
@@ -142,6 +144,8 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {"partitions": "data/ds=2022-02-17"},
+            "trigger": None,
+            "triggerer_job": None,
         }
         assert serialized_ti == expected_json
 

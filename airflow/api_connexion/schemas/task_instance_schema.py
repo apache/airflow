@@ -25,7 +25,9 @@ from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
+from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
+from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
@@ -62,6 +64,8 @@ class TaskInstanceSchema(SQLAlchemySchema):
     executor_config = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_fields = JsonObjectField(dump_default={})
+    trigger = fields.Nested(TriggerSchema)
+    triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":

@@ -65,6 +65,18 @@ interface TaskInstance {
   },
   mapIndex?: number;
   tryNumber?: number;
+  triggererJob?: Job;
+  trigger?: Trigger;
+}
+
+interface Trigger {
+  classpath: string | null;
+  createdDate: string | null;
+}
+
+interface Job {
+  latestHeartbeat: string | null;
+  hostname: string | null;
 }
 
 interface Task {

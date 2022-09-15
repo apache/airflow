@@ -1572,6 +1572,8 @@ class Airflow(AirflowBaseView):
                 'log',
                 'log_url',
                 'task',
+                'trigger',
+                'triggerer_job',
             ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
