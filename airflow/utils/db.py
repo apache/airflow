@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import enum
 import logging
@@ -24,7 +26,7 @@ import time
 import warnings
 from dataclasses import dataclass
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Callable, Generator, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Generator, Iterable
 
 from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text, tuple_
 from sqlalchemy.orm.session import Session
@@ -696,7 +698,7 @@ def _get_alembic_config():
     return config
 
 
-def _get_script_object(config=None) -> "ScriptDirectory":
+def _get_script_object(config=None) -> ScriptDirectory:
     from alembic.script import ScriptDirectory
 
     if not config:
@@ -739,7 +741,7 @@ def check_migrations(timeout):
 
 
 @contextlib.contextmanager
-def _configured_alembic_environment() -> Generator["EnvironmentContext", None, None]:
+def _configured_alembic_environment() -> Generator[EnvironmentContext, None, None]:
     from alembic.runtime.environment import EnvironmentContext
 
     config = _get_alembic_config()
@@ -915,7 +917,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: Optional[List[Union["Base", str]]], session):
+def reflect_tables(tables: list[Base | str] | None, session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
@@ -957,7 +959,7 @@ def check_task_fail_for_duplicates(session):
 
 
 def check_table_for_duplicates(
-    *, session: Session, table_name: str, uniqueness: List[str], version: str
+    *, session: Session, table_name: str, uniqueness: list[str], version: str
 ) -> Iterable[str]:
     """
     Check table for duplicates, given a list of columns which define the uniqueness of the table.
@@ -1086,7 +1088,7 @@ def _create_table_as(
     *,
     session,
     dialect_name: str,
-    source_query: "Query",
+    source_query: Query,
     target_table_name: str,
     source_table_name: str,
 ):
@@ -1120,7 +1122,7 @@ def _create_table_as(
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", target_table_name: str
+    session, source_table: Table, source_query: Query, target_table_name: str
 ):
 
     bind = session.get_bind()
@@ -1225,7 +1227,7 @@ def _dangling_against_task_instance(session, source_table, dag_run, task_instanc
 
 
 def _move_duplicate_data_to_new_table(
-    session, source_table: "Table", subquery: "Query", uniqueness: List[str], target_table_name: str
+    session, source_table: Table, subquery: Query, uniqueness: list[str], target_table_name: str
 ):
     """
     When adding a uniqueness constraint we first should ensure that there are no duplicate rows.
@@ -1299,7 +1301,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         """
 
         bad_rows_func: Callable
-        join_tables: List[str]
+        join_tables: list[str]
         ref_table: str
 
     missing_dag_run_config = BadReferenceConfig(
@@ -1314,7 +1316,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         ref_table='task_instance',
     )
 
-    models_list: List[Tuple["Base", str, BadReferenceConfig]] = [
+    models_list: list[tuple[Base, str, BadReferenceConfig]] = [
         (TaskInstance, '2.2', missing_dag_run_config),
         (TaskReschedule, '2.2', missing_ti_config),
         (RenderedTaskInstanceFields, '2.3', missing_ti_config),
@@ -1384,7 +1386,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     :session: session of the sqlalchemy
     :rtype: list[str]
     """
-    check_functions: Tuple[Callable[..., Iterable[str]], ...] = (
+    check_functions: tuple[Callable[..., Iterable[str]], ...] = (
         check_task_fail_for_duplicates,
         check_conn_id_duplicates,
         check_conn_type_null,
@@ -1459,8 +1461,8 @@ def _revisions_above_min_for_offline(config, revisions):
 @provide_session
 def upgradedb(
     *,
-    to_revision: Optional[str] = None,
-    from_revision: Optional[str] = None,
+    to_revision: str | None = None,
+    from_revision: str | None = None,
     show_sql_only: bool = False,
     session: Session = NEW_SESSION,
 ):

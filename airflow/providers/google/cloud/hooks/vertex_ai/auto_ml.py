@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains a Google Cloud Vertex AI hook.
 
@@ -43,9 +42,10 @@ This module contains a Google Cloud Vertex AI hook.
     targetColumn
     optimizationObjective
 """
+from __future__ import annotations
 
 import warnings
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -74,27 +74,25 @@ class AutoMLHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._job: Optional[
-            Union[
-                AutoMLForecastingTrainingJob,
-                AutoMLImageTrainingJob,
-                AutoMLTabularTrainingJob,
-                AutoMLTextTrainingJob,
-                AutoMLVideoTrainingJob,
-            ]
-        ] = None
+        self._job: None | (
+            AutoMLForecastingTrainingJob
+            | AutoMLImageTrainingJob
+            | AutoMLTabularTrainingJob
+            | AutoMLTextTrainingJob
+            | AutoMLVideoTrainingJob
+        ) = None
 
     def get_pipeline_service_client(
         self,
-        region: Optional[str] = None,
+        region: str | None = None,
     ) -> PipelineServiceClient:
         """Returns PipelineServiceClient."""
         if region and region != 'global':
@@ -108,7 +106,7 @@ class AutoMLHook(GoogleBaseHook):
 
     def get_job_service_client(
         self,
-        region: Optional[str] = None,
+        region: str | None = None,
     ) -> JobServiceClient:
         """Returns JobServiceClient"""
         if region and region != 'global':
@@ -124,16 +122,16 @@ class AutoMLHook(GoogleBaseHook):
         self,
         display_name: str,
         optimization_prediction_type: str,
-        optimization_objective: Optional[str] = None,
-        column_specs: Optional[Dict[str, str]] = None,
-        column_transformations: Optional[List[Dict[str, Dict[str, str]]]] = None,
-        optimization_objective_recall_value: Optional[float] = None,
-        optimization_objective_precision_value: Optional[float] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
+        optimization_objective: str | None = None,
+        column_specs: dict[str, str] | None = None,
+        column_transformations: list[dict[str, dict[str, str]]] | None = None,
+        optimization_objective_recall_value: float | None = None,
+        optimization_objective_precision_value: float | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTabularTrainingJob:
         """Returns AutoMLTabularTrainingJob object"""
         return AutoMLTabularTrainingJob(
@@ -155,14 +153,14 @@ class AutoMLHook(GoogleBaseHook):
     def get_auto_ml_forecasting_training_job(
         self,
         display_name: str,
-        optimization_objective: Optional[str] = None,
-        column_specs: Optional[Dict[str, str]] = None,
-        column_transformations: Optional[List[Dict[str, Dict[str, str]]]] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
+        optimization_objective: str | None = None,
+        column_specs: dict[str, str] | None = None,
+        column_transformations: list[dict[str, dict[str, str]]] | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLForecastingTrainingJob:
         """Returns AutoMLForecastingTrainingJob object"""
         return AutoMLForecastingTrainingJob(
@@ -184,12 +182,12 @@ class AutoMLHook(GoogleBaseHook):
         prediction_type: str = "classification",
         multi_label: bool = False,
         model_type: str = "CLOUD",
-        base_model: Optional[models.Model] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
+        base_model: models.Model | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLImageTrainingJob:
         """Returns AutoMLImageTrainingJob object"""
         return AutoMLImageTrainingJob(
@@ -212,11 +210,11 @@ class AutoMLHook(GoogleBaseHook):
         prediction_type: str,
         multi_label: bool = False,
         sentiment_max: int = 10,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTextTrainingJob:
         """Returns AutoMLTextTrainingJob object"""
         return AutoMLTextTrainingJob(
@@ -237,11 +235,11 @@ class AutoMLHook(GoogleBaseHook):
         display_name: str,
         prediction_type: str = "classification",
         model_type: str = "CLOUD",
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLVideoTrainingJob:
         """Returns AutoMLVideoTrainingJob object"""
         return AutoMLVideoTrainingJob(
@@ -257,11 +255,11 @@ class AutoMLHook(GoogleBaseHook):
         )
 
     @staticmethod
-    def extract_model_id(obj: Dict) -> str:
+    def extract_model_id(obj: dict) -> str:
         """Returns unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -283,26 +281,26 @@ class AutoMLHook(GoogleBaseHook):
         dataset: datasets.TabularDataset,
         target_column: str,
         optimization_prediction_type: str,
-        optimization_objective: Optional[str] = None,
-        column_specs: Optional[Dict[str, str]] = None,
-        column_transformations: Optional[List[Dict[str, Dict[str, str]]]] = None,
-        optimization_objective_recall_value: Optional[float] = None,
-        optimization_objective_precision_value: Optional[float] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        predefined_split_column_name: Optional[str] = None,
-        timestamp_split_column_name: Optional[str] = None,
-        weight_column: Optional[str] = None,
+        optimization_objective: str | None = None,
+        column_specs: dict[str, str] | None = None,
+        column_transformations: list[dict[str, dict[str, str]]] | None = None,
+        optimization_objective_recall_value: float | None = None,
+        optimization_objective_precision_value: float | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        predefined_split_column_name: str | None = None,
+        timestamp_split_column_name: str | None = None,
+        weight_column: str | None = None,
         budget_milli_node_hours: int = 1000,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
         disable_early_stopping: bool = False,
         export_evaluated_data_items: bool = False,
-        export_evaluated_data_items_bigquery_destination_uri: Optional[str] = None,
+        export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
         sync: bool = True,
     ) -> models.Model:
@@ -504,32 +502,32 @@ class AutoMLHook(GoogleBaseHook):
         target_column: str,
         time_column: str,
         time_series_identifier_column: str,
-        unavailable_at_forecast_columns: List[str],
-        available_at_forecast_columns: List[str],
+        unavailable_at_forecast_columns: list[str],
+        available_at_forecast_columns: list[str],
         forecast_horizon: int,
         data_granularity_unit: str,
         data_granularity_count: int,
-        optimization_objective: Optional[str] = None,
-        column_specs: Optional[Dict[str, str]] = None,
-        column_transformations: Optional[List[Dict[str, Dict[str, str]]]] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        predefined_split_column_name: Optional[str] = None,
-        weight_column: Optional[str] = None,
-        time_series_attribute_columns: Optional[List[str]] = None,
-        context_window: Optional[int] = None,
+        optimization_objective: str | None = None,
+        column_specs: dict[str, str] | None = None,
+        column_transformations: list[dict[str, dict[str, str]]] | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        predefined_split_column_name: str | None = None,
+        weight_column: str | None = None,
+        time_series_attribute_columns: list[str] | None = None,
+        context_window: int | None = None,
         export_evaluated_data_items: bool = False,
-        export_evaluated_data_items_bigquery_destination_uri: Optional[str] = None,
+        export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
-        quantiles: Optional[List[float]] = None,
-        validation_options: Optional[str] = None,
+        quantiles: list[float] | None = None,
+        validation_options: str | None = None,
         budget_milli_node_hours: int = 1000,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
         sync: bool = True,
     ) -> models.Model:
         """
@@ -731,19 +729,19 @@ class AutoMLHook(GoogleBaseHook):
         prediction_type: str = "classification",
         multi_label: bool = False,
         model_type: str = "CLOUD",
-        base_model: Optional[models.Model] = None,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        budget_milli_node_hours: Optional[int] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
+        base_model: models.Model | None = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        budget_milli_node_hours: int | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
         disable_early_stopping: bool = False,
         sync: bool = True,
     ) -> models.Model:
@@ -901,17 +899,17 @@ class AutoMLHook(GoogleBaseHook):
         prediction_type: str,
         multi_label: bool = False,
         sentiment_max: int = 10,
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        training_fraction_split: Optional[float] = None,
-        validation_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        validation_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        training_fraction_split: float | None = None,
+        validation_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        validation_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
         sync: bool = True,
     ) -> models.Model:
         """
@@ -1031,15 +1029,15 @@ class AutoMLHook(GoogleBaseHook):
         dataset: datasets.VideoDataset,
         prediction_type: str = "classification",
         model_type: str = "CLOUD",
-        labels: Optional[Dict[str, str]] = None,
-        training_encryption_spec_key_name: Optional[str] = None,
-        model_encryption_spec_key_name: Optional[str] = None,
-        training_fraction_split: Optional[float] = None,
-        test_fraction_split: Optional[float] = None,
-        training_filter_split: Optional[str] = None,
-        test_filter_split: Optional[str] = None,
-        model_display_name: Optional[str] = None,
-        model_labels: Optional[Dict[str, str]] = None,
+        labels: dict[str, str] | None = None,
+        training_encryption_spec_key_name: str | None = None,
+        model_encryption_spec_key_name: str | None = None,
+        training_fraction_split: float | None = None,
+        test_fraction_split: float | None = None,
+        training_filter_split: str | None = None,
+        test_filter_split: str | None = None,
+        model_display_name: str | None = None,
+        model_labels: dict[str, str] | None = None,
         sync: bool = True,
     ) -> models.Model:
         """
@@ -1153,9 +1151,9 @@ class AutoMLHook(GoogleBaseHook):
         project_id: str,
         region: str,
         training_pipeline: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a TrainingPipeline.
@@ -1186,9 +1184,9 @@ class AutoMLHook(GoogleBaseHook):
         project_id: str,
         region: str,
         training_pipeline: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
         Gets a TrainingPipeline.
@@ -1218,13 +1216,13 @@ class AutoMLHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        filter: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter: str | None = None,
+        read_mask: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
         Lists TrainingPipelines in a Location.

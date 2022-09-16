@@ -18,6 +18,7 @@
 """
 Example DAG using GCSToTrinoOperator.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

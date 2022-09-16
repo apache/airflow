@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
@@ -63,7 +65,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         self.collection_name = collection_name
         self.document_id = document_id
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info("*** Entering poke")
         hook = AzureCosmosDBHook(self.azure_cosmos_conn_id)
         return hook.get_document(self.document_id, self.database_name, self.collection_name) is not None

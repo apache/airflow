@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -55,7 +56,7 @@ class S3ToMySqlOperator(BaseOperator):
         s3_source_key: str,
         mysql_table: str,
         mysql_duplicate_key_handling: str = 'IGNORE',
-        mysql_extra_options: Optional[str] = None,
+        mysql_extra_options: str | None = None,
         aws_conn_id: str = 'aws_default',
         mysql_conn_id: str = 'mysql_default',
         **kwargs,
@@ -68,7 +69,7 @@ class S3ToMySqlOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.mysql_conn_id = mysql_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """
         Executes the transfer operation from S3 to MySQL.
 

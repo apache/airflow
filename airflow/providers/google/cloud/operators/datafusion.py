@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains Google DataFusion operators."""
+from __future__ import annotations
+
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
@@ -55,13 +56,13 @@ class DataFusionInstanceLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
-        task_instance: Union[
-            "CloudDataFusionRestartInstanceOperator",
-            "CloudDataFusionCreateInstanceOperator",
-            "CloudDataFusionUpdateInstanceOperator",
-            "CloudDataFusionGetInstanceOperator",
-        ],
+        context: Context,
+        task_instance: (
+            CloudDataFusionRestartInstanceOperator
+            | CloudDataFusionCreateInstanceOperator
+            | CloudDataFusionUpdateInstanceOperator
+            | CloudDataFusionGetInstanceOperator
+        ),
         project_id: str,
     ):
         task_instance.xcom_push(
@@ -84,12 +85,12 @@ class DataFusionPipelineLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
-        task_instance: Union[
-            "CloudDataFusionCreatePipelineOperator",
-            "CloudDataFusionStartPipelineOperator",
-            "CloudDataFusionStopPipelineOperator",
-        ],
+        context: Context,
+        task_instance: (
+            CloudDataFusionCreatePipelineOperator
+            | CloudDataFusionStartPipelineOperator
+            | CloudDataFusionStopPipelineOperator
+        ),
         uri: str,
     ):
         task_instance.xcom_push(
@@ -111,8 +112,8 @@ class DataFusionPipelinesLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
-        task_instance: "CloudDataFusionListPipelinesOperator",
+        context: Context,
+        task_instance: CloudDataFusionListPipelinesOperator,
         uri: str,
     ):
         task_instance.xcom_push(
@@ -162,11 +163,11 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         *,
         instance_name: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -178,7 +179,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -234,11 +235,11 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         *,
         instance_name: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -250,7 +251,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -306,13 +307,13 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self,
         *,
         instance_name: str,
-        instance: Dict[str, Any],
+        instance: dict[str, Any],
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -325,7 +326,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -408,14 +409,14 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self,
         *,
         instance_name: str,
-        instance: Dict[str, Any],
+        instance: dict[str, Any],
         update_mask: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -429,7 +430,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -488,11 +489,11 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         *,
         instance_name: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -504,7 +505,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -565,15 +566,15 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self,
         *,
         pipeline_name: str,
-        pipeline: Dict[str, Any],
+        pipeline: dict[str, Any],
         instance_name: str,
         location: str,
         namespace: str = "default",
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -588,7 +589,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -656,13 +657,13 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         pipeline_name: str,
         instance_name: str,
         location: str,
-        version_id: Optional[str] = None,
+        version_id: str | None = None,
         namespace: str = "default",
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -677,7 +678,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -744,14 +745,14 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         *,
         instance_name: str,
         location: str,
-        artifact_name: Optional[str] = None,
-        artifact_version: Optional[str] = None,
+        artifact_name: str | None = None,
+        artifact_version: str | None = None,
         namespace: str = "default",
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -766,7 +767,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -843,15 +844,15 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         pipeline_name: str,
         instance_name: str,
         location: str,
-        runtime_args: Optional[Dict[str, Any]] = None,
-        success_states: Optional[List[str]] = None,
+        runtime_args: dict[str, Any] | None = None,
+        success_states: list[str] | None = None,
         namespace: str = "default",
         pipeline_timeout: int = 5 * 60,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         asynchronous=False,
         **kwargs,
     ) -> None:
@@ -874,7 +875,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         else:
             self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -955,11 +956,11 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         instance_name: str,
         location: str,
         namespace: str = "default",
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -973,7 +974,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

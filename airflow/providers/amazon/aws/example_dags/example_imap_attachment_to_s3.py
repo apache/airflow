@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This is an example dag for using `ImapAttachmentToS3Operator` to transfer an email attachment via IMAP
 protocol from a mail server to S3 Bucket.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv

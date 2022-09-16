@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains integration with Azure Data Lake.
 
@@ -24,7 +23,9 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from azure.datalake.store import core, lib, multithread
 
@@ -49,7 +50,7 @@ class AzureDataLakeHook(BaseHook):
     hook_name = 'Azure Data Lake'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -65,7 +66,7 @@ class AzureDataLakeHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -84,8 +85,8 @@ class AzureDataLakeHook(BaseHook):
     def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_lake_conn_id
-        self._conn: Optional[core.AzureDLFileSystem] = None
-        self.account_name: Optional[str] = None
+        self._conn: core.AzureDLFileSystem | None = None
+        self.account_name: str | None = None
 
     def get_conn(self) -> core.AzureDLFileSystem:
         """Return a AzureDLFileSystem object."""

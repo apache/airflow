@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -50,7 +52,7 @@ class InfluxDBOperator(BaseOperator):
         self.influxdb_conn_id = influxdb_conn_id
         self.sql = sql
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.sql)
         self.hook = InfluxDBHook(conn_id=self.influxdb_conn_id)
         self.hook.query(self.sql)

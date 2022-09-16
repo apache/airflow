@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import subprocess
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, List, Optional
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -45,7 +47,7 @@ class PigCliHook(BaseHook):
         self.conn = conn
         self.sub_process = None
 
-    def run_cli(self, pig: str, pig_opts: Optional[str] = None, verbose: bool = True) -> Any:
+    def run_cli(self, pig: str, pig_opts: str | None = None, verbose: bool = True) -> Any:
         """
         Run an pig script using the pig cli
 
@@ -60,7 +62,7 @@ class PigCliHook(BaseHook):
                 f.flush()
                 fname = f.name
                 pig_bin = 'pig'
-                cmd_extra: List[str] = []
+                cmd_extra: list[str] = []
 
                 pig_cmd = [pig_bin]
 

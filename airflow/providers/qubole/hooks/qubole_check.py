@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import logging
 from io import StringIO
-from typing import List, Optional, Union
 
 from qds_sdk.commands import Command
 
@@ -58,7 +58,7 @@ def isbool(value) -> bool:
         return False
 
 
-def parse_first_row(row_list) -> List[Union[bool, float, int, str]]:
+def parse_first_row(row_list) -> list[bool | float | int | str]:
     """Parse Qubole first record list"""
     record_list = []
     first_row = row_list[0] if row_list else ""
@@ -107,7 +107,7 @@ class QuboleCheckHook(QuboleHook, DbApiHook):
         record_list = self.results_parser_callable(row_list)
         return record_list
 
-    def get_query_results(self) -> Optional[str]:
+    def get_query_results(self) -> str | None:
         """Get Qubole query result"""
         if self.cmd is not None:
             cmd_id = self.cmd.id

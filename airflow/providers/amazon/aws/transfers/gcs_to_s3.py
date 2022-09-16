@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
+from __future__ import annotations
+
 import os
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -95,18 +97,18 @@ class GCSToS3Operator(BaseOperator):
         self,
         *,
         bucket: str,
-        prefix: Optional[str] = None,
-        delimiter: Optional[str] = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        google_cloud_storage_conn_id: str | None = None,
+        delegate_to: str | None = None,
         dest_aws_conn_id: str = 'aws_default',
         dest_s3_key: str,
-        dest_verify: Optional[Union[str, bool]] = None,
+        dest_verify: str | bool | None = None,
         replace: bool = False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        dest_s3_extra_args: Optional[Dict] = None,
-        s3_acl_policy: Optional[str] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
+        dest_s3_extra_args: dict | None = None,
+        s3_acl_policy: str | None = None,
         keep_directory_structure: bool = True,
         **kwargs,
     ) -> None:
@@ -135,7 +137,7 @@ class GCSToS3Operator(BaseOperator):
         self.s3_acl_policy = s3_acl_policy
         self.keep_directory_structure = keep_directory_structure
 
-    def execute(self, context: 'Context') -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

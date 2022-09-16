@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 DAG designed to test a PythonOperator that calls a functool.partial
 """
+from __future__ import annotations
+
 import functools
 import logging
 from datetime import datetime

@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence
+from typing import Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonVirtualenvOperator
@@ -68,8 +69,8 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
 
 
 def virtualenv_task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: Optional[bool] = None,
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """Wraps a callable into an Airflow operator to run via a Python virtual environment.

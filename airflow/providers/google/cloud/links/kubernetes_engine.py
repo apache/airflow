@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Dict, Union
+from typing import TYPE_CHECKING
 
 from google.cloud.container_v1.types import Cluster
 
@@ -43,7 +44,7 @@ class KubernetesEngineClusterLink(BaseGoogleLink):
     format_str = KUBERNETES_CLUSTER_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, cluster: Union[Dict, Cluster, None]):
+    def persist(context: Context, task_instance, cluster: dict | Cluster | None):
         if isinstance(cluster, dict):
             cluster = Cluster.from_json(json.dumps(cluster))
 
@@ -67,7 +68,7 @@ class KubernetesEnginePodLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(

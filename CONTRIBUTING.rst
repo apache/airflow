@@ -1203,10 +1203,10 @@ commands:
 React, JSX and Chakra
 -----------------------------
 
-In order to create a more modern UI, we have started to include [React](https://reactjs.org/) in the ``airflow/www/`` project.
+In order to create a more modern UI, we have started to include `React <https://reactjs.org/>`__ in the ``airflow/www/`` project.
 If you are unfamiliar with React then it is recommended to check out their documentation to understand components and jsx syntax.
 
-We are using [Chakra UI](https://chakra-ui.com/) as a component and styling library. Notably, all styling is done in a theme file or
+We are using `Chakra UI <https://chakra-ui.com/>`__ as a component and styling library. Notably, all styling is done in a theme file or
 inline when defining a component. There are a few shorthand style props like ``px`` instead of ``padding-right, padding-left``.
 To make this work, all Chakra styling and css styling are completely separate. It is best to think of the React components as a separate app
 that lives inside of the main app.

@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from time import sleep
-from typing import Optional
 
 from sqlalchemy import Column, Index, Integer, String
 from sqlalchemy.exc import OperationalError
@@ -119,7 +118,7 @@ class BaseJob(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session=None) -> Optional['BaseJob']:
+    def most_recent_job(cls, session=None) -> BaseJob | None:
         """
         Return the most recent job of this type, if any, based on last
         heartbeat received.

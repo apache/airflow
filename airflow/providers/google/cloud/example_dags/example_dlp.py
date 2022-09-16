@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that execute the following tasks using
 Cloud DLP service in the Google Cloud:
@@ -23,6 +22,7 @@ Cloud DLP service in the Google Cloud:
 2) Using the created template to inspect content;
 3) Deleting the template from Google Cloud .
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

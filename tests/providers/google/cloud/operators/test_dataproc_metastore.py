@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union
+from __future__ import annotations
+
 from unittest import TestCase, mock
 
 from google.api_core.gapic_v1.method import _MethodDefault
@@ -45,7 +46,7 @@ TEST_SERVICE: dict = {"name": "test-service"}
 TEST_SERVICE_ID: str = "test-service-id"
 
 TEST_TIMEOUT = 120
-TEST_RETRY: Union[Retry, _MethodDefault] = mock.MagicMock(Retry)
+TEST_RETRY: Retry | _MethodDefault = mock.MagicMock(Retry)
 TEST_METADATA = [("key", "value")]
 TEST_REQUEST_ID = "request_id_uuid"
 
