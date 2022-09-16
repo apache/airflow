@@ -436,4 +436,4 @@ def run_compile_www_assets(
         )
         thread.start()
     else:
-        _run_compile_internally(command_to_execute, dry_run, verbose)
+        return _run_compile_internally(command_to_execute, dry_run, verbose)
