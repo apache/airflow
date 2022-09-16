@@ -2443,7 +2443,7 @@ class DAG(LoggingMixin):
         run_conf: dict[str, Any] | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+        """Execute one single DagRun for a given DAG and execution date."""
 
         def add_logger_if_needed(ti: TaskInstance):
             """
@@ -3567,6 +3567,8 @@ def _run_task(ti: TaskInstance, session):
     """
     Run a single task instance, and push result to Xcom for downstream tasks. Bypasses a lot of
     extra steps used in `task.run` to keep our local running as fast as possible
+    This function is only meant for the `dag.test` function as a helper function.
+
     Args:
         ti: TaskInstance to run
     """
@@ -3592,7 +3594,17 @@ def _get_or_create_dagrun(
     run_id: str,
     session: Session,
 ) -> DagRun:
-
+    """
+    Create a DAGRun, but only after clearing the previous instance of said dagrun to prevent collisions.
+    This function is only meant for the `dag.test` function as a helper function.
+    :param dag: Dag to be used to find dagrun
+    :param conf: configuration to pass to newly created dagrun
+    :param start_date: start date of new dagrun, defaults to execution_date
+    :param execution_date: execution_date for finding the dagrun
+    :param run_id: run_id to pass to new dagrun
+    :param session: sqlalchemy session
+    :return:
+    """
     log.info("dagrun id:" + dag.dag_id)
     dr: DagRun = (
         session.query(DagRun)
