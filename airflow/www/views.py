@@ -3555,7 +3555,6 @@ class Airflow(AirflowBaseView):
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
-    # @format_parameters({'limit': check_limit})
     @expose('/object/list_datasets')
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def get_datasets(self):
