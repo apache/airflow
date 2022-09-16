@@ -22,15 +22,11 @@ from dateutil.tz import UTC
 from airflow import Dataset
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets
 
 
 class TestDatasetEndpoint:
-
-    default_time = "2020-06-11T18:00:00+00:00"
-
     @pytest.fixture(autouse=True)
     def cleanup(self):
         clear_db_datasets()
@@ -44,8 +40,6 @@ class TestGetDatasets(TestDatasetEndpoint):
             DatasetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -84,8 +78,6 @@ class TestGetDatasets(TestDatasetEndpoint):
         datasets = [
             DatasetModel(
                 uri=f"s3://bucket/key/{i}",
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in [1, 2]
         ]
@@ -113,8 +105,6 @@ class TestGetDatasets(TestDatasetEndpoint):
             DatasetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, len(ordered_dataset_ids) + 1)
         ]
@@ -225,8 +215,6 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, 10)
         ]
@@ -244,8 +232,6 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, 60)
         ]
@@ -262,8 +248,6 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             DatasetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
             )
             for i in range(1, 60)
         ]
