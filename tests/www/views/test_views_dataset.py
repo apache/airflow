@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import string
-
 import pendulum
 import pytest
 from dateutil.tz import UTC
@@ -114,7 +112,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         datasets = [
             DatasetModel(
                 id=i,
-                uri=string.ascii_lowercase[i],
+                uri=f"s3://bucket/key/{i}",
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
             )
