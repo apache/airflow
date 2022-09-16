@@ -93,7 +93,7 @@ If required, an extra dictionary can be included in a Dataset:
         extra={'team': 'trainees'},
     )
 
-..note::
+.. note ::
 
     Security Note: Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
 
