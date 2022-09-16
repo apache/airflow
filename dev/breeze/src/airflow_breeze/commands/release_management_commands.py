@@ -170,7 +170,7 @@ def prepare_airflow_packages(
 ):
     perform_environment_checks(verbose=verbose)
     assert_pre_commit_installed(verbose=verbose)
-    run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
+    run_compile_www_assets(dev=False, run_in_background=False, verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
         github_repository=github_repository,

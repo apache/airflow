@@ -27,9 +27,15 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
+AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
+WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www_dir_hash.txt"
+
 if __name__ == '__main__':
-    dir = Path("airflow") / "www"
+    www_directory = Path("airflow") / "www"
+    if WWW_HASH_FILE.exists():
+        # cleanup hash of www so that next compile-assets recompiles them
+        WWW_HASH_FILE.unlink()
     env = os.environ.copy()
     env['FORCE_COLOR'] = "true"
-    subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(dir))
-    subprocess.check_call(['yarn', 'dev'], cwd=str(dir), env=env)
+    subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(www_directory))
+    subprocess.check_call(['yarn', 'dev'], cwd=str(www_directory), env=env)
