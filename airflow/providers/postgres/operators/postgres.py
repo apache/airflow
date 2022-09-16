@@ -73,7 +73,7 @@ class PostgresOperator(BaseOperator):
         self.hook: PostgresHook | None = None
 
     def execute(self, context: Context):
-        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
+        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, database=self.database)
         if self.runtime_parameters:
             final_sql = []
             sql_param = {}
