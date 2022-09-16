@@ -139,8 +139,6 @@ As well as a single parameter it is possible to pass multiple parameters to expa
 
 This would result in the add task being called 6 times. Please note however that the order of expansion is not guaranteed.
 
-It is not possible to achieve an effect similar to Python's ``zip`` function with mapped arguments.
-
 Task-generated Mapping
 ======================
 
