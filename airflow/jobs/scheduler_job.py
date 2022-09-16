@@ -785,13 +785,10 @@ class SchedulerJob(BaseJob):
                 dag = SerializedDagModel.get_dag(dag_id)
                 if dag is None:
                     continue
-                dag_runs = (
-                    session.query(DagRun)
-                    .filter(
-                        DagRun.dag_id == dag_id,
-                        DagRun.state == DagRunState.RUNNING,
-                        DagRun.run_type != DagRunType.BACKFILL_JOB,
-                    )
+                dag_runs = session.query(DagRun).filter(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == DagRunState.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
                 for dag_run in dag_runs:
                     dag_run.dag = dag
