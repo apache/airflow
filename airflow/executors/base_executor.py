@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base executor - this is the base class for all the implemented executors."""
+from __future__ import annotations
+
 import sys
 import warnings
 from collections import OrderedDict
-from typing import Any, Counter, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Counter, List, Optional, Sequence, Tuple
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -64,15 +66,15 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
-    job_id: Union[None, int, str] = None
-    callback_sink: Optional[BaseCallbackSink] = None
+    job_id: None | int | str = None
+    callback_sink: BaseCallbackSink | None = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
         self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
-        self.running: Set[TaskInstanceKey] = set()
-        self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
+        self.running: set[TaskInstanceKey] = set()
+        self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self.attempts: Counter[TaskInstanceKey] = Counter()
 
     def __repr__(self):
@@ -86,7 +88,7 @@ class BaseExecutor(LoggingMixin):
         task_instance: TaskInstance,
         command: CommandType,
         priority: int = 1,
-        queue: Optional[str] = None,
+        queue: str | None = None,
     ):
         """Queues command to task"""
         if task_instance.key not in self.queued_tasks:
@@ -99,13 +101,13 @@ class BaseExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: Optional[str] = None,
+        pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        pool: Optional[str] = None,
-        cfg_path: Optional[str] = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
     ) -> None:
         """Queues task instance."""
         pool = pool or task_instance.pool
@@ -172,7 +174,7 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
-    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
+    def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
         """
         Orders the queued tasks by priority.
 
@@ -223,7 +225,7 @@ class BaseExecutor(LoggingMixin):
         if task_tuples:
             self._process_tasks(task_tuples)
 
-    def _process_tasks(self, task_tuples: List[TaskTuple]) -> None:
+    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
@@ -262,7 +264,7 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, State.SUCCESS, info)
 
-    def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKey, EventBufferValueType]:
+    def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
         Returns and flush the event buffer. In case dag_ids is specified
         it will only return and flush events for the given dag_ids. Otherwise
@@ -271,7 +273,7 @@ class BaseExecutor(LoggingMixin):
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
         """
-        cleared_events: Dict[TaskInstanceKey, EventBufferValueType] = {}
+        cleared_events: dict[TaskInstanceKey, EventBufferValueType] = {}
         if dag_ids is None:
             cleared_events = self.event_buffer
             self.event_buffer = {}
@@ -286,8 +288,8 @@ class BaseExecutor(LoggingMixin):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:  # pragma: no cover
         """
         This method will execute the command asynchronously.
@@ -334,7 +336,7 @@ class BaseExecutor(LoggingMixin):
             return sys.maxsize
 
     @staticmethod
-    def validate_command(command: List[str]) -> None:
+    def validate_command(command: list[str]) -> None:
         """
         Back-compat method to Check if the command to execute is airflow command
 
@@ -351,7 +353,7 @@ class BaseExecutor(LoggingMixin):
         BaseExecutor.validate_airflow_tasks_run_command(command)
 
     @staticmethod
-    def validate_airflow_tasks_run_command(command: List[str]) -> Tuple[Optional[str], Optional[str]]:
+    def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
         """
         Check if the command to execute is airflow command
 
@@ -360,8 +362,8 @@ class BaseExecutor(LoggingMixin):
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
         if len(command) > 3 and "--help" not in command:
-            dag_id: Optional[str] = None
-            task_id: Optional[str] = None
+            dag_id: str | None = None
+            task_id: str | None = None
             for arg in command[4:]:
                 if not arg.startswith("--"):
                     if dag_id is None:

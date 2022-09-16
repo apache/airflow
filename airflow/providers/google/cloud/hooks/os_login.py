@@ -20,9 +20,9 @@
     ImportSshPublicKeyResponse
     oslogin
 """
+from __future__ import annotations
 
-
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -43,8 +43,8 @@ class OSLoginHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -65,11 +65,11 @@ class OSLoginHook(GoogleBaseHook):
     def import_ssh_public_key(
         self,
         user: str,
-        ssh_public_key: Dict,
+        ssh_public_key: dict,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:
         """
         Adds an SSH public key and returns the profile information. Default POSIX

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Improve MSSQL compatibility
 
 Revision ID: 83f031fd9f1c
@@ -23,6 +22,7 @@ Revises: ccde3e26fe78
 Create Date: 2021-04-06 12:22:02.197726
 
 """
+from __future__ import annotations
 
 from collections import defaultdict
 

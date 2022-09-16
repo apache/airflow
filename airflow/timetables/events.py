@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import itertools
-from typing import Iterable, Optional
+from typing import Iterable
 
 import pendulum
 from pendulum import DateTime
@@ -43,7 +45,7 @@ class EventsTimetable(Timetable):
         event_dates: Iterable[DateTime],
         restrict_to_events: bool = False,
         presorted: bool = False,
-        description: Optional[str] = None,
+        description: str | None = None,
     ):
 
         self.event_dates = list(event_dates)  # Must be reversible and indexable
@@ -70,9 +72,9 @@ class EventsTimetable(Timetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         if last_automated_data_interval is None:
             next_event = self.event_dates[0]
         else:

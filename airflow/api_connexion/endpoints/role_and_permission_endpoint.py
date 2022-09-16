@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from http import HTTPStatus
-from typing import List, Optional, Tuple
 
 from connexion import NoContent
 from flask import request
@@ -40,7 +40,7 @@ from airflow.www.fab_security.sqla.models import Action, Role
 from airflow.www.security import AirflowSecurityManager
 
 
-def _check_action_and_resource(sm: AirflowSecurityManager, perms: List[Tuple[str, str]]) -> None:
+def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str, str]]) -> None:
     """
     Checks if the action or resource exists and raise 400 if not
 
@@ -65,7 +65,7 @@ def get_role(*, role_name: str) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
 @format_parameters({"limit": check_limit})
-def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = None) -> APIResponse:
+def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
     """Get roles"""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
@@ -89,7 +89,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: Optional[int] = Non
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
 @format_parameters({'limit': check_limit})
-def get_permissions(*, limit: int, offset: Optional[int] = None) -> APIResponse:
+def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions"""
     session = get_airflow_app().appbuilder.get_session
     total_entries = session.query(func.count(Action.id)).scalar()

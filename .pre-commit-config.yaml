@@ -236,18 +236,6 @@ repos:
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
-        files: \.py$|\.pyi$
-        # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
-        args:
-          # These -p options are duplicated to known_first_party in setup.cfg,
-          # Please keep these in sync for now. (See comments there for details.)
-          - -p=airflow
-          - -p=airflow_breeze
-          - -p=docker_tests
-          - -p=docs
-          - -p=kubernetes_tests
-          - -p=tests
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -780,6 +768,7 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
+        exclude: ^\.github/workflows/sync_authors\.yml$
         additional_dependencies: ['PyYAML', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types

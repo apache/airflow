@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 # This tool is based on the Superset send_email script:
 # https://github.com/apache/incubator-superset/blob/master/RELEASING/send_email.py
@@ -24,7 +25,6 @@ import shutil
 import smtplib
 import ssl
 import sys
-from typing import List, Union
 
 try:
     import jinja2
@@ -41,7 +41,7 @@ SMTP_SERVER = "mail-relay.apache.org"
 MAILING_LIST = {"dev": "dev@airflow.apache.org", "users": "users@airflow.apache.org"}
 
 
-def string_comma_to_list(message: str) -> List[str]:
+def string_comma_to_list(message: str) -> list[str]:
     """
     Split string to list
     """
@@ -54,7 +54,7 @@ def send_email(
     username: str,
     password: str,
     sender_email: str,
-    receiver_email: Union[str, List],
+    receiver_email: str | list,
     message: str,
 ):
     """
@@ -93,7 +93,7 @@ def show_message(entity: str, message: str):
 
 
 def inter_send_email(
-    username: str, password: str, sender_email: str, receiver_email: Union[str, List], message: str
+    username: str, password: str, sender_email: str, receiver_email: str | list, message: str
 ):
     """
     Send email using SMTP
@@ -313,7 +313,7 @@ def announce(base_parameters, receiver_email: str):
     """
     Send email to announce release of the new version
     """
-    receiver_emails: List[str] = string_comma_to_list(receiver_email)
+    receiver_emails: list[str] = string_comma_to_list(receiver_email)
 
     template_file = "templates/announce_email.j2"
     base_parameters.template_arguments["receiver_email"] = receiver_emails

@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 AWS Batch service waiters
 
@@ -25,12 +23,13 @@ AWS Batch service waiters
     - https://boto3.amazonaws.com/v1/documentation/api/latest/guide/clients.html#waiters
     - https://github.com/boto/botocore/blob/develop/botocore/waiter.py
 """
+from __future__ import annotations
 
 import json
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 
 import botocore.client
 import botocore.exceptions
@@ -98,7 +97,7 @@ class BatchWaitersHook(BatchClientHook):
         Override the AWS region in connection (if provided)
     """
 
-    def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs) -> None:
+    def __init__(self, *args, waiter_config: dict | None = None, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -107,7 +106,7 @@ class BatchWaitersHook(BatchClientHook):
         self._waiter_model = botocore.waiter.WaiterModel(self._waiter_config)
 
     @property
-    def default_config(self) -> Dict:
+    def default_config(self) -> dict:
         """
         An immutable default waiter configuration
 
@@ -121,7 +120,7 @@ class BatchWaitersHook(BatchClientHook):
         return deepcopy(self._default_config)  # avoid accidental mutation
 
     @property
-    def waiter_config(self) -> Dict:
+    def waiter_config(self) -> dict:
         """
         An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this
         property. During the init for BatchWaiters, the waiter_config is used to build a
@@ -178,7 +177,7 @@ class BatchWaitersHook(BatchClientHook):
         """
         return botocore.waiter.create_waiter_with_client(waiter_name, self.waiter_model, self.client)
 
-    def list_waiters(self) -> List[str]:
+    def list_waiters(self) -> list[str]:
         """
         List the waiters in a waiter configuration for AWS Batch services.
 
@@ -187,7 +186,7 @@ class BatchWaitersHook(BatchClientHook):
         """
         return self.waiter_model.waiter_names
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
+    def wait_for_job(self, job_id: str, delay: int | float | None = None) -> None:
         """
         Wait for Batch job to complete.  This assumes that the ``.waiter_model`` is configured
         using some variation of the ``.default_config`` so that it can generate waiters with the

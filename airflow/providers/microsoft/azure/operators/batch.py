@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.batch import models as batch_models
 
@@ -108,30 +109,30 @@ class AzureBatchOperator(BaseOperator):
         batch_job_id: str,
         batch_task_command_line: str,
         batch_task_id: str,
-        vm_publisher: Optional[str] = None,
-        vm_offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
-        vm_sku: Optional[str] = None,
-        vm_version: Optional[str] = None,
-        vm_node_agent_sku_id: Optional[str] = None,
-        os_family: Optional[str] = None,
-        os_version: Optional[str] = None,
-        batch_pool_display_name: Optional[str] = None,
-        batch_job_display_name: Optional[str] = None,
-        batch_job_manager_task: Optional[batch_models.JobManagerTask] = None,
-        batch_job_preparation_task: Optional[batch_models.JobPreparationTask] = None,
-        batch_job_release_task: Optional[batch_models.JobReleaseTask] = None,
-        batch_task_display_name: Optional[str] = None,
-        batch_task_container_settings: Optional[batch_models.TaskContainerSettings] = None,
-        batch_start_task: Optional[batch_models.StartTask] = None,
+        vm_publisher: str | None = None,
+        vm_offer: str | None = None,
+        sku_starts_with: str | None = None,
+        vm_sku: str | None = None,
+        vm_version: str | None = None,
+        vm_node_agent_sku_id: str | None = None,
+        os_family: str | None = None,
+        os_version: str | None = None,
+        batch_pool_display_name: str | None = None,
+        batch_job_display_name: str | None = None,
+        batch_job_manager_task: batch_models.JobManagerTask | None = None,
+        batch_job_preparation_task: batch_models.JobPreparationTask | None = None,
+        batch_job_release_task: batch_models.JobReleaseTask | None = None,
+        batch_task_display_name: str | None = None,
+        batch_task_container_settings: batch_models.TaskContainerSettings | None = None,
+        batch_start_task: batch_models.StartTask | None = None,
         batch_max_retries: int = 3,
-        batch_task_resource_files: Optional[List[batch_models.ResourceFile]] = None,
-        batch_task_output_files: Optional[List[batch_models.OutputFile]] = None,
-        batch_task_user_identity: Optional[batch_models.UserIdentity] = None,
-        target_low_priority_nodes: Optional[int] = None,
-        target_dedicated_nodes: Optional[int] = None,
+        batch_task_resource_files: list[batch_models.ResourceFile] | None = None,
+        batch_task_output_files: list[batch_models.OutputFile] | None = None,
+        batch_task_user_identity: batch_models.UserIdentity | None = None,
+        target_low_priority_nodes: int | None = None,
+        target_dedicated_nodes: int | None = None,
         enable_auto_scale: bool = False,
-        auto_scale_formula: Optional[str] = None,
+        auto_scale_formula: str | None = None,
         azure_batch_conn_id='azure_batch_default',
         use_latest_verified_vm_image_and_sku: bool = False,
         timeout: int = 25,
@@ -236,7 +237,7 @@ class AzureBatchOperator(BaseOperator):
                 "Some required parameters are missing.Please you must set all the required parameters. "
             )
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self._check_inputs()
         self.hook.connection.config.retry_policy = self.batch_max_retries
 
@@ -313,7 +314,7 @@ class AzureBatchOperator(BaseOperator):
         """Create and return an AzureBatchHook."""
         return AzureBatchHook(azure_batch_conn_id=self.azure_batch_conn_id)
 
-    def clean_up(self, pool_id: Optional[str] = None, job_id: Optional[str] = None) -> None:
+    def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
         """
         Delete the given pool and job in the batch account
 

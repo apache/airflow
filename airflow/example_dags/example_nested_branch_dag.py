@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating a workflow with nested branching. The join tasks are created with
 ``none_failed_min_one_success`` trigger rule such that they are skipped whenever their corresponding
 branching tasks are skipped.
 """
+from __future__ import annotations
+
 import pendulum
 
 from airflow.decorators import task

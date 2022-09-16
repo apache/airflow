@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Utilities for creating a virtual environment"""
+from __future__ import annotations
+
 import os
 import sys
 import warnings
-from typing import List, Optional
 
 import jinja2
 
@@ -28,7 +28,7 @@ from airflow.utils.decorators import remove_task_decorator as _remove_task_decor
 from airflow.utils.process_utils import execute_in_subprocess
 
 
-def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> List[str]:
+def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
     cmd = [sys.executable, '-m', 'virtualenv', tmp_dir]
     if system_site_packages:
         cmd.append('--system-site-packages')
@@ -38,15 +38,15 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
 
 
 def _generate_pip_install_cmd_from_file(
-    tmp_dir: str, requirements_file_path: str, pip_install_options: List[str]
-) -> List[str]:
+    tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
+) -> list[str]:
     cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options + ['-r']
     return cmd + [requirements_file_path]
 
 
 def _generate_pip_install_cmd_from_list(
-    tmp_dir: str, requirements: List[str], pip_install_options: List[str]
-) -> List[str]:
+    tmp_dir: str, requirements: list[str], pip_install_options: list[str]
+) -> list[str]:
     cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options
     return cmd + requirements
 
@@ -64,9 +64,9 @@ def prepare_virtualenv(
     venv_directory: str,
     python_bin: str,
     system_site_packages: bool,
-    requirements: Optional[List[str]] = None,
-    requirements_file_path: Optional[str] = None,
-    pip_install_options: Optional[List[str]] = None,
+    requirements: list[str] | None = None,
+    requirements_file_path: str | None = None,
+    pip_install_options: list[str] | None = None,
 ) -> str:
     """Creates a virtual environment and installs the additional python packages.
 

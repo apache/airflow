@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for SQL to GCS operators."""
+from __future__ import annotations
+
 import abc
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -94,17 +96,17 @@ class BaseSQLToGCSOperator(BaseOperator):
         sql: str,
         bucket: str,
         filename: str,
-        schema_filename: Optional[str] = None,
+        schema_filename: str | None = None,
         approx_max_file_size_bytes: int = 1900000000,
         export_format: str = 'json',
         field_delimiter: str = ',',
-        null_marker: Optional[str] = None,
+        null_marker: str | None = None,
         gzip: bool = False,
-        schema: Optional[Union[str, list]] = None,
-        parameters: Optional[dict] = None,
+        schema: str | list | None = None,
+        parameters: dict | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         upload_metadata: bool = False,
         exclude_columns=None,
         **kwargs,
@@ -130,7 +132,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.upload_metadata = upload_metadata
         self.exclude_columns = exclude_columns
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info("Executing query")
         cursor = self.query()
 
@@ -318,7 +320,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Execute DBAPI query."""
 
     @abc.abstractmethod
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod

@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import List
 from unittest import mock
 
 import pytest
@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator
 
-EXPECTED_INTEGER_FIELDS: List[List[str]] = [
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ['ResourceConfig', 'InstanceCount'],
     ['ResourceConfig', 'VolumeSizeInGB'],
     ['StoppingCondition', 'MaxRuntimeInSeconds'],

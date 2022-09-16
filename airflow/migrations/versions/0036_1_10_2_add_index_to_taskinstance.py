@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add index to ``task_instance`` table
 
 Revision ID: bf00311e1990
@@ -23,6 +22,7 @@ Revises: dd25f486b8ea
 Create Date: 2018-09-12 09:53:52.007433
 
 """
+from __future__ import annotations
 
 from alembic import op
 

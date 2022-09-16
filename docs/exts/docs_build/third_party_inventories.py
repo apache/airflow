@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 THIRD_PARTY_INDEXES = {
     'boto3': 'https://boto3.amazonaws.com/v1/documentation/api/latest',

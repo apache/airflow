@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad hook."""
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, List, Optional
+from typing import IO, Any
 
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
@@ -75,7 +77,7 @@ class GoogleAdsHook(BaseHook):
 
     def __init__(
         self,
-        api_version: Optional[str],
+        api_version: str | None,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
     ) -> None:
@@ -83,11 +85,11 @@ class GoogleAdsHook(BaseHook):
         self.api_version = api_version or self.default_api_version
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
-        self.google_ads_config: Dict[str, Any] = {}
+        self.google_ads_config: dict[str, Any] = {}
 
     def search(
-        self, client_ids: List[str], query: str, page_size: int = 10000, **kwargs
-    ) -> List[GoogleAdsRow]:
+        self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
+    ) -> list[GoogleAdsRow]:
         """
         Pulls data from the Google Ads API and returns it as native protobuf
         message instances (those seen in versions prior to 10.0.0 of the
@@ -112,8 +114,8 @@ class GoogleAdsHook(BaseHook):
         return data_native_pb
 
     def search_proto_plus(
-        self, client_ids: List[str], query: str, page_size: int = 10000, **kwargs
-    ) -> List[GoogleAdsRow]:
+        self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
+    ) -> list[GoogleAdsRow]:
         """
         Pulls data from the Google Ads API and returns it as proto-plus-python
         message instances that behave more like conventional python objects.
@@ -126,7 +128,7 @@ class GoogleAdsHook(BaseHook):
         """
         return self._search(client_ids, query, page_size, **kwargs)
 
-    def list_accessible_customers(self) -> List[str]:
+    def list_accessible_customers(self) -> list[str]:
         """
         Returns resource names of customers directly accessible by the user authenticating the call.
         The resulting list of customers is based on your OAuth credentials. The request returns a list
@@ -206,8 +208,8 @@ class GoogleAdsHook(BaseHook):
         self.google_ads_config["json_key_file_path"] = secrets_temp.name
 
     def _search(
-        self, client_ids: List[str], query: str, page_size: int = 10000, **kwargs
-    ) -> List[GoogleAdsRow]:
+        self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
+    ) -> list[GoogleAdsRow]:
         """
         Pulls data from the Google Ads API
 
@@ -234,7 +236,7 @@ class GoogleAdsHook(BaseHook):
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(self, iterators: List[GRPCIterator]) -> List[GoogleAdsRow]:
+    def _extract_rows(self, iterators: list[GRPCIterator]) -> list[GoogleAdsRow]:
         """
         Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
 

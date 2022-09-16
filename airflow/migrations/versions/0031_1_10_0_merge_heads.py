@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Merge migrations Heads
 
 Revision ID: 05f30312d566
@@ -22,6 +21,7 @@ Revises: 86770d1215c0, 0e2a74e0fc9f
 Create Date: 2018-06-17 10:47:23.339972
 
 """
+from __future__ import annotations
 
 # revision identifiers, used by Alembic.
 revision = '05f30312d566'

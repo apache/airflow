@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import importlib
 import unittest
 from types import ModuleType
-from typing import Optional
 
 import pymongo
 
@@ -26,7 +27,7 @@ from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils import db
 
-mongomock: Optional[ModuleType]
+mongomock: ModuleType | None
 
 try:
     mongomock = importlib.import_module("mongomock")

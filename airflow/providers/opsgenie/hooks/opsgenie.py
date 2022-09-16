@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from typing import Optional
+from __future__ import annotations
 
 from opsgenie_sdk import (
     AlertApi,
@@ -79,7 +77,7 @@ class OpsgenieAlertHook(BaseHook):
         """
         return self.alert_api_instance
 
-    def create_alert(self, payload: Optional[dict] = None) -> SuccessResponse:
+    def create_alert(self, payload: dict | None = None) -> SuccessResponse:
         """
         Create an alert on Opsgenie
 
@@ -101,9 +99,9 @@ class OpsgenieAlertHook(BaseHook):
     def close_alert(
         self,
         identifier: str,
-        identifier_type: Optional[str] = 'id',
-        payload: Optional[dict] = None,
-        **kwargs: Optional[dict],
+        identifier_type: str | None = 'id',
+        payload: dict | None = None,
+        **kwargs: dict | None,
     ) -> SuccessResponse:
         """
         Close an alert in Opsgenie
@@ -136,9 +134,9 @@ class OpsgenieAlertHook(BaseHook):
     def delete_alert(
         self,
         identifier: str,
-        identifier_type: Optional[str] = None,
-        user: Optional[str] = None,
-        source: Optional[str] = None,
+        identifier_type: str | None = None,
+        user: str | None = None,
+        source: str | None = None,
     ) -> SuccessResponse:
         """
         Delete an alert in Opsgenie

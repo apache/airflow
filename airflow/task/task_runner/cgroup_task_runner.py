@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Task runner for cgroup to run Airflow task"""
+from __future__ import annotations
 
 import datetime
 import os
 import uuid
-from typing import Optional
 
 import psutil
 from cgroupspy import trees
@@ -164,7 +163,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         self.log.debug("Starting task process with cgroups cpu,memory: %s", cgroup_name)
         self.process = self.run_command(['cgexec', '-g', f'cpu,memory:{cgroup_name}'])
 
-    def return_code(self, timeout: int = 0) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> int | None:
         return_code = self.process.poll()
         # TODO(plypaul) Monitoring the control file in the cgroup fs is better than
         # checking the return code here. The PR to use this is here:
