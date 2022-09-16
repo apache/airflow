@@ -67,10 +67,15 @@ class PostgresHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
+        if "schema" in kwargs:
+            self.log.error(
+                'The "schema" will be ignored as Postgres does not allow passing a schema on connect.'
+                ' In case you want to set the database, please set "database".'
+            )
         super().__init__(*args, **kwargs)
         self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
-        self.schema: str | None = kwargs.pop("schema", None)
+        self.database: str | None = kwargs.pop("database", None)
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
@@ -95,7 +100,7 @@ class PostgresHook(DbApiHook):
             host=conn.host,
             user=conn.login,
             password=conn.password,
-            dbname=self.schema or conn.schema,
+            dbname=self.database or conn.schema,
             port=conn.port,
         )
         raw_cursor = conn.extra_dejson.get("cursor", False)
@@ -143,7 +148,9 @@ class PostgresHook(DbApiHook):
         Extract the URI from the connection.
         :return: the extracted uri.
         """
-        uri = super().get_uri().replace("postgres://", "postgresql://")
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn.schema = self.database or conn.schema
+        uri = conn.get_uri().replace("postgres://", "postgresql://")
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
@@ -197,7 +204,7 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
                 DbUser=login,
-                DbName=self.schema or conn.schema,
+                DbName=self.database or conn.schema,
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
             )
