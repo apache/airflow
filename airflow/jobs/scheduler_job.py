@@ -792,7 +792,6 @@ class SchedulerJob(BaseJob):
                         DagRun.state == DagRunState.RUNNING,
                         DagRun.run_type != DagRunType.BACKFILL_JOB,
                     )
-                    .all()
                 )
                 for dag_run in dag_runs:
                     dag_run.dag = dag
