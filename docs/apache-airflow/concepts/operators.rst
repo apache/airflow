@@ -31,6 +31,11 @@ Airflow has a very extensive set of operators available, with some built-in to t
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
+- Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
+
+.. note::
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    to execute Python callables with no template rendering in its arguments.
 
 For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.
 
@@ -103,6 +108,7 @@ You can also use Jinja templating with nested fields, as long as these nested fi
         dag=dag,
     )
 
+
 .. note:: The ``template_fields`` property can equally be a class variable or an instance variable.
 
 Deep nested fields can also be substituted, as long as all intermediate fields are marked as template fields:
@@ -133,6 +139,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
         op_args=[MyDataTransformer(MyDataReader("/tmp/{{ ds }}/my_file"))],
         dag=dag,
     )
+
 
 You can pass custom options to the Jinja ``Environment`` when creating your DAG. One common usage is to avoid Jinja from dropping a trailing newline from a template string:
 
@@ -168,7 +175,6 @@ Now, when the following task is run, ``order_data`` argument is passed a string,
         python_callable=transform,
     )
 
-
 If you instead want the rendered template field to return a Native Python object (``dict`` in our example),
 you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
 
@@ -183,11 +189,13 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
     )
 
 
+    @task(task_id="extract")
     def extract():
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
         return json.loads(data_string)
 
 
+    @task(task_id="transform")
     def transform(order_data):
         print(type(order_data))
         for value in order_data.values():
@@ -195,7 +203,7 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         return {"total_order_value": total_order_value}
 
 
-    extract_task = PythonOperator(task_id="extract", python_callable=extract)
+    extract_task = extract()
 
     transform_task = PythonOperator(
         task_id="transform",
