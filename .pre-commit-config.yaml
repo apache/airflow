@@ -768,6 +768,7 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
+        exclude: ^\.github/workflows/sync_authors\.yml$
         additional_dependencies: ['PyYAML', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
