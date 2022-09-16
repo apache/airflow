@@ -149,24 +149,13 @@ class TestGetDatasets(TestDatasetEndpoint):
             ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
             ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
 
-            session.add(
+            session.add_all([
                 DatasetEvent(
                     dataset_id=ds1_id,
                     timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
                 )
-            )
-            session.add(
-                DatasetEvent(
-                    dataset_id=ds1_id,
-                    timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
-                )
-            )
-            session.add(
-                DatasetEvent(
-                    dataset_id=ds1_id,
-                    timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
-                )
-            )
+                for i in range(3)
+            ])
             session.commit()
 
             response = admin_client.get("/object/list_datasets")
