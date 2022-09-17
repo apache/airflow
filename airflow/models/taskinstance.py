@@ -29,6 +29,7 @@ import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
+from pathlib import Path
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -662,6 +663,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id=None,
         pool=None,
         cfg_path=None,
+        subdir=None,
     ):
         """
         Returns a command that can be executed anywhere where airflow is
@@ -678,7 +680,9 @@ class TaskInstance(Base, LoggingMixin):
         should_pass_filepath = not pickle_id and dag
         path = None
         if should_pass_filepath:
-            if dag.is_subdag:
+            if subdir:
+                path = Path(subdir)
+            elif dag.is_subdag:
                 path = dag.parent_dag.relative_fileloc
             else:
                 path = dag.relative_fileloc

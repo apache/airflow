@@ -51,7 +51,7 @@ from airflow.utils.cli import (
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
-    suppress_logs_and_warning,
+    suppress_logs_and_warning, process_subdir,
 )
 from airflow.utils.dates import timezone
 from airflow.utils.log.logging_mixin import StreamLogWriter
@@ -243,6 +243,7 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool,
         external_executor_id=_extract_external_executor_id(args),
+        subdir=process_subdir(args.subdir),
     )
     try:
         run_job.run()
