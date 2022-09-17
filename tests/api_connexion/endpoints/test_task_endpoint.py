@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import unittest.mock
 from datetime import datetime
@@ -106,6 +108,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -147,6 +150,7 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "is_mapped": True,
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             "params": {},
             "pool": "default_pool",
@@ -191,6 +195,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -257,6 +262,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     'params': {
                         'foo': {
@@ -293,6 +299,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -332,6 +339,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "is_mapped": True,
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -360,6 +368,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",

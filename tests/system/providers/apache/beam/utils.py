@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Utils for Apache Beam operator example DAG's
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from urllib.parse import urlparse

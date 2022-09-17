@@ -18,6 +18,8 @@
 """
 Tests for Google Cloud Life Sciences Hook
 """
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 from unittest.mock import PropertyMock

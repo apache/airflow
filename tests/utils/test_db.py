@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 import io
@@ -47,6 +48,9 @@ from airflow.utils.db import (
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
+        import airflow.models
+
+        airflow.models.import_all_models()
         all_meta_data = MetaData()
         for (table_name, table) in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)

@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, List, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -66,9 +68,9 @@ class HiveStatsCollectionOperator(BaseOperator):
         *,
         table: str,
         partition: Any,
-        extra_exprs: Optional[Dict[str, Any]] = None,
-        excluded_columns: Optional[List[str]] = None,
-        assignment_func: Optional[Callable[[str, str], Optional[Dict[Any, Any]]]] = None,
+        extra_exprs: dict[str, Any] | None = None,
+        excluded_columns: list[str] | None = None,
+        assignment_func: Callable[[str, str], dict[Any, Any] | None] | None = None,
         metastore_conn_id: str = 'metastore_default',
         presto_conn_id: str = 'presto_default',
         mysql_conn_id: str = 'airflow_db',
@@ -95,7 +97,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.ds = '{{ ds }}'
         self.dttm = '{{ execution_date.isoformat() }}'
 
-    def get_default_exprs(self, col: str, col_type: str) -> Dict[Any, Any]:
+    def get_default_exprs(self, col: str, col_type: str) -> dict[Any, Any]:
         """Get default expressions"""
         if col in self.excluded_columns:
             return {}
@@ -114,7 +116,7 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         return exp
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}

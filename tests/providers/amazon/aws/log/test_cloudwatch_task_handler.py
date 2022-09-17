@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
 from datetime import datetime as dt
 from unittest import mock
@@ -55,10 +57,10 @@ def logmock():
 class TestCloudwatchTaskHandler:
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template):
+    def setup(self, create_log_template, tmp_path_factory):
         self.remote_log_group = 'log_group_name'
         self.region_name = 'us-west-2'
-        self.local_log_location = 'local/log/location'
+        self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
         create_log_template('{dag_id}/{task_id}/{execution_date}/{try_number}.log')
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,

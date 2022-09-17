@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 import warnings
 from subprocess import CalledProcessError
-from typing import Any, Dict, List, Union
+from typing import Any
 from unittest import mock
 
 import jmespath
@@ -413,7 +415,7 @@ class TestBaseChartTest(unittest.TestCase):
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
     def test_chart_is_consistent_with_official_airflow_image(self):
-        def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:
+        def get_k8s_objs_with_image(obj: list[Any] | dict[str, Any]) -> list[dict[str, Any]]:
             """
             Recursive helper to retrieve all the k8s objects that have an "image" key
             inside k8s obj or list of k8s obj

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Change ``task_instance.task_duration`` type to ``FLOAT``
 
 Revision ID: 2e541a1dcfed
@@ -23,6 +22,7 @@ Revises: 1b38cef5b76e
 Create Date: 2015-10-28 20:38:41.266143
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

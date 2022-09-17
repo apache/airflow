@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``description`` and ``default_view`` column to ``dag`` table
 
 Revision ID: c8ffec048a3b
@@ -23,6 +22,7 @@ Revises: 41f5f12752f8
 Create Date: 2018-12-23 21:55:46.463634
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

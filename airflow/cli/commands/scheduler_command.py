@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Scheduler command"""
+from __future__ import annotations
+
 import signal
 from multiprocessing import Process
-from typing import Optional
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -85,7 +85,7 @@ def scheduler(args):
         _run_scheduler_job(args=args)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
+def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
     """Starts serve_logs sub-process"""
     from airflow.configuration import conf
     from airflow.utils.serve_logs import serve_logs
@@ -98,7 +98,7 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
     return None
 
 
-def _serve_health_check(enable_health_check: bool = False) -> Optional[Process]:
+def _serve_health_check(enable_health_check: bool = False) -> Process | None:
     """Starts serve_health_check sub-process"""
     if enable_health_check:
         sub_proc = Process(target=serve_health_check)

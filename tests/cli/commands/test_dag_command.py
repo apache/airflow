@@ -15,8 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -24,6 +27,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 
 from airflow import settings
@@ -77,6 +81,30 @@ class TestCliDags(unittest.TestCase):
         with create_session() as session:
             serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
+
+    def test_reserialize_should_support_subdir_argument(self):
+        # Run clear of serialized dags
+        dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize', "--clear-only"]))
+
+        # Assert no serialized Dags
+        with create_session() as session:
+            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_clear) == 0
+
+        # Serialize manually
+        dag_path = self.dagbag.dags['example_bash_operator'].fileloc
+        # Set default value of include_examples parameter to false
+        dagbag_default = list(DagBag.__init__.__defaults__)
+        dagbag_default[1] = False
+        with mock.patch(
+            'airflow.cli.commands.dag_command.DagBag.__init__.__defaults__', tuple(dagbag_default)
+        ):
+            dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize', '--subdir', dag_path]))
+
+        # Check serialized DAG are back
+        with create_session() as session:
+            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
@@ -608,6 +636,70 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    conf=None,
+                    run_at_least_once=True,
+                ),
+            ]
+        )
+
+    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.utils.timezone.utcnow")
+    def test_dag_test_no_execution_date(self, mock_utcnow, mock_get_dag, mock_executor):
+        now = pendulum.now()
+        mock_utcnow.return_value = now
+        cli_args = self.parser.parse_args(['dags', 'test', 'example_bash_operator'])
+
+        assert cli_args.execution_date is None
+
+        dag_command.dag_test(cli_args)
+
+        mock_get_dag.assert_has_calls(
+            [
+                mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
+                mock.call().clear(
+                    start_date=now,
+                    end_date=now,
+                    dag_run_state=False,
+                ),
+                mock.call().run(
+                    executor=mock_executor.return_value,
+                    start_date=now,
+                    end_date=now,
+                    conf=None,
+                    run_at_least_once=True,
+                ),
+            ]
+        )
+
+    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_conf(self, mock_get_dag, mock_executor):
+        cli_args = self.parser.parse_args(
+            [
+                'dags',
+                'test',
+                'example_bash_operator',
+                DEFAULT_DATE.isoformat(),
+                "-c",
+                "{\"dag_run_conf_param\": \"param_value\"}",
+            ]
+        )
+        dag_command.dag_test(cli_args)
+
+        mock_get_dag.assert_has_calls(
+            [
+                mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
+                mock.call().clear(
+                    start_date=cli_args.execution_date,
+                    end_date=cli_args.execution_date,
+                    dag_run_state=False,
+                ),
+                mock.call().run(
+                    executor=mock_executor.return_value,
+                    start_date=cli_args.execution_date,
+                    end_date=cli_args.execution_date,
+                    conf=json.loads(cli_args.conf),
                     run_at_least_once=True,
                 ),
             ]
@@ -637,6 +729,7 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    conf=None,
                     run_at_least_once=True,
                 ),
             ]

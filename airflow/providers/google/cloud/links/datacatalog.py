@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Data Catalog links."""
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -49,11 +51,11 @@ class DataCatalogEntryGroupLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         entry_group_id: str,
         location_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -71,12 +73,12 @@ class DataCatalogEntryLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         entry_id: str,
         entry_group_id: str,
         location_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -99,11 +101,11 @@ class DataCatalogTagTemplateLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         tag_template_id: str,
         location_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,

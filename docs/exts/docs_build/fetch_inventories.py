@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import concurrent
 import concurrent.futures
@@ -23,7 +24,7 @@ import shutil
 import sys
 import traceback
 from itertools import repeat
-from typing import Iterator, List, Tuple
+from typing import Iterator
 
 import requests
 import urllib3.exceptions
@@ -44,7 +45,7 @@ S3_DOC_URL_VERSIONED = S3_DOC_URL + "/docs/{package_name}/latest/objects.inv"
 S3_DOC_URL_NON_VERSIONED = S3_DOC_URL + "/docs/{package_name}/objects.inv"
 
 
-def _fetch_file(session: requests.Session, package_name: str, url: str, path: str) -> Tuple[str, bool]:
+def _fetch_file(session: requests.Session, package_name: str, url: str, path: str) -> tuple[str, bool]:
     """
     Download a file and returns status information as a tuple with package
     name and success status(bool value).
@@ -78,7 +79,7 @@ def _is_outdated(path: str):
 def fetch_inventories():
     """Fetch all inventories for Airflow documentation packages and store in cache."""
     os.makedirs(os.path.dirname(CACHE_DIR), exist_ok=True)
-    to_download: List[Tuple[str, str, str]] = []
+    to_download: list[tuple[str, str, str]] = []
 
     for pkg_name in get_available_providers_packages():
         to_download.append(
@@ -121,7 +122,7 @@ def fetch_inventories():
     print(f"To download {len(to_download)} inventorie(s)")
 
     with requests.Session() as session, concurrent.futures.ThreadPoolExecutor(DEFAULT_POOLSIZE) as pool:
-        download_results: Iterator[Tuple[str, bool]] = pool.map(
+        download_results: Iterator[tuple[str, bool]] = pool.map(
             _fetch_file,
             repeat(session, len(to_download)),
             (pkg_name for pkg_name, _, _ in to_download),

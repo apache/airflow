@@ -14,14 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import re
 import sys
 from dataclasses import dataclass
-from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -38,9 +38,13 @@ class BuildProdParams(CommonBuildParams):
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
+    additional_runtime_apt_command: str = ""
+    additional_runtime_apt_deps: str = ""
+    additional_runtime_apt_env: str = ""
     airflow_constraints_mode: str = "constraints"
-    airflow_constraints_reference: str = ""
+    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
+    airflow_extras: str = get_airflow_extras()
     disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
@@ -49,7 +53,8 @@ class BuildProdParams(CommonBuildParams):
     install_airflow_version: str = ""
     install_packages_from_context: bool = False
     installation_method: str = "."
-    airflow_extras: str = get_airflow_extras()
+    runtime_apt_command: str = ""
+    runtime_apt_deps: str = ""
 
     @property
     def airflow_version(self) -> str:
@@ -63,7 +68,7 @@ class BuildProdParams(CommonBuildParams):
         return 'PROD'
 
     @property
-    def args_for_remote_install(self) -> List:
+    def args_for_remote_install(self) -> list:
         build_args = []
         build_args.extend(
             [
@@ -105,7 +110,7 @@ class BuildProdParams(CommonBuildParams):
         return build_args
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
         if len(self.install_airflow_reference) > 0:
             AIRFLOW_INSTALLATION_METHOD = (
@@ -193,7 +198,11 @@ class BuildProdParams(CommonBuildParams):
         return "docker-context-files"
 
     @property
-    def required_image_args(self) -> List[str]:
+    def airflow_image_kubernetes(self) -> str:
+        return f"{self.airflow_image_name}-kubernetes"
+
+    @property
+    def required_image_args(self) -> list[str]:
         return [
             "airflow_branch",
             "airflow_constraints_mode",
@@ -216,7 +225,7 @@ class BuildProdParams(CommonBuildParams):
         ]
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         return [
             "additional_airflow_extras",
             "additional_dev_apt_command",

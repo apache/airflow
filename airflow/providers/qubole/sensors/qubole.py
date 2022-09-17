@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Sequence
 
 from qds_sdk.qubole import Qubole
@@ -29,7 +31,7 @@ if TYPE_CHECKING:
 
 
 class QuboleSensor(BaseSensorOperator):
-    """Base class for all Qubole Sensors"""
+    """Base class for all Qubole Sensors."""
 
     template_fields: Sequence[str] = ('data', 'qubole_conn_id')
 
@@ -47,7 +49,7 @@ class QuboleSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
 
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -68,8 +70,9 @@ class QuboleSensor(BaseSensorOperator):
 
 class QuboleFileSensor(QuboleSensor):
     """
-    Wait for a file or folder to be present in cloud storage
-    and check for its presence via QDS APIs
+    Wait for a file or folder to be present in cloud storage.
+
+    Check for file or folder presence via QDS APIs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -92,8 +95,9 @@ class QuboleFileSensor(QuboleSensor):
 
 class QubolePartitionSensor(QuboleSensor):
     """
-    Wait for a Hive partition to show up in QHS (Qubole Hive Service)
-    and check for its presence via QDS APIs
+    Wait for a Hive partition to show up in QHS (Qubole Hive Service).
+
+    Check for Hive partition presence via QDS APIs.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

@@ -24,6 +24,27 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Make placeholder style configurable (#25939)``
+* ``Better error messsage for pre-common-sql providers (#26051)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix (and test) SQLTableCheckOperator on postgresql (#25821)``
+* ``Don't use Pandas for SQLTableCheckOperator (#25822)``
+* ``Discard semicolon stripping in SQL hook (#25855)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 1.1.0
 .....
 
@@ -42,6 +63,11 @@ Bug Fixes
 * ``Allow Legacy SqlSensor to use the common.sql providers (#25293)``
 * ``Fix fetch_all_handler & db-api tests for it (#25430)``
 * ``Align Common SQL provider logo location (#25538)``
+* ``Fix SQL split string to include ';-less' statements (#25713)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix CHANGELOG for common.sql provider and add amazon commit (#25636)``
 
 1.0.0
 .....

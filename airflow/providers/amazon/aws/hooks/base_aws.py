@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains Base AWS Hook.
 
@@ -23,13 +22,14 @@ This module contains Base AWS Hook.
     For more information on how to use this hook, take a look at the guide:
     :ref:`howto/connection:AWSHook`
 """
+from __future__ import annotations
 
 import datetime
 import json
 import logging
 import warnings
 from functools import wraps
-from typing import Any, Callable, Dict, Generic, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Generic, TypeVar, Union
 
 import boto3
 import botocore
@@ -49,6 +49,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
@@ -67,9 +68,9 @@ class BaseSessionFactory(LoggingMixin):
 
     def __init__(
         self,
-        conn: Optional[Union[Connection, AwsConnectionWrapper]],
-        region_name: Optional[str] = None,
-        config: Optional[Config] = None,
+        conn: Connection | AwsConnectionWrapper | None,
+        region_name: str | None = None,
+        config: Config | None = None,
     ) -> None:
         super().__init__()
         self._conn = conn
@@ -91,22 +92,22 @@ class BaseSessionFactory(LoggingMixin):
         return self._create_basic_session(session_kwargs=self.conn.session_kwargs)
 
     @property
-    def extra_config(self) -> Dict[str, Any]:
+    def extra_config(self) -> dict[str, Any]:
         """AWS Connection extra_config."""
         return self.conn.extra_config
 
     @property
-    def region_name(self) -> Optional[str]:
+    def region_name(self) -> str | None:
         """AWS Region Name read-only property."""
         return self.conn.region_name
 
     @property
-    def config(self) -> Optional[Config]:
+    def config(self) -> Config | None:
         """Configuration for botocore client read-only property."""
         return self.conn.botocore_config
 
     @property
-    def role_arn(self) -> Optional[str]:
+    def role_arn(self) -> str | None:
         """Assume Role ARN from AWS Connection"""
         return self.conn.role_arn
 
@@ -123,16 +124,10 @@ class BaseSessionFactory(LoggingMixin):
             return self.basic_session
         return self._create_session_with_assume_role(session_kwargs=self.conn.session_kwargs)
 
-    def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
-        return boto3.session.Session(
-            aws_access_key_id=self.conn.aws_access_key_id,
-            aws_secret_access_key=self.conn.aws_secret_access_key,
-            aws_session_token=self.conn.aws_session_token,
-            region_name=self.region_name,
-            **session_kwargs,
-        )
+    def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
+        return boto3.session.Session(**session_kwargs)
 
-    def _create_session_with_assume_role(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+    def _create_session_with_assume_role(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
         if self.conn.assume_role_method == 'assume_role_with_web_identity':
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
@@ -156,7 +151,7 @@ class BaseSessionFactory(LoggingMixin):
 
         return boto3.session.Session(botocore_session=session, **session_kwargs)
 
-    def _refresh_credentials(self) -> Dict[str, Any]:
+    def _refresh_credentials(self) -> dict[str, Any]:
         self.log.debug('Refreshing credentials')
         assume_role_method = self.conn.assume_role_method
         if assume_role_method not in ('assume_role', 'assume_role_with_saml'):
@@ -184,7 +179,7 @@ class BaseSessionFactory(LoggingMixin):
         }
         return credentials
 
-    def _assume_role(self, sts_client: boto3.client) -> Dict:
+    def _assume_role(self, sts_client: boto3.client) -> dict:
         kw = {
             "RoleSessionName": self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}"),
             **self.conn.assume_role_kwargs,
@@ -192,7 +187,7 @@ class BaseSessionFactory(LoggingMixin):
         }
         return sts_client.assume_role(**kw)
 
-    def _assume_role_with_saml(self, sts_client: boto3.client) -> Dict[str, Any]:
+    def _assume_role_with_saml(self, sts_client: boto3.client) -> dict[str, Any]:
         saml_config = self.extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
 
@@ -214,7 +209,7 @@ class BaseSessionFactory(LoggingMixin):
         )
 
     def _get_idp_response(
-        self, saml_config: Dict[str, Any], auth: requests.auth.AuthBase
+        self, saml_config: dict[str, Any], auth: requests.auth.AuthBase
     ) -> requests.models.Response:
         idp_url = saml_config["idp_url"]
         self.log.debug("idp_url= %s", idp_url)
@@ -242,7 +237,7 @@ class BaseSessionFactory(LoggingMixin):
 
         return idp_response
 
-    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]) -> str:
+    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: dict[str, Any]) -> str:
         # requests_gssapi will need paramiko > 2.6 since you'll need
         # 'gssapi' not 'python-gssapi' from PyPi.
         # https://github.com/paramiko/paramiko/pull/1311
@@ -327,30 +322,30 @@ class BaseSessionFactory(LoggingMixin):
     def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
         return slugify(role_session_name, regex_pattern=r'[^\w+=,.@-]+')
 
-    def _get_region_name(self) -> Optional[str]:
+    def _get_region_name(self) -> str | None:
         warnings.warn(
             "`BaseSessionFactory._get_region_name` method deprecated and will be removed "
             "in a future releases. Please use `BaseSessionFactory.region_name` property instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.region_name
 
-    def _read_role_arn_from_extra_config(self) -> Optional[str]:
+    def _read_role_arn_from_extra_config(self) -> str | None:
         warnings.warn(
             "`BaseSessionFactory._read_role_arn_from_extra_config` method deprecated and will be removed "
             "in a future releases. Please use `BaseSessionFactory.role_arn` property instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.role_arn
 
-    def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
+    def _read_credentials_from_connection(self) -> tuple[str | None, str | None]:
         warnings.warn(
             "`BaseSessionFactory._read_credentials_from_connection` method deprecated and will be removed "
             "in a future releases. Please use `BaseSessionFactory.conn.aws_access_key_id` and "
             "`BaseSessionFactory.aws_secret_access_key` properties instead.",
-            PendingDeprecationWarning,
+            DeprecationWarning,
             stacklevel=2,
         )
         return self.conn.aws_access_key_id, self.conn.aws_secret_access_key
@@ -382,20 +377,21 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     def __init__(
         self,
-        aws_conn_id: Optional[str] = default_conn_name,
-        verify: Union[bool, str, None] = None,
-        region_name: Optional[str] = None,
-        client_type: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        config: Optional[Config] = None,
+        aws_conn_id: str | None = default_conn_name,
+        verify: bool | str | None = None,
+        region_name: str | None = None,
+        client_type: str | None = None,
+        resource_type: str | None = None,
+        config: Config | None = None,
     ) -> None:
         super().__init__()
         self.aws_conn_id = aws_conn_id
-        self.verify = verify
         self.client_type = client_type
         self.resource_type = resource_type
+
         self._region_name = region_name
         self._config = config
+        self._verify = verify
 
     @cached_property
     def conn_config(self) -> AwsConnectionWrapper:
@@ -415,22 +411,25 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 )
 
         return AwsConnectionWrapper(
-            conn=connection or Connection(conn_id=None, conn_type="aws"),
-            region_name=self._region_name,
-            botocore_config=self._config,
+            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
         )
 
     @property
-    def region_name(self) -> Optional[str]:
+    def region_name(self) -> str | None:
         """AWS Region Name read-only property."""
         return self.conn_config.region_name
 
     @property
-    def config(self) -> Optional[Config]:
+    def config(self) -> Config | None:
         """Configuration for botocore client read-only property."""
         return self.conn_config.botocore_config
 
-    def get_session(self, region_name: Optional[str] = None) -> boto3.session.Session:
+    @property
+    def verify(self) -> bool | str | None:
+        """Verify or not SSL certificates boto3 client/resource read-only property."""
+        return self.conn_config.verify
+
+    def get_session(self, region_name: str | None = None) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
         return SessionFactory(
             conn=self.conn_config, region_name=region_name, config=self.config
@@ -438,8 +437,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     def get_client_type(
         self,
-        region_name: Optional[str] = None,
-        config: Optional[Config] = None,
+        region_name: str | None = None,
+        config: Config | None = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
@@ -456,8 +455,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     def get_resource_type(
         self,
-        region_name: Optional[str] = None,
-        config: Optional[Config] = None,
+        region_name: str | None = None,
+        config: Config | None = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         resource_type = self.resource_type
@@ -521,18 +520,23 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Compat shim
         return self.conn
 
-    def get_credentials(self, region_name: Optional[str] = None) -> ReadOnlyCredentials:
+    def get_credentials(self, region_name: str | None = None) -> ReadOnlyCredentials:
         """
         Get the underlying `botocore.Credentials` object.
 
         This contains the following authentication attributes: access_key, secret_key and token.
+        By use this method also secret_key and token will mask in tasks logs.
         """
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
-        return self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
+        creds = self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
+        mask_secret(creds.secret_key)
+        if creds.token:
+            mask_secret(creds.token)
+        return creds
 
-    def expand_role(self, role: str, region_name: Optional[str] = None) -> str:
+    def expand_role(self, role: str, region_name: str | None = None) -> str:
         """
         If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
         If IAM role is already an IAM role ARN, no change is made.
@@ -582,7 +586,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         return retry_decorator
 
-    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
+    def _get_credentials(self, region_name: str | None) -> tuple[boto3.session.Session, str | None]:
         warnings.warn(
             "`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases. "
             "Please use `AwsGenericHook.get_session` method and "
@@ -594,7 +598,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.get_session(region_name=region_name), self.conn_config.endpoint_url
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],
@@ -656,7 +660,7 @@ class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
     """
 
 
-def resolve_session_factory() -> Type[BaseSessionFactory]:
+def resolve_session_factory() -> type[BaseSessionFactory]:
     """Resolves custom SessionFactory class"""
     clazz = conf.getimport("aws", "session_factory", fallback=None)
     if not clazz:
@@ -672,9 +676,7 @@ def resolve_session_factory() -> Type[BaseSessionFactory]:
 SessionFactory = resolve_session_factory()
 
 
-def _parse_s3_config(
-    config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
-):
+def _parse_s3_config(config_file_name: str, config_format: str | None = "boto", profile: str | None = None):
     """For compatibility with airflow.contrib.hooks.aws_hook"""
     from airflow.providers.amazon.aws.utils.connection_wrapper import _parse_s3_config
 

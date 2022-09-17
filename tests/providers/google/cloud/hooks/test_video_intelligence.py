@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -43,7 +44,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             self.hook = CloudVideoIntelligenceHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook._get_credentials"
+        "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.get_credentials"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.VideoIntelligenceServiceClient")
     def test_video_intelligence_service_client_creation(self, mock_client, mock_get_creds):

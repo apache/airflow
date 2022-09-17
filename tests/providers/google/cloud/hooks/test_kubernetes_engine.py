@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -39,7 +40,7 @@ class TestGKEHookClient(unittest.TestCase):
     def setUp(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
-    @mock.patch(GKE_STRING.format("GKEHook._get_credentials"))
+    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
 
@@ -208,7 +209,7 @@ class TestGKEHook(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(GKE_STRING.format('ClusterManagerClient'))
-    @mock.patch(GKE_STRING.format('GKEHook._get_credentials'))
+    @mock.patch(GKE_STRING.format('GKEHook.get_credentials'))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()

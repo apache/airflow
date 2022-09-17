@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 from unittest import mock
@@ -130,7 +131,7 @@ class TestDataFusionHook:
         method_mock.assert_called_once_with(name=hook._name(PROJECT_ID, LOCATION, INSTANCE_NAME))
 
     @mock.patch("google.auth.transport.requests.Request")
-    @mock.patch(HOOK_STR.format("DataFusionHook._get_credentials"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_credentials"))
     def test_cdap_request(self, get_credentials_mock, mock_request, hook):
         url = "test_url"
         headers = {"Content-Type": "application/json"}

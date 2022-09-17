@@ -14,16 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from contextlib import contextmanager
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 
 class AirflowParsingContext(NamedTuple):
-    """Context of parsing for the DAG."""
+    """
+    Context of parsing for the DAG.
 
-    dag_id: Optional[str]
-    task_id: Optional[str]
+    If these values are not None, they will contain the specific DAG and Task ID that Airflow is requesting to
+    execute. You can use these for optimizing dynamically generated DAG files.
+    """
+
+    dag_id: str | None
+    task_id: str | None
 
 
 _AIRFLOW_PARSING_CONTEXT_DAG_ID = "_AIRFLOW_PARSING_CONTEXT_DAG_ID"
@@ -31,7 +38,7 @@ _AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
 
 
 @contextmanager
-def _airflow_parsing_context_manager(dag_id: Optional[str] = None, task_id: Optional[str] = None):
+def _airflow_parsing_context_manager(dag_id: str | None = None, task_id: str | None = None):
     old_dag_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID)
     old_task_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID)
     if dag_id is not None:
@@ -46,6 +53,7 @@ def _airflow_parsing_context_manager(dag_id: Optional[str] = None, task_id: Opti
 
 
 def get_parsing_context() -> AirflowParsingContext:
+    """Return the current (DAG) parsing context info"""
     return AirflowParsingContext(
         dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
         task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),

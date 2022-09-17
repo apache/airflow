@@ -94,8 +94,9 @@ const updateNodeLabels = (node, instances) => {
       && instances[node.id].mapped_states
       ? instances[node.id].mapped_states.length
       : ' ';
-
-    label = `${node.id} [${count}]`;
+    if (!label.includes(`[${count}]`)) {
+      label = `${label} [${count}]`;
+    }
   }
   if (g.node(node.id) && g.node(node.id).label !== label) {
     g.node(node.id).label = label;
@@ -533,7 +534,7 @@ function updateNodesStates(tis) {
       elem.onmouseover = (evt) => {
         let tt;
         if (taskId in tis) {
-          tt = tiTooltip(tis[taskId]);
+          tt = tiTooltip(tis[taskId], tasks[taskId]);
         } else if (node.children) {
           tt = groupTooltip(node, tis);
         } else if (taskId in tasks) {

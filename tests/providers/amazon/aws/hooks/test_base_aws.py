@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import os
 import unittest
@@ -26,9 +27,10 @@ from unittest import mock
 import boto3
 import pytest
 from botocore.config import Config
+from botocore.credentials import ReadOnlyCredentials
 from moto.core import ACCOUNT_ID
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
     BaseSessionFactory,
@@ -122,6 +124,17 @@ class CustomSessionFactory(BaseSessionFactory):
         return mock.MagicMock()
 
 
+@pytest.fixture
+def mock_conn(request):
+    conn = Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID)
+    if request.param == "unwrapped":
+        return conn
+    if request.param == "wrapped":
+        return AwsConnectionWrapper(conn=conn)
+    else:
+        raise ValueError("invalid internal test config")
+
+
 class TestSessionFactory:
     @conf_vars(
         {("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"}
@@ -139,13 +152,7 @@ class TestSessionFactory:
         cls = resolve_session_factory()
         assert issubclass(cls, BaseSessionFactory)
 
-    @pytest.mark.parametrize(
-        "mock_conn",
-        [
-            Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID),
-            AwsConnectionWrapper(conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID)),
-        ],
-    )
+    @pytest.mark.parametrize("mock_conn", ["unwrapped", "wrapped"], indirect=True)
     def test_conn_property(self, mock_conn):
         sf = BaseSessionFactory(conn=mock_conn, region_name=None, config=None)
         session_factory_conn = sf.conn
@@ -205,17 +212,20 @@ class TestSessionFactory:
         assert any(logging_message in log_text for log_text in caplog.messages)
 
     @pytest.mark.parametrize("region_name", ["eu-central-1", None])
+    @pytest.mark.parametrize("profile_name", ["default", None])
     @mock.patch("boto3.session.Session", new_callable=mock.PropertyMock, return_value=MOCK_BOTO3_SESSION)
-    def test_create_session_from_credentials(self, mock_boto3_session, region_name):
-        mock_conn = AwsConnectionWrapper(conn=Connection(conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID))
-        sf = BaseSessionFactory(conn=mock_conn, region_name=region_name, config=None)
-        session = sf.create_session()
-        mock_boto3_session.assert_called_once_with(
-            aws_access_key_id=mock_conn.aws_access_key_id,
-            aws_secret_access_key=mock_conn.aws_secret_access_key,
-            aws_session_token=mock_conn.aws_session_token,
-            region_name=region_name,
+    def test_create_session_from_credentials(self, mock_boto3_session, region_name, profile_name):
+        mock_conn = Connection(
+            conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID, extra={"profile_name": profile_name}
         )
+        mock_conn_config = AwsConnectionWrapper(conn=mock_conn)
+        sf = BaseSessionFactory(conn=mock_conn_config, region_name=region_name, config=None)
+        session = sf.create_session()
+
+        expected_arguments = mock_conn_config.session_kwargs
+        if region_name:
+            expected_arguments["region_name"] = region_name
+        mock_boto3_session.assert_called_once_with(**expected_arguments)
         assert session == MOCK_BOTO3_SESSION
 
 
@@ -385,12 +395,7 @@ class TestAwsBaseHook:
 
         mock_boto3.assert_has_calls(
             [
-                mock.call.session.Session(
-                    aws_access_key_id=None,
-                    aws_secret_access_key=None,
-                    aws_session_token=None,
-                    region_name=None,
-                ),
+                mock.call.session.Session(),
                 mock.call.session.Session()._session.__bool__(),
                 mock.call.session.Session(botocore_session=mock_session.get_session.return_value),
                 mock.call.session.Session().get_credentials(),
@@ -734,6 +739,40 @@ class TestAwsBaseHook:
         mock_boto3_session.assert_called_once_with(region_name=region_name)
         assert session == MOCK_BOTO3_SESSION
         assert endpoint == hook.conn_config.endpoint_url
+
+    @pytest.mark.parametrize("verify", [None, "path/to/cert/hook-bundle.pem", False])
+    @pytest.mark.parametrize("conn_verify", [None, "path/to/cert/conn-bundle.pem", False])
+    def test_resolve_verify(self, verify, conn_verify):
+        mock_conn = Connection(
+            conn_id="test_conn",
+            conn_type="aws",
+            extra={"verify": conn_verify} if conn_verify is not None else {},
+        )
+
+        with unittest.mock.patch.dict('os.environ', AIRFLOW_CONN_TEST_CONN=mock_conn.get_uri()):
+            hook = AwsBaseHook(aws_conn_id="test_conn", verify=verify)
+            expected = verify if verify is not None else conn_verify
+            assert hook.verify == expected
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.mask_secret")
+    @pytest.mark.parametrize("token", [None, "mock-aws-session-token"])
+    @pytest.mark.parametrize("secret_key", ["mock-aws-secret-access-key"])
+    @pytest.mark.parametrize("access_key", ["mock-aws-access-key-id"])
+    def test_get_credentials_mask_secrets(
+        self, mock_mask_secret, mock_boto3_session, access_key, secret_key, token
+    ):
+        expected_credentials = ReadOnlyCredentials(access_key=access_key, secret_key=secret_key, token=token)
+        mock_credentials = mock.MagicMock(return_value=expected_credentials)
+        mock_boto3_session.return_value.get_credentials.return_value.get_frozen_credentials = mock_credentials
+        expected_calls = [mock.call(secret_key)]
+        if token:
+            expected_calls.append(mock.call(token))
+
+        hook = AwsBaseHook(aws_conn_id=None)
+        credentials = hook.get_credentials()
+        assert mock_mask_secret.mock_calls == expected_calls
+        assert credentials == expected_credentials
 
 
 class ThrowErrorUntilCount:

@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Reads and then deletes the message from SQS queue"""
+from __future__ import annotations
+
 import json
-from typing import TYPE_CHECKING, Any, Collection, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
@@ -79,8 +81,8 @@ class SqsSensor(BaseSensorOperator):
         max_messages: int = 5,
         num_batches: int = 1,
         wait_time_seconds: int = 1,
-        visibility_timeout: Optional[int] = None,
-        message_filtering: Optional[Literal["literal", "jsonpath"]] = None,
+        visibility_timeout: int | None = None,
+        message_filtering: Literal["literal", "jsonpath"] | None = None,
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,
@@ -109,7 +111,7 @@ class SqsSensor(BaseSensorOperator):
 
         self.message_filtering_config = message_filtering_config
 
-        self.hook: Optional[SqsHook] = None
+        self.hook: SqsHook | None = None
 
     def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
         """
@@ -143,7 +145,7 @@ class SqsSensor(BaseSensorOperator):
             self.log.info("There are %d messages left after filtering", num_messages)
         return messages
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         """
         Check subscribed queue for messages and write them to xcom with the ``messages`` key.
 
@@ -152,7 +154,7 @@ class SqsSensor(BaseSensorOperator):
         """
         sqs_conn = self.get_hook().get_conn()
 
-        message_batch: List[Any] = []
+        message_batch: list[Any] = []
 
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.num_batches):

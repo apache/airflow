@@ -14,31 +14,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
-from typing import Tuple
 
 from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import run_command
 
 
 def login_to_github_docker_registry(
-    image_params: CommonBuildParams, dry_run: bool, verbose: bool
-) -> Tuple[int, str]:
+    image_params: CommonBuildParams, output: Output | None, dry_run: bool, verbose: bool
+) -> tuple[int, str]:
     """
     In case of CI environment, we need to login to GitHub Registry.
 
     :param image_params: parameters to use for Building prod image
+    :param output: Output to redirect to
     :param dry_run: whether we are in dry_run mode
     :param verbose: whether to show commands.
     """
     if os.environ.get("CI"):
         if len(image_params.github_token) == 0:
-            get_console().print("\n[info]Skip logging in to GitHub Registry. No Token available!")
+            get_console(output=output).print(
+                "\n[info]Skip logging in to GitHub Registry. No Token available!"
+            )
         elif len(image_params.github_token) > 0:
             run_command(
-                ['docker', 'logout', 'ghcr.io'], dry_run=dry_run, verbose=verbose, text=False, check=False
+                ['docker', 'logout', 'ghcr.io'],
+                dry_run=dry_run,
+                verbose=verbose,
+                output=output,
+                text=False,
+                check=False,
             )
             command_result = run_command(
                 [
@@ -50,6 +58,7 @@ def login_to_github_docker_registry(
                     'ghcr.io',
                 ],
                 verbose=verbose,
+                output=output,
                 text=True,
                 input=image_params.github_token,
                 check=False,

@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import textwrap
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from urllib.parse import urlencode
 
 import sqlalchemy as sqla
@@ -38,6 +40,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow import models
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
@@ -50,7 +53,7 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
-def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+def datetime_to_string(value: DateTime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
@@ -127,7 +130,7 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
+def encode_dag_run(dag_run: models.DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
@@ -167,7 +170,7 @@ def get_sensitive_variables_fields():
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return get_sensitive_variables_fields()
@@ -181,7 +184,7 @@ def should_hide_value_for_key(key_name):
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return should_hide_value_for_key(key_name)
@@ -399,7 +402,7 @@ def datetime_f(attr_name):
     return dt
 
 
-def datetime_html(dttm: Optional[DateTime]) -> str:
+def datetime_html(dttm: DateTime | None) -> str:
     """Return an HTML formatted string with time element to support timezone changes in UI"""
     as_iso = dttm.isoformat() if dttm else ''
     if not as_iso:
@@ -645,8 +648,9 @@ class CustomSQLAInterface(SQLAInterface):
             if not isinstance(desc, AssociationProxy):
                 continue
             proxy_instance = getattr(self.obj, desc.value_attr)
-            self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
-            self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
+            if hasattr(proxy_instance.remote_attr.prop, 'columns'):
+                self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
+                self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -727,9 +731,9 @@ class UIAlert:
 
     def __init__(
         self,
-        message: Union[str, Markup],
+        message: str | Markup,
         category: str = "info",
-        roles: Optional[List[str]] = None,
+        roles: list[str] | None = None,
         html: bool = False,
     ):
         self.category = category

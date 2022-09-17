@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pandas as pd
 import pytest
 
 from airflow import DAG
@@ -47,7 +48,7 @@ class MockHook:
     def get_first(self):
         return
 
-    def get_pandas_df(self):
+    def get_records(self):
         return
 
 
@@ -120,32 +121,59 @@ class TestTableCheckOperator:
     }
 
     def _construct_operator(self, monkeypatch, checks, return_df):
-        def get_pandas_df_return(*arg):
+        def get_records(*arg):
             return return_df
 
         operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
-        monkeypatch.setattr(MockHook, "get_pandas_df", get_pandas_df_return)
+        monkeypatch.setattr(MockHook, "get_records", get_records)
         return operator
 
-    def test_pass_all_checks_check(self, monkeypatch):
-        df = pd.DataFrame(
-            data={
-                "check_name": ["row_count_check", "column_sum_check"],
-                "check_result": [
-                    "1",
-                    "y",
-                ],
-            }
+    @pytest.mark.parametrize(
+        ['conn_id'],
+        [
+            pytest.param('postgres_default', marks=[pytest.mark.backend('postgres')]),
+            pytest.param('mysql_default', marks=[pytest.mark.backend('mysql')]),
+        ],
+    )
+    def test_sql_check(self, conn_id):
+        operator = SQLTableCheckOperator(
+            task_id="test_task",
+            table="employees",
+            checks={"row_count_check": {"check_statement": "COUNT(*) >= 3"}},
+            conn_id=conn_id,
         )
-        operator = self._construct_operator(monkeypatch, self.checks, df)
+
+        hook = operator.get_db_hook()
+        hook.run(
+            [
+                """
+                CREATE TABLE IF NOT EXISTS employees (
+                    employee_name VARCHAR(50) NOT NULL,
+                    employment_year INT NOT NULL
+                );
+                """,
+                "INSERT INTO employees VALUES ('Adam', 2021)",
+                "INSERT INTO employees VALUES ('Chris', 2021)",
+                "INSERT INTO employees VALUES ('Frank', 2021)",
+                "INSERT INTO employees VALUES ('Fritz', 2021)",
+                "INSERT INTO employees VALUES ('Magda', 2022)",
+                "INSERT INTO employees VALUES ('Phil', 2021)",
+            ]
+        )
+        try:
+            operator.execute({})
+        finally:
+            hook.run(["DROP TABLE employees"])
+
+    def test_pass_all_checks_check(self, monkeypatch):
+        records = [('row_count_check', 1), ('column_sum_check', 'y')]
+        operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
 
     def test_fail_all_checks_check(self, monkeypatch):
-        df = pd.DataFrame(
-            data={"check_name": ["row_count_check", "column_sum_check"], "check_result": ["0", "n"]}
-        )
-        operator = self._construct_operator(monkeypatch, self.checks, df)
+        records = [('row_count_check', 0), ('column_sum_check', 'n')]
+        operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
@@ -198,7 +226,7 @@ class TestSQLCheckOperatorDbHook:
 
     def test_not_allowed_conn_type(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='s3')
-        with pytest.raises(AirflowException, match=r"The connection type is not supported"):
+        with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
             self._operator._hook
 
     def test_sql_operator_hook_params_snowflake(self, mock_get_conn):
@@ -613,7 +641,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -653,7 +681,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_true_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -694,7 +722,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_false_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -734,7 +762,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_list_with_dag_run(self, mock_get_db_hook):
         """Checks if the BranchSQLOperator supports branching off to a list of tasks."""
         branch_op = BranchSQLOperator(
@@ -777,7 +805,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_invalid_query_result_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
@@ -807,7 +835,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         with pytest.raises(AirflowException):
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook):
         """Test SQL Branch with skipping all downstream dependencies"""
         branch_op = BranchSQLOperator(
@@ -848,7 +876,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies2(self, mock_get_db_hook):
         """Test skipping downstream dependency for false condition"""
         branch_op = BranchSQLOperator(

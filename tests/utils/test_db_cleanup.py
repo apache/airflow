@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from contextlib import suppress
 from importlib import import_module
 from pathlib import Path
@@ -264,9 +266,10 @@ class TestDBCleanup:
             'dag_warning',  # self-maintaining
             'connection',  # leave alone
             'slot_pool',  # leave alone
-            'dataset_dag_ref',  # leave alone for now
-            'dataset_task_ref',  # leave alone for now
+            'dag_schedule_dataset_reference',  # leave alone for now
+            'task_outlet_dataset_reference',  # leave alone for now
             'dataset_dag_run_queue',  # self-managed
+            'dataset_event_dag_run',  # foreign keys
         }
 
         from airflow.utils.db_cleanup import config_dict

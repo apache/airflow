@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Add ``run_type`` column in ``dag_run`` table
 
@@ -24,6 +23,7 @@ Revises: b25a55525161
 Create Date: 2020-04-08 13:35:25.671327
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

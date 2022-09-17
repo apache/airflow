@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import type { Task } from 'src/types';
+import type { DagRun, RunOrdering, Task } from 'src/types';
 
 // Delay in ms for various hover actions
 const hoverDelay = 200;
@@ -114,6 +114,16 @@ const getTaskSummary = ({
   };
 };
 
+interface RunLabelProps {
+  dagRun: DagRun;
+  ordering?: RunOrdering;
+}
+
+const getDagRunLabel = ({
+  dagRun,
+  ordering = ['dataIntervalEnd', 'executionDate'],
+}: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
+
 export {
   hoverDelay,
   finalStatesMap,
@@ -121,4 +131,5 @@ export {
   appendSearchParams,
   getTask,
   getTaskSummary,
+  getDagRunLabel,
 };

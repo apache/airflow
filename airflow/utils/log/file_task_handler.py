@@ -16,16 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+from __future__ import annotations
+
 import logging
 import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
+from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
-from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 
@@ -44,17 +47,20 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: Optional[logging.FileHandler] = None
+        self.handler: logging.FileHandler | None = None
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
-                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
-                DeprecationWarning,
+                "Passing filename_template to a log handler is deprecated and has no effect",
+                RemovedInAirflow3Warning,
+                # We want to reference the stack that actually instantiates the
+                # handler, not the one that calls super()__init__.
+                stacklevel=(2 if type(self) == FileTaskHandler else 3),
             )
 
-    def set_context(self, ti: "TaskInstance"):
+    def set_context(self, ti: TaskInstance):
         """
         Provide task_instance context to airflow task handler.
 
@@ -78,7 +84,7 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
@@ -134,6 +140,8 @@ class FileTaskHandler(logging.Handler):
                          can be used for steaming log reading and auto-tailing.
         :return: log message as a string and metadata.
         """
+        from airflow.utils.jwt_signer import JWTSigner
+
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -189,8 +197,8 @@ class FileTaskHandler(logging.Handler):
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
+            url = urljoin(
+                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log", log_relative_path
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"

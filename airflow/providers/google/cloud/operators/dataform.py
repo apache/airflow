@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.links.dataform import DataformWorkflowInvocationLink
 
@@ -59,13 +60,13 @@ class DataformCreateCompilationResultOperator(BaseOperator):
         project_id: str,
         region: str,
         repository_id: str,
-        compilation_result: Union[CompilationResult, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        compilation_result: CompilationResult | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -81,7 +82,7 @@ class DataformCreateCompilationResultOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -131,12 +132,12 @@ class DataformGetCompilationResultOperator(BaseOperator):
         region: str,
         repository_id: str,
         compilation_result_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -152,7 +153,7 @@ class DataformGetCompilationResultOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -206,13 +207,13 @@ class DataformCreateWorkflowInvocationOperator(BaseOperator):
         project_id: str,
         region: str,
         repository_id: str,
-        workflow_invocation: Union[WorkflowInvocation, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[int] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        workflow_invocation: WorkflowInvocation | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: int | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         wait_time: int = 10,
         *args,
@@ -232,7 +233,7 @@ class DataformCreateWorkflowInvocationOperator(BaseOperator):
         self.asynchronous = asynchronous
         self.wait_time = wait_time
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -301,12 +302,12 @@ class DataformGetWorkflowInvocationOperator(BaseOperator):
         region: str,
         repository_id: str,
         workflow_invocation_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -322,7 +323,7 @@ class DataformGetWorkflowInvocationOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -373,12 +374,12 @@ class DataformCancelWorkflowInvocationOperator(BaseOperator):
         region: str,
         repository_id: str,
         workflow_invocation_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -394,7 +395,7 @@ class DataformCancelWorkflowInvocationOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Context):
         hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

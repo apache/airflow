@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 This module contains various unit tests for Google Cloud DLP Operators
 """
+from __future__ import annotations
 
 import unittest
 from unittest import mock

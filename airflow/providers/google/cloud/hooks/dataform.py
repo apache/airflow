@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -34,7 +35,7 @@ class DataformHook(GoogleBaseHook):
         self,
     ) -> DataformClient:
         """Retrieves client library object that allow access to Cloud Dataform service."""
-        return DataformClient(credentials=self._get_credentials())
+        return DataformClient(credentials=self.get_credentials())
 
     @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_workflow_invocation(
@@ -44,7 +45,7 @@ class DataformHook(GoogleBaseHook):
         project_id: str,
         region: str,
         wait_time: int = 10,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> None:
         """
         Helper method which polls a job to check if it finishes.
@@ -77,7 +78,7 @@ class DataformHook(GoogleBaseHook):
                     repository_id=repository_id,
                     workflow_invocation_id=workflow_invocation_id,
                 )
-                state = workflow_invocation
+                state = workflow_invocation.state
             except Exception as err:
                 self.log.info(
                     "Retrying. Dataform API returned error when waiting for workflow invocation: %s", err
@@ -94,10 +95,10 @@ class DataformHook(GoogleBaseHook):
         project_id: str,
         region: str,
         repository_id: str,
-        compilation_result: Union[CompilationResult, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        compilation_result: CompilationResult | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> CompilationResult:
         """
         Creates a new CompilationResult in a given project and location.
@@ -129,9 +130,9 @@ class DataformHook(GoogleBaseHook):
         region: str,
         repository_id: str,
         compilation_result_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> CompilationResult:
         """
         Fetches a single CompilationResult.
@@ -159,10 +160,10 @@ class DataformHook(GoogleBaseHook):
         project_id: str,
         region: str,
         repository_id: str,
-        workflow_invocation: Union[WorkflowInvocation, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        workflow_invocation: WorkflowInvocation | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowInvocation:
         """
         Creates a new WorkflowInvocation in a given Repository.
@@ -191,9 +192,9 @@ class DataformHook(GoogleBaseHook):
         region: str,
         repository_id: str,
         workflow_invocation_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowInvocation:
         """
         Fetches a single WorkflowInvocation.
@@ -227,9 +228,9 @@ class DataformHook(GoogleBaseHook):
         region: str,
         repository_id: str,
         workflow_invocation_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Requests cancellation of a running WorkflowInvocation.

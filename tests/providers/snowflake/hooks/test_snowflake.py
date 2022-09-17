@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -32,7 +33,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 _PASSWORD = 'snowflake42'
 
-BASE_CONNECTION_KWARGS: Dict = {
+BASE_CONNECTION_KWARGS: dict = {
     'login': 'user',
     'conn_type': 'snowflake',
     'password': 'pw',

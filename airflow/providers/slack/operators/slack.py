@@ -15,11 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
-from typing import Any, Dict, List, Optional, Sequence
+from __future__ import annotations
 
+import json
+import warnings
+from typing import Any, Sequence
+
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
+from airflow.utils.log.secrets_masker import mask_secret
 
 
 class SlackAPIOperator(BaseOperator):
@@ -29,7 +34,7 @@ class SlackAPIOperator(BaseOperator):
     In the future additional Slack API Operators will be derived from this class as well.
     Only one of `slack_conn_id` and `token` is required.
 
-    :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
+    :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`
         which its password is Slack API token. Optional
     :param token: Slack API token (https://api.slack.com/web). Optional
     :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
@@ -40,19 +45,25 @@ class SlackAPIOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_conn_id: Optional[str] = None,
-        token: Optional[str] = None,
-        method: Optional[str] = None,
-        api_params: Optional[Dict] = None,
+        slack_conn_id: str | None = None,
+        token: str | None = None,
+        method: str | None = None,
+        api_params: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        self.token = token  # type: Optional[str]
-        self.slack_conn_id = slack_conn_id  # type: Optional[str]
+        if token:
+            mask_secret(token)
+        self.token = token
+        self.slack_conn_id = slack_conn_id
 
         self.method = method
         self.api_params = api_params
+
+    @cached_property
+    def hook(self) -> SlackHook:
+        """Slack Hook."""
+        return SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
 
     def construct_api_call_params(self) -> Any:
         """
@@ -70,14 +81,9 @@ class SlackAPIOperator(BaseOperator):
         )
 
     def execute(self, **kwargs):
-        """
-        The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
-        It should not prevent a DAG from completing in success
-        """
         if not self.api_params:
             self.construct_api_call_params()
-        slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
-        slack.call(self.method, json=self.api_params)
+        self.hook.call(self.method, json=self.api_params)
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
@@ -118,8 +124,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         'https://www.youtube.com/watch?v=J---aiyznGQ',
         icon_url: str = 'https://raw.githubusercontent.com/apache/'
         'airflow/main/airflow/www/static/pin_100.png',
-        attachments: Optional[List] = None,
-        blocks: Optional[List] = None,
+        attachments: list | None = None,
+        blocks: list | None = None,
         **kwargs,
     ) -> None:
         self.method = 'chat.postMessage'
@@ -144,7 +150,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
 class SlackAPIFileOperator(SlackAPIOperator):
     """
-    Send a file to a slack channel
+    Send a file to a slack channels
     Examples:
 
     .. code-block:: python
@@ -154,7 +160,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             task_id="slack_file_upload_1",
             dag=dag,
             slack_conn_id="slack",
-            channel="#general",
+            channels="#general,#random",
             initial_comment="Hello World!",
             filename="/files/dags/test.txt",
             filetype="txt",
@@ -165,63 +171,67 @@ class SlackAPIFileOperator(SlackAPIOperator):
             task_id="slack_file_upload_2",
             dag=dag,
             slack_conn_id="slack",
-            channel="#general",
+            channels="#general",
             initial_comment="Hello World!",
             content="file content in txt",
         )
 
-    :param channel: channel in which to sent file on slack name (templated)
+    :param channels: Comma-separated list of channel names or IDs where the file will be shared.
+        If set this argument to None, then file will send to associated workspace. (templated)
     :param initial_comment: message to send to slack. (templated)
     :param filename: name of the file (templated)
-    :param filetype: slack filetype. (templated)
-        - see https://api.slack.com/types/file
+    :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
+    :param title: title of file. (templated)
+    :param channel: (deprecated) channel in which to sent file on slack name
     """
 
-    template_fields: Sequence[str] = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
+    template_fields: Sequence[str] = (
+        'channels',
+        'initial_comment',
+        'filename',
+        'filetype',
+        'content',
+        'title',
+    )
     ui_color = '#44BEDF'
 
     def __init__(
         self,
-        channel: str = '#general',
-        initial_comment: str = 'No message has been set!',
-        filename: Optional[str] = None,
-        filetype: Optional[str] = None,
-        content: Optional[str] = None,
+        channels: str | Sequence[str] | None = None,
+        initial_comment: str | None = None,
+        filename: str | None = None,
+        filetype: str | None = None,
+        content: str | None = None,
+        title: str | None = None,
+        channel: str | None = None,
         **kwargs,
     ) -> None:
-        self.method = 'files.upload'
-        self.channel = channel
+        if channel:
+            warnings.warn(
+                "Argument `channel` is deprecated and will removed in a future releases. "
+                "Please use `channels` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if channels:
+                raise ValueError(f"Cannot set both arguments: channel={channel!r} and channels={channels!r}.")
+            channels = channel
+
+        self.channels = channels
         self.initial_comment = initial_comment
         self.filename = filename
         self.filetype = filetype
         self.content = content
-        self.file_params: Dict = {}
-        super().__init__(method=self.method, **kwargs)
+        self.title = title
+        super().__init__(method="files.upload", **kwargs)
 
     def execute(self, **kwargs):
-        """
-        The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
-        It should not prevent a DAG from completing in success
-        """
-        slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
-
-        # If file content is passed.
-        if self.content is not None:
-            self.api_params = {
-                'channels': self.channel,
-                'content': self.content,
-                'initial_comment': self.initial_comment,
-            }
-            slack.call(self.method, data=self.api_params)
-        # If file name is passed.
-        elif self.filename is not None:
-            self.api_params = {
-                'channels': self.channel,
-                'filename': self.filename,
-                'filetype': self.filetype,
-                'initial_comment': self.initial_comment,
-            }
-            with open(self.filename, "rb") as file_handle:
-                slack.call(self.method, data=self.api_params, files={'file': file_handle})
-                file_handle.close()
+        self.hook.send_file(
+            channels=self.channels,
+            # For historical reason SlackAPIFileOperator use filename as reference to file
+            file=self.filename,
+            content=self.content,
+            initial_comment=self.initial_comment,
+            title=self.title,
+        )

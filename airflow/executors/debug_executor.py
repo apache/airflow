@@ -22,9 +22,10 @@ DebugExecutor
     For more information on how the DebugExecutor works, take a look at the guide:
     :ref:`executor:DebugExecutor`
 """
+from __future__ import annotations
 
 import threading
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
@@ -44,9 +45,9 @@ class DebugExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.tasks_to_run: List[TaskInstance] = []
+        self.tasks_to_run: list[TaskInstance] = []
         # Place where we keep information for task instance raw run
-        self.tasks_params: Dict[TaskInstanceKey, Dict[str, Any]] = {}
+        self.tasks_params: dict[TaskInstanceKey, dict[str, Any]] = {}
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
@@ -88,13 +89,13 @@ class DebugExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: Optional[str] = None,
+        pickle_id: str | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        pool: Optional[str] = None,
-        cfg_path: Optional[str] = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
     ) -> None:
         """Queues task instance with empty command because we do not need it."""
         self.queue_command(
