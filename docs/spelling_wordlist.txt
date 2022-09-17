@@ -221,6 +221,7 @@ ClassifyTextResponse
 classname
 classpath
 classpaths
+cleartext
 cli
 clientId
 Cloudant
