@@ -48,7 +48,7 @@ cond1 = BranchDateTimeOperator(
     dag=dag1,
 )
 
-# Run empty_task_1 if cond1 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
+# Run empty_task_11 if cond1 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
 cond1 >> [empty_task_11, empty_task_21]
 # [END howto_branch_datetime_operator]
 
@@ -74,7 +74,7 @@ cond2 = BranchDateTimeOperator(
 )
 
 # Since target_lower happens after target_upper, target_upper will be moved to the following day
-# Run empty_task_1 if cond2 executes between 15:00:00, and 00:00:00 of the following day
+# Run empty_task_12 if cond2 executes between 15:00:00, and 00:00:00 of the following day
 cond2 >> [empty_task_12, empty_task_22]
 # [END howto_branch_datetime_operator_next_day]
 
@@ -99,6 +99,6 @@ cond3 = BranchDateTimeOperator(
     dag=dag3,
 )
 
-# Run empty_task_3 if cond1 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
+# Run empty_task_13 if cond3 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
 cond3 >> [empty_task_13, empty_task_23]
 # [END howto_branch_datetime_operator_logical_date]
