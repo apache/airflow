@@ -1149,7 +1149,7 @@ paths:
       description: >
         Updates the state for single task instance.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: patch_set_task_instance_state
+      operationId: patch_task_instance
       tags: [TaskInstance]
       requestBody:
         description: Parameters of action
@@ -1157,7 +1157,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTaskInstanceState'
+              $ref: '#/components/schemas/UpdateTaskInstance'
       responses:
         '200':
           description: Success.
@@ -1208,7 +1208,7 @@ paths:
       description: >
         Updates the state for single mapped task instance.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
-      operationId: patch_set_mapped_task_instance_state
+      operationId: patch_mapped_task_instance
       tags: [TaskInstance]
       requestBody:
         description: Parameters of action
@@ -1216,7 +1216,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateMappedTaskInstanceState'
+              $ref: '#/components/schemas/UpdateMappedTaskInstance'
       responses:
         '200':
           description: Success.
@@ -3882,7 +3882,7 @@ components:
             - success
             - failed
 
-    UpdateTaskInstanceState:
+    UpdateTaskInstance:
       type: object
       properties:
         dry_run:
@@ -3899,7 +3899,7 @@ components:
             - success
             - failed
 
-    UpdateMappedTaskInstanceState:
+    UpdateMappedTaskInstance:
       type: object
       properties:
         dry_run:

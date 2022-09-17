@@ -32,6 +32,8 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_batch_form,
     set_single_task_instance_state_form,
+    set_task_instance_state_form,
+    clear_task_instance_form,
     task_instance_reference_schema,
     task_instance_collection_schema,
     task_instance_reference_collection_schema,
@@ -553,7 +555,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     ],
 )
 @provide_session
-def patch_set_mapped_task_instance_state(*, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION) -> APIResponse:
+def patch_mapped_task_instance(*, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION) -> APIResponse:
     """Update the state of a mapped task instance."""
     body = get_json_request_dict()
     try:
@@ -566,13 +568,11 @@ def patch_set_mapped_task_instance_state(*, dag_id: str, dag_run_id: str, task_i
     if not dag:
         raise NotFound(error_message)
 
-    task_id = data['task_id']
     task = dag.task_dict.get(task_id)
 
     if not task:
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
-
 
     ti: TI = session.query(TI).get(
         {'task_id': task_id, 'dag_id': dag_id, 'run_id': dag_run_id, 'map_index': map_index}
@@ -583,9 +583,19 @@ def patch_set_mapped_task_instance_state(*, dag_id: str, dag_run_id: str, task_i
         raise NotFound(detail=error_message)
 
     if not data["dry_run"]:
-        ti.set_state(data["new_state"], session=session)
+        ti = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=[map_index],
+            state=data["new_state"],
+            commit=not data["dry_run"],
+            session=session,
+        )
 
     return task_instance_reference_schema.dump(ti)
+
+
+
 
 
 @security.requires_access(
@@ -596,7 +606,7 @@ def patch_set_mapped_task_instance_state(*, dag_id: str, dag_run_id: str, task_i
     ],
 )
 @provide_session
-def patch_set_task_instance_state(*, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def patch_task_instance(*, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Update the state of a task instance."""
     body = get_json_request_dict()
     try:
@@ -624,6 +634,14 @@ def patch_set_task_instance_state(*, dag_id: str, dag_run_id: str, task_id: str,
         raise NotFound(detail=error_message)
 
     if not data["dry_run"]:
-        ti.set_state(data["new_state"], session=session)
+        ti = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            state=data["new_state"],
+            commit=not data["dry_run"],
+            session=session,
+        )
 
     return task_instance_reference_schema.dump(ti)
+
+
