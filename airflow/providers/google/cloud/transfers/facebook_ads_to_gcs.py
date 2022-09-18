@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ad Reporting to GCS operators."""
+from __future__ import annotations
+
 import csv
 import tempfile
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
@@ -95,14 +97,14 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         *,
         bucket_name: str,
         object_name: str,
-        fields: List[str],
-        parameters: Optional[Dict[str, Any]] = None,
+        fields: list[str],
+        parameters: dict[str, Any] | None = None,
         gzip: bool = False,
         upload_as_account: bool = False,
-        api_version: Optional[str] = None,
+        api_version: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         facebook_conn_id: str = "facebook_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -117,7 +119,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         self.upload_as_account = upload_as_account
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
@@ -157,9 +159,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     def _prepare_rows_for_upload(
         self,
-        rows: List[AdsInsights],
-        converted_rows_with_action: Dict[FlushAction, list],
-        account_id: Optional[str],
+        rows: list[AdsInsights],
+        converted_rows_with_action: dict[FlushAction, list],
+        account_id: str | None,
     ):
         converted_rows = [dict(row) for row in rows]
         if account_id is not None and self.upload_as_account:
@@ -174,7 +176,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             self.log.info("Facebook Returned %s data points ", len(converted_rows))
         return converted_rows_with_action
 
-    def _decide_and_flush(self, converted_rows_with_action: Dict[FlushAction, list]):
+    def _decide_and_flush(self, converted_rows_with_action: dict[FlushAction, list]):
         total_data_count = 0
         once_action = converted_rows_with_action.get(FlushAction.EXPORT_ONCE)
         if once_action is not None:
@@ -202,7 +204,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 raise AirflowException(message)
         return total_data_count
 
-    def _flush_rows(self, converted_rows: Optional[List[Any]], object_name: str):
+    def _flush_rows(self, converted_rows: list[Any] | None, object_name: str):
         if converted_rows:
             headers = converted_rows[0].keys()
             with tempfile.NamedTemporaryFile("w", suffix=".csv") as csvfile:

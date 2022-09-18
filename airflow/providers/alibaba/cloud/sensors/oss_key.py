@@ -15,16 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
+from __future__ import annotations
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlparse
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
@@ -53,8 +49,8 @@ class OSSKeySensor(BaseSensorOperator):
         self,
         bucket_key: str,
         region: str,
-        bucket_name: Optional[str] = None,
-        oss_conn_id: Optional[str] = 'oss_default',
+        bucket_name: str | None = None,
+        oss_conn_id: str | None = 'oss_default',
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -63,10 +59,15 @@ class OSSKeySensor(BaseSensorOperator):
         self.bucket_key = bucket_key
         self.region = region
         self.oss_conn_id = oss_conn_id
-        self.hook: Optional[OSSHook] = None
+        self.hook: OSSHook | None = None
 
-    def poke(self, context: 'Context'):
-
+    def poke(self, context: Context):
+        """
+        Check if the object exists in the bucket to pull key.
+        @param self - the object itself
+        @param context - the context of the object
+        @returns True if the object exists, False otherwise
+        """
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)
             if parsed_url.netloc == '':

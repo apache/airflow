@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Command-line interface"""
+from __future__ import annotations
 
 import argparse
 import json
@@ -24,7 +25,7 @@ import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
-from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
+from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
 
@@ -177,8 +178,16 @@ def string_lower_type(val):
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
 ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
+ARG_EXECUTION_DATE_OPTIONAL = Arg(
+    ("execution_date",), nargs='?', help="The execution date of the DAG (optional)", type=parsedate
+)
 ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
     ('execution_date_or_run_id',), help="The execution_date of the DAG or run_id of the DAGRun"
+)
+ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
+    ('execution_date_or_run_id',),
+    nargs='?',
+    help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(
     ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
@@ -254,13 +263,16 @@ ARG_REVISION_RANGE = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
+ARG_DAG_ID_REQ_FLAG = Arg(
+    ("-d", "--dag-id"), required=True, help="The id of the dag"
+)  # TODO: convert this to a positional arg in Airflow 3
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
 ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state")
 
 # list_jobs
+ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 
 # next_execution
@@ -351,6 +363,11 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
+ARG_TREAT_DAG_AS_REGEX = Arg(
+    ("--treat-dag-as-regex",),
+    help=("if set, dag_id will be treated as regex instead of an exact string"),
+    action="store_true",
+)
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
@@ -434,6 +451,11 @@ ARG_DB_DRY_RUN = Arg(
     help="Perform a dry run",
     action="store_true",
 )
+ARG_DB_SKIP_ARCHIVE = Arg(
+    ("--skip-archive",),
+    help="Don't preserve purged records in an archive table.",
+    action="store_true",
+)
 
 
 # pool
@@ -464,7 +486,8 @@ ARG_VAR_VALUE = Arg(("value",), metavar='VALUE', help="Variable value")
 ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
-ARG_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
 ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
 
@@ -661,18 +684,17 @@ ARG_CELERY_HOSTNAME = Arg(
 ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
-    default=conf.get('celery', 'worker_umask'),
 )
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
-    help="Don’t synchronize with other workers at start-up",
+    help="Don't synchronize with other workers at start-up",
     action="store_true",
 )
 ARG_WITHOUT_GOSSIP = Arg(
     ("--without-gossip",),
     default=False,
-    help="Don’t subscribe to other workers events",
+    help="Don't subscribe to other workers events",
     action="store_true",
 )
 
@@ -942,8 +964,8 @@ class ActionCommand(NamedTuple):
     help: str
     func: Callable
     args: Iterable[Arg]
-    description: Optional[str] = None
-    epilog: Optional[str] = None
+    description: str | None = None
+    epilog: str | None = None
 
 
 class GroupCommand(NamedTuple):
@@ -952,8 +974,8 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
-    description: Optional[str] = None
-    epilog: Optional[str] = None
+    description: str | None = None
+    epilog: str | None = None
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
@@ -989,7 +1011,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
         args=(
-            ARG_DAG_ID_OPT,
+            ARG_DAG_ID_REQ_FLAG,
             ARG_NO_BACKFILL,
             ARG_STATE,
             ARG_OUTPUT,
@@ -1130,6 +1152,7 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
+            ARG_TREAT_DAG_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1158,7 +1181,8 @@ DAGS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
             ARG_DAG_ID,
-            ARG_EXECUTION_DATE,
+            ARG_EXECUTION_DATE_OPTIONAL,
+            ARG_CONF,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
@@ -1174,7 +1198,10 @@ DAGS_COMMANDS = (
             "version of Airflow that you are running."
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_reserialize'),
-        args=(ARG_CLEAR_ONLY,),
+        args=(
+            ARG_CLEAR_ONLY,
+            ARG_SUBDIR,
+        ),
     ),
 )
 TASKS_COMMANDS = (
@@ -1278,7 +1305,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
@@ -1343,13 +1370,13 @@ VARIABLES_COMMANDS = (
         name='get',
         help='Get variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, ARG_VERBOSE),
+        args=(ARG_VAR, ARG_DESERIALIZE_JSON, ARG_DEFAULT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
         help='Set variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_JSON),
+        args=(ARG_VAR, ARG_VAR_VALUE, ARG_SERIALIZE_JSON),
     ),
     ActionCommand(
         name='delete',
@@ -1452,6 +1479,7 @@ DB_COMMANDS = (
             ARG_DB_CLEANUP_TIMESTAMP,
             ARG_VERBOSE,
             ARG_YES,
+            ARG_DB_SKIP_ARCHIVE,
         ),
     ),
 )
@@ -1654,6 +1682,12 @@ ROLES_COMMANDS = (
         args=(ARG_ROLES, ARG_VERBOSE),
     ),
     ActionCommand(
+        name='delete',
+        help='Delete role',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_delete'),
+        args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name='export',
         help='Export roles (without permissions) from db to JSON file',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_export'),
@@ -1771,7 +1805,7 @@ JOBS_COMMANDS = (
     ),
 )
 
-airflow_commands: List[CLICommand] = [
+airflow_commands: list[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
@@ -1969,7 +2003,7 @@ airflow_commands: List[CLICommand] = [
         args=tuple(),
     ),
 ]
-ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
+ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
 
 def _remove_dag_id_opt(command: ActionCommand):
@@ -1978,7 +2012,7 @@ def _remove_dag_id_opt(command: ActionCommand):
     return ActionCommand(**cmd)
 
 
-dag_cli_commands: List[CLICommand] = [
+dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
@@ -1994,7 +2028,7 @@ dag_cli_commands: List[CLICommand] = [
         subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ['list', 'test', 'run']],
     ),
 ]
-DAG_CLI_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
+DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
 class AirflowHelpFormatter(argparse.HelpFormatter):

@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import fields, post_dump, pre_load, validate
 from marshmallow.schema import Schema
@@ -119,10 +121,16 @@ class SetDagRunStateFormSchema(Schema):
     )
 
 
+class ClearDagRunStateFormSchema(Schema):
+    """Schema for handling the request of clearing a DAG run"""
+
+    dry_run = fields.Boolean(load_default=True)
+
+
 class DAGRunCollection(NamedTuple):
     """List of DAGRuns with metadata"""
 
-    dag_runs: List[DagRun]
+    dag_runs: list[DagRun]
     total_entries: int
 
 
@@ -158,4 +166,5 @@ class DagRunsBatchFormSchema(Schema):
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
 set_dagrun_state_form_schema = SetDagRunStateFormSchema()
+clear_dagrun_form_schema = ClearDagRunStateFormSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()

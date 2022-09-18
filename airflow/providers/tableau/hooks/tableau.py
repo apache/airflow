@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import time
 import warnings
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any
 
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
@@ -26,7 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 
-def parse_boolean(val: str) -> Union[str, bool]:
+def parse_boolean(val: str) -> str | bool:
     """Try to parse a string into boolean.
 
     The string is returned as-is if it does not look like a boolean value.
@@ -75,7 +77,7 @@ class TableauHook(BaseHook):
     conn_type = 'tableau'
     hook_name = 'Tableau'
 
-    def __init__(self, site_id: Optional[str] = None, tableau_conn_id: str = default_conn_name) -> None:
+    def __init__(self, site_id: str | None = None, tableau_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
@@ -153,7 +155,7 @@ class TableauHook(BaseHook):
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.
-        :return: An Enum that describe the Tableau job’s return code
+        :return: An Enum that describe the Tableau job's return code
         :rtype: TableauJobFinishCode
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
@@ -164,7 +166,7 @@ class TableauHook(BaseHook):
         to target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
-        :param target_state: Enum that describe the Tableau job’s target state
+        :param target_state: Enum that describe the Tableau job's target state
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :return: return True if the job is equal to the target_status, False otherwise.

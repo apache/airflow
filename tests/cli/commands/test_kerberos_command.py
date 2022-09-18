@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -75,6 +76,7 @@ class TestKerberosCommand(unittest.TestCase):
                 pidfile=mock_pid_file.return_value,
                 stderr=mock_open.return_value,
                 stdout=mock_open.return_value,
+                umask=0o077,
             ),
             mock.call.DaemonContext().__enter__(),
             mock.call.DaemonContext().__exit__(None, None, None),
@@ -93,10 +95,12 @@ class TestKerberosCommand(unittest.TestCase):
         )
         mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
         assert mock_open.mock_calls == [
-            mock.call(mock_setup_locations.return_value[1], 'w+'),
+            mock.call(mock_setup_locations.return_value[1], 'a'),
             mock.call().__enter__(),
-            mock.call(mock_setup_locations.return_value[2], 'w+'),
+            mock.call(mock_setup_locations.return_value[2], 'a'),
             mock.call().__enter__(),
+            mock.call().truncate(0),
+            mock.call().truncate(0),
             mock.call().__exit__(None, None, None),
             mock.call().__exit__(None, None, None),
         ]

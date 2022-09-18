@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import shlex
 import unittest
@@ -285,7 +287,7 @@ class TestKerberosUnit(unittest.TestCase):
     @mock.patch('airflow.security.kerberos.subprocess')
     @mock.patch('airflow.security.kerberos.NEED_KRB181_WORKAROUND', None)
     @mock.patch('airflow.security.kerberos.open', mock.mock_open(read_data=b'X-CACHECONF:'))
-    @mock.patch('airflow.security.kerberos.socket.getfqdn', return_value="HOST")
+    @mock.patch('airflow.security.kerberos.get_hostname', return_value="HOST")
     @mock.patch('time.sleep', return_value=None)
     def test_renew_from_kt_failed_workaround(self, mock_sleep, mock_getfqdn, mock_subprocess):
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0

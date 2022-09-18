@@ -14,14 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from __future__ import annotations
 
-from flask import Response, request
+from http import HTTPStatus
+
+from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
@@ -36,17 +39,17 @@ def delete_variable(*, variable_key: str) -> Response:
     """Delete variable"""
     if Variable.delete(variable_key) == 0:
         raise NotFound("Variable not found")
-    return Response(status=204)
+    return Response(status=HTTPStatus.NO_CONTENT)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
-def get_variable(*, variable_key: str) -> Response:
-    """Get a variables by key"""
-    try:
-        var = Variable.get(variable_key)
-    except KeyError:
+@provide_session
+def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
+    """Get a variable by key"""
+    var = session.query(Variable).filter(Variable.key == variable_key)
+    if not var.count():
         raise NotFound("Variable not found")
-    return variable_schema.dump({"key": variable_key, "val": var})
+    return variable_schema.dump(var.first())
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
@@ -54,9 +57,9 @@ def get_variable(*, variable_key: str) -> Response:
 @provide_session
 def get_variables(
     *,
-    limit: Optional[int],
+    limit: int | None,
     order_by: str = "id",
-    offset: Optional[int] = None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> Response:
     """Get all variable values"""
@@ -78,7 +81,7 @@ def get_variables(
 def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Response:
     """Update a variable by key"""
     try:
-        data = variable_schema.load(request.json)
+        data = variable_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
 
@@ -99,7 +102,7 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
 def post_variables() -> Response:
     """Create a variable"""
     try:
-        data = variable_schema.load(request.json)
+        data = variable_schema.load(get_json_request_dict())
 
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))

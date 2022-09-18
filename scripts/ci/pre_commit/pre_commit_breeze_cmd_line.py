@@ -16,10 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
+import platform
 import sys
 from pathlib import Path
-from subprocess import check_call, check_output, run
+from subprocess import call
 
 from rich.console import Console
 
@@ -27,75 +30,22 @@ AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
+FORCE = os.environ.get('FORCE', "false")[0].lower() == "t"
+VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
+DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
 
-SCREENSHOT_WIDTH = "120"
-
-
-def get_command_list():
-    comp_env = os.environ.copy()
-    comp_env['COMP_WORDS'] = ""
-    comp_env['COMP_CWORD'] = "0"
-    comp_env['_BREEZE_COMPLETE'] = 'bash_complete'
-    result = check_output('breeze', env=comp_env, text=True)
-    return [x.split(",")[1] for x in result.splitlines(keepends=False)]
-
-
-def print_help_for_all_commands():
-    console = Console(width=int(SCREENSHOT_WIDTH), color_system="standard")
-    env = os.environ.copy()
-    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
-    env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-    env['RECORD_BREEZE_TITLE'] = "Breeze commands"
-    env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
-    env['TERM'] = "xterm-256color"
-    env['PYTHONPATH'] = str(BREEZE_SOURCES_DIR)
-    new_hash = check_output(
-        [
-            sys.executable,
-            str(BREEZE_SOURCES_DIR / "airflow_breeze" / "breeze.py"),
-            "command-hash-export",
-            "-",
-        ],
-        env=env,
-        text=True,
-    )
-    hash_file_path = BREEZE_IMAGES_DIR / "output-commands-hash.txt"
-    try:
-        old_hash = hash_file_path.read_text()
-    except FileNotFoundError:
-        old_hash = ""
-    if old_hash == new_hash:
-        console.print(f"[bright_blue]Skip generation of SVG images as command hash is unchanged {old_hash}")
-        return
-    run([sys.executable, "-m", "pip", "install", "--upgrade", "-e", BREEZE_INSTALL_DIR])
-    env = os.environ.copy()
-    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
-    env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-    env['RECORD_BREEZE_TITLE'] = "Breeze commands"
-    env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
-    env['TERM'] = "xterm-256color"
-    check_call(["breeze", "--help"], env=env)
-    for command in get_command_list():
-        env = os.environ.copy()
-        env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
-        env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
-        env['RECORD_BREEZE_TITLE'] = f"Command: {command}"
-        env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / f"output-{command}.svg")
-        env['TERM'] = "xterm-256color"
-        check_call(["breeze", command, "--help"], env=env)
-    hash_file_path.write_text(new_hash)
+console = Console(width=400, color_system="standard")
 
 
 def verify_all_commands_described_in_docs():
-    console = Console(width=int(SCREENSHOT_WIDTH), color_system="standard")
     errors = []
     doc_content = (AIRFLOW_SOURCES_DIR / "BREEZE.rst").read_text()
-    for file in os.listdir(BREEZE_IMAGES_DIR):
-        if file.startswith("output-") and file.endswith(".svg"):
-            command = file[len("output-") : -len(".svg")]
+    for file_name in os.listdir(BREEZE_IMAGES_DIR):
+        if file_name.startswith("output_") and file_name.endswith(".svg"):
+            command = file_name[len("output_") : -len(".svg")]
             if command == "breeze-commands":
                 continue
-            if file not in doc_content:
+            if file_name not in doc_content:
                 errors.append(command)
             else:
                 console.print(f"[green]OK. The {command} screenshot is embedded in BREEZE.rst.")
@@ -105,12 +55,82 @@ def verify_all_commands_described_in_docs():
             console.print(f"  * [red]{command}[/]")
         console.print()
         console.print(
-            "[bright_yellow]Make sure you describe it and embed ./images/breeze/output-<COMMAND>.svg "
+            "[bright_yellow]Make sure you describe it and embed "
+            "./images/breeze/output_<COMMAND>[_<SUBCOMMAND>].svg "
             "screenshot as image in the BREEZE.rst file.[/]"
         )
         sys.exit(1)
 
 
+def is_regeneration_is_needed() -> bool:
+    env = os.environ.copy()
+    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
+    # needed to keep consistent output
+    env['PYTHONPATH'] = str(BREEZE_SOURCES_DIR)
+    return_code = call(
+        [
+            sys.executable,
+            str(BREEZE_SOURCES_DIR / "airflow_breeze" / "breeze.py"),
+            "setup",
+            "regenerate-command-images",
+            "--check-only",
+        ],
+        env=env,
+    )
+    return return_code != 0
+
+
+def run_image_regeneration_in_breeze() -> int:
+    sys.path.insert(0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src"))
+    from airflow_breeze.global_constants import MOUNT_SELECTED
+    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker, get_extra_docker_flags
+    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
+
+    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
+    cmd_result = run_command(
+        [
+            "docker",
+            "run",
+            "-t",
+            *get_extra_docker_flags(MOUNT_SELECTED),
+            "-e",
+            "SKIP_ENVIRONMENT_INITIALIZATION=true",
+            "-e",
+            "BACKEND=sqlite",
+            "-e",
+            "FORCE",
+            "--pull",
+            "never",
+            airflow_image,
+            "/opt/airflow/scripts/in_container/run_breeze_image_generation.sh",
+        ],
+        check=False,
+        verbose=VERBOSE,
+        dry_run=DRY_RUN,
+    )
+    if platform.system().lower() == 'linux' and not os.environ.get('CI'):
+        fix_ownership_using_docker(dry_run=DRY_RUN, verbose=VERBOSE)
+    return cmd_result.returncode
+
+
 if __name__ == '__main__':
-    print_help_for_all_commands()
     verify_all_commands_described_in_docs()
+
+    run_generation = False
+    if FORCE:
+        run_generation = True
+        console.print(
+            '[bright_blue]Force regenerating all images. It will be run in Breeze image for consistency.'
+        )
+    elif is_regeneration_is_needed():
+        run_generation = True
+        console.print('[yellow]Image generation is needed. It will be run in Breeze image for consistency.')
+    if run_generation:
+        return_code = run_image_regeneration_in_breeze()
+        if return_code != 0 and os.environ.get('CI'):
+            console.print(
+                "\n\n[yellow]Please run this command and commit resulting bneeze images:[/]"
+                "\n\n    `breeze setup regenerate-command-images`\n"
+                "\n\n[yellow]This will regenerate all the images in your commit!\n\n"
+            )
+        sys.exit(return_code)

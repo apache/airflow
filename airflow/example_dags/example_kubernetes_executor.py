@@ -18,6 +18,8 @@
 """
 This is an example dag for using a Kubernetes Executor Configuration.
 """
+from __future__ import annotations
+
 import logging
 import os
 
@@ -46,7 +48,7 @@ except ImportError:
 if k8s:
     with DAG(
         dag_id='example_kubernetes_executor',
-        schedule_interval=None,
+        schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=['example3'],

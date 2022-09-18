@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -48,7 +50,6 @@ GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_GKE_KEY = "gcp_gke.json"
 GCP_KMS_KEY = "gcp_kms.json"
-GCP_LIFE_SCIENCES_KEY = 'gcp_life_sciences.json'
 GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SECRET_MANAGER_KEY = 'gcp_secret_manager.json'
@@ -78,7 +79,7 @@ class GcpAuthenticator(CommandExecutor):
 
     original_account = None  # type: Optional[str]
 
-    def __init__(self, gcp_key: str, project_extra: Optional[str] = None):
+    def __init__(self, gcp_key: str, project_extra: str | None = None):
         super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra
@@ -96,8 +97,7 @@ class GcpAuthenticator(CommandExecutor):
         key path
         :return: None
         """
-        session = settings.Session()
-        try:
+        with settings.Session() as session:
             conn = session.query(Connection).filter(Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
             extras[KEYPATH_EXTRA] = self.full_key_path
@@ -106,13 +106,6 @@ class GcpAuthenticator(CommandExecutor):
             extras[SCOPE_EXTRA] = 'https://www.googleapis.com/auth/cloud-platform'
             extras[PROJECT_EXTRA] = self.project_extra if self.project_extra else self.project_id
             conn.extra = json.dumps(extras)
-            session.commit()
-        except BaseException as ex:
-            self.log.error('Airflow DB Session error: %s', str(ex))
-            session.rollback()
-            raise
-        finally:
-            session.close()
 
     def set_dictionary_in_airflow_connection(self):
         """
@@ -120,8 +113,7 @@ class GcpAuthenticator(CommandExecutor):
         of the json service account file.
         :return: None
         """
-        session = settings.Session()
-        try:
+        with settings.Session() as session:
             conn = session.query(Connection).filter(Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
             with open(self.full_key_path) as path_file:
@@ -132,13 +124,6 @@ class GcpAuthenticator(CommandExecutor):
             extras[SCOPE_EXTRA] = 'https://www.googleapis.com/auth/cloud-platform'
             extras[PROJECT_EXTRA] = self.project_extra
             conn.extra = json.dumps(extras)
-            session.commit()
-        except BaseException as ex:
-            self.log.error('Airflow DB Session error: %s', str(ex))
-            session.rollback()
-            raise
-        finally:
-            session.close()
 
     def _set_key_path(self):
         """

@@ -126,7 +126,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 ```shell script
-breeze prepare-provider-documentation [packages]
+breeze release-management prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
@@ -148,7 +148,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze prepare-provider-documentation --answer yes [packages]
+breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
 ## Build provider packages for SVN apache upload
@@ -173,13 +173,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-breeze prepare-provider-packages --package-format both
+breeze release-management prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -238,13 +238,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -304,7 +304,7 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -316,7 +316,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --for-production \
+breeze build-docs --clean-build --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -389,6 +389,13 @@ You can also pass the token as `--github-token` option in the script.
 
 You can also generate the token by following
 [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
+If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+```
+
 
 ## Prepare voting email for Providers release candidate
 
@@ -499,7 +506,8 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py -v {VERSION} -t providers -p {PATH_TO_SVN}
+# Copy the list of packages (pypi urls) into `packages.txt` then run:
+python check_files.py providers -p {PATH_TO_SVN}
 ```
 
 ### Licences check
@@ -697,7 +705,7 @@ Hello,
 
 Apache Airflow Providers (based on RC1) have been accepted.
 
-3 “+1” binding votes received:
+3 "+1" binding votes received:
 - Jarek Potiuk  (binding)
 - Kaxil Naik (binding)
 - Tomasz Urbaszek (binding)

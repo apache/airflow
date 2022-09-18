@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
@@ -80,7 +81,7 @@ class ConfigmapTest(unittest.TestCase):
         )
 
         assert (
-            "# Well hello RELEASE-NAME!"
+            "# Well hello release-name!"
             == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
         )
 
@@ -112,4 +113,4 @@ metadata:
         )
 
         pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
-        assert "mylabel: RELEASE-NAME" in pod_template_file
+        assert "mylabel: release-name" in pod_template_file

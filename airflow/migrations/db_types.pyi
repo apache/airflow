@@ -24,5 +24,3 @@ TIMESTAMP = sa.TIMESTAMP
 
 StringID = sa.String
 """String column type with correct DB collation applied"""
-
-MSSQL_USE_DATE_TIME2: bool

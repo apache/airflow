@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -26,7 +28,7 @@ class StatsdTest(unittest.TestCase):
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 
-        assert "RELEASE-NAME-statsd" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-statsd" == jmespath.search("metadata.name", docs[0])
 
         assert "statsd" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
@@ -41,7 +43,7 @@ class StatsdTest(unittest.TestCase):
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-statsd"}} in jmespath.search(
+        assert {"name": "config", "configMap": {"name": "release-name-statsd"}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
 
@@ -50,6 +52,20 @@ class StatsdTest(unittest.TestCase):
             "mountPath": "/etc/statsd-exporter/mappings.yml",
             "subPath": "mappings.yml",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {"statsd": {"enabled": True}}
+        if revision_history_limit:
+            values['statsd']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(

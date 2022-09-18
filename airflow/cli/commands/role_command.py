@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """Roles sub-commands"""
+from __future__ import annotations
+
 import json
 import os
 
@@ -47,10 +48,27 @@ def roles_create(args):
     print(f"Added {len(args.role)} role(s)")
 
 
+@cli_utils.action_cli
+@suppress_logs_and_warning
+def roles_delete(args):
+    """Deletes role in DB"""
+    appbuilder = cached_app().appbuilder
+
+    for role_name in args.role:
+        role = appbuilder.sm.find_role(role_name)
+        if not role:
+            print(f"Role named '{role_name}' does not exist")
+            exit(1)
+
+    for role_name in args.role:
+        appbuilder.sm.delete_role(role_name)
+    print(f"Deleted {len(args.role)} role(s)")
+
+
 @suppress_logs_and_warning
 def roles_export(args):
     """
-    Exports all the rules from the data base to a file.
+    Exports all the roles from the data base to a file.
     Note, this function does not export the permissions associated for each role.
     Strictly, it exports the role names into the passed role json file.
     """

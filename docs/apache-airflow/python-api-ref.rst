@@ -154,3 +154,22 @@ schedule DAG runs in ways not possible with built-in schedule expressions.
   :maxdepth: 1
 
   _api/airflow/timetables/index
+
+Example DAGs
+------------
+
+.. toctree::
+  :includehidden:
+  :maxdepth: 1
+
+  _api/airflow/example_dags/index
+
+Utils
+-----
+
+.. toctree::
+  :hidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/utils/dag_parsing_context/index

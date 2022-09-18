@@ -15,22 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from contextlib import closing
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Iterable, Mapping
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection
-from snowflake.connector.util_text import split_statements
+from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow import AirflowException
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.strings import to_boolean
 
 
@@ -84,7 +85,7 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -110,7 +111,7 @@ class SnowflakeHook(DbApiHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         import json
 
@@ -150,9 +151,9 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.query_ids: List[str] = []
+        self.query_ids: list[str] = []
 
-    def _get_conn_params(self) -> Dict[str, Optional[str]]:
+    def _get_conn_params(self) -> dict[str, str | None]:
         """
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
@@ -244,7 +245,7 @@ class SnowflakeHook(DbApiHook):
         conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
-    def _conn_params_to_sqlalchemy_uri(self, conn_params: Dict) -> str:
+    def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
         return URL(
             **{
                 k: v
@@ -286,11 +287,13 @@ class SnowflakeHook(DbApiHook):
 
     def run(
         self,
-        sql: Union[str, list],
+        sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Optional[Union[Sequence[Any], Dict[Any, Any]]] = None,
-        handler: Optional[Callable] = None,
-    ):
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
+        split_statements: bool = True,
+        return_last: bool = True,
+    ) -> Any | list[Any] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -305,15 +308,22 @@ class SnowflakeHook(DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
+        :param return_last: Whether to return result for only last statement or for all after split
+        :return: return only result of the LAST SQL expression if handler was provided.
         """
         self.query_ids = []
 
+        scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
-            split_statements_tuple = split_statements(StringIO(sql))
-            sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+            if split_statements:
+                split_statements_tuple = util_text.split_statements(StringIO(sql))
+                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+            else:
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
-            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+            self.log.debug("Executing following statements against Snowflake DB: %s", list(sql))
         else:
             raise ValueError("List of SQL statements is empty")
 
@@ -322,33 +332,29 @@ class SnowflakeHook(DbApiHook):
 
             # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
             with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
-
+                results = []
                 for sql_statement in sql:
+                    self._run_command(cur, sql_statement, parameters)
 
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    if parameters:
-                        cur.execute(sql_statement, parameters)
-                    else:
-                        cur.execute(sql_statement)
-
-                    execution_info = []
                     if handler is not None:
-                        cur = handler(cur)
-                    for row in cur:
-                        self.log.info("Statement execution info - %s", row)
-                        execution_info.append(row)
+                        result = handler(cur)
+                        results.append(result)
 
                     query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", query_id)
                     self.query_ids.append(query_id)
 
-            # If autocommit was set to False for db that supports autocommit,
-            # or if db does not supports autocommit, we do a manual commit.
+            # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
 
-        return execution_info
+        if handler is None:
+            return None
+        elif scalar_return_last:
+            return results[-1]
+        else:
+            return results
 
     def test_connection(self):
         """Test the Snowflake connection by running a simple query."""

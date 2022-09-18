@@ -94,8 +94,9 @@ const updateNodeLabels = (node, instances) => {
       && instances[node.id].mapped_states
       ? instances[node.id].mapped_states.length
       : ' ';
-
-    label = `${node.id} [${count}]`;
+    if (!label.includes(`[${count}]`)) {
+      label = `${label} [${count}]`;
+    }
   }
   if (g.node(node.id) && g.node(node.id).label !== label) {
     g.node(node.id).label = label;
@@ -176,6 +177,7 @@ function draw() {
       // A group node
       if (d3.event.defaultPrevented) return;
       expandGroup(nodeId, node);
+      updateNodeLabels(nodes, taskInstances);
       draw();
       focusGroup(nodeId);
     } else if (nodeId in taskInstances) {
@@ -532,7 +534,7 @@ function updateNodesStates(tis) {
       elem.onmouseover = (evt) => {
         let tt;
         if (taskId in tis) {
-          tt = tiTooltip(tis[taskId]);
+          tt = tiTooltip(tis[taskId], tasks[taskId]);
         } else if (node.children) {
           tt = groupTooltip(node, tis);
         } else if (taskId in tasks) {
@@ -601,7 +603,7 @@ function getNodeState(nodeId, tis) {
   // In this order, if any of these states appeared in childrenStates, return it as
   // the group state.
   const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
-    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'restarting', 'removed',
+    'queued', 'scheduled', 'running', 'shutdown', 'restarting', 'removed',
     'no_status', 'success', 'skipped'];
 
   return priority.find((state) => childrenStates.has(state)) || 'no_status';

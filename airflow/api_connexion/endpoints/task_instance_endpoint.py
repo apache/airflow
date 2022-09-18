@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Iterable, List, Optional, Tuple, TypeVar
+from __future__ import annotations
 
-from flask import current_app, request
+from typing import Any, Iterable, TypeVar
+
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import MultipleResultsFound
@@ -25,6 +26,7 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
@@ -42,6 +44,7 @@ from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State
 
@@ -160,20 +163,20 @@ def get_mapped_task_instances(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    execution_date_gte: Optional[str] = None,
-    execution_date_lte: Optional[str] = None,
-    start_date_gte: Optional[str] = None,
-    start_date_lte: Optional[str] = None,
-    end_date_gte: Optional[str] = None,
-    end_date_lte: Optional[str] = None,
-    duration_gte: Optional[float] = None,
-    duration_lte: Optional[float] = None,
-    state: Optional[List[str]] = None,
-    pool: Optional[List[str]] = None,
-    queue: Optional[List[str]] = None,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    order_by: Optional[str] = None,
+    execution_date_gte: str | None = None,
+    execution_date_lte: str | None = None,
+    start_date_gte: str | None = None,
+    start_date_lte: str | None = None,
+    end_date_gte: str | None = None,
+    end_date_lte: str | None = None,
+    duration_gte: float | None = None,
+    duration_lte: float | None = None,
+    state: list[str] | None = None,
+    pool: list[str] | None = None,
+    queue: list[str] | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    order_by: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
@@ -188,7 +191,7 @@ def get_mapped_task_instances(
 
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     if base_query.with_entities(func.count('*')).scalar() == 0:
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
             raise NotFound(error_message)
@@ -249,20 +252,20 @@ def get_mapped_task_instances(
     )
 
 
-def _convert_state(states: Optional[Iterable[str]]) -> Optional[List[Optional[str]]]:
+def _convert_state(states: Iterable[str] | None) -> list[str | None] | None:
     if not states:
         return None
     return [State.NONE if s == "none" else s for s in states]
 
 
-def _apply_array_filter(query: Query, key: ClauseElement, values: Optional[Iterable[Any]]) -> Query:
+def _apply_array_filter(query: Query, key: ClauseElement, values: Iterable[Any] | None) -> Query:
     if values is not None:
         cond = ((key == v) for v in values)
         query = query.filter(or_(*cond))
     return query
 
 
-def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, T]) -> Query:
+def _apply_range_filter(query: Query, key: ClauseElement, value_range: tuple[T, T]) -> Query:
     gte_value, lte_value = value_range
     if gte_value is not None:
         query = query.filter(key >= gte_value)
@@ -292,20 +295,20 @@ def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, 
 def get_task_instances(
     *,
     limit: int,
-    dag_id: Optional[str] = None,
-    dag_run_id: Optional[str] = None,
-    execution_date_gte: Optional[str] = None,
-    execution_date_lte: Optional[str] = None,
-    start_date_gte: Optional[str] = None,
-    start_date_lte: Optional[str] = None,
-    end_date_gte: Optional[str] = None,
-    end_date_lte: Optional[str] = None,
-    duration_gte: Optional[float] = None,
-    duration_lte: Optional[float] = None,
-    state: Optional[List[str]] = None,
-    pool: Optional[List[str]] = None,
-    queue: Optional[List[str]] = None,
-    offset: Optional[int] = None,
+    dag_id: str | None = None,
+    dag_run_id: str | None = None,
+    execution_date_gte: str | None = None,
+    execution_date_lte: str | None = None,
+    start_date_gte: str | None = None,
+    start_date_lte: str | None = None,
+    end_date_gte: str | None = None,
+    end_date_lte: str | None = None,
+    duration_gte: float | None = None,
+    duration_lte: float | None = None,
+    state: list[str] | None = None,
+    pool: list[str] | None = None,
+    queue: list[str] | None = None,
+    offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
@@ -364,7 +367,7 @@ def get_task_instances(
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     """Get list of task instances."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
@@ -423,20 +426,50 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear task instances."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = clear_task_instance_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    dag = current_app.dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
     dry_run = data.pop('dry_run')
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
-    task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
+    dag_run_id = data.pop('dag_run_id', None)
+    future = data.pop('include_future', False)
+    past = data.pop('include_past', False)
+    downstream = data.pop('include_downstream', False)
+    upstream = data.pop('include_upstream', False)
+    if dag_run_id is not None:
+        dag_run: DR | None = (
+            session.query(DR).filter(DR.dag_id == dag_id, DR.run_id == dag_run_id).one_or_none()
+        )
+        if dag_run is None:
+            error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+            raise NotFound(error_message)
+        data['start_date'] = dag_run.logical_date
+        data['end_date'] = dag_run.logical_date
+    if past:
+        data['start_date'] = None
+    if future:
+        data['end_date'] = None
+    task_ids = data.pop('task_ids', None)
+    if task_ids is not None:
+        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
+        dag = dag.partial_subset(
+            task_ids_or_regex=task_id,
+            include_downstream=downstream,
+            include_upstream=upstream,
+        )
+
+        if len(dag.task_dict) > 1:
+            # If we had upstream/downstream etc then also include those!
+            task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
+    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, task_ids=task_ids, **data)
     if not dry_run:
         clear_task_instances(
             task_instances.all(),
@@ -460,14 +493,14 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
 @provide_session
 def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of task instances."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = set_task_instance_state_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
     error_message = f"Dag ID {dag_id} not found"
-    dag = current_app.dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound(error_message)
 

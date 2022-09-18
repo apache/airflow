@@ -96,6 +96,16 @@
       <td>{{ dag.owner }}</td>
     </tr>
     <tr>
+      <th>Owner Links</th>
+      <td>
+        {% if dag.owner_links %}
+          {{ dag.owner_links }}
+        {% else %}
+          None
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
       <th>DAG Run Timeout</th>
       <td>{{ dag.dagrun_timeout }}</td>
     </tr>
@@ -105,7 +115,7 @@
         {% if tags is defined and tags %}
           {% for tag in tags | sort(attribute='name') %}
             <a class="label label-info"
-               href="/home?tags={{ tag.name }}"
+               href="{{ url_for('Airflow.index', tags=tag.name) }}"
                style="margin: 3px 6px 3px 0;"
                title="All DAGs tagged &ldquo;{{ tag.name }}&rdquo;"
             >

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import io
 import json
@@ -242,14 +243,14 @@ class TestCliExportConnections:
                 'uri',
                 [
                     "airflow_db=mysql://root:plainpassword@mysql/airflow",
-                    "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql",
+                    "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
                 ],
             ),
             (
                 None,  # tests that default is URI
                 [
                     "airflow_db=mysql://root:plainpassword@mysql/airflow",
-                    "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql",
+                    "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
                 ],
             ),
             (
@@ -287,7 +288,7 @@ class TestCliExportConnections:
         connection_command.connections_export(args)
         expected_connections = [
             "airflow_db=mysql://root:plainpassword@mysql/airflow",
-            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql",
+            "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
         ]
 
         assert output_filepath.read_text().splitlines() == expected_connections

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -36,6 +37,7 @@ class GetTaskRunner(unittest.TestCase):
     def test_should_support_core_task_runner(self, mock_subprocess):
         ti = mock.MagicMock(map_index=-1, run_as_user=None)
         ti.get_template_context.return_value = {"ti": ti}
+        ti.get_dagrun.return_value.get_log_template.return_value.filename = "blah"
         local_task_job = mock.MagicMock(task_instance=ti)
         task_runner = get_task_runner(local_task_job)
 

@@ -35,6 +35,8 @@ Examples:
         DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-2-2"
 
 """
+from __future__ import annotations
 
 AIRFLOW_BRANCH = "main"
 DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
+DEBIAN_VERSION = "bullseye"

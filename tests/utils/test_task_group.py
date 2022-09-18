@@ -15,19 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
+from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
-from airflow.utils.task_group import TaskGroup
-from airflow.www.views import dag_edges, task_group_to_dict
+from airflow.utils.dag_edges import dag_edges
+from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
 
 EXPECTED_JSON = {
@@ -1025,7 +1026,7 @@ def test_pass_taskgroup_output_to_task():
     def increment(num):
         return num + 1
 
-    @dag(schedule_interval=None, start_date=days_ago(1), default_args={"owner": "airflow"})
+    @dag(schedule=None, start_date=pendulum.DateTime(2022, 1, 1), default_args={"owner": "airflow"})
     def wrap():
         total_1 = one()
         assert isinstance(total_1, XComArg)
@@ -1201,3 +1202,64 @@ def test_topological_group_dep():
         ],
         task6,
     ]
+
+
+def test_add_to_sub_group():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")):
+        tg = TaskGroup("section")
+        task = EmptyOperator(task_id="task")
+        with pytest.raises(TaskAlreadyInTaskGroup) as ctx:
+            tg.add(task)
+
+    assert str(ctx.value) == "cannot add 'task' to 'section' (already in the DAG's root group)"
+
+
+def test_add_to_another_group():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")):
+        tg = TaskGroup("section_1")
+        with TaskGroup("section_2"):
+            task = EmptyOperator(task_id="task")
+        with pytest.raises(TaskAlreadyInTaskGroup) as ctx:
+            tg.add(task)
+
+    assert str(ctx.value) == "cannot add 'section_2.task' to 'section_1' (already in group 'section_2')"
+
+
+def test_task_group_edge_modifier_chain():
+    from airflow.models.baseoperator import chain
+    from airflow.utils.edgemodifier import Label
+
+    with DAG(dag_id="test", start_date=pendulum.DateTime(2022, 5, 20)) as dag:
+        start = EmptyOperator(task_id="sleep_3_seconds")
+
+        with TaskGroup(group_id="group1") as tg:
+            t1 = EmptyOperator(task_id="dummy1")
+            t2 = EmptyOperator(task_id="dummy2")
+
+        t3 = EmptyOperator(task_id="echo_done")
+
+    # The case we are testing for is when a Label is inside a list -- meaning that we do tg.set_upstream
+    # instead of label.set_downstream
+    chain(start, [Label("branch three")], tg, t3)
+
+    assert start.downstream_task_ids == {t1.node_id, t2.node_id}
+    assert t3.upstream_task_ids == {t1.node_id, t2.node_id}
+    assert tg.upstream_task_ids == set()
+    assert tg.downstream_task_ids == {t3.node_id}
+    # Check that we can perform a topological_sort
+    dag.topological_sort()
+
+
+def test_mapped_task_group_id_prefix_task_id():
+    from tests.test_utils.mock_operators import MockOperator
+
+    with DAG(dag_id="d", start_date=DEFAULT_DATE) as dag:
+        t1 = MockOperator.partial(task_id="t1").expand(arg1=[])
+        with TaskGroup("g"):
+            t2 = MockOperator.partial(task_id="t2").expand(arg1=[])
+
+    assert t1.task_id == "t1"
+    assert t2.task_id == "g.t2"
+
+    dag.get_task("t1") == t1
+    dag.get_task("g.t2") == t2

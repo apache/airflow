@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from typing import Any, Dict
 from unittest import mock
@@ -54,7 +55,7 @@ class TestCloudTasksHook(unittest.TestCase):
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksClient")
     def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 
 from airflow.models import DAG
@@ -22,5 +24,5 @@ from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2019, 12, 1)
 
-dag = DAG(dag_id='test_dag_under_subdir2', start_date=DEFAULT_DATE, schedule_interval=None)
+dag = DAG(dag_id='test_dag_under_subdir2', start_date=DEFAULT_DATE, schedule=None)
 task = BashOperator(task_id='task1', bash_command='echo "test dag under sub directory subdir2"', dag=dag)

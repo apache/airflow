@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from datadog import api, initialize  # type: ignore[attr-defined]
 
@@ -56,7 +57,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.log.info("Setting up api keys for Datadog")
         initialize(api_key=self.api_key, app_key=self.app_key, api_host=self.api_host)
 
-    def validate_response(self, response: Dict[str, Any]) -> None:
+    def validate_response(self, response: dict[str, Any]) -> None:
         """Validate Datadog response"""
         if response['status'] != 'ok':
             self.log.error("Datadog returned: %s", response)
@@ -65,11 +66,11 @@ class DatadogHook(BaseHook, LoggingMixin):
     def send_metric(
         self,
         metric_name: str,
-        datapoint: Union[float, int],
-        tags: Optional[List[str]] = None,
-        type_: Optional[str] = None,
-        interval: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        datapoint: float | int,
+        tags: list[str] | None = None,
+        type_: str | None = None,
+        interval: int | None = None,
+    ) -> dict[str, Any]:
         """
         Sends a single datapoint metric to DataDog
 
@@ -86,7 +87,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.validate_response(response)
         return response
 
-    def query_metric(self, query: str, from_seconds_ago: int, to_seconds_ago: int) -> Dict[str, Any]:
+    def query_metric(self, query: str, from_seconds_ago: int, to_seconds_ago: int) -> dict[str, Any]:
         """
         Queries datadog for a specific metric, potentially with some
         function applied to it and returns the results.
@@ -106,15 +107,15 @@ class DatadogHook(BaseHook, LoggingMixin):
         self,
         title: str,
         text: str,
-        aggregation_key: Optional[str] = None,
-        alert_type: Optional[str] = None,
-        date_happened: Optional[int] = None,
-        handle: Optional[str] = None,
-        priority: Optional[str] = None,
-        related_event_id: Optional[int] = None,
-        tags: Optional[List[str]] = None,
-        device_name: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        aggregation_key: str | None = None,
+        alert_type: str | None = None,
+        date_happened: int | None = None,
+        handle: str | None = None,
+        priority: str | None = None,
+        related_event_id: int | None = None,
+        tags: list[str] | None = None,
+        device_name: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Posts an event to datadog (processing finished, potentially alerts, other issues)
         Think about this as a means to maintain persistence of alerts, rather than

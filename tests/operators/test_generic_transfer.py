@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from contextlib import closing
@@ -75,7 +76,7 @@ class TestMySql(unittest.TestCase):
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
+    @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows')
     def test_mysql_to_mysql_replace(self, mock_insert):
         sql = "SELECT * FROM connection LIMIT 10;"
         op = GenericTransfer(
@@ -158,7 +159,7 @@ class TestPostgres(unittest.TestCase):
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
+    @mock.patch('airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows')
     def test_postgres_to_postgres_replace(self, mock_insert):
         sql = "SELECT id, conn_id, conn_type FROM connection LIMIT 10;"
         op = GenericTransfer(

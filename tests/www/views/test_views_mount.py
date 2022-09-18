@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 import werkzeug.test
 import werkzeug.wrappers
@@ -36,7 +38,7 @@ def app():
 
 @pytest.fixture()
 def client(app):
-    return werkzeug.test.Client(app, werkzeug.wrappers.BaseResponse)
+    return werkzeug.test.Client(app, werkzeug.wrappers.response.Response)
 
 
 def test_mount(client):
@@ -54,4 +56,4 @@ def test_not_found(client):
 def test_index(client):
     resp = client.get('/test/')
     assert resp.status_code == 302
-    assert resp.headers['Location'] == 'http://localhost/test/home'
+    assert resp.headers['Location'] == '/test/home'

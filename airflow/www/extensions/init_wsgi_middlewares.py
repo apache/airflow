@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from urllib.parse import urlparse
 
@@ -37,7 +38,7 @@ def init_wsgi_middleware(flask_app: Flask):
         base_url = ""
     if base_url:
         flask_app.wsgi_app = DispatcherMiddleware(  # type: ignore
-            _root_app, mounts={base_url: flask_app.wsgi_app}
+            _root_app, mounts={base_url: flask_app.wsgi_app}  # type: ignore
         )
 
     # Apply ProxyFix middleware

@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Compute Engine Hook."""
+from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from googleapiclient.discovery import build
 
@@ -49,8 +50,8 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         api_version: str = 'v1',
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -59,7 +60,7 @@ class ComputeEngineHook(GoogleBaseHook):
         )
         self.api_version = api_version
 
-    _conn: Optional[Any] = None
+    _conn: Any | None = None
 
     def get_conn(self):
         """
@@ -181,7 +182,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         body: dict,
         project_id: str = PROVIDE_PROJECT_ID,
-        request_id: Optional[str] = None,
+        request_id: str | None = None,
     ) -> None:
         """
         Inserts instance template using body specified
@@ -245,7 +246,7 @@ class ComputeEngineHook(GoogleBaseHook):
         resource_id: str,
         body: dict,
         project_id: str,
-        request_id: Optional[str] = None,
+        request_id: str | None = None,
     ) -> None:
         """
         Patches Instance Group Manager with the specified body.
@@ -284,7 +285,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _wait_for_operation_to_complete(
-        self, project_id: str, operation_name: str, zone: Optional[str] = None
+        self, project_id: str, operation_name: str, zone: str | None = None
     ) -> None:
         """
         Waits for the named operation to complete - checks status of the async call.
@@ -338,7 +339,7 @@ class ComputeEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_info(self, zone: str, resource_id: str, project_id: str) -> Dict[str, Any]:
+    def get_instance_info(self, zone: str, resource_id: str, project_id: str) -> dict[str, Any]:
         """
         Gets instance information.
 
@@ -381,7 +382,7 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def set_instance_metadata(
-        self, zone: str, resource_id: str, metadata: Dict[str, str], project_id: str
+        self, zone: str, resource_id: str, metadata: dict[str, str], project_id: str
     ) -> None:
         """
         Set instance metadata.

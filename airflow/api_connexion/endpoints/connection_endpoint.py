@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
+from http import HTTPStatus
 
 from connexion import NoContent
 from flask import request
@@ -51,7 +53,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
             detail=f"The Connection with connection_id: `{connection_id}` was not found",
         )
     session.delete(connection)
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])

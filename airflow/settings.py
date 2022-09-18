@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import atexit
 import functools
 import json
@@ -22,7 +24,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Callable
 
 import pendulum
 import sqlalchemy
@@ -33,6 +35,7 @@ from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -73,10 +76,10 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('logging', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
-SQL_ALCHEMY_CONN: Optional[str] = None
-PLUGINS_FOLDER: Optional[str] = None
-LOGGING_CLASS_PATH: Optional[str] = None
-DONOT_MODIFY_HANDLERS: Optional[bool] = None
+SQL_ALCHEMY_CONN: str | None = None
+PLUGINS_FOLDER: str | None = None
+LOGGING_CLASS_PATH: str | None = None
+DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
 engine: Engine
@@ -88,16 +91,16 @@ json = json
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
+    "deferred": "mediumpurple",
+    "failed": "red",
     "queued": "gray",
     "running": "lime",
-    "success": "green",
-    "failed": "red",
-    "up_for_retry": "gold",
-    "up_for_reschedule": "turquoise",
-    "upstream_failed": "orange",
-    "skipped": "hotpink",
     "scheduled": "tan",
-    "deferred": "mediumpurple",
+    "skipped": "hotpink",
+    "success": "green",
+    "up_for_reschedule": "turquoise",
+    "up_for_retry": "gold",
+    "upstream_failed": "orange",
 }
 
 
@@ -222,7 +225,7 @@ def get_airflow_context_vars(context):
     return {}
 
 
-def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
     """
     This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
 
@@ -293,7 +296,7 @@ def configure_orm(disable_connection_pool=False):
             data = result.fetchone()[0]
             if data != 1:
                 log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("The database %s has it disabled.", engine.url.database)
                 log.critical("This will cause random deadlocks, Refusing to start.")
                 log.critical(
                     "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
@@ -340,7 +343,7 @@ def prepare_engine_args(disable_connection_pool=False):
         # When those additional connections are returned to the pool, they are disconnected and discarded.
         # It follows then that the total number of simultaneous connections
         # the pool will allow is pool_size + max_overflow,
-        # and the total number of “sleeping” connections the pool will allow is pool_size.
+        # and the total number of "sleeping" connections the pool will allow is pool_size.
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
@@ -353,7 +356,7 @@ def prepare_engine_args(disable_connection_pool=False):
         pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
-        # Typically, this is a simple statement like “SELECT 1”, but may also make use
+        # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
@@ -496,7 +499,7 @@ def get_session_lifetime_config():
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
             'session lifetime in minutes. The `force_log_out_after` option has been removed '
             'from `[webserver]` section. Please update your configuration.',
-            category=DeprecationWarning,
+            category=RemovedInAirflow3Warning,
         )
         if session_lifetime_days:
             session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
@@ -636,7 +639,9 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-DASHBOARD_UIALERTS: List["UIAlert"] = []
+DASHBOARD_UIALERTS: list[UIAlert] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
+
+DAEMON_UMASK: str = conf.get('core', 'daemon_umask', fallback='0o077')

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -61,7 +62,7 @@ class TestOSSHook(unittest.TestCase):
         self.hook.get_bucket('mock_bucket_name')
         mock_get_credential.assert_called_once_with()
         mock_oss2.Bucket.assert_called_once_with(
-            mock_get_credential.return_value, 'http://oss-mock_region.aliyuncs.com', MOCK_BUCKET_NAME
+            mock_get_credential.return_value, 'https://oss-mock_region.aliyuncs.com', MOCK_BUCKET_NAME
         )
 
     @mock.patch(OSS_STRING.format('OSSHook.get_bucket'))

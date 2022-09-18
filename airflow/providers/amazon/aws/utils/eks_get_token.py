@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 
@@ -27,7 +28,8 @@ TOKEN_EXPIRATION_MINUTES = 14
 
 
 def get_expiration_time():
-    token_expiration = datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
+    token_expiration = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
+
     return token_expiration.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 

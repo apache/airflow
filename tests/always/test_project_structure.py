@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
 import glob
 import itertools
 import mmap
 import os
 import unittest
-from typing import Dict, Set
 
 import pytest
 
@@ -57,14 +58,6 @@ class TestProjectStructure(unittest.TestCase):
         """
         Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
         """
-        # Deprecated modules that don't have corresponded test
-        expected_missing_providers_modules = {
-            (
-                'airflow/providers/amazon/aws/hooks/aws_dynamodb.py',
-                'tests/providers/amazon/aws/hooks/test_aws_dynamodb.py',
-            )
-        }
-
         # TODO: Should we extend this test to cover other directories?
         modules_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
 
@@ -98,28 +91,14 @@ class TestProjectStructure(unittest.TestCase):
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
         with self.subTest("Detect missing tests in providers module"):
-            expected_missing_test_modules = {pair[1] for pair in expected_missing_providers_modules}
-            missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
             assert set() == missing_tests_files
-
-        with self.subTest("Verify removed deprecated module also removed from deprecated list"):
-            expected_missing_modules = {pair[0] for pair in expected_missing_providers_modules}
-            removed_deprecated_module = expected_missing_modules - modules_files
-            if removed_deprecated_module:
-                self.fail(
-                    "You've removed a deprecated module:\n"
-                    f"{removed_deprecated_module}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of expected missing modules tests, please?"
-                )
 
 
 def get_imports_from_file(filepath: str):
     with open(filepath) as py_file:
         content = py_file.read()
     doc_node = ast.parse(content, filepath)
-    import_names: Set[str] = set()
+    import_names: set[str] = set()
     for current_node in ast.walk(doc_node):
         if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
             continue
@@ -135,7 +114,7 @@ def filepath_to_module(filepath: str):
     return filepath.replace("/", ".")[: -(len('.py'))]
 
 
-def print_sorted(container: Set, indent: str = "    ") -> None:
+def print_sorted(container: set, indent: str = "    ") -> None:
     sorted_container = sorted(container)
     print(f"{indent}" + f"\n{indent}".join(sorted_container))
 
@@ -168,7 +147,7 @@ class ProjectStructureTest:
             content = py_file.read()
         doc_node = ast.parse(content, filepath)
         module = filepath_to_module(filepath)
-        results: Dict = {}
+        results: dict = {}
         for current_node in ast.walk(doc_node):
             if not isinstance(current_node, ast.ClassDef):
                 continue
@@ -183,13 +162,13 @@ class ExampleCoverageTest(ProjectStructureTest):
     """Checks that every operator is covered by example"""
 
     # Those operators are deprecated, so we do not need examples for them
-    DEPRECATED_CLASSES: Set = set()
+    DEPRECATED_CLASSES: set = set()
 
     # Those operators should not have examples as they are never used standalone (they are abstract)
-    BASE_CLASSES: Set = set()
+    BASE_CLASSES: set = set()
 
     # Please add the examples to those operators at the earliest convenience :)
-    MISSING_EXAMPLES_FOR_CLASSES: Set = set()
+    MISSING_EXAMPLES_FOR_CLASSES: set = set()
 
     def example_paths(self):
         """Override this method if your example dags are located elsewhere"""
@@ -234,10 +213,10 @@ class AssetsCoverageTest(ProjectStructureTest):
     """Checks that every operator have operator_extra_links attribute"""
 
     # These operators should not have assets
-    ASSETS_NOT_REQUIRED: Set = set()
+    ASSETS_NOT_REQUIRED: set = set()
 
     # Please add assets to following classes
-    MISSING_ASSETS_FOR_CLASSES: Set = set()
+    MISSING_ASSETS_FOR_CLASSES: set = set()
 
     def test_missing_assets(self):
         classes = self.list_of_classes()
@@ -430,45 +409,16 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
         'airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor',
         'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
+        'airflow.providers.amazon.aws.operators.appflow.AppflowBaseOperator',
+        'airflow.providers.amazon.aws.operators.ecs.EcsBaseOperator',
+        'airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor',
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        # EMR legitimately missing, needs development
-        'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
-        'airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor',
         # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
         'airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator',
         # Glue Catalog sensor difficult to test
         'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
-    }
-
-    DEPRECATED_CLASSES = {
-        'airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator',
-        'airflow.providers.amazon.aws.operators.batch.AwsBatchOperator',
-        'airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator',
-        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateClusterOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateFargateProfileOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSCreateNodegroupOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteClusterOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteFargateProfileOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSDeleteNodegroupOperator',
-        'airflow.providers.amazon.aws.operators.eks.EKSPodOperator',
-        'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
-        'airflow.providers.amazon.aws.operators.glue.AwsGlueJobOperator',
-        'airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerOperator',
-        'airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator',
-        'airflow.providers.amazon.aws.sensors.eks.EKSClusterStateSensor',
-        'airflow.providers.amazon.aws.sensors.eks.EKSFargateProfileStateSensor',
-        'airflow.providers.amazon.aws.sensors.eks.EKSNodegroupStateSensor',
-        'airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor',
-        'airflow.providers.amazon.aws.sensors.glue.AwsGlueJobSensor',
-        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
-        'airflow.providers.amazon.aws.sensors.glue_crawler.AwsGlueCrawlerSensor',
-        'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
-        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
-        'airflow.providers.amazon.aws.sensors.sqs.SQSSensor',
-        'airflow.providers.amazon.aws.transfers.mysql_to_s3.MySQLToS3Operator',
     }
 
 
@@ -476,6 +426,9 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
     CLASS_SUFFIXES = ["Hook"]
+    DEPRECATED_CLASSES = {
+        'airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook',
+    }
 
 
 class TestDockerProviderProjectStructure(ExampleCoverageTest):

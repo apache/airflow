@@ -21,8 +21,8 @@
         "type": "string"
       }
     },
-    "additional-dependencies": {
-      "description": "Additional dependencies that should be added to the provider",
+    "dependencies": {
+      "description": "Dependencies that should be added to the provider",
       "type": "array",
       "items": {
         "type": "string"
@@ -194,17 +194,6 @@
         ]
       }
     },
-    "hook-class-names": {
-      "type": "array",
-      "description": "Hook class names that provide connection types to core (deprecated by connection-types)",
-      "items": {
-          "type": "string"
-      },
-      "deprecated": {
-        "description": "The hook-class-names property has been deprecated in favour of connection-types which is more performant version allowing to only import individual Hooks rather than all hooks at once",
-        "deprecatedVersion": "2.2"
-      }
-    },
     "connection-types": {
       "type": "array",
       "description": "Array of connection types mapped to hook class names",
@@ -219,9 +208,12 @@
                   "description": "Hook class name that implements the connection type",
                   "type": "string"
               }
-          }
-      },
-      "required": ["connection-type", "hook-class-name"]
+          },
+          "required": [
+              "connection-type",
+              "hook-class-name"
+          ]
+      }
     },
     "extra-links": {
       "type": "array",
@@ -231,8 +223,26 @@
       }
     },
     "additional-extras": {
-      "type": "object",
-      "description": "Additional extras that the provider should have"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Name of the extra",
+            "type": "string"
+          },
+          "dependencies": {
+            "description": "Dependencies that should be added for the extra",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [ "name", "dependencies"]
+      },
+
+      "description": "Additional extras that the provider should have. Replaces auto-generated cross-provider extras, if matching the same prefix, so that you can specify boundaries for existing dependencies."
     },
     "task-decorators": {
         "type": "array",
@@ -273,6 +283,7 @@
     "name",
     "package-name",
     "description",
+    "dependencies",
     "versions"
   ]
 }

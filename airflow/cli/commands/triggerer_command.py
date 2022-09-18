@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Triggerer command"""
+from __future__ import annotations
+
 import signal
 
 import daemon
@@ -24,7 +25,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 from airflow import settings
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging, sigquit_handler
+from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
 @cli_utils.action_cli
@@ -39,30 +40,22 @@ def triggerer(args):
             "triggerer", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+            stdout_handle.truncate(0)
+            stderr_handle.truncate(0)
+
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 job.run()
 
     else:
-        # There is a bug in CPython (fixed in March 2022 but not yet released) that
-        # makes async.io handle SIGTERM improperly by using async unsafe
-        # functions and hanging the triggerer receive SIGPIPE while handling
-        # SIGTERN/SIGINT and deadlocking itself. Until the bug is handled
-        # we should rather rely on standard handling of the signals rather than
-        # adding our own signal handlers. Seems that even if our signal handler
-        # just run exit(0) - it caused a race condition that led to the hanging.
-        #
-        # More details:
-        #   * https://bugs.python.org/issue39622
-        #   * https://github.com/python/cpython/issues/83803
-        #
-        # signal.signal(signal.SIGINT, sigint_handler)
-        # signal.signal(signal.SIGTERM, sigint_handler)
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
         job.run()

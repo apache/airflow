@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 from unittest.mock import MagicMock
@@ -49,7 +50,7 @@ class TestDebugExecutor:
         succeeded = executor._run_task(task_instance_mock)
 
         assert succeeded
-        task_instance_mock._run_raw_task.assert_called_once_with(job_id=job_id)
+        task_instance_mock.run.assert_called_once_with(job_id=job_id)
 
     def test_queue_task_instance(self):
         key = "ti_key"
@@ -100,7 +101,7 @@ class TestDebugExecutor:
         ti1 = MagicMock(key="t1")
         ti2 = MagicMock(key="t2")
 
-        ti1._run_raw_task.side_effect = Exception
+        ti1.run.side_effect = Exception
 
         executor.tasks_to_run = [ti1, ti2]
 

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import copy
 import unittest
 from copy import deepcopy
@@ -482,6 +483,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             project_id=None,
             location=TEST_LOCATION,
             environment={'maxWorkers': 2},
+            append_job_name=True,
         )
 
 
@@ -496,6 +498,14 @@ class TestDataflowStartFlexTemplateOperator(unittest.TestCase):
             location=TEST_LOCATION,
         )
         start_flex_template.execute(mock.MagicMock())
+        mock_dataflow.assert_called_once_with(
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            drain_pipeline=False,
+            cancel_timeout=600,
+            wait_until_finished=None,
+            impersonation_chain=None,
+        )
         mock_dataflow.return_value.start_flex_template.assert_called_once_with(
             body={"launchParameter": TEST_FLEX_PARAMETERS},
             location=TEST_LOCATION,
@@ -533,7 +543,10 @@ class TestDataflowSqlOperator(unittest.TestCase):
 
         start_sql.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None, drain_pipeline=False
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            drain_pipeline=False,
+            impersonation_chain=None,
         )
         mock_hook.return_value.start_sql_job.assert_called_once_with(
             job_name=TEST_SQL_JOB_NAME,

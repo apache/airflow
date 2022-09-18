@@ -53,10 +53,15 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
-      {{- if .Values.redis.safeToEvict }}
+{{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
       annotations:
+{{- if .Values.redis.podAnnotations }}
+{{- toYaml .Values.redis.podAnnotations | nindent 8 }}
+{{- end }}
+        {{- if .Values.redis.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
-      {{- end }}
+        {{- end }}
+{{- end }}
     spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}

@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from flask import current_app
 from sqlalchemy.orm.session import Session
 
 from airflow import DAG
@@ -25,6 +25,7 @@ from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -46,7 +47,7 @@ def get_extra_links(
     """Get extra links for task instance"""
     from airflow.models.taskinstance import TaskInstance
 
-    dagbag: DagBag = current_app.dag_bag
+    dagbag: DagBag = get_airflow_app().dag_bag
     dag: DAG = dagbag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f'DAG with ID = "{dag_id}" not found')
@@ -73,6 +74,6 @@ def get_extra_links(
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
     all_extra_links = {
-        link_name: link_url if link_url else None for link_name, link_url in all_extra_link_pairs
+        link_name: link_url if link_url else None for link_name, link_url in sorted(all_extra_link_pairs)
     }
     return all_extra_links

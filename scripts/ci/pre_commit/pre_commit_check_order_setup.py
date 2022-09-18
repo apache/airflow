@@ -19,13 +19,14 @@
 """
 Test for an order of dependencies in setup.py
 """
+from __future__ import annotations
+
 import difflib
 import os
 import re
 import sys
 import textwrap
 from os.path import abspath, dirname
-from typing import List
 
 from rich import print
 
@@ -48,7 +49,7 @@ class ConsoleDiff(difflib.Differ):
                 yield f'{tag} {x[i]}'
 
 
-def _check_list_sorted(the_list: List[str], message: str) -> None:
+def _check_list_sorted(the_list: list[str], message: str) -> None:
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is [green]ok[/]")
@@ -142,9 +143,8 @@ if __name__ == '__main__':
         file_contents = setup_file.read()
     check_main_dependent_group(file_contents)
     check_alias_dependent_group(file_contents)
-    check_variable_order("PROVIDERS_REQUIREMENTS")
-    check_variable_order("CORE_EXTRAS_REQUIREMENTS")
-    check_variable_order("ADDITIONAL_EXTRAS_REQUIREMENTS")
+    check_variable_order("CORE_EXTRAS_DEPENDENCIES")
+    check_variable_order("ADDITIONAL_EXTRAS_DEPENDENCIES")
     check_variable_order("EXTRAS_DEPRECATED_ALIASES")
     check_variable_order("PREINSTALLED_PROVIDERS")
     check_install_and_setup_requires()

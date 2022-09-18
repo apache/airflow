@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -40,7 +41,7 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
         operator,
         dttm=None,
         *,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if ti_key is not None:
             run_id = XCom.get_value(key="run_id", ti_key=ti_key)
@@ -129,13 +130,13 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         pipeline_name: str,
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
         wait_for_termination: bool = True,
-        resource_group_name: Optional[str] = None,
-        factory_name: Optional[str] = None,
-        reference_pipeline_run_id: Optional[str] = None,
-        is_recovery: Optional[bool] = None,
-        start_activity_name: Optional[str] = None,
-        start_from_failure: Optional[bool] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        reference_pipeline_run_id: str | None = None,
+        is_recovery: bool | None = None,
+        start_activity_name: str | None = None,
+        start_from_failure: bool | None = None,
+        parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         **kwargs,
@@ -154,9 +155,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
-        self.log.info(f"Executing the {self.pipeline_name} pipeline.")
+        self.log.info("Executing the %s pipeline.", self.pipeline_name)
         response = self.hook.run_pipeline(
             pipeline_name=self.pipeline_name,
             resource_group_name=self.resource_group_name,
@@ -174,7 +175,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
         if self.wait_for_termination:
-            self.log.info(f"Waiting for pipeline run {self.run_id} to terminate.")
+            self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
 
             if self.hook.wait_for_pipeline_run_status(
                 run_id=self.run_id,
@@ -184,7 +185,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             ):
-                self.log.info(f"Pipeline run {self.run_id} has completed successfully.")
+                self.log.info("Pipeline run %s has completed successfully.", self.run_id)
             else:
                 raise AzureDataFactoryPipelineRunException(
                     f"Pipeline run {self.run_id} has failed or has been cancelled."
@@ -207,6 +208,6 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             ):
-                self.log.info(f"Pipeline run {self.run_id} has been cancelled successfully.")
+                self.log.info("Pipeline run %s has been cancelled successfully.", self.run_id)
             else:
                 raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} was not cancelled.")

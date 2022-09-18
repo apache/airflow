@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import signal
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import psutil
 from sqlalchemy.exc import OperationalError
@@ -52,9 +53,9 @@ class LocalTaskJob(BaseJob):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        pickle_id: Optional[str] = None,
-        pool: Optional[str] = None,
-        external_executor_id: Optional[str] = None,
+        pickle_id: str | None = None,
+        pool: str | None = None,
+        external_executor_id: str | None = None,
         *args,
         **kwargs,
     ):
@@ -195,7 +196,13 @@ class LocalTaskJob(BaseJob):
             recorded_pid = ti.pid
             same_process = recorded_pid == current_pid
 
-            if ti.run_as_user or self.task_runner.run_as_user:
+            if recorded_pid is not None and (ti.run_as_user or self.task_runner.run_as_user):
+                # when running as another user, compare the task runner pid to the parent of
+                # the recorded pid because user delegation becomes an extra process level.
+                # However, if recorded_pid is None, pass that through as it signals the task
+                # runner process has already completed and been cleared out. `psutil.Process`
+                # uses the current process if the parameter is None, which is not what is intended
+                # for comparison.
                 recorded_pid = psutil.Process(ti.pid).ppid()
                 same_process = recorded_pid == current_pid
 
@@ -237,7 +244,8 @@ class LocalTaskJob(BaseJob):
             ).one()
 
             task = self.task_instance.task
-            assert task.dag  # For Mypy.
+            if TYPE_CHECKING:
+                assert task.dag
 
             # Get a partial DAG with just the specific tasks we want to examine.
             # In order for dep checks to work correctly, we include ourself (so

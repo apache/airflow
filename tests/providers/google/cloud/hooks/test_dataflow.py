@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import copy
 import shlex
 import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -173,20 +173,10 @@ class TestFallbackToVariables(unittest.TestCase):
             FixtureFallback().test_fn({'project': "TEST"}, "TEST2")
 
 
-def mock_init(
-    self,
-    gcp_conn_id,
-    delegate_to=None,
-    impersonation_chain=None,
-):
-    pass
-
-
 class TestDataflowHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
-            self.dataflow_hook.beam_hook = MagicMock()
+        self.dataflow_hook = DataflowHook(gcp_conn_id='google_cloud_default')
+        self.dataflow_hook.beam_hook = MagicMock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
@@ -546,7 +536,7 @@ class TestDataflowHook(unittest.TestCase):
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        passed_variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables['mock-option'] = ['a.whl', 'b.whl']
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
@@ -586,7 +576,7 @@ class TestDataflowHook(unittest.TestCase):
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        passed_variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables['region'] = TEST_LOCATION
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
@@ -792,8 +782,7 @@ class TestDataflowHook(unittest.TestCase):
 
 class TestDataflowTemplateHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
+        self.dataflow_hook = DataflowHook(gcp_conn_id='google_cloud_default')
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))

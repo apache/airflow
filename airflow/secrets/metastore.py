@@ -16,9 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from metastore database"""
-import warnings
-from typing import TYPE_CHECKING, List, Optional
+from __future__ import annotations
 
+import warnings
+from typing import TYPE_CHECKING
+
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import provide_session
 
@@ -30,7 +33,7 @@ class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
     @provide_session
-    def get_connection(self, conn_id, session=None) -> Optional['Connection']:
+    def get_connection(self, conn_id, session=None) -> Connection | None:
         from airflow.models.connection import Connection
 
         conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
@@ -38,11 +41,11 @@ class MetastoreBackend(BaseSecretsBackend):
         return conn
 
     @provide_session
-    def get_connections(self, conn_id, session=None) -> List['Connection']:
+    def get_connections(self, conn_id, session=None) -> list[Connection]:
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
-            PendingDeprecationWarning,
+            RemovedInAirflow3Warning,
             stacklevel=3,
         )
         conn = self.get_connection(conn_id=conn_id, session=session)

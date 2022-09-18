@@ -14,34 +14,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import os
 from glob import glob
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
 
 import jsonschema
 import yaml
 
-try:
-    from yaml import CSafeLoader as SafeLoader
-except ImportError:
-    from yaml import SafeLoader  # type: ignore[misc]
+ROOT_DIR = Path(__file__).parents[2].resolve()
+PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
 
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
-
-
-def _load_schema() -> Dict[str, Any]:
+def _load_schema() -> dict[str, Any]:
     with open(PROVIDER_DATA_SCHEMA_PATH) as schema_file:
         content = json.load(schema_file)
     return content
 
 
 def _filepath_to_module(filepath: str):
-    filepath = os.path.relpath(os.path.abspath(filepath), ROOT_DIR)
-    return filepath.replace("/", ".")
+    return str(Path(filepath).relative_to(ROOT_DIR)).replace("/", ".")
+
+
+def _filepath_to_system_tests(filepath: str):
+    return str(
+        ROOT_DIR
+        / "tests"
+        / "system"
+        / "providers"
+        / Path(filepath).relative_to(ROOT_DIR / "airflow" / "providers")
+    )
 
 
 def get_provider_yaml_paths():
@@ -49,7 +54,7 @@ def get_provider_yaml_paths():
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
 
 
-def load_package_data() -> List[Dict[str, Any]]:
+def load_package_data() -> list[dict[str, Any]]:
     """
     Load all data from providers files
 
@@ -59,12 +64,14 @@ def load_package_data() -> List[Dict[str, Any]]:
     result = []
     for provider_yaml_path in get_provider_yaml_paths():
         with open(provider_yaml_path) as yaml_file:
-            provider = yaml.load(yaml_file, SafeLoader)
+            provider = yaml.safe_load(yaml_file)
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
-        provider['python-module'] = _filepath_to_module(os.path.dirname(provider_yaml_path))
-        provider['package-dir'] = os.path.dirname(provider_yaml_path)
+        provider_yaml_dir = os.path.dirname(provider_yaml_path)
+        provider['python-module'] = _filepath_to_module(provider_yaml_dir)
+        provider['package-dir'] = provider_yaml_dir
+        provider['system-tests-dir'] = _filepath_to_system_tests(provider_yaml_dir)
         result.append(provider)
     return result

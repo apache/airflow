@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import unittest.mock
 from datetime import datetime
@@ -22,6 +24,7 @@ import pytest
 
 from airflow import DAG
 from airflow.models import DagBag
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -67,8 +70,10 @@ class TestTaskEndpoint:
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
         with DAG(self.mapped_dag_id, start_date=self.task1_start_date) as mapped_dag:
-            task3 = EmptyOperator(task_id=self.task_id3)  # noqa
-            mapped_task = EmptyOperator.partial(task_id=self.mapped_task_id).expand()  # noqa
+            EmptyOperator(task_id=self.task_id3)
+            # Use the private _expand() method to avoid the empty kwargs check.
+            # We don't care about how the operator runs here, only its presence.
+            EmptyOperator.partial(task_id=self.mapped_task_id)._expand(EXPAND_INPUT_EMPTY, strict=False)
 
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)
@@ -103,6 +108,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -144,6 +150,7 @@ class TestGetTask(TestTaskEndpoint):
             "execution_timeout": None,
             "extra_links": [],
             "is_mapped": True,
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             "params": {},
             "pool": "default_pool",
@@ -188,6 +195,7 @@ class TestGetTask(TestTaskEndpoint):
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
+            "operator_name": "EmptyOperator",
             "owner": "airflow",
             'params': {
                 'foo': {
@@ -254,6 +262,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     'params': {
                         'foo': {
@@ -290,6 +299,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -329,6 +339,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "execution_timeout": None,
                     "extra_links": [],
                     "is_mapped": True,
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",
@@ -357,6 +368,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     "params": {},
                     "pool": "default_pool",

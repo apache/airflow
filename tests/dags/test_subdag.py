@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 A DAG with subdag for testing purpose.
 """
+from __future__ import annotations
 
 import warnings
 from datetime import datetime, timedelta
@@ -44,7 +43,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
-        schedule_interval="@daily",
+        schedule="@daily",
     )
 
     for i in range(2):
@@ -62,8 +61,8 @@ with DAG(
     start_date=datetime(2019, 1, 1),
     max_active_runs=1,
     default_args=DEFAULT_TASK_ARGS,
-    schedule_interval=timedelta(minutes=1),
-) as dag:
+    schedule=timedelta(minutes=1),
+):
 
     start = EmptyOperator(
         task_id='start',

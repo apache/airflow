@@ -19,13 +19,9 @@
 # Needs to be declared outside function in MacOS
 # shellcheck disable=SC2034
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=()
-CURRENT_KUBERNETES_VERSIONS=()
-CURRENT_KUBERNETES_MODES=()
 CURRENT_POSTGRES_VERSIONS=()
 CURRENT_MYSQL_VERSIONS=()
 CURRENT_MSSQL_VERSIONS=()
-CURRENT_KIND_VERSIONS=()
-CURRENT_HELM_VERSIONS=()
 CURRENT_EXECUTOR=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 INSTALLED_PROVIDERS=()
@@ -64,7 +60,6 @@ function initialization::create_directories() {
     export CI="${CI="false"}"
 
     # Create useful directories if not yet created
-    mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
@@ -213,26 +208,12 @@ function initialization::initialize_available_integrations() {
 FILES_FOR_REBUILD_CHECK=()
 
 # Determine which files trigger rebuild check
-#
-# !!!!!!!!!! IMPORTANT NOTE !!!!!!!!!!
-#  When you add files here, please make sure to not add files
-#  with the same name. And if you do - make sure that files with the
-#  same name are stored in directories with different name. For
-#  example we have two package.json files here, but they are in
-#  directories with different names (`www` and `ui`).
-#  The problem is that md5 hashes of those files are stored in
-#  `./build/directory` in the same directory as <PARENT_DIR>-<FILE>.md5sum.
-#  For example md5sum of the `airflow/www/package.json` file is stored
-#  as `www-package.json` and `airflow/ui/package.json` as `ui-package.json`,
-#  The file list here changes extremely rarely.
-# !!!!!!!!!! IMPORTANT NOTE !!!!!!!!!!
 function initialization::initialize_files_for_rebuild_check() {
     FILES_FOR_REBUILD_CHECK+=(
         "setup.py"
         "setup.cfg"
         "Dockerfile.ci"
         ".dockerignore"
-        "scripts/docker/compile_www_assets.sh"
         "scripts/docker/common.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
@@ -240,11 +221,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
         "scripts/docker/install_postgres.sh"
-        "airflow/www/package.json"
-        "airflow/www/yarn.lock"
-        "airflow/www/webpack.config.js"
-        "airflow/ui/package.json"
-        "airflow/ui/yarn.lock"
     )
 }
 
@@ -298,15 +274,9 @@ function initialization::initialize_mount_variables() {
 
 # Determine values of force settings
 function initialization::initialize_force_variables() {
-    # Determines whether to force build without checking if it is needed
-    # Can be overridden by '--force-build-images' flag.
-    export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
     # Can be set to "yes/no/quit" in order to force specified answer to all questions asked to the user.
     export ANSWER=${ANSWER:=""}
-
-    # Can be set to true to skip if the image is newer in registry
-    export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
 
     # integrations are disabled by default
     export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
@@ -339,7 +309,7 @@ function initialization::initialize_host_variables() {
     # Set host OS. This is used to set the ownership properly when exiting
     # The container on Linux - all files created inside docker are created with root user
     # but they should be restored back to the host user
-    HOST_OS="$(uname -s)"
+    HOST_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
     export HOST_OS
 
     # In case of MacOS we need to use gstat - gnu version of the stats
@@ -353,8 +323,6 @@ function initialization::initialize_host_variables() {
 function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
-
-    export DEBIAN_VERSION=${DEBIAN_VERSION:="bullseye"}
 
     # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
@@ -418,7 +386,7 @@ function initialization::initialize_image_build_variables() {
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.1.1"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.2.2"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -436,13 +404,6 @@ function initialization::initialize_image_build_variables() {
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/Dockerfile"}
     export AIRFLOW_SOURCES_TO
 
-    # By default no sources are copied to image
-    AIRFLOW_SOURCES_WWW_FROM=${AIRFLOW_SOURCES_WWW_FROM:="Dockerfile"}
-    export AIRFLOW_SOURCES_WWW_FROM
-
-    AIRFLOW_SOURCES_WWW_TO=${AIRFLOW_SOURCES_WWW_TO:="/Dockerfile"}
-    export AIRFLOW_SOURCES_WWW_TO
-
     # By default in scripts production docker image is installed from PyPI package
     export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
 
@@ -454,11 +415,6 @@ function initialization::initialize_image_build_variables() {
 
     # Determines which providers are used to generate constraints - source, pypi or no providers
     export AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}
-
-    # By default we install latest airflow from PyPI or sources. You can set this parameter to false
-    # if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
-    # to skip installing Airflow/Providers from PyPI or sources.
-    export AIRFLOW_IS_IN_CONTEXT="${AIRFLOW_IS_IN_CONTEXT:="false"}"
 
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
     export INSTALL_PACKAGES_FROM_CONTEXT="${INSTALL_PACKAGES_FROM_CONTEXT:="false"}"
@@ -487,62 +443,6 @@ function initialization::initialize_image_build_variables() {
     export PREPARE_BUILDX_CACHE=${PREPARE_BUILDX_CACHE:="false"}
 }
 
-# Determine versions of kubernetes cluster and tools used
-function initialization::initialize_kubernetes_variables() {
-    # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.24.0" "v1.23.6" "v1.22.9" "v1.21.12" "v1.20.15")
-    export CURRENT_KUBERNETES_VERSIONS
-    # Currently supported modes of Kubernetes
-    CURRENT_KUBERNETES_MODES+=("image")
-    export CURRENT_KUBERNETES_MODES
-    # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.13.0")
-    export CURRENT_KIND_VERSIONS
-    # Currently supported versions of Helm
-    CURRENT_HELM_VERSIONS+=("v3.6.3")
-    export CURRENT_HELM_VERSIONS
-    # Current executor in chart
-    CURRENT_EXECUTOR+=("KubernetesExecutor")
-    export CURRENT_EXECUTOR
-    # Default Kubernetes version
-    export DEFAULT_KUBERNETES_VERSION="${CURRENT_KUBERNETES_VERSIONS[0]}"
-    # Default Kubernetes mode
-    export DEFAULT_KUBERNETES_MODE="${CURRENT_KUBERNETES_MODES[0]}"
-    # Default KinD version
-    export DEFAULT_KIND_VERSION="${CURRENT_KIND_VERSIONS[0]}"
-    # Default Helm version
-    export DEFAULT_HELM_VERSION="${CURRENT_HELM_VERSIONS[0]}"
-    # Default airflow executor used in cluster
-    export DEFAULT_EXECUTOR="${CURRENT_EXECUTOR[0]}"
-    # Namespace where airflow is installed via helm
-    export HELM_AIRFLOW_NAMESPACE="airflow"
-    # Kubernetes version
-    export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
-    # Kubernetes mode
-    export KUBERNETES_MODE=${KUBERNETES_MODE:=${DEFAULT_KUBERNETES_MODE}}
-    # Kind version
-    export KIND_VERSION=${KIND_VERSION:=${DEFAULT_KIND_VERSION}}
-    # Helm version
-    export HELM_VERSION=${HELM_VERSION:=${DEFAULT_HELM_VERSION}}
-    # Airflow Executor
-    export EXECUTOR=${EXECUTOR:=${DEFAULT_EXECUTOR}}
-    # Kubectl version
-    export KUBECTL_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
-    # Local Kind path
-    export KIND_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/kind"
-    readonly KIND_BINARY_PATH
-    # Local Helm path
-    export HELM_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/helm"
-    readonly HELM_BINARY_PATH
-    # local Kubectl path
-    export KUBECTL_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/kubectl"
-    readonly KUBECTL_BINARY_PATH
-    FORWARDED_PORT_NUMBER="${FORWARDED_PORT_NUMBER:="8080"}"
-    readonly FORWARDED_PORT_NUMBER
-    API_SERVER_PORT="${API_SERVER_PORT:="19090"}"
-    readonly API_SERVER_PORT
-}
-
 function initialization::initialize_virtualenv_variables() {
     # The extras to install when initializing a virtual env with breeze
     export VIRTUALENV_EXTRAS=${VIRTUALENV_EXTRAS:="devel"}
@@ -555,8 +455,6 @@ function initialization::initialize_git_variables() {
 }
 
 function initialization::initialize_github_variables() {
-    export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
-    export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
     export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
     # Allows to override the repository which is used as source of constraints during the build
@@ -613,7 +511,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
-    initialization::initialize_kubernetes_variables
     initialization::initialize_virtualenv_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
@@ -640,7 +537,7 @@ function initialization::get_github_container_registry_image_prefix() {
 
 function initialization::get_docker_cache_image_names() {
     # Python base image to use
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-${DEBIAN_VERSION}"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-bullseye"
 
     local image_name
     image_name="ghcr.io/$(initialization::get_github_container_registry_image_prefix)"
@@ -652,7 +549,7 @@ function initialization::get_docker_cache_image_names() {
     # Example:
     #  ghcr.io/apache/airflow/main/ci/python3.8:latest
     #  ghcr.io/apache/airflow/main/ci/python3.8:<COMMIT_SHA>
-    export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest"
 
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
@@ -660,10 +557,6 @@ function initialization::get_docker_cache_image_names() {
     # Example:
     #  ghcr.io/apache/airflow/main/prod/python3.8
     export AIRFLOW_PROD_IMAGE="${image_name}/${BRANCH_NAME}/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
-
-    # Kubernetes image to build
-    #  ghcr.io/apache/airflow/main/kubernetes/python3.8
-    export AIRFLOW_IMAGE_KUBERNETES="${image_name}/${BRANCH_NAME}/kubernetes/python${PYTHON_MAJOR_MINOR_VERSION}"
 }
 
 function initialization::summarize_build_environment() {
@@ -684,9 +577,7 @@ Mount variables:
 
 Force variables:
 
-    FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     ANSWER: ${ANSWER}
-    SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
 
 Host variables:
 
@@ -711,7 +602,6 @@ Common image build variables:
 
     INSTALL_AIRFLOW_VERSION: '${INSTALL_AIRFLOW_VERSION}'
     INSTALL_AIRFLOW_REFERENCE: '${INSTALL_AIRFLOW_REFERENCE}'
-    AIRFLOW_IS_IN_CONTEXT: '${AIRFLOW_IS_IN_CONTEXT}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
@@ -737,15 +627,12 @@ Production image build variables:
     AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
-    AIRFLOW_SOURCES_WWW_FROM: '${AIRFLOW_SOURCES_WWW_FROM}'
-    AIRFLOW_SOURCES_WWW_TO: '${AIRFLOW_SOURCES_WWW_TO}'
 
 Detected GitHub environment:
 
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
     GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
-    GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
     GITHUB_ACTIONS: '${GITHUB_ACTIONS=}'
 
 Initialization variables:
@@ -817,11 +704,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_GROUP_ID
     readonly HOST_OS
 
-    readonly KUBERNETES_MODE
-    readonly KUBERNETES_VERSION
-    readonly KIND_VERSION
-    readonly HELM_VERSION
-    readonly KUBECTL_VERSION
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -854,7 +736,6 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly AIRFLOW_IS_IN_CONTEXT
     readonly INSTALL_PACKAGES_FROM_CONTEXT
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
@@ -880,7 +761,6 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_RUNTIME_APT_ENV
 
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
-    readonly GITHUB_REGISTRY_PUSH_IMAGE_TAG
 
     readonly GITHUB_REPOSITORY
     readonly GITHUB_TOKEN
@@ -889,7 +769,6 @@ function initialization::make_constants_read_only() {
     readonly FORWARD_CREDENTIALS
 
     readonly PYTHON_BASE_IMAGE
-    readonly AIRFLOW_IMAGE_KUBERNETES
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
@@ -897,13 +776,9 @@ function initialization::make_constants_read_only() {
     readonly INSTALLED_PROVIDERS
 
     readonly CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-    readonly CURRENT_KUBERNETES_VERSIONS
-    readonly CURRENT_KUBERNETES_MODES
     readonly CURRENT_POSTGRES_VERSIONS
     readonly CURRENT_MYSQL_VERSIONS
     readonly CURRENT_MSSQL_VERSIONS
-    readonly CURRENT_KIND_VERSIONS
-    readonly CURRENT_HELM_VERSIONS
     readonly CURRENT_EXECUTOR
     readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }

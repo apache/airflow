@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import unittest
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
@@ -64,7 +66,7 @@ class TestHive2SambaOperator(TestHiveEnvironment):
 
         mock_hive_hook.assert_called_once_with(hiveserver2_conn_id=self.kwargs['hiveserver2_conn_id'])
         mock_hive_hook.return_value.to_csv.assert_called_once_with(
-            hql=self.kwargs['hql'],
+            self.kwargs['hql'],
             csv_filepath=mock_tmp_file.name,
             hive_conf=context_to_airflow_vars(context),
         )

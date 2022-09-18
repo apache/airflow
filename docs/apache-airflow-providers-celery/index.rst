@@ -46,7 +46,7 @@ Package apache-airflow-providers-celery
 `Celery <http://www.celeryproject.org/>`__
 
 
-Release: 2.1.4
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -57,11 +57,12 @@ are in ``airflow.providers.celery`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-celery``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 ==================  ==================
 PIP package         Version required

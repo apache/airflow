@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Data Fusion sensors."""
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
@@ -64,12 +66,12 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         expected_statuses: Iterable[str],
         instance_name: str,
         location: str,
-        failure_statuses: Optional[Iterable[str]] = None,
-        project_id: Optional[str] = None,
+        failure_statuses: Iterable[str] | None = None,
+        project_id: str | None = None,
         namespace: str = "default",
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -85,7 +87,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info(
             "Waiting for pipeline %s to be in one of the states: %s.",
             self.pipeline_id,

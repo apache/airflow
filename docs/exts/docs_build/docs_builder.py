@@ -14,17 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import re
 import shlex
 import shutil
 from glob import glob
 from subprocess import run
-from typing import List
 
 from rich.console import Console
 
-from docs.exts.docs_build.code_utils import (
+from .code_utils import (
     AIRFLOW_SITE_DIR,
     ALL_PROVIDER_YAMLS,
     CONSOLE_WIDTH,
@@ -32,9 +33,9 @@ from docs.exts.docs_build.code_utils import (
     PROCESS_TIMEOUT,
     pretty_format_path,
 )
-from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
-from docs.exts.docs_build.helm_chart_utils import chart_version
-from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
+from .errors import DocBuildError, parse_sphinx_warnings
+from .helm_chart_utils import chart_version
+from .spelling_checks import SpellingError, parse_spelling_warnings
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -124,7 +125,7 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> List[SpellingError]:
+    def check_spelling(self, verbose: bool) -> list[SpellingError]:
         """
         Checks spelling
 
@@ -201,7 +202,7 @@ class AirflowDocsBuilder:
                 )
         return spelling_errors
 
-    def build_sphinx_docs(self, verbose: bool) -> List[DocBuildError]:
+    def build_sphinx_docs(self, verbose: bool) -> list[DocBuildError]:
         """
         Build Sphinx documentation.
 

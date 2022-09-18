@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import gzip as gz
 import os
 import tempfile
@@ -26,6 +27,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.timezone import datetime
@@ -55,15 +57,18 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
-    @mock_s3
     def test_use_threads_default_value(self):
         hook = S3Hook()
         assert hook.transfer_config.use_threads is True
 
-    @mock_s3
     def test_use_threads_set_value(self):
         hook = S3Hook(transfer_config_args={"use_threads": False})
         assert hook.transfer_config.use_threads is False
+
+    @pytest.mark.parametrize("transfer_config_args", [1, True, '{"use_threads": false}'])
+    def test_transfer_config_args_invalid(self, transfer_config_args):
+        with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
+            S3Hook(transfer_config_args=transfer_config_args)
 
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
@@ -124,6 +129,43 @@ class TestAwsS3Hook:
         assert bucket is not None
         region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         assert region == 'us-east-2'
+
+    @mock_s3
+    @pytest.mark.parametrize("region_name", ["eu-west-1", "us-east-1"])
+    def test_create_bucket_regional_endpoint(self, region_name, monkeypatch):
+        conn = Connection(
+            conn_id="regional-endpoint",
+            conn_type="aws",
+            extra={
+                "config_kwargs": {"s3": {"us_east_1_regional_endpoint": "regional"}},
+            },
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            monkeypatch.delenv('AWS_DEFAULT_REGION', raising=False)
+            hook = S3Hook(aws_conn_id=conn.conn_id)
+            bucket_name = f"regional-{region_name}"
+            hook.create_bucket(bucket_name, region_name=region_name)
+            bucket = hook.get_bucket(bucket_name)
+            assert bucket is not None
+            assert bucket.name == bucket_name
+            region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
+            assert region == (region_name if region_name != "us-east-1" else None)
+
+    def test_create_bucket_no_region_regional_endpoint(self, monkeypatch):
+        conn = Connection(
+            conn_id="no-region-regional-endpoint",
+            conn_type="aws",
+            extra={"config_kwargs": {"s3": {"us_east_1_regional_endpoint": "regional"}}},
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            monkeypatch.delenv('AWS_DEFAULT_REGION', raising=False)
+            hook = S3Hook(aws_conn_id=conn.conn_id)
+            error_message = (
+                "Unable to create bucket if `region_name` not set and boto3 "
+                r"configured to use s3 regional endpoints\."
+            )
+            with pytest.raises(AirflowException, match=error_message):
+                hook.create_bucket("unable-to-create")
 
     def test_check_for_prefix(self, s3_bucket):
         hook = S3Hook()
@@ -491,7 +533,11 @@ class TestAwsS3Hook:
         s3_hook.download_file(key=key, bucket_name=bucket)
 
         s3_hook.get_key.assert_called_once_with(key, bucket)
-        s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
+        s3_obj.download_fileobj.assert_called_once_with(
+            mock_temp_file,
+            Config=s3_hook.transfer_config,
+            ExtraArgs=s3_hook.extra_args,
+        )
 
     def test_generate_presigned_url(self, s3_bucket):
         hook = S3Hook()
@@ -505,7 +551,7 @@ class TestAwsS3Hook:
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError, match="extra_args expected dict, got .*"):
             S3Hook(extra_args=1)
 
     def test_should_throw_error_if_extra_args_contains_unknown_arg(self, s3_bucket):
@@ -524,6 +570,53 @@ class TestAwsS3Hook:
             hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
             assert resource.get()['ContentLanguage'] == "value"
+
+    def test_that_extra_args_not_changed_between_calls(self, s3_bucket):
+        original = {
+            "Metadata": {"metakey": "metaval"},
+            "ACL": "private",
+            "ServerSideEncryption": "aws:kms",
+            "SSEKMSKeyId": "arn:aws:kms:region:acct-id:key/key-id",
+        }
+        s3_hook = S3Hook(aws_conn_id="s3_test", extra_args=original)
+        assert s3_hook.extra_args == original
+        assert s3_hook.extra_args is not original
+
+        dummy = mock.MagicMock()
+        s3_hook.check_for_key = Mock(return_value=False)
+        mock_upload_fileobj = s3_hook.conn.upload_fileobj = Mock(return_value=None)
+        mock_upload_file = s3_hook.conn.upload_file = Mock(return_value=None)
+
+        # First Call - load_file_obj.
+        s3_hook.load_file_obj(dummy, "mock_key", s3_bucket, encrypt=True, acl_policy="public-read")
+        first_call_extra_args = mock_upload_fileobj.call_args_list[0][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert first_call_extra_args is not s3_hook.extra_args
+
+        # Second Call - load_bytes.
+        s3_hook.load_string("dummy", "mock_key", s3_bucket, acl_policy="bucket-owner-full-control")
+        second_call_extra_args = mock_upload_fileobj.call_args_list[1][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert second_call_extra_args is not s3_hook.extra_args
+        assert second_call_extra_args != first_call_extra_args
+
+        # Third Call - load_string.
+        s3_hook.load_bytes(b"dummy", "mock_key", s3_bucket, encrypt=True)
+        third_call_extra_args = mock_upload_fileobj.call_args_list[2][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert third_call_extra_args is not s3_hook.extra_args
+        assert third_call_extra_args not in [first_call_extra_args, second_call_extra_args]
+
+        # Fourth Call - load_file.
+        s3_hook.load_file("/dummy.png", "mock_key", s3_bucket, encrypt=True, acl_policy="bucket-owner-read")
+        fourth_call_extra_args = mock_upload_file.call_args_list[0][1]["ExtraArgs"]
+        assert s3_hook.extra_args == original
+        assert fourth_call_extra_args is not s3_hook.extra_args
+        assert fourth_call_extra_args not in [
+            third_call_extra_args,
+            first_call_extra_args,
+            second_call_extra_args,
+        ]
 
     @mock_s3
     def test_get_bucket_tagging_no_tags_raises_error(self):

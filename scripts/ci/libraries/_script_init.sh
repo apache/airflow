@@ -18,7 +18,7 @@
 
 set -eo pipefail
 
-if [[ $(uname -s) != "Darwin" ]]; then
+if [[ $(uname -s | tr '[:upper:]' '[:lower:]') != "darwin" ]]; then
     # do not fail with undefined variable on MacOS. The old Bash which is default on Mac OS
     # fails with undefined variable when you are passing an empty variable and this causes
     # problems for example when you try to pass empty list of arguments "${@}"

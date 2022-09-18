@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Hook for HashiCorp Vault"""
+from __future__ import annotations
+
 import json
 import warnings
-from typing import Optional, Tuple
 
 import hvac
 from hvac.exceptions import VaultError
@@ -105,19 +105,19 @@ class VaultHook(BaseHook):
     def __init__(
         self,
         vault_conn_id: str = default_conn_name,
-        auth_type: Optional[str] = None,
-        auth_mount_point: Optional[str] = None,
-        kv_engine_version: Optional[int] = None,
-        role_id: Optional[str] = None,
-        kubernetes_role: Optional[str] = None,
-        kubernetes_jwt_path: Optional[str] = None,
-        token_path: Optional[str] = None,
-        gcp_key_path: Optional[str] = None,
-        gcp_scopes: Optional[str] = None,
-        azure_tenant_id: Optional[str] = None,
-        azure_resource: Optional[str] = None,
-        radius_host: Optional[str] = None,
-        radius_port: Optional[int] = None,
+        auth_type: str | None = None,
+        auth_mount_point: str | None = None,
+        kv_engine_version: int | None = None,
+        role_id: str | None = None,
+        kubernetes_role: str | None = None,
+        kubernetes_jwt_path: str | None = None,
+        token_path: str | None = None,
+        gcp_key_path: str | None = None,
+        gcp_scopes: str | None = None,
+        azure_tenant_id: str | None = None,
+        azure_resource: str | None = None,
+        radius_host: str | None = None,
+        radius_port: int | None = None,
     ):
         super().__init__()
         self.connection = self.get_connection(vault_conn_id)
@@ -223,8 +223,8 @@ class VaultHook(BaseHook):
         )
 
     def _get_kubernetes_parameters_from_connection(
-        self, kubernetes_jwt_path: Optional[str], kubernetes_role: Optional[str]
-    ) -> Tuple[str, Optional[str]]:
+        self, kubernetes_jwt_path: str | None, kubernetes_role: str | None
+    ) -> tuple[str, str | None]:
         if not kubernetes_jwt_path:
             kubernetes_jwt_path = self.connection.extra_dejson.get("kubernetes_jwt_path")
             if not kubernetes_jwt_path:
@@ -235,9 +235,9 @@ class VaultHook(BaseHook):
 
     def _get_gcp_parameters_from_connection(
         self,
-        gcp_key_path: Optional[str],
-        gcp_scopes: Optional[str],
-    ) -> Tuple[Optional[str], Optional[dict], Optional[str]]:
+        gcp_key_path: str | None,
+        gcp_scopes: str | None,
+    ) -> tuple[str | None, dict | None, str | None]:
         if not gcp_scopes:
             gcp_scopes = self.connection.extra_dejson.get("gcp_scopes")
         if not gcp_key_path:
@@ -247,8 +247,8 @@ class VaultHook(BaseHook):
         return gcp_key_path, gcp_keyfile_dict, gcp_scopes
 
     def _get_azure_parameters_from_connection(
-        self, azure_resource: Optional[str], azure_tenant_id: Optional[str]
-    ) -> Tuple[Optional[str], Optional[str]]:
+        self, azure_resource: str | None, azure_tenant_id: str | None
+    ) -> tuple[str | None, str | None]:
         if not azure_tenant_id:
             azure_tenant_id = self.connection.extra_dejson.get("azure_tenant_id")
         if not azure_resource:
@@ -256,8 +256,8 @@ class VaultHook(BaseHook):
         return azure_resource, azure_tenant_id
 
     def _get_radius_parameters_from_connection(
-        self, radius_host: Optional[str], radius_port: Optional[int]
-    ) -> Tuple[Optional[str], Optional[int]]:
+        self, radius_host: str | None, radius_port: int | None
+    ) -> tuple[str | None, int | None]:
         if not radius_port:
             radius_port_str = self.connection.extra_dejson.get("radius_port")
             if radius_port_str:
@@ -278,7 +278,7 @@ class VaultHook(BaseHook):
         """
         return self.vault_client.client
 
-    def get_secret(self, secret_path: str, secret_version: Optional[int] = None) -> Optional[dict]:
+    def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
         """
         Get secret value from the engine.
 
@@ -294,7 +294,7 @@ class VaultHook(BaseHook):
         """
         return self.vault_client.get_secret(secret_path=secret_path, secret_version=secret_version)
 
-    def get_secret_metadata(self, secret_path: str) -> Optional[dict]:
+    def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
@@ -308,8 +308,8 @@ class VaultHook(BaseHook):
         return self.vault_client.get_secret_metadata(secret_path=secret_path)
 
     def get_secret_including_metadata(
-        self, secret_path: str, secret_version: Optional[int] = None
-    ) -> Optional[dict]:
+        self, secret_path: str, secret_version: int | None = None
+    ) -> dict | None:
         """
         Reads secret including metadata. It is only valid for KV version 2.
 
@@ -327,7 +327,7 @@ class VaultHook(BaseHook):
         )
 
     def create_or_update_secret(
-        self, secret_path: str, secret: dict, method: Optional[str] = None, cas: Optional[int] = None
+        self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
     ) -> Response:
         """
         Creates or updates secret.

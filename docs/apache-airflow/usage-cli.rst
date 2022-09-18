@@ -52,7 +52,7 @@ For one-time activation of argcomplete for airflow only, use:
 
 .. image:: img/cli_completion.gif
 
-If you’re using ``zsh``, add the following to your ``.zshrc``:
+If you're using ``zsh``, add the following to your ``.zshrc``:
 
 .. code-block:: bash
 
@@ -214,6 +214,8 @@ The ``db clean`` command works by deleting from each table the records older tha
 You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
 
 You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
+
+By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
 
 Beware cascading deletes
 ^^^^^^^^^^^^^^^^^^^^^^^^

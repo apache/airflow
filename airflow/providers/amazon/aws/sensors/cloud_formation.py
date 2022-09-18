@@ -16,17 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains sensors for AWS CloudFormation."""
-import sys
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -36,9 +33,8 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     Waits for a stack to be created successfully on AWS CloudFormation.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:CloudFormationCreateStackSensor`
-
 
     :param stack_name: The name of the stack to wait for (templated)
     :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are
@@ -55,7 +51,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status == 'CREATE_COMPLETE':
             return True
@@ -65,7 +61,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> CloudFormationHook:
-        """Create and return an CloudFormationHook"""
+        """Create and return a CloudFormationHook"""
         return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -74,7 +70,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     Waits for a stack to be deleted successfully on AWS CloudFormation.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:CloudFormationDeleteStackSensor`
 
     :param stack_name: The name of the stack to wait for (templated)
@@ -91,7 +87,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         *,
         stack_name: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -99,7 +95,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         self.region_name = region_name
         self.stack_name = stack_name
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status in ('DELETE_COMPLETE', None):
             return True
@@ -109,5 +105,5 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> CloudFormationHook:
-        """Create and return an CloudFormationHook"""
+        """Create and return a CloudFormationHook"""
         return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

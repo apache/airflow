@@ -17,7 +17,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 """Nice formatted include for examples"""
 import traceback
@@ -121,7 +121,7 @@ class ExampleInclude(SphinxDirective):
                 extra_args["hl_lines"] = [x + 1 for x in hl_lines if x < lines]
             extra_args["linenostart"] = reader.lineno_start
 
-            container_node = nodes.container("", literal_block=True, classes=["example-block-wrapper"])
+            container_node = nodes.compound(classes=["example-block-wrapper"])
             container_node += ExampleHeader(filename=filename)
             container_node += retnode
             retnode = container_node

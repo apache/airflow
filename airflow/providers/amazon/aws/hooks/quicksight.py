@@ -15,20 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import sys
 import time
 
 from botocore.exceptions import ClientError
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 class QuickSightHook(AwsBaseHook):
@@ -72,7 +68,6 @@ class QuickSightHook(AwsBaseHook):
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
         :rtype: Dict
         """
-
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
         try:
@@ -136,7 +131,6 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: response of describe_ingestion call after Ingestion is is done
         """
-
         sec = 0
         status = self.get_status(aws_account_id, data_set_id, ingestion_id)
         while status in self.NON_TERMINAL_STATES and status != target_state:

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import re
 import unittest
@@ -234,7 +235,7 @@ class TestPrestoHook(unittest.TestCase):
 
         self.db_hook = UnitTestPrestoHook()
 
-    @patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
+    @patch('airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows')
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
         rows = [("hello",), ("world",)]

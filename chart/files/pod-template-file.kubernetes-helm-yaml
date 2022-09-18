@@ -28,12 +28,17 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
+{{- if or (.Values.labels) (.Values.workers.labels) }}
+{{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
 {{- end }}
-  {{- if .Values.airflowPodAnnotations }}
+  {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
-  {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+    {{- if .Values.airflowPodAnnotations }}
+    {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+    {{- end }}
+    {{- if .Values.workers.podAnnotations }}
+    {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
@@ -53,6 +58,7 @@ spec:
           value: LocalExecutor
 {{- include "standard_airflow_environment" . | indent 6}}
 {{- include "custom_airflow_environment" . | indent 6 }}
+{{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base

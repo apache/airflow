@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import json
 import urllib.parse
@@ -244,11 +246,15 @@ def test_index_failure(dag_test_client):
 
 def test_dag_autocomplete_success(client_all_dags):
     resp = client_all_dags.get(
-        'dagmodel/autocomplete?query=example_bash',
+        'dagmodel/autocomplete?query=flow',
         follow_redirects=False,
     )
-    check_content_in_response('example_bash_operator', resp)
-    check_content_not_in_response('example_subdag_operator', resp)
+    assert resp.json == [
+        {'name': 'airflow', 'type': 'owner'},
+        {'name': 'test_mapped_taskflow', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api_virtualenv', 'type': 'dag'},
+    ]
 
 
 @pytest.mark.parametrize(
@@ -559,7 +565,7 @@ DURATION_URL = "duration?days=30&dag_id=example_bash_operator"
 TRIES_URL = "tries?days=30&dag_id=example_bash_operator"
 LANDING_TIMES_URL = "landing_times?days=30&dag_id=example_bash_operator"
 GANTT_URL = "gantt?dag_id=example_bash_operator"
-TREE_URL = "tree?dag_id=example_bash_operator"
+GRID_DATA_URL = "object/grid_data?dag_id=example_bash_operator"
 LOG_URL = (
     f"log?task_id=runme_0&dag_id=example_bash_operator&"
     f"execution_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
@@ -577,8 +583,8 @@ LOG_URL = (
         ("client_all_dags_tis", TRIES_URL, "example_bash_operator"),
         ("client_all_dags_tis", LANDING_TIMES_URL, "example_bash_operator"),
         ("client_all_dags_tis", GANTT_URL, "example_bash_operator"),
-        ("client_dags_tis_logs", TREE_URL, "runme_1"),
-        ("viewer_client", TREE_URL, "runme_1"),
+        ("client_dags_tis_logs", GRID_DATA_URL, "runme_1"),
+        ("viewer_client", GRID_DATA_URL, "runme_1"),
         ("client_dags_tis_logs", LOG_URL, "Log by attempts"),
         ("user_client", LOG_URL, "Log by attempts"),
     ],
@@ -591,8 +597,8 @@ LOG_URL = (
         "tries",
         "landing-times",
         "gantt",
-        "tree-for-readonly-role",
-        "tree-for-viewer",
+        "grid-data-for-readonly-role",
+        "grid-data-for-viewer",
         "log",
         "log-for-user",
     ],

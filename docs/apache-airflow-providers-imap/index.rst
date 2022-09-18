@@ -52,7 +52,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 2.2.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -63,7 +63,8 @@ are in ``airflow.providers.imap`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-imap``
 
 .. include:: ../../airflow/providers/imap/CHANGELOG.rst

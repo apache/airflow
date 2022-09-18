@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """fix_mssql_exec_date_rendered_task_instance_fields_for_MSSQL
 
 Revision ID: 52d53670a240
@@ -23,6 +22,8 @@ Revises: 98271e7606e2
 Create Date: 2020-10-13 15:13:24.911486
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mssql

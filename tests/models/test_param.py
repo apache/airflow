@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from contextlib import nullcontext
@@ -192,6 +193,10 @@ class TestParamsDict:
         assert isinstance(internal_value, Param)
         with pytest.raises(ParamValidationError, match=r'Invalid input for param key: 1 is not'):
             pd.update({'key': 1})
+
+    def test_repr(self):
+        pd = ParamsDict({'key': Param('value', type='string')})
+        assert repr(pd) == "{'key': 'value'}"
 
 
 class TestDagParamRuntime:

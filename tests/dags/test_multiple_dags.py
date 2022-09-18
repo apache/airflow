@@ -15,21 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import timedelta
+from __future__ import annotations
+
+import datetime
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
-from airflow.utils.dates import days_ago
 
-args = {'owner': 'airflow', 'retries': 3, 'start_date': days_ago(2)}
+args = {'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022, 1, 1)}
 
 
 def create_dag(suffix):
     dag = DAG(
         dag_id=f'test_multiple_dags__{suffix}',
         default_args=args,
-        schedule_interval='0 0 * * *',
-        dagrun_timeout=timedelta(minutes=60),
+        schedule='0 0 * * *',
+        dagrun_timeout=datetime.timedelta(minutes=60),
     )
 
     with dag:

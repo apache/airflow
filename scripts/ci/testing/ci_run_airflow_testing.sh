@@ -39,9 +39,9 @@ function run_test_types_in_parallel() {
     for TEST_TYPE in ${test_types_to_run}
     do
         export TEST_TYPE
-        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}"
-        export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}/stdout"
-        export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}/status"
+        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE/\[*\]/}"
+        export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE/\[*\]/}/stdout"
+        export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE/\[*\]/}/status"
         # Each test job will get SIGTERM followed by SIGTERM 200ms later and SIGKILL 200ms later after 45 mins
         # shellcheck disable=SC2086
         parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
@@ -107,7 +107,8 @@ function run_all_test_types_in_parallel() {
             # Those tests will run in `main` anyway.
             if [[ ${test_types_to_run} == *"Providers"* ]]; then
                 echo "${COLOR_YELLOW}Remove Providers from tests_types_to_run and skip running them altogether (mysql/mssql case).${COLOR_RESET}"
-                test_types_to_run="${test_types_to_run//Providers/}"
+                # shellcheck disable=SC2001
+                test_types_to_run=$(echo "${test_types_to_run}" | sed 's/Providers[^ ]* *//')
             fi
         fi
     fi

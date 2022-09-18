@@ -15,8 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
-from typing import Dict, Optional, Sequence
+import shutil
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -134,11 +137,11 @@ class BashOperator(BaseOperator):
         self,
         *,
         bash_command: str,
-        env: Optional[Dict[str, str]] = None,
+        env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = 'utf-8',
         skip_exit_code: int = 99,
-        cwd: Optional[str] = None,
+        cwd: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -148,8 +151,6 @@ class BashOperator(BaseOperator):
         self.skip_exit_code = skip_exit_code
         self.cwd = cwd
         self.append_env = append_env
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     @cached_property
     def subprocess_hook(self):
@@ -176,6 +177,7 @@ class BashOperator(BaseOperator):
         return env
 
     def execute(self, context: Context):
+        bash_path = shutil.which("bash") or "bash"
         if self.cwd is not None:
             if not os.path.exists(self.cwd):
                 raise AirflowException(f"Can not find the cwd: {self.cwd}")
@@ -183,7 +185,7 @@ class BashOperator(BaseOperator):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
         result = self.subprocess_hook.run_command(
-            command=['bash', '-c', self.bash_command],
+            command=[bash_path, '-c', self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
             cwd=self.cwd,

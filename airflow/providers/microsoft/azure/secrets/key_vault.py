@@ -14,24 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
-import sys
 import warnings
-from typing import Optional
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
-from airflow.version import version as airflow_version
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 
 def _parse_version(val):
@@ -109,7 +104,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> str | None:
         """
         Get a serialized representation of Airflow Connection from an Azure Key Vault secret
 
@@ -120,7 +115,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
 
@@ -138,7 +133,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             )
         return self.get_conn_value(conn_id)
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Get an Airflow Variable from an Azure Key Vault secret.
 
@@ -150,7 +145,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.variables_prefix, key)
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Get Airflow Configuration
 
@@ -176,7 +171,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         path = f'{path_prefix}{sep}{secret_id}'
         return path.replace('_', sep)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
         """
         Get an Azure Key Vault secret value
 

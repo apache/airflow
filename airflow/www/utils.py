@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import textwrap
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from urllib.parse import urlencode
 
-import markdown
 import sqlalchemy as sqla
 from flask import Response, request, url_for
 from flask.helpers import flash
@@ -31,16 +32,17 @@ from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
+from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.orm import Session
 
 from airflow import models
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
-from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -51,7 +53,7 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
-def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+def datetime_to_string(value: DateTime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
@@ -85,7 +87,6 @@ priority = [
     TaskInstanceState.QUEUED,
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
-    TaskInstanceState.SENSING,
     TaskInstanceState.RUNNING,
     TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
@@ -113,10 +114,11 @@ def get_mapped_summary(parent_instance, task_instances):
     )
 
     try_count = (
-        parent_instance.prev_attempted_tries
-        if parent_instance.prev_attempted_tries != 0
-        else parent_instance.try_number
+        parent_instance._try_number
+        if parent_instance._try_number != 0 or parent_instance.state in State.running
+        else parent_instance._try_number + 1
     )
+
     return {
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
@@ -128,42 +130,7 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def get_task_summary(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any]]:
-    task_instance = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.dag_id == task.dag_id,
-            TaskInstance.run_id == dag_run.run_id,
-            TaskInstance.task_id == task.task_id,
-            # Only get normal task instances or the first mapped task
-            TaskInstance.map_index <= 0,
-        )
-        .first()
-    )
-
-    if not task_instance:
-        return None
-
-    if task_instance.map_index > -1:
-        return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
-
-    try_count = (
-        task_instance.prev_attempted_tries
-        if task_instance.prev_attempted_tries != 0
-        else task_instance.try_number
-    )
-    return {
-        'task_id': task_instance.task_id,
-        'run_id': task_instance.run_id,
-        'map_index': task_instance.map_index,
-        'state': task_instance.state,
-        'start_date': datetime_to_string(task_instance.start_date),
-        'end_date': datetime_to_string(task_instance.end_date),
-        'try_number': try_count,
-    }
-
-
-def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
+def encode_dag_run(dag_run: models.DagRun | None) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
@@ -188,6 +155,13 @@ def check_import_errors(fileloc, session):
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
 
 
+def check_dag_warnings(dag_id, session):
+    dag_warnings = session.query(DagWarning).filter(DagWarning.dag_id == dag_id).all()
+    if dag_warnings:
+        for dag_warning in dag_warnings:
+            flash(dag_warning.message, "warning")
+
+
 def get_sensitive_variables_fields():
     import warnings
 
@@ -196,7 +170,7 @@ def get_sensitive_variables_fields():
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return get_sensitive_variables_fields()
@@ -210,7 +184,7 @@ def should_hide_value_for_key(key_name):
     warnings.warn(
         "This function is deprecated. Please use "
         "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
     return should_hide_value_for_key(key_name)
@@ -428,7 +402,7 @@ def datetime_f(attr_name):
     return dt
 
 
-def datetime_html(dttm: Optional[DateTime]) -> str:
+def datetime_html(dttm: DateTime | None) -> str:
     """Return an HTML formatted string with time element to support timezone changes in UI"""
     as_iso = dttm.isoformat() if dttm else ''
     if not as_iso:
@@ -512,10 +486,11 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
+    md = MarkdownIt("gfm-like")
     if s is None:
         return None
     s = textwrap.dedent(s)
-    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
+    return Markup(f'<div class="{css_class}" >{md.render(s)}</div>')
 
 
 def get_attr_renderer():
@@ -673,8 +648,9 @@ class CustomSQLAInterface(SQLAInterface):
             if not isinstance(desc, AssociationProxy):
                 continue
             proxy_instance = getattr(self.obj, desc.value_attr)
-            self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
-            self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
+            if hasattr(proxy_instance.remote_attr.prop, 'columns'):
+                self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
+                self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -755,9 +731,9 @@ class UIAlert:
 
     def __init__(
         self,
-        message: Union[str, Markup],
+        message: str | Markup,
         category: str = "info",
-        roles: Optional[List[str]] = None,
+        roles: list[str] | None = None,
         html: bool = False,
     ):
         self.category = category

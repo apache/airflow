@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -38,7 +39,6 @@ OBJECT_SRC_3 = "parent-3.txt"
 
 with models.DAG(
     "example_sftp_to_gcs",
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

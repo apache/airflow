@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains AWS Athena hook.
 
@@ -23,9 +22,11 @@ This module contains AWS Athena hook.
 
     PageIterator
 """
+from __future__ import annotations
+
 import warnings
 from time import sleep
-from typing import Any, Dict, Optional
+from typing import Any
 
 from botocore.paginate import PageIterator
 
@@ -67,9 +68,9 @@ class AthenaHook(AwsBaseHook):
     def run_query(
         self,
         query: str,
-        query_context: Dict[str, str],
-        result_configuration: Dict[str, Any],
-        client_request_token: Optional[str] = None,
+        query_context: dict[str, str],
+        result_configuration: dict[str, Any],
+        client_request_token: str | None = None,
         workgroup: str = 'primary',
     ) -> str:
         """
@@ -91,10 +92,9 @@ class AthenaHook(AwsBaseHook):
         if client_request_token:
             params['ClientRequestToken'] = client_request_token
         response = self.get_conn().start_query_execution(**params)
-        query_execution_id = response['QueryExecutionId']
-        return query_execution_id
+        return response['QueryExecutionId']
 
-    def check_query_status(self, query_execution_id: str) -> Optional[str]:
+    def check_query_status(self, query_execution_id: str) -> str | None:
         """
         Fetch the status of submitted athena query. Returns None or one of valid query states.
 
@@ -112,7 +112,7 @@ class AthenaHook(AwsBaseHook):
             # The error is being absorbed to implement retries.
             return state
 
-    def get_state_change_reason(self, query_execution_id: str) -> Optional[str]:
+    def get_state_change_reason(self, query_execution_id: str) -> str | None:
         """
         Fetch the reason for a state change (e.g. error message). Returns None or reason string.
 
@@ -131,8 +131,8 @@ class AthenaHook(AwsBaseHook):
             return reason
 
     def get_query_results(
-        self, query_execution_id: str, next_token_id: Optional[str] = None, max_results: int = 1000
-    ) -> Optional[dict]:
+        self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
+    ) -> dict | None:
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else dict of query output
@@ -157,10 +157,10 @@ class AthenaHook(AwsBaseHook):
     def get_query_results_paginator(
         self,
         query_execution_id: str,
-        max_items: Optional[int] = None,
-        page_size: Optional[int] = None,
-        starting_token: Optional[str] = None,
-    ) -> Optional[PageIterator]:
+        max_items: int | None = None,
+        page_size: int | None = None,
+        starting_token: str | None = None,
+    ) -> PageIterator | None:
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else a paginator to iterate through pages of results. If you
@@ -190,17 +190,35 @@ class AthenaHook(AwsBaseHook):
         paginator = self.get_conn().get_paginator('get_query_results')
         return paginator.paginate(**result_params)
 
-    def poll_query_status(self, query_execution_id: str, max_tries: Optional[int] = None) -> Optional[str]:
+    def poll_query_status(
+        self,
+        query_execution_id: str,
+        max_tries: int | None = None,
+        max_polling_attempts: int | None = None,
+    ) -> str | None:
         """
         Poll the status of submitted athena query until query state reaches final state.
         Returns one of the final states
 
         :param query_execution_id: Id of submitted athena query
-        :param max_tries: Number of times to poll for query state before function exits
+        :param max_tries: Deprecated - Use max_polling_attempts instead
+        :param max_polling_attempts: Number of times to poll for query state before function exits
         :return: str
         """
+        if max_tries:
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
+                "in a future release.  Please use method `max_polling_attempts` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if max_polling_attempts and max_polling_attempts != max_tries:
+                raise Exception("max_polling_attempts must be the same value as max_tries")
+            else:
+                max_polling_attempts = max_tries
+
         try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_tries reached
+        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
         while True:
             query_state = self.check_query_status(query_execution_id)
             if query_state is None:
@@ -213,7 +231,9 @@ class AthenaHook(AwsBaseHook):
                 break
             else:
                 self.log.info('Trial %s: Query is still in non-terminal state - %s', try_number, query_state)
-            if max_tries and try_number >= max_tries:  # Break loop if max_tries reached
+            if (
+                max_polling_attempts and try_number >= max_polling_attempts
+            ):  # Break loop if max_polling_attempts reached
                 final_query_state = query_state
                 break
             try_number += 1
@@ -245,7 +265,7 @@ class AthenaHook(AwsBaseHook):
 
         return output_location
 
-    def stop_query(self, query_execution_id: str) -> Dict:
+    def stop_query(self, query_execution_id: str) -> dict:
         """
         Cancel the submitted athena query
 
@@ -253,18 +273,3 @@ class AthenaHook(AwsBaseHook):
         :return: dict
         """
         return self.get_conn().stop_query_execution(QueryExecutionId=query_execution_id)
-
-
-class AWSAthenaHook(AthenaHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.athena.AthenaHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. Please use `airflow.providers.amazon.aws.hooks.athena.AthenaHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 from os import environ
 
@@ -27,7 +29,6 @@ BUCKET_NAME = environ.get('S3_BUCKET_NAME', 'ExistingS3BucketName')
 
 with DAG(
     dag_id='example_dynamodb_to_s3',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

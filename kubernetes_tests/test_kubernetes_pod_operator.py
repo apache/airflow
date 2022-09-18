@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -33,15 +35,18 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, XCOM_RETURN_KEY, DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
+
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
 def create_context(task):
@@ -71,6 +76,13 @@ def get_kubeconfig_path():
     return kubeconfig_path if kubeconfig_path else os.path.expanduser('~/.kube/config')
 
 
+def get_label():
+    test = os.environ.get('PYTEST_CURRENT_TEST')
+    label = ''.join(filter(str.isalnum, test)).lower()
+    return label[-63]
+
+
+@pytest.mark.execution_timeout(180)
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)
@@ -79,6 +91,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
         self.api_client = ApiClient()
+        self.labels = {"test_label": get_label()}
         self.expected_pod = {
             'apiVersion': 'v1',
             'kind': 'Pod',
@@ -87,9 +100,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'name': ANY,
                 'annotations': {},
                 'labels': {
-                    'foo': 'bar',
+                    'test_label': get_label(),
                     'kubernetes_pod_operator': 'True',
                     'airflow_version': airflow_version.replace('+', '-'),
+                    'airflow_kpo_in_cluster': 'False',
                     'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
                     'dag_id': 'dag',
                     'task_id': ANY,
@@ -122,24 +136,26 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             },
         }
 
-    def tearDown(self) -> None:
-        client = kube_client.get_kube_client(in_cluster=False)
-        client.delete_collection_namespaced_pod(namespace="default")
-        import time
+    def _get_labels_selector(self) -> str | None:
+        if not self.labels:
+            return None
+        return ",".join([f'{key}={value}' for key, value in enumerate(self.labels)])
 
-        time.sleep(1)
+    def tearDown(self) -> None:
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
+        client.delete_collection_namespaced_pod(namespace="default", grace_period_seconds=0)
 
     def test_do_xcom_push_defaults_false(self):
         new_config_path = '/tmp/kube_config'
         old_config_path = get_kubeconfig_path()
         shutil.copy(old_config_path, new_config_path)
-
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -158,7 +174,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test1",
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -169,9 +185,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         k.execute(context)
         expected_pod = copy(self.expected_pod)
-        expected_pod['metadata']['labels']['already_checked'] = 'True'
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        assert expected_pod == actual_pod
+        assert actual_pod == expected_pod
 
     def test_working_pod(self):
         k = KubernetesPodOperator(
@@ -179,7 +194,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -197,7 +212,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -210,13 +225,64 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod['spec'] == actual_pod['spec']
         assert self.expected_pod['metadata']['labels'] == actual_pod['metadata']['labels']
 
+    def test_already_checked_on_success(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
+
+    def test_already_checked_on_failure(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["lalala"],
+            labels=self.labels,
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        status = next(iter(filter(lambda x: x['name'] == 'base', actual_pod['status']['containerStatuses'])))
+        assert status['state']['terminated']['reason'] == 'Error'
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
+
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -237,7 +303,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -260,7 +326,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -280,7 +346,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -303,12 +369,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
             do_xcom_push=False,
-            resources=resources,
+            container_resources=resources,
         )
         context = create_context(k)
         k.execute(context)
@@ -338,7 +404,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -362,7 +428,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -395,7 +461,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=args,
-                labels={"foo": "bar"},
+                labels=self.labels,
                 volume_mounts=[volume_mount],
                 volumes=[volume],
                 name="test-" + str(random.randint(0, 1000000)),
@@ -417,17 +483,13 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             assert self.expected_pod == actual_pod
 
     def test_run_as_user_root(self):
-        security_context = {
-            'securityContext': {
-                'runAsUser': 0,
-            }
-        }
+        security_context = {'runAsUser': 0}
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -442,17 +504,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_run_as_user_non_root(self):
         security_context = {
-            'securityContext': {
-                'runAsUser': 1000,
-            }
+            'runAsUser': 1000,
         }
-
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -465,11 +524,30 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['securityContext'] = security_context
         assert self.expected_pod == actual_pod
 
+    def test_disable_privilege_escalation(self):
+        container_security_context = {'allowPrivilegeEscalation': False}
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            name="test-" + str(random.randint(0, 1000000)),
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            container_security_context=container_security_context,
+        )
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['containers'][0]['securityContext'] = container_security_context
+        assert self.expected_pod == actual_pod
+
     def test_fs_group(self):
         security_context = {
-            'securityContext': {
-                'fsGroup': 1000,
-            }
+            'fsGroup': 1000,
         }
 
         k = KubernetesPodOperator(
@@ -477,7 +555,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-fs-group",
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -497,7 +575,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image=bad_image_name,
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -518,7 +596,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -541,7 +619,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=bad_internal_command,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -556,14 +634,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     @mock.patch("airflow.models.taskinstance.TaskInstance.xcom_push")
     def test_xcom_push(self, xcom_push):
-        return_value = '{"foo": "bar"\n, "buzz": 2}'
+        return_value = f'{{"test_label": "{get_label()}"\n, "buzz": 2}}'
         args = [f'echo \'{return_value}\' > /airflow/xcom/return.json']
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=args,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -582,10 +660,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, mock_client, await_pod_completion_mock, create_pod):
+    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_envs_from_secrets(self, await_pod_completion_mock, create_pod):
+        # todo: This isn't really a system test
+
         # GIVEN
 
         secret_ref = 'secret_name'
@@ -597,14 +677,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             secrets=secrets,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
             do_xcom_push=False,
         )
         # THEN
-        await_pod_completion_mock.return_value = None
+        await_pod_completion_mock.side_effect = AirflowException
         context = create_context(k)
         with pytest.raises(AirflowException):
             k.execute(context)
@@ -629,7 +709,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             env_vars=env_vars,
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -646,10 +726,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_pod_template_file_system(self):
+        """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
+            labels=self.labels,
             pod_template_file=fixture,
             do_xcom_push=True,
         )
@@ -663,7 +745,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
-            labels={"foo": "bar", "fizz": "buzz"},
+            labels=self.labels,
             env_vars=[k8s.V1EnvVar(name="env_name", value="value")],
             in_cluster=False,
             pod_template_file=fixture,
@@ -674,9 +756,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         result = k.execute(context)
         assert result is not None
         assert k.pod.metadata.labels == {
-            'fizz': 'buzz',
-            'foo': 'bar',
+            'test_label': get_label(),
             'airflow_version': mock.ANY,
+            'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
             'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
@@ -690,7 +772,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                labels={"foo": "bar", "fizz": "buzz"},
+                labels={"test_label": get_label(), "fizz": "buzz"},
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -703,6 +785,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         )
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
+            labels=self.labels,
             in_cluster=False,
             pod_template_file=fixture,
             full_pod_spec=pod_spec,
@@ -714,8 +797,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert result is not None
         assert k.pod.metadata.labels == {
             'fizz': 'buzz',
-            'foo': 'bar',
+            'test_label': get_label(),
             'airflow_version': mock.ANY,
+            'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
             'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
@@ -728,7 +812,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def test_full_pod_spec(self):
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                labels={"foo": "bar", "fizz": "buzz"}, namespace="default", name="test-pod"
+                labels={"test_label": get_label(), "fizz": "buzz"}, namespace="default", name="test-pod"
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -746,6 +830,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
+            labels=self.labels,
             full_pod_spec=pod_spec,
             do_xcom_push=True,
             is_delete_operator_pod=False,
@@ -756,14 +841,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert result is not None
         assert k.pod.metadata.labels == {
             'fizz': 'buzz',
-            'foo': 'bar',
+            'test_label': get_label(),
             'airflow_version': mock.ANY,
+            'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
             'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
             'task_id': mock.ANY,
             'try_number': '1',
-            'already_checked': 'True',
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -806,7 +891,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             volumes=[volume],
@@ -823,15 +908,22 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ]
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_template_file(self, mock_client, await_pod_completion_mock, create_mock, extract_xcom_mock):
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
+    @mock.patch(HOOK_CLASS)
+    def test_pod_template_file(
+        self, hook_mock, await_pod_completion_mock, extract_xcom_mock, await_xcom_sidecar_container_start_mock
+    ):
+        # todo: This isn't really a system test
+        await_xcom_sidecar_container_start_mock.return_value = None
+        hook_mock.return_value.is_in_cluster = False
         extract_xcom_mock.return_value = '{}'
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
+            labels=self.labels,
             random_name_suffix=False,
             pod_template_file=path,
             do_xcom_push=True,
@@ -863,6 +955,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'metadata': {
                 'annotations': {},
                 'labels': {
+                    "test_label": get_label(),
+                    'airflow_kpo_in_cluster': 'False',
                     'dag_id': 'dag',
                     'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
                     'kubernetes_pod_operator': 'True',
@@ -909,11 +1003,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         del actual_pod['metadata']['labels']['airflow_version']
         assert expected_dict == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_priority_class_name(self, mock_client, await_pod_completion_mock, create_mock):
-        """Test ability to assign priorityClassName to pod"""
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
+    @mock.patch(HOOK_CLASS)
+    def test_pod_priority_class_name(self, hook_mock, await_pod_completion_mock):
+        """
+        Test ability to assign priorityClassName to pod
+
+        todo: This isn't really a system test
+        """
+        hook_mock.return_value.is_in_cluster = False
 
         priority_class_name = "medium-test"
         k = KubernetesPodOperator(
@@ -921,7 +1020,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test-" + str(random.randint(0, 1000000)),
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
@@ -946,17 +1045,17 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=["echo 10"],
-                labels={"foo": "bar"},
+                labels=self.labels,
                 name=pod_name_too_long,
                 task_id="task" + self.get_current_task_name(),
                 in_cluster=False,
                 do_xcom_push=False,
             )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    def test_on_kill(self, await_pod_completion_mock):
-
-        client = kube_client.get_kube_client(in_cluster=False)
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion", new=MagicMock)
+    def test_on_kill(self):
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         name = "test"
         namespace = "default"
         k = KubernetesPodOperator(
@@ -964,7 +1063,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["sleep 1000"],
-            labels={"foo": "bar"},
+            labels=self.labels,
             name="test",
             task_id=name,
             in_cluster=False,
@@ -983,7 +1082,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             client.read_namespaced_pod(name=name, namespace=namespace)
 
     def test_reattach_failing_pod_once(self):
-        client = kube_client.get_kube_client(in_cluster=False)
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         name = "test"
         namespace = "default"
 
@@ -993,7 +1093,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
                 arguments=["exit 1"],
-                labels={"foo": "bar"},
+                labels=self.labels,
                 name="test",
                 task_id=name,
                 in_cluster=False,
@@ -1007,9 +1107,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
 
         # launch pod
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion"
-        ) as await_pod_completion_mock:
+        with mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion") as await_pod_completion_mock:
             pod_mock = MagicMock()
 
             pod_mock.status.phase = 'Succeeded'
@@ -1033,9 +1131,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
         # `create_pod` should not be called because there's a pod there it should find
         # should use the found pod and patch as "already_checked" (in failure block)
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
-        ) as create_mock:
+        with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
             with pytest.raises(AirflowException):
                 k.execute(context)
             pod = client.read_namespaced_pod(name=name, namespace=namespace)
@@ -1047,9 +1143,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
-        ) as create_mock:
+        with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
             with pytest.raises(AirflowException):
                 k.execute(context)
             create_mock.assert_called_once()

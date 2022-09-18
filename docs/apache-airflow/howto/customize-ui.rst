@@ -166,8 +166,6 @@ information, see `String Formatting in the MarkupSafe docs <https://markupsafe.p
     .. code-block:: python
 
       DASHBOARD_UIALERTS = [
-          UIAlert(
-              'Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True
-          ),
+          UIAlert('Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True),
           UIAlert(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",)),
       ]

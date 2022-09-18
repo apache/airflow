@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import copy
 import unittest
@@ -42,7 +43,6 @@ from airflow.providers.google.cloud.operators.mlengine import (
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 
 DEFAULT_DATE = timezone.datetime(2017, 6, 6)
 
@@ -101,7 +101,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 'start_date': DEFAULT_DATE,
                 'end_date': DEFAULT_DATE,
             },
-            schedule_interval='@daily',
+            schedule='@daily',
         )
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
@@ -231,7 +231,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['model_name'] = 'fake_model'
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert 'Ambiguous model origin: Both uri and ' 'model/version name are provided.' == str(ctx.value)
+        assert 'Ambiguous model origin: Both uri and model/version name are provided.' == str(ctx.value)
 
         # Test that both uri and model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
@@ -240,7 +240,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['version_name'] = 'fake_version'
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert 'Ambiguous model origin: Both uri and ' 'model/version name are provided.' == str(ctx.value)
+        assert 'Ambiguous model origin: Both uri and model/version name are provided.' == str(ctx.value)
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
@@ -410,7 +410,7 @@ class TestMLEngineStartTrainingJobOperator:
                 'imageUri': 'eu.gcr.io/test-project/test-image:test-version',
             },
             'task_id': 'test-training',
-            'start_date': days_ago(1),
+            'start_date': DEFAULT_DATE,
         }
         request = {
             'jobId': 'test_training',

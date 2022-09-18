@@ -22,6 +22,7 @@
 {{- $affinity := or .Values.webserver.affinity .Values.affinity }}
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.webserver.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.webserver) }}
 kind: Deployment
 apiVersion: apps/v1
@@ -38,6 +39,9 @@ metadata:
 {{- end }}
 spec:
   replicas: {{ .Values.webserver.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
   strategy:
     {{- if .Values.webserver.strategy }}
     {{- toYaml .Values.webserver.strategy | nindent 4 }}
@@ -69,8 +73,8 @@ spec:
         tier: airflow
         component: webserver
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.webserver.labels) }}
+{{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -135,6 +139,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.webserver.waitForMigrations.env }}
+{{ tpl (toYaml .Values.webserver.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
@@ -199,6 +206,7 @@ spec:
                 - name: Host
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
 {{- end }}
+              scheme: {{ .Values.webserver.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold | default 20 }}
@@ -212,6 +220,7 @@ spec:
                 - name: Host
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
 {{- end }}
+              scheme: {{ .Values.webserver.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}
@@ -221,6 +230,7 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.webserver.env) | indent 10 }}
 {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
 {{- include "git_sync_container" . | indent 8 }}
 {{- end }}

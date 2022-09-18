@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime as dt
 import unittest
@@ -91,6 +92,8 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
+            "trigger": None,
+            "triggerer_job": None,
         }
         assert serialized_ti == expected_json
 
@@ -141,6 +144,8 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {"partitions": "data/ds=2022-02-17"},
+            "trigger": None,
+            "triggerer_job": None,
         }
         assert serialized_ti == expected_json
 
@@ -174,6 +179,37 @@ class TestClearTaskInstanceFormSchema(unittest.TestCase):
                         "dry_run": False,
                         "reset_dag_runs": True,
                         "task_ids": [],
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                        "start_date": "2022-08-03T00:00:00+00:00",
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                        "end_date": "2022-08-03T00:00:00+00:00",
+                    }
+                ]
+            ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "dag_run_id": "scheduled__2022-06-19T00:00:00+00:00",
+                        "end_date": "2022-08-04T00:00:00+00:00",
+                        "start_date": "2022-08-03T00:00:00+00:00",
                     }
                 ]
             ),

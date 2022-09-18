@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -143,7 +145,7 @@ class TestConnection(unittest.TestCase):
             description='with extras',
         ),
         UriTestCaseConfig(
-            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?' '__extra__=single+value',
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?__extra__=single+value',
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',

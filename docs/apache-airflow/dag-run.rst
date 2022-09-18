@@ -37,40 +37,38 @@ There are two possible terminal states for the DAG Run:
 - ``failed`` if any of the leaf nodes state is either ``failed`` or ``upstream_failed``.
 
 .. note::
-    Be careful if some of your tasks have defined some specific `trigger rule <dags.html#trigger-rules>`_.
+    Be careful if some of your tasks have defined some specific :ref:`trigger rule <concepts:trigger-rules>`.
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole DAG Run will also be marked as ``success``, even if something failed in the middle.
 
 Cron Presets
 ''''''''''''
 
-Each DAG may or may not have a schedule, which informs how DAG Runs are
-created. ``schedule_interval`` is defined as a DAG argument, which can be passed a
-`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
-a ``str``, a ``datetime.timedelta`` object, or one of the following cron "presets".
+You may set your DAG to run on a simple schedule by setting its ``schedule`` argument to either a
+`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, a ``datetime.timedelta`` object,
+or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable </concepts/timetable>`
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
 
-+----------------+----------------------------------------------------------------+-----------------+
-| preset         | meaning                                                        | cron            |
-+================+================================================================+=================+
-| ``None``       | Don't schedule, use for exclusively "externally triggered"     |                 |
-|                | DAGs                                                           |                 |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@once``      | Schedule once and only once                                    |                 |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@hourly``    | Run once an hour at the beginning of the hour                  | ``0 * * * *``   |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@daily``     | Run once a day at midnight                                     | ``0 0 * * *``   |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@weekly``    | Run once a week at midnight on Sunday morning                  | ``0 0 * * 0``   |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@monthly``   | Run once a month at midnight of the first day of the month     | ``0 0 1 * *``   |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@quarterly`` | Run once a quarter at midnight on the first day                | ``0 0 1 */3 *`` |
-+----------------+----------------------------------------------------------------+-----------------+
-| ``@yearly``    | Run once a year at midnight of January 1                       | ``0 0 1 1 *``   |
-+----------------+----------------------------------------------------------------+-----------------+
++----------------+--------------------------------------------------------------------+-----------------+
+| preset         | meaning                                                            | cron            |
++================+====================================================================+=================+
+| ``None``       | Don't schedule, use for exclusively "externally triggered" DAGs    |                 |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@once``      | Schedule once and only once                                        |                 |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@hourly``    | Run once an hour at the end of the hour                            | ``0 * * * *``   |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@daily``     | Run once a day at midnight (24:00)                                 | ``0 0 * * *``   |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@weekly``    | Run once a week at midnight (24:00) on Sunday                      | ``0 0 * * 0``   |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@monthly``   | Run once a month at midnight (24:00) of the first day of the month | ``0 0 1 * *``   |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@quarterly`` | Run once a quarter at midnight (24:00) on the first day            | ``0 0 1 */3 *`` |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@yearly``    | Run once a year at midnight (24:00) of January 1                   | ``0 0 1 1 *``   |
++----------------+--------------------------------------------------------------------+-----------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding
 DAG Run entry in the database backend.
@@ -83,8 +81,8 @@ Data Interval
 
 Each DAG run in Airflow has an assigned "data interval" that represents the time
 range it operates in. For a DAG scheduled with ``@daily``, for example, each of
-its data interval would start at midnight of each day and end at midnight of the
-next day.
+its data interval would start each day at midnight (00:00) and end at midnight
+(24:00).
 
 A DAG run is usually scheduled *after* its associated data interval has ended,
 to ensure the run is able to collect all the data within the time period. In
@@ -103,7 +101,7 @@ scheduled one interval after ``start_date``.
 
 .. tip::
 
-    If ``schedule_interval`` is not enough to express your DAG's schedule,
+    If a cron expression or timedelta object is not enough to express your DAG's schedule,
     logical date, or data interval, see :doc:`/concepts/timetable`.
     For more information on ``logical date``, see :ref:`concepts:dag-run` and
     :ref:`faq:what-does-execution-date-mean`
@@ -118,12 +116,12 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a
-series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
+An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-dataset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
+The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
-then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
+then you will want to turn catchup off. This can be done by setting ``catchup=False`` in DAG  or ``catchup_by_default=False``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
 .. code-block:: python
@@ -147,7 +145,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
         },
         start_date=pendulum.datetime(2015, 12, 1, tz="UTC"),
         description="A simple tutorial DAG",
-        schedule_interval="@daily",
+        schedule="@daily",
         catchup=False,
     )
 
@@ -157,9 +155,9 @@ with a data between 2016-01-01 and 2016-01-02, and the next one will be created
 just after midnight on the morning of 2016-01-03 with a data interval between
 2016-01-02 and 2016-01-03.
 
-If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
+If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,
-as that interval hasn’t completed) and the scheduler will execute them sequentially.
+as that interval hasn't completed) and the scheduler will execute them sequentially.
 
 Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
 
@@ -223,17 +221,17 @@ For more options, you can check the help of the `clear command <cli-ref.html#cle
 External Triggers
 '''''''''''''''''
 
-Note that DAG Runs can also be created manually through the CLI. Just run the command -
+Note that DAG Runs can also be created manually through the CLI. Just run the command -
 
 .. code-block:: bash
 
     airflow dags trigger --exec-date logical_date run_id
 
-The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
-in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
+The DAG Runs created externally to the scheduler get associated with the trigger's timestamp and are displayed
+in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
 The default is the current date in the UTC timezone.
 
-In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
 .. _dagrun:parameters:
 
@@ -254,7 +252,7 @@ Example of a parameterized DAG:
 
     dag = DAG(
         "example_parameterized_dag",
-        schedule_interval=None,
+        schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
     )

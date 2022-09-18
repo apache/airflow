@@ -16,18 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+from __future__ import annotations
+
 import logging
 import os
-from datetime import datetime
+import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
-
-from itsdangerous import TimedJSONWebSignatureSerializer
+from typing import TYPE_CHECKING
+from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -44,13 +47,20 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: str):
+    def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: Optional[logging.FileHandler] = None
+        self.handler: logging.FileHandler | None = None
         self.local_base = base_log_folder
-        self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
+        if filename_template is not None:
+            warnings.warn(
+                "Passing filename_template to a log handler is deprecated and has no effect",
+                RemovedInAirflow3Warning,
+                # We want to reference the stack that actually instantiates the
+                # handler, not the one that calls super()__init__.
+                stacklevel=(2 if type(self) == FileTaskHandler else 3),
+            )
 
-    def set_context(self, ti: "TaskInstance"):
+    def set_context(self, ti: TaskInstance):
         """
         Provide task_instance context to airflow task handler.
 
@@ -74,22 +84,28 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
-        if self.filename_jinja_template:
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)
+            template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+
+        if jinja_tpl:
             if hasattr(ti, "task"):
                 context = ti.get_template_context()
             else:
-                context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
             context["try_number"] = try_number
-            return render_template_to_string(self.filename_jinja_template, context)
-        elif self.filename_template:
-            dag_run = ti.get_dagrun()
-            dag = ti.task.dag
-            assert dag is not None  # For Mypy.
+            return render_template_to_string(jinja_tpl, context)
+        elif str_tpl:
             try:
-                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+                dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            else:
+                if TYPE_CHECKING:
+                    assert dag is not None
+                data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -98,7 +114,7 @@ class FileTaskHandler(logging.Handler):
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            return self.filename_template.format(
+            return str_tpl.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 run_id=ti.run_id,
@@ -124,6 +140,8 @@ class FileTaskHandler(logging.Handler):
                          can be used for steaming log reading and auto-tailing.
         :return: log message as a string and metadata.
         """
+        from airflow.utils.jwt_signer import JWTSigner
+
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
@@ -179,8 +197,8 @@ class FileTaskHandler(logging.Handler):
         else:
             import httpx
 
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
+            url = urljoin(
+                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log", log_relative_path
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
@@ -191,16 +209,17 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                signer = TimedJSONWebSignatureSerializer(
+                signer = JWTSigner(
                     secret_key=conf.get('webserver', 'secret_key'),
-                    algorithm_name='HS512',
-                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
-                    # This isn't really a "salt", more of a signing context
-                    salt='task-instance-logs',
+                    expiration_time_in_seconds=conf.getint(
+                        'webserver', 'log_request_clock_grace', fallback=30
+                    ),
+                    audience="task-instance-logs",
                 )
-
                 response = httpx.get(
-                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                    url,
+                    timeout=timeout,
+                    headers={b'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 

@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 ### Tutorial Documentation
 Documentation that goes along with the Airflow tutorial located
 [here](https://airflow.apache.org/tutorial.html)
 """
+from __future__ import annotations
+
 # [START tutorial]
 # [START import_module]
 from datetime import datetime, timedelta
@@ -63,7 +64,7 @@ with DAG(
     },
     # [END default_args]
     description='A simple tutorial DAG',
-    schedule_interval=timedelta(days=1),
+    schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
@@ -93,11 +94,11 @@ with DAG(
     `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
     rendered in the UI's Task Instance Details page.
     ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
-
+    **Image Credit:** Randall Munroe, [XKCD](https://xkcd.com/license.html)
     """
     )
 
-    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG
+    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG; OR
     dag.doc_md = """
     This is a documentation placed anywhere
     """  # otherwise, type it like this

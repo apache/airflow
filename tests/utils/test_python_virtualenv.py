@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import sys
 import unittest
 from unittest import mock
 
-from airflow.utils.python_virtualenv import prepare_virtualenv, remove_task_decorator
+from airflow.utils.decorators import remove_task_decorator
+from airflow.utils.python_virtualenv import prepare_virtualenv
 
 
 class TestPrepareVirtualenv(unittest.TestCase):

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import configparser
 import os
 import unittest
@@ -49,30 +51,22 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'scheduler',
     'triggerer',
     'kerberos',
-    'github_enterprise',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
     'sensors',
-    'smart_sensor',
 ]
 
 DEFAULT_TEST_SECTIONS = [
     'core',
     'database',
     "logging",
-    'cli',
     'api',
-    'operators',
     'hive',
-    'webserver',
-    'email',
     'smtp',
     'celery',
     'scheduler',
     'elasticsearch',
-    'elasticsearch_configs',
-    'kubernetes',
 ]
 
 

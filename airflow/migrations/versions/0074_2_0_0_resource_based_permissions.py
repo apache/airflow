@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Resource based permissions.
 
 Revision ID: 2c6edca13270
@@ -23,6 +22,8 @@ Revises: 849da589634d
 Create Date: 2020-10-21 00:18:52.529438
 
 """
+from __future__ import annotations
+
 import logging
 
 from airflow.security import permissions

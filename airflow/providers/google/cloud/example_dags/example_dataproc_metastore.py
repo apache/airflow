@@ -19,6 +19,7 @@
 Example Airflow DAG that show how to use various Dataproc Metastore
 operators to manage a service.
 """
+from __future__ import annotations
 
 import datetime
 import os
@@ -94,7 +95,8 @@ METADATA_IMPORT = MetadataImport(
 
 
 with models.DAG(
-    "example_gcp_dataproc_metastore", start_date=datetime.datetime(2021, 1, 1), schedule_interval="@once"
+    dag_id="example_gcp_dataproc_metastore",
+    start_date=datetime.datetime(2021, 1, 1),
 ) as dag:
     # [START how_to_cloud_dataproc_metastore_create_service_operator]
     create_service = DataprocMetastoreCreateServiceOperator(

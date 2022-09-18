@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains integration with Azure Blob Storage.
 
@@ -23,10 +22,12 @@ It communicate via the Window Azure Storage Blob protocol. Make sure that a
 Airflow connection of type `wasb` exists. Authorization can be done by supplying a
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
-
 """
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import logging
+import os
+from typing import Any
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -59,7 +60,7 @@ class WasbHook(BaseHook):
     hook_name = 'Azure Blob Storage'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -81,7 +82,7 @@ class WasbHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port'],
@@ -112,6 +113,12 @@ class WasbHook(BaseHook):
         self.public_read = public_read
         self.blob_service_client = self.get_conn()
 
+        logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
+        try:
+            logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
+        except ValueError:
+            logger.setLevel(logging.WARNING)
+
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
@@ -121,31 +128,33 @@ class WasbHook(BaseHook):
             # Here we use anonymous public read
             # more info
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            return BlobServiceClient(account_url=conn.host)
+            return BlobServiceClient(account_url=conn.host, **extra)
 
-        if extra.get('connection_string') or extra.get('extra__wasb__connection_string'):
+        connection_string = extra.pop('connection_string', extra.pop('extra__wasb__connection_string', None))
+        if connection_string:
             # connection_string auth takes priority
-            connection_string = extra.get('connection_string') or extra.get('extra__wasb__connection_string')
-            return BlobServiceClient.from_connection_string(connection_string)
-        if extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key'):
-            shared_access_key = extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key')
+            return BlobServiceClient.from_connection_string(connection_string, **extra)
+
+        shared_access_key = extra.pop('shared_access_key', extra.pop('extra__wasb__shared_access_key', None))
+        if shared_access_key:
             # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=shared_access_key)
-        if extra.get('tenant_id') or extra.get('extra__wasb__tenant_id'):
+            return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
+
+        tenant = extra.pop('tenant_id', extra.pop('extra__wasb__tenant_id', None))
+        if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            tenant = extra.get('tenant_id', extra.get('extra__wasb__tenant_id'))
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
-            return BlobServiceClient(account_url=conn.host, credential=token_credential)
+            return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
 
-        sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
+        sas_token = extra.pop('sas_token', extra.pop('extra__wasb__sas_token', None))
         if sas_token:
             if sas_token.startswith('https'):
-                return BlobServiceClient(account_url=sas_token)
+                return BlobServiceClient(account_url=sas_token, **extra)
             else:
                 return BlobServiceClient(
-                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}'
+                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}', **extra
                 )
 
         # Fall back to old auth (password) or use managed identity if not provided.
@@ -209,11 +218,11 @@ class WasbHook(BaseHook):
     def get_blobs_list(
         self,
         container_name: str,
-        prefix: Optional[str] = None,
-        include: Optional[List[str]] = None,
-        delimiter: Optional[str] = '/',
+        prefix: str | None = None,
+        include: list[str] | None = None,
+        delimiter: str | None = '/',
         **kwargs,
-    ) -> List:
+    ) -> list:
         """
         List blobs in a given container
 
@@ -315,10 +324,10 @@ class WasbHook(BaseHook):
         blob_name: str,
         data: Any,
         blob_type: str = 'BlockBlob',
-        length: Optional[int] = None,
+        length: int | None = None,
         create_container: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Creates a new blob from a data source with automatic chunking.
 
@@ -339,7 +348,7 @@ class WasbHook(BaseHook):
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(
-        self, container_name, blob_name, offset: Optional[int] = None, length: Optional[int] = None, **kwargs
+        self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
     ) -> StorageStreamDownloader:
         """
         Downloads a blob to the StorageStreamDownloader
@@ -442,3 +451,14 @@ class WasbHook(BaseHook):
             raise AirflowException(f'Blob(s) not found: {blob_name}')
 
         self.delete_blobs(container_name, *blobs_to_delete, **kwargs)
+
+    def test_connection(self):
+        """Test Azure Blob Storage connection."""
+        success = (True, "Successfully connected to Azure Blob Storage.")
+
+        try:
+            # Attempt to retrieve storage account information
+            self.get_conn().get_account_information()
+            return success
+        except Exception as e:
+            return False, str(e)

@@ -24,7 +24,9 @@ When you create new or modify existing DAG files, it is necessary to deploy them
 Bake DAGs in Docker image
 -------------------------
 
-The recommended way to update your DAGs with this chart is to build a new Docker image with the latest DAG code:
+With this approach, you include your dag files and related code in the airflow image.
+
+This method requires redeploying the services in the helm chart with the new docker image in order to deploy the new DAG code. This can work well particularly if DAG code is not expected to change frequently.
 
 .. code-block:: bash
 
@@ -71,12 +73,30 @@ Finally, update the Airflow pods with that image:
 
 If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time.
 
+.. warning::
+
+    Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.
+
 .. code-block:: bash
 
     helm upgrade --install airflow apache-airflow/airflow \
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78 \
-      --set images.airflow.pullPolicy=Always
+      --set images.airflow.pullPolicy=Always \
+      --set airflowPodAnnotations.random=r$(uuidgen)
+
+The randomly generated pod annotation will ensure that pods are refreshed on helm upgrade.
+
+If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName``:
+
+
+.. code-block:: bash
+
+    helm upgrade --install airflow apache-airflow/airflow \
+      --set images.airflow.repository=my-company/airflow \
+      --set images.airflow.tag=8a0da78 \
+      --set images.airflow.pullPolicy=Always \
+      --set registry.secretName=gitlab-registry-credentials
 
 Mounting DAGs using Git-Sync sidecar with Persistence enabled
 -------------------------------------------------------------
@@ -87,15 +107,6 @@ seconds. The other pods will read the synced DAGs. Not all volume plugins have s
 ``ReadWriteMany`` access mode.
 Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
 for details.
-
-.. code-block:: bash
-
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set dags.persistence.enabled=true \
-      --set dags.gitSync.enabled=true
-      # you can also override the other persistence or gitSync values
-      # by setting the  dags.persistence.* and dags.gitSync.* values
-      # Please refer to values.yaml for details
 
 .. code-block:: bash
 

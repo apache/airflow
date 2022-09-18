@@ -65,7 +65,7 @@ function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
   return tooltipHTML;
 }
 
-export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
+export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   let tt = '';
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
@@ -98,7 +98,9 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
-
+  if (task && task.trigger_rule) {
+    tt += `Trigger Rule: ${task.trigger_rule}<br>`;
+  }
   // Calculate duration on the fly if task instance is still running
   if (ti.state === 'running') {
     const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);

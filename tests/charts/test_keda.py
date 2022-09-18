@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import jmespath
 import pytest
 from parameterized import parameterized
@@ -48,9 +50,43 @@ class TestKeda:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         if is_created:
-            assert jmespath.search("metadata.name", docs[0]) == "RELEASE-NAME-worker"
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
         else:
             assert docs == []
+
+    @parameterized.expand(
+        [
+            ('CeleryExecutor'),
+            ('CeleryKubernetesExecutor'),
+        ]
+    )
+    def test_keda_advanced(self, executor):
+        """
+        Verify keda advanced config.
+        """
+        expected_advanced = {
+            "horizontalPodAutoscalerConfig": {
+                "behavior": {
+                    "scaleDown": {
+                        "stabilizationWindowSeconds": 300,
+                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                    }
+                }
+            }
+        }
+        docs = render_chart(
+            values={
+                "workers": {
+                    "keda": {
+                        "enabled": True,
+                        "advanced": expected_advanced,
+                    },
+                },
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.advanced", docs[0]) == expected_advanced
 
     @staticmethod
     def build_query(executor, concurrency=16, queue=None):

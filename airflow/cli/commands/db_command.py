@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Database sub-commands"""
+from __future__ import annotations
+
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
@@ -198,4 +200,5 @@ def cleanup_tables(args):
         clean_before_timestamp=args.clean_before_timestamp,
         verbose=args.verbose,
         confirm=not args.yes,
+        skip_archive=args.skip_archive,
     )

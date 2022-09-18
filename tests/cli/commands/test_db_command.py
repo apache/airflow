@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 from unittest.mock import patch
@@ -293,6 +294,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse(timestamp, tz=timezone),
             verbose=False,
             confirm=False,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('timezone', ['UTC', 'Europe/Berlin', 'America/Los_Angeles'])
@@ -312,13 +314,14 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse(timestamp),
             verbose=False,
             confirm=False,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('confirm_arg, expected', [(['-y'], False), ([], True)])
     @patch('airflow.cli.commands.db_command.run_cleanup')
     def test_confirm(self, run_cleanup_mock, confirm_arg, expected):
         """
-        When tz included in the string then default timezone should not be used.
+        When ``-y`` provided, ``confirm`` should be false.
         """
         args = self.parser.parse_args(
             [
@@ -337,6 +340,33 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=expected,
+            skip_archive=False,
+        )
+
+    @pytest.mark.parametrize('extra_arg, expected', [(['--skip-archive'], True), ([], False)])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_skip_archive(self, run_cleanup_mock, extra_arg, expected):
+        """
+        When ``--skip-archive`` provided, ``skip_archive`` should be True (False otherwise).
+        """
+        args = self.parser.parse_args(
+            [
+                'db',
+                'clean',
+                '--clean-before-timestamp',
+                '2021-01-01',
+                *extra_arg,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
+            verbose=False,
+            confirm=True,
+            skip_archive=expected,
         )
 
     @pytest.mark.parametrize('dry_run_arg, expected', [(['--dry-run'], True), ([], False)])
@@ -362,6 +392,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=True,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize(
@@ -389,6 +420,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=True,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('extra_args, expected', [(['--verbose'], True), ([], False)])
@@ -414,4 +446,5 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=expected,
             confirm=True,
+            skip_archive=False,
         )

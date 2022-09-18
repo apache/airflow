@@ -82,8 +82,8 @@ Extra (optional)
         Schema = "orcl"
 
 
-    More details on all Oracle connect parameters supported can be found in `cx_Oracle documentation
-    <https://cx-oracle.readthedocs.io/en/latest/api_manual/module.html#cx_Oracle.connect>`_.
+    More details on all Oracle connect parameters supported can be found in `oracledb documentation
+    <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_.
 
     Information on creating an Oracle Connection through the web user interface can be found in Airflow's :doc:`Managing Connections Documentation <apache-airflow:howto/connection>`.
 

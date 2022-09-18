@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -33,8 +34,8 @@ class TestOracleToOracleTransfer(unittest.TestCase):
         source_sql_params = {':p_data': "2018-01-01"}
         rows_chunk = 5000
         cursor_description = [
-            ('id', "<class 'cx_Oracle.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1),
+            ('id', "<class 'oracledb.NUMBER'>", 39, None, 38, 0, 0),
+            ('description', "<class 'oracledb.STRING'>", 60, 240, None, None, 1),
         ]
         cursor_rows = [[1, 'description 1'], [2, 'description 2']]
 

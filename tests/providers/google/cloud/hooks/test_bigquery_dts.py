@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from copy import deepcopy
@@ -56,7 +57,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BiqQueryDataTransferServiceHook()
-            self.hook._get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
+            self.hook.get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
 
     def test_disable_auto_scheduling(self):
         expected = deepcopy(TRANSFER_CONFIG)

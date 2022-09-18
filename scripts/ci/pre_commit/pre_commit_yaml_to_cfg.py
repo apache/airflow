@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +19,7 @@
 """
 Module to convert Airflow configs in config.yml to default_airflow.cfg file
 """
+from __future__ import annotations
 
 import os
 
@@ -41,7 +42,6 @@ FILE_HEADER = """#
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 
 # This is the template for Airflow's default configuration. When Airflow is
 # imported, it looks for a configuration file at $AIRFLOW_HOME/airflow.cfg. If

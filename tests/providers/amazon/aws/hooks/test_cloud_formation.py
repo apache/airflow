@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import unittest
 
@@ -102,4 +103,4 @@ class TestCloudFormationHook(unittest.TestCase):
 
         stacks = self.hook.get_conn().describe_stacks()['Stacks']
         matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
-        assert len(matching_stacks) == 0, f'stack with name {stack_name} should not exist'
+        assert not matching_stacks, f'stack with name {stack_name} should not exist'

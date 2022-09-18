@@ -15,19 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Connect to Asana."""
-import sys
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from asana import Client  # type: ignore[attr-defined]
 from asana.error import NotFoundError  # type: ignore[attr-defined]
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 
@@ -50,7 +46,7 @@ class AsanaHook(BaseHook):
         return self.client
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -62,7 +58,7 @@ class AsanaHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["port", "host", "login", "schema"],
@@ -85,7 +81,7 @@ class AsanaHook(BaseHook):
 
         return Client.access_token(self.connection.password)
 
-    def create_task(self, task_name: str, params: Optional[dict]) -> dict:
+    def create_task(self, task_name: str, params: dict | None) -> dict:
         """
         Creates an Asana task.
 
@@ -99,7 +95,7 @@ class AsanaHook(BaseHook):
         response = self.client.tasks.create(params=merged_params)
         return response
 
-    def _merge_create_task_parameters(self, task_name: str, task_params: Optional[dict]) -> dict:
+    def _merge_create_task_parameters(self, task_name: str, task_params: dict | None) -> dict:
         """
         Merge create_task parameters with default params from the connection.
 
@@ -107,7 +103,7 @@ class AsanaHook(BaseHook):
         :param task_params: Other task parameters which should override defaults from the connection
         :return: A dict of merged parameters to use in the new task
         """
-        merged_params: Dict[str, Any] = {"name": task_name}
+        merged_params: dict[str, Any] = {"name": task_name}
         if self.project:
             merged_params["projects"] = [self.project]
         # Only use default workspace if user did not provide a project id
@@ -145,7 +141,7 @@ class AsanaHook(BaseHook):
             self.log.info("Asana task %s not found for deletion.", task_id)
             return {}
 
-    def find_task(self, params: Optional[dict]) -> list:
+    def find_task(self, params: dict | None) -> list:
         """
         Retrieves a list of Asana tasks that match search parameters.
 
@@ -158,7 +154,7 @@ class AsanaHook(BaseHook):
         response = self.client.tasks.find_all(params=merged_params)
         return list(response)
 
-    def _merge_find_task_parameters(self, search_parameters: Optional[dict]) -> dict:
+    def _merge_find_task_parameters(self, search_parameters: dict | None) -> dict:
         """
         Merge find_task parameters with default params from the connection.
 

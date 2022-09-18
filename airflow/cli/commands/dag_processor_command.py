@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """DagProcessor command"""
+from __future__ import annotations
+
 import logging
 from datetime import timedelta
 
@@ -36,7 +37,7 @@ def _create_dag_processor_manager(args) -> DagFileProcessorManager:
     processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
     return DagFileProcessorManager(
-        dag_directory=settings.DAGS_FOLDER,
+        dag_directory=args.subdir,
         max_runs=args.num_runs,
         processor_timeout=processor_timeout,
         dag_ids=[],
@@ -61,20 +62,22 @@ def dag_processor(args):
             "dag-processor", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+            stdout_handle.truncate(0)
+            stderr_handle.truncate(0)
+
             ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 try:
-                    manager.register_exit_signals()
                     manager.start()
                 finally:
                     manager.terminate()
                     manager.end()
     else:
-        manager.register_exit_signals()
         manager.start()

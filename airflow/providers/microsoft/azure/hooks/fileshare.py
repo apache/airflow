@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import warnings
-from typing import IO, Any, Dict, List, Optional
+from typing import IO, Any
 
 from azure.storage.file import File, FileService
 
@@ -45,7 +46,7 @@ class AzureFileShareHook(BaseHook):
         self._conn = None
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -64,7 +65,7 @@ class AzureFileShareHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -141,7 +142,7 @@ class AzureFileShareHook(BaseHook):
         return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
 
     def list_directories_and_files(
-        self, share_name: str, directory_name: Optional[str] = None, **kwargs
+        self, share_name: str, directory_name: str | None = None, **kwargs
     ) -> list:
         """
         Return the list of directories and files stored on a Azure File Share.
@@ -155,7 +156,7 @@ class AzureFileShareHook(BaseHook):
         """
         return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
 
-    def list_files(self, share_name: str, directory_name: Optional[str] = None, **kwargs) -> List[str]:
+    def list_files(self, share_name: str, directory_name: str | None = None, **kwargs) -> list[str]:
         """
         Return the list of files stored on a Azure File Share.
 
@@ -286,3 +287,19 @@ class AzureFileShareHook(BaseHook):
         self.get_conn().create_file_from_stream(
             share_name, directory_name, file_name, stream, count, **kwargs
         )
+
+    def test_connection(self):
+        """Test Azure FileShare connection."""
+        success = (True, "Successfully connected to Azure File Share.")
+
+        try:
+            # Attempt to retrieve file share information
+            next(iter(self.get_conn().list_shares()))
+            return success
+        except StopIteration:
+            # If the iterator returned is empty it should still be considered a successful connection since
+            # it's possible to create a storage account without any file share and none could
+            # legitimately exist yet.
+            return success
+        except Exception as e:
+            return False, str(e)

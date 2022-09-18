@@ -14,15 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
-import socket
 
 import pendulum
 
 import airflow
 from airflow.configuration import conf
 from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
+from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 
 
@@ -43,7 +44,7 @@ def init_jinja_globals(app):
         default_ui_timezone = server_timezone
 
     expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
-    hostname = socket.getfqdn() if expose_hostname else 'redact'
+    hostname = get_hostname() if expose_hostname else 'redact'
 
     try:
         airflow_version = airflow.__version__

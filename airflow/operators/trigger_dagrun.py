@@ -15,15 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Sequence, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
-from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -36,7 +40,6 @@ XCOM_RUN_ID = "trigger_run_id"
 
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskinstance import TaskInstanceKey
 
 
@@ -48,12 +51,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     name = 'Triggered DAG'
 
-    def get_link(
-        self,
-        operator: "AbstractOperator",
-        *,
-        ti_key: "TaskInstanceKey",
-    ) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         # Fetch the correct execution date for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         when = XCom.get_value(ti_key=ti_key, key=XCOM_EXECUTION_DATE_ISO)
@@ -84,24 +82,20 @@ class TriggerDagRunOperator(BaseOperator):
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links"""
-        return [TriggerDagRunLink()]
+    operator_extra_links = [TriggerDagRunLink()]
 
     def __init__(
         self,
         *,
         trigger_dag_id: str,
-        trigger_run_id: Optional[str] = None,
-        conf: Optional[Dict] = None,
-        execution_date: Optional[Union[str, datetime.datetime]] = None,
+        trigger_run_id: str | None = None,
+        conf: dict | None = None,
+        execution_date: str | datetime.datetime | None = None,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
-        allowed_states: Optional[List] = None,
-        failed_states: Optional[List] = None,
+        allowed_states: list | None = None,
+        failed_states: list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

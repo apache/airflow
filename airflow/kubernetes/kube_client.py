@@ -15,8 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for kubernetes communication"""
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 from airflow.configuration import conf
 
@@ -30,7 +31,10 @@ try:
     has_kubernetes = True
 
     def _disable_verify_ssl() -> None:
-        configuration = Configuration()
+        if hasattr(Configuration, 'get_default_copy'):
+            configuration = Configuration.get_default_copy()
+        else:
+            configuration = Configuration()
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
 
@@ -82,8 +86,8 @@ def _enable_tcp_keepalive() -> None:
 
 def get_kube_client(
     in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster'),
-    cluster_context: Optional[str] = None,
-    config_file: Optional[str] = None,
+    cluster_context: str | None = None,
+    config_file: str | None = None,
 ) -> client.CoreV1Api:
     """
     Retrieves Kubernetes client
@@ -100,9 +104,6 @@ def get_kube_client(
     if conf.getboolean('kubernetes', 'enable_tcp_keepalive'):
         _enable_tcp_keepalive()
 
-    if not conf.getboolean('kubernetes', 'verify_ssl'):
-        _disable_verify_ssl()
-
     if in_cluster:
         config.load_incluster_config()
     else:
@@ -111,5 +112,8 @@ def get_kube_client(
         if config_file is None:
             config_file = conf.get('kubernetes', 'config_file', fallback=None)
         config.load_kube_config(config_file=config_file, context=cluster_context)
+
+    if not conf.getboolean('kubernetes', 'verify_ssl'):
+        _disable_verify_ssl()
 
     return client.CoreV1Api()

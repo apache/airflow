@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -73,14 +74,14 @@ class AzureFileShareToGCSOperator(BaseOperator):
         *,
         share_name: str,
         dest_gcs: str,
-        directory_name: Optional[str] = None,
+        directory_name: str | None = None,
         prefix: str = '',
         azure_fileshare_conn_id: str = 'azure_fileshare_default',
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         replace: bool = False,
         gzip: bool = False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -107,7 +108,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(self.azure_fileshare_conn_id)
         files = azure_fileshare_hook.list_files(

@@ -15,15 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the BashOperator."""
+from __future__ import annotations
 
-from datetime import timedelta
+import datetime
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
@@ -32,9 +31,9 @@ args = {
 dag = DAG(
     dag_id='miscellaneous_test_dag',
     default_args=args,
-    schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
-    dagrun_timeout=timedelta(minutes=60),
+    schedule='0 0 * * *',
+    start_date=datetime.datetime(2022, 1, 1),
+    dagrun_timeout=datetime.timedelta(minutes=60),
     tags=['example', 'example2'],
     params={"example_key": "example_value"},
 )

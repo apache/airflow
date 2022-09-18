@@ -14,16 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 from traceback import format_exception
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, func, or_
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import State
@@ -54,9 +58,14 @@ class Trigger(Base):
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
 
-    def __init__(
-        self, classpath: str, kwargs: Dict[str, Any], created_date: Optional[datetime.datetime] = None
-    ):
+    triggerer_job = relationship(
+        "BaseJob",
+        primaryjoin="BaseJob.id == Trigger.triggerer_id",
+        foreign_keys=triggerer_id,
+        uselist=False,
+    )
+
+    def __init__(self, classpath: str, kwargs: dict[str, Any], created_date: datetime.datetime | None = None):
         super().__init__()
         self.classpath = classpath
         self.kwargs = kwargs
@@ -73,7 +82,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: Iterable[int], session=None) -> Dict[int, "Trigger"]:
+    def bulk_fetch(cls, ids: Iterable[int], session=None) -> dict[int, Trigger]:
         """
         Fetches all of the Triggers by ID and returns a dict mapping
         ID -> Trigger instance
@@ -88,9 +97,11 @@ class Trigger(Base):
         (triggers have a one-to-many relationship to both)
         """
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
-        session.query(TaskInstance).filter(
-            TaskInstance.state != State.DEFERRED, TaskInstance.trigger_id.isnot(None)
-        ).update({TaskInstance.trigger_id: None})
+        for attempt in run_with_db_retries():
+            with attempt:
+                session.query(TaskInstance).filter(
+                    TaskInstance.state != State.DEFERRED, TaskInstance.trigger_id.isnot(None)
+                ).update({TaskInstance.trigger_id: None})
         # Get all triggers that have no task instances depending on them...
         ids = [
             trigger_id

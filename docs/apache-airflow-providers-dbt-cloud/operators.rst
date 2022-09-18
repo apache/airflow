@@ -51,7 +51,7 @@ The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks w
 asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
 referenced within the ``default_args`` of the example DAG.
 
-.. exampleinclude:: /../../airflow/providers/dbt/cloud/example_dags/example_dbt_cloud.py
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job]
@@ -60,7 +60,7 @@ referenced within the ``default_args`` of the example DAG.
 This next example also shows how to pass in custom runtime configuration (in this case for ``threads_override``)
 via the ``additional_run_config`` dictionary.
 
-.. exampleinclude:: /../../airflow/providers/dbt/cloud/example_dags/example_dbt_cloud.py
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_async]
@@ -80,7 +80,7 @@ In the example below, the ``run_id`` value in the example below comes from the o
 DbtCloudRunJobOperator task by utilizing the ``.output`` property exposed for all operators. Also, to note,
 the ``account_id`` for the task is referenced within the ``default_args`` of the example DAG.
 
-.. exampleinclude:: /../../airflow/providers/dbt/cloud/example_dags/example_dbt_cloud.py
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
@@ -101,7 +101,7 @@ downloaded.
 For more information on dbt Cloud artifacts, reference
 `this documentation <https://docs.getdbt.com/docs/dbt-cloud/using-dbt-cloud/artifacts>`__.
 
-.. exampleinclude:: /../../airflow/providers/dbt/cloud/example_dags/example_dbt_cloud.py
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_get_artifact]

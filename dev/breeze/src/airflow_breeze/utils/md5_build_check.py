@@ -17,9 +17,10 @@
 """
 Utilities to check - with MD5 - whether files have been modified since the last successful build.
 """
+from __future__ import annotations
+
 import hashlib
 from pathlib import Path
-from typing import List, Tuple
 
 from airflow_breeze.global_constants import FILES_FOR_REBUILD_CHECK
 from airflow_breeze.utils.console import get_console
@@ -60,7 +61,7 @@ def generate_md5(filename, file_size: int = 65536):
 
 def calculate_md5_checksum_for_files(
     md5sum_cache_dir: Path, update: bool = False
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """
     Calculates checksums for all interesting files and stores the hashes in the md5sum_cache_dir.
     Optionally modifies the hashes.
@@ -86,7 +87,7 @@ def calculate_md5_checksum_for_files(
     return modified_files, not_modified_files
 
 
-def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, verbose: bool) -> bool:
+def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
     """
     Checks if build is needed based on whether important files were modified.
 

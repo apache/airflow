@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that creates and performs following operations on Cloud Bigtable:
 - creates an Instance
@@ -41,8 +40,8 @@ This DAG relies on the following environment variables:
     See https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.cluster # noqa E501
 * CBT_TABLE_ID - desired ID of the Table
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
-
 """
+from __future__ import annotations
 
 import json
 from datetime import datetime
@@ -80,7 +79,6 @@ CBT_POKE_INTERVAL = getenv('GCP_BIG_TABLE_POKE_INTERVAL', '60')
 
 with models.DAG(
     'example_gcp_bigtable_operators',
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
@@ -83,7 +84,7 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_token(obj: DagModel):
         """Return file token"""
-        serializer = URLSafeSerializer(conf.get('webserver', 'secret_key'))
+        serializer = URLSafeSerializer(conf.get_mandatory_value('webserver', 'secret_key'))
         return serializer.dumps(obj.fileloc)
 
 
@@ -149,7 +150,7 @@ class DAGDetailSchema(DAGSchema):
 class DAGCollection(NamedTuple):
     """List of DAGs with metadata"""
 
-    dags: List[DagModel]
+    dags: list[DagModel]
     total_entries: int
 
 

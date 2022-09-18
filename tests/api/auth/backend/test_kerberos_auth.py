@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import os
-import socket
 from datetime import datetime
 from unittest import mock
 
@@ -26,6 +26,7 @@ import pytest
 
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.models import DagBag
+from airflow.utils.net import getfqdn
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags
@@ -70,7 +71,7 @@ class TestApiKerberos:
             )
             assert 401 == response.status_code
 
-            response.url = f'http://{socket.getfqdn()}'
+            response.url = f'http://{getfqdn()}'
 
             class Request:
                 headers = {}

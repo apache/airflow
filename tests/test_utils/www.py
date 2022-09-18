@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import mock
 
 
@@ -32,9 +34,9 @@ def check_content_in_response(text, resp, resp_code=200):
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
-            assert line in resp_html
+            assert line in resp_html, f"Couldn't find {line!r}"
     else:
-        assert text in resp_html
+        assert text in resp_html, f"Couldn't find {text!r}"
 
 
 def check_content_not_in_response(text, resp, resp_code=200):

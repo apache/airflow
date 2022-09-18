@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import List
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -57,20 +57,16 @@ bread,4.0
 
 with DAG(
     dag_id='example_s3',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_sensor_s3_key_function_definition]
-    def check_fn(files: List) -> bool:
+    def check_fn(files: list) -> bool:
         """
-        Example of custom check: check if all files are bigger than 1kB
+        Example of custom check: check if all files are bigger than ``1kB``
 
         :param files: List of S3 object attributes.
-        Format: [{
-            'Size': int
-        }]
         :return: true if the criteria is met
         :rtype: bool
         """

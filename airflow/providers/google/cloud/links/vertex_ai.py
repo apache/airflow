@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -62,7 +63,7 @@ class VertexAIModelLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         model_id: str,
     ):
@@ -86,7 +87,7 @@ class VertexAIModelListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -112,7 +113,7 @@ class VertexAIModelExportLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -135,7 +136,7 @@ class VertexAITrainingLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         training_id: str,
     ):
@@ -159,7 +160,7 @@ class VertexAITrainingPipelinesLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -179,7 +180,7 @@ class VertexAIDatasetLink(BaseGoogleLink):
     format_str = VERTEX_AI_DATASET_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, dataset_id: str):
+    def persist(context: Context, task_instance, dataset_id: str):
         task_instance.xcom_push(
             context=context,
             key=VertexAIDatasetLink.key,
@@ -200,7 +201,7 @@ class VertexAIDatasetListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -221,7 +222,7 @@ class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -242,7 +243,7 @@ class VertexAIBatchPredictionJobLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         batch_prediction_job_id: str,
     ):
@@ -266,7 +267,7 @@ class VertexAIBatchPredictionJobListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(
@@ -287,7 +288,7 @@ class VertexAIEndpointLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         endpoint_id: str,
     ):
@@ -311,7 +312,7 @@ class VertexAIEndpointListLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
     ):
         task_instance.xcom_push(

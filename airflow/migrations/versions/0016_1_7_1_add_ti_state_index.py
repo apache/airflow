@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add TI state index
 
 Revision ID: 211e584da130
@@ -23,6 +22,8 @@ Revises: 2e82aab8ef20
 Create Date: 2016-06-30 10:54:24.323588
 
 """
+from __future__ import annotations
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

@@ -14,19 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
-from airflow_breeze.params._common_build_params import _CommonBuildParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 
 
 @dataclass
-class BuildCiParams(_CommonBuildParams):
+class BuildCiParams(CommonBuildParams):
     """
     CI build parameters. Those parameters are used to determine command issued to build CI image.
     """
@@ -46,7 +46,7 @@ class BuildCiParams(_CommonBuildParams):
         return 'CI'
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         extra_ci_flags = []
         extra_ci_flags.extend(
             ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
@@ -62,16 +62,8 @@ class BuildCiParams(_CommonBuildParams):
         return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
 
     @property
-    def required_image_args(self) -> List[str]:
+    def required_image_args(self) -> list[str]:
         return [
-            "additional_airflow_extras",
-            "additional_dev_apt_command",
-            "additional_dev_apt_deps",
-            "additional_dev_apt_env",
-            "additional_python_deps",
-            "additional_runtime_apt_command",
-            "additional_runtime_apt_deps",
-            "additional_runtime_apt_env",
             "airflow_branch",
             "airflow_constraints_mode",
             "airflow_constraints_reference",
@@ -87,15 +79,26 @@ class BuildCiParams(_CommonBuildParams):
         ]
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         return [
+            "additional_airflow_extras",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_pip_install_flags",
+            "additional_python_deps",
+            "additional_runtime_apt_command",
+            "additional_runtime_apt_deps",
+            "additional_runtime_apt_env",
             "dev_apt_command",
             "dev_apt_deps",
-            "runtime_apt_command",
-            "runtime_apt_deps",
+            "additional_dev_apt_command",
+            "additional_dev_apt_deps",
+            "additional_dev_apt_env",
+            "additional_airflow_extras",
+            "additional_pip_install_flags",
+            "additional_python_deps",
         ]
 
     def __post_init__(self):
-        if self.prepare_buildx_cache:
-            get_console().print("[info]Forcing --push-image since we are preparing buildx cache[/]")
-            self.push_image = True
+        pass

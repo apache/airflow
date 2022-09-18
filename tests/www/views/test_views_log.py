@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import logging.config
 import pathlib
@@ -85,9 +87,6 @@ def log_app(backup_modules):
     logging_config['handlers']['task']['base_log_folder'] = str(
         pathlib.Path(__file__, "..", "..", "test_logs").resolve(),
     )
-    logging_config['handlers']['task'][
-        'filename_template'
-    ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
 
     with tempfile.TemporaryDirectory() as settings_dir:
         local_settings = pathlib.Path(settings_dir, "airflow_local_settings.py")
@@ -464,7 +463,7 @@ def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_
     )
     response = log_admin_client.get(url)
     assert 302 == response.status_code
-    assert 'http://localhost/home' == response.headers['Location']
+    assert '/home' == response.headers['Location']
 
 
 class _ExternalHandler(ExternalLoggingMixin):

@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from logging.config import fileConfig
 
 from alembic import context
 
 from airflow import models, settings
+from airflow.utils.db import compare_server_default, compare_type
 
 
 def include_object(_, name, type_, *args):
@@ -31,6 +33,9 @@ def include_object(_, name, type_, *args):
     else:
         return True
 
+
+# Make sure everything is imported so that alembic can find it all
+models.import_all_models()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -51,8 +56,6 @@ target_metadata = models.base.Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-COMPARE_TYPE = False
-
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -70,7 +73,8 @@ def run_migrations_offline():
         url=settings.SQL_ALCHEMY_CONN,
         target_metadata=target_metadata,
         literal_binds=True,
-        compare_type=COMPARE_TYPE,
+        compare_type=compare_type,
+        compare_server_default=compare_server_default,
         render_as_batch=True,
     )
 
@@ -92,7 +96,8 @@ def run_migrations_online():
             connection=connection,
             transaction_per_migration=True,
             target_metadata=target_metadata,
-            compare_type=COMPARE_TYPE,
+            compare_type=compare_type,
+            compare_server_default=compare_server_default,
             include_object=include_object,
             render_as_batch=True,
         )

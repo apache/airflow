@@ -16,8 +16,66 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Improve taskflow type hints with ParamSpec (#25173)``
+
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove Tableau from Salesforce provider (#23747)``
+
+.. warning:: Due to tableau extra removal, ``pip install apache-airflow-providers-salesforce[tableau]``
+   will not work. You can install Tableau provider directly via ``pip install apache-airflow-providers-tableau``.
+
+Features
+~~~~~~~~
+
+* ``Add support for Salesforce bulk api (#24473)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  * ``Correct parameter typing in 'SalesforceBulkOperator' (#24927)``
+  * ``Move provider dependencies to inside provider folders (#24672)``
+  * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Salesforce example DAGs to new design #22463 (#24127)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 3.4.4
 .....

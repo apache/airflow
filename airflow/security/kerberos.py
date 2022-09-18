@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -34,20 +35,20 @@
 """Kerberos security provider"""
 import logging
 import shlex
-import socket
 import subprocess
 import sys
 import time
-from typing import List, Optional
+from typing import Optional
 
 from airflow.configuration import conf
+from airflow.utils.net import get_hostname
 
 NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 
 log = logging.getLogger(__name__)
 
 
-def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = True):
+def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab
 
@@ -60,7 +61,7 @@ def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = Tr
     renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
     cmd_principal = principal or conf.get_mandatory_value('kerberos', 'principal').replace(
-        "_HOST", socket.getfqdn()
+        "_HOST", get_hostname()
     )
 
     if conf.getboolean('kerberos', 'forwardable'):
@@ -73,7 +74,7 @@ def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = Tr
     else:
         include_ip = '-A'
 
-    cmdv: List[str] = [
+    cmdv: list[str] = [
         conf.get_mandatory_value('kerberos', 'kinit_path'),
         forwardable,
         include_ip,
@@ -131,7 +132,7 @@ def perform_krb181_workaround(principal: str):
     :param principal: principal name
     :return: None
     """
-    cmdv: List[str] = [
+    cmdv: list[str] = [
         conf.get_mandatory_value('kerberos', 'kinit_path'),
         "-c",
         conf.get_mandatory_value('kerberos', 'ccache'),
@@ -143,7 +144,7 @@ def perform_krb181_workaround(principal: str):
     ret = subprocess.call(cmdv, close_fds=True)
 
     if ret != 0:
-        principal = f"{principal or conf.get('kerberos', 'principal')}/{socket.getfqdn()}"
+        principal = f"{principal or conf.get('kerberos', 'principal')}/{get_hostname()}"
         ccache = conf.get('kerberos', 'ccache')
         log.error(
             "Couldn't renew kerberos ticket in order to work around Kerberos 1.8.1 issue. Please check that "
@@ -171,7 +172,7 @@ def detect_conf_var() -> bool:
         return b'X-CACHECONF:' in file.read()
 
 
-def run(principal: Optional[str], keytab: str):
+def run(principal: str | None, keytab: str):
     """
     Run the kerbros renewer.
 
