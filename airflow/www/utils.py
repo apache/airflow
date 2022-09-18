@@ -560,9 +560,27 @@ class UtcAwareFilterMixin:
 
     def apply(self, query, value):
         """Apply the filter."""
-        value = timezone.parse(value, timezone=timezone.utc)
+        if isinstance(value, str) and not value.strip():
+            value = None
+        else:
+            value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
+
+
+class NoneAwareFilterMixin:
+    """Mixin for filter for None value."""
+
+    def apply(self, query, value):
+        return super().apply(query, None if isinstance(value, str) and not value.strip() else value)
+
+
+class FilterEqualToNone(NoneAwareFilterMixin, fab_sqlafilters.FilterEqual):
+    """None value Equal filter."""
+
+
+class FilterNotEqualToNone(NoneAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
+    """None value Not Equal filter."""
 
 
 class FilterGreaterOrEqual(BaseFilter):
@@ -647,6 +665,16 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
             [],
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
+
+    def __init__(self, datamodel):
+        super().__init__(datamodel)
+
+        for (method, filters) in self.conversion_table:
+            for i in range(len(filters)):
+                if fab_sqlafilters.FilterEqual == filters[i]:
+                    filters[i] = FilterEqualToNone
+                elif fab_sqlafilters.FilterNotEqual == filters[i]:
+                    filters[i] = FilterNotEqualToNone
 
 
 class CustomSQLAInterface(SQLAInterface):
