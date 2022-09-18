@@ -130,7 +130,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             return log, {'end_of_log': True}
         else:
             log += '*** Falling back to local log\n'
-            local_log, metadata = super()._read(ti, try_number)
+            local_log, metadata = super()._read(ti, try_number, metadata)
             return log + local_log, metadata
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
