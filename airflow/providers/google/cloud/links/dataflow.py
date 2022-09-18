@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DATAFLOW_BASE_LINK = "https://pantheon.corp.google.com/dataflow/jobs"
+DATAFLOW_BASE_LINK = "/dataflow/jobs"
 DATAFLOW_JOB_LINK = DATAFLOW_BASE_LINK + "/{region}/{job_id}?project={project_id}"
 
 

@@ -22,12 +22,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperatorLink, XCom
+from airflow.providers.google.cloud.links.base import BASE_LINK
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
-DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
+DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
 DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{resource}?region={region}&project={project_id}"
 DATAPROC_CLUSTER_LINK = (
     DATAPROC_BASE_LINK + "/clusters/{resource}/monitoring?region={region}&project={project_id}"

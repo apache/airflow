@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-DATAFORM_BASE_LINK = "https://pantheon.corp.google.com/bigquery/dataform"
+DATAFORM_BASE_LINK = "/bigquery/dataform"
 DATAFORM_WORKFLOW_INVOCATION_LINK = (
     DATAFORM_BASE_LINK
     + "/locations/{region}/repositories/{repository_id}/workflows/"

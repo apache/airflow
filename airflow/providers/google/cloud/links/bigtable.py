@@ -23,8 +23,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BASE_LINK = "https://console.cloud.google.com"
-BIGTABLE_BASE_LINK = BASE_LINK + "/bigtable"
+BIGTABLE_BASE_LINK = "/bigtable"
 BIGTABLE_INSTANCE_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/overview?project={project_id}"
 BIGTABLE_CLUSTER_LINK = (
     BIGTABLE_BASE_LINK + "/instances/{instance_id}/clusters/{cluster_id}?project={project_id}"

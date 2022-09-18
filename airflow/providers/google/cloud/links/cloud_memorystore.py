@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BASE_LINK = "https://console.cloud.google.com/memorystore"
+BASE_LINK = "/memorystore"
 MEMCACHED_LINK = (
     BASE_LINK + "/memcached/locations/{location_id}/instances/{instance_id}/details?project={project_id}"
 )

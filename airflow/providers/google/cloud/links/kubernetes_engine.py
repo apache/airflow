@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-KUBERNETES_BASE_LINK = "https://console.cloud.google.com/kubernetes"
+KUBERNETES_BASE_LINK = "/kubernetes"
 KUBERNETES_CLUSTER_LINK = (
     KUBERNETES_BASE_LINK + "/clusters/details/{location}/{cluster_name}/details?project={project_id}"
 )

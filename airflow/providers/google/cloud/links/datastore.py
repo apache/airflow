@@ -23,12 +23,9 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BASE_LINK = "https://console.cloud.google.com"
-DATASTORE_BASE_LINK = BASE_LINK + "/datastore"
+DATASTORE_BASE_LINK = "/datastore"
 DATASTORE_IMPORT_EXPORT_LINK = DATASTORE_BASE_LINK + "/import-export?project={project_id}"
-DATASTORE_EXPORT_ENTITIES_LINK = (
-    BASE_LINK + "/storage/browser/{bucket_name}/{export_name}?project={project_id}"
-)
+DATASTORE_EXPORT_ENTITIES_LINK = "/storage/browser/{bucket_name}/{export_name}?project={project_id}"
 DATASTORE_ENTITIES_LINK = DATASTORE_BASE_LINK + "/entities/query/kind?project={project_id}"
 
 
