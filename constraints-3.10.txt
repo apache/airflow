@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-17T08:05:00Z
+# This constraints file was automatically generated on 2022-09-18T07:13:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -33,7 +33,7 @@ Markdown==3.4.1
 MarkupSafe==2.1.1
 PyGithub==1.55
 PyHive==0.6.5
-PyJWT==2.4.0
+PyJWT==2.5.0
 PyNaCl==1.5.0
 PyYAML==6.0
 Pygments==2.13.0
@@ -351,7 +351,7 @@ jsonschema==4.16.0
 junit-xml==1.9
 jupyter-client==7.3.4
 jupyter-core==4.11.1
-keyring==23.9.1
+keyring==23.9.3
 kombu==5.2.4
 krb5==0.4.0
 kubernetes==23.6.0
