@@ -35,73 +35,20 @@ const commonDagRunParams = {
 describe('Test areActiveRuns()', () => {
   test('Correctly detects active runs', () => {
     const runs: DagRun[] = [
-      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
-      { runType: 'manual', state: 'queued', ...commonDagRunParams },
+      { state: 'success', ...commonDagRunParams },
+      { state: 'queued', ...commonDagRunParams },
     ];
     expect(areActiveRuns(runs)).toBe(true);
   });
 
   test('Returns false when all runs are resolved', () => {
     const runs: DagRun[] = [
-      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
-      { runType: 'manual', state: 'failed', ...commonDagRunParams },
-      { runType: 'manual', state: 'failed', ...commonDagRunParams },
+      { state: 'success', ...commonDagRunParams },
+      { state: 'failed', ...commonDagRunParams },
+      { state: 'failed', ...commonDagRunParams },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
-  });
-
-  test('Returns false when filtering runs runtype ["backfill"]', () => {
-    const runs: DagRun[] = [
-      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
-      { runType: 'manual', state: 'failed', ...commonDagRunParams },
-      { runType: 'backfill', state: 'failed', ...commonDagRunParams },
-    ];
-    const result = areActiveRuns(runs);
-    expect(result).toBe(false);
-  });
-
-  test('Returns false when filtering runs runtype ["backfill"] and state ["queued"]', () => {
-    const runs: DagRun[] = [
-      { runType: 'scheduled', state: 'success', ...commonDagRunParams },
-      { runType: 'manual', state: 'failed', ...commonDagRunParams },
-      { runType: 'backfill', state: 'queued', ...commonDagRunParams },
-    ];
-    const result = areActiveRuns(runs);
-    expect(result).toBe(false);
-  });
-
-  [
-    {
-      runType: 'manual', state: 'queued', expectedResult: true,
-    },
-    {
-      runType: 'manual', state: 'running', expectedResult: true,
-    },
-    {
-      runType: 'scheduled', state: 'queued', expectedResult: true,
-    },
-    {
-      runType: 'scheduled', state: 'running', expectedResult: true,
-    },
-    {
-      runType: 'dataset_triggered', state: 'queued', expectedResult: true,
-    },
-    {
-      runType: 'dataset_triggered', state: 'running', expectedResult: true,
-    },
-    {
-      runType: 'backfill', state: 'queued', expectedResult: false,
-    },
-    {
-      runType: 'backfill', state: 'running', expectedResult: false,
-    },
-  ].forEach(({ state, runType, expectedResult }) => {
-    test(`Returns ${expectedResult} when filtering runs with runtype ["${runType}"] and state ["${state}"]`, () => {
-      const runs: DagRun[] = [{ runType, state, ...commonDagRunParams } as DagRun];
-      const result = areActiveRuns(runs);
-      expect(result).toBe(expectedResult);
-    });
   });
 
   test('Returns false when there are no runs', () => {
