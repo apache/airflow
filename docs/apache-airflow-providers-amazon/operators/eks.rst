@@ -65,7 +65,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroup_in_one_step.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroup_in_one_step.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster_with_nodegroup]
@@ -108,7 +108,7 @@ Note: If the cluster has any attached resources, such as an Amazon EKS Nodegroup
   Fargate profile, the cluster can not be deleted.  Using the ``force`` parameter will
   attempt to delete any attached resources first.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroup_in_one_step.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroup_in_one_step.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_force_delete_cluster]
