@@ -20,26 +20,33 @@
 import React, { useState } from 'react';
 import { Button, useDisclosure } from '@chakra-ui/react';
 
-import { useClearRun } from '../../../api';
-import ConfirmDialog from '../ConfirmDialog';
-import { getMetaValue } from '../../../utils';
+import { useQueueRun } from 'src/api';
+import ConfirmDialog from 'src/components/ConfirmDialog';
+import { getMetaValue } from 'src/utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const ClearRun = ({ dagId, runId }) => {
-  const [affectedTasks, setAffectedTasks] = useState([]);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const { mutateAsync: onClear, isLoading } = useClearRun(dagId, runId);
+interface Props {
+  dagId: string;
+  runId: string;
+}
 
+const QueueRun = ({ dagId, runId }: Props) => {
+  const [affectedTasks, setAffectedTasks] = useState('');
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { mutateAsync: onQueue, isLoading } = useQueueRun(dagId, runId);
+
+  // Get what the changes will be and show it in a modal
   const onClick = async () => {
-    const data = await onClear({ confirmed: false });
+    const data = await onQueue({ confirmed: false });
     setAffectedTasks(data);
     onOpen();
   };
 
+  // Confirm changes
   const onConfirm = async () => {
-    await onClear({ confirmed: true });
-    setAffectedTasks([]);
+    await onQueue({ confirmed: true });
+    setAffectedTasks('');
     onClose();
   };
 
@@ -48,20 +55,22 @@ const ClearRun = ({ dagId, runId }) => {
       <Button
         onClick={onClick}
         isLoading={isLoading}
+        ml="5px"
+        title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
         isDisabled={!canEdit}
       >
-        Clear existing tasks
+        Queue up new tasks
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to clear:"
+        description="Task instances you are about to queue:"
         body={affectedTasks}
       />
     </>
   );
 };
 
-export default ClearRun;
+export default QueueRun;

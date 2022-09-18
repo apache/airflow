@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import { getMetaValue } from '../utils';
-import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../utils/useErrorToast';
+import { getMetaValue } from 'src/utils';
+import { useAutoRefresh } from 'src/context/autorefresh';
+import useErrorToast from 'src/utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const markFailedUrl = getMetaValue('dagrun_failed_url');
@@ -41,7 +42,7 @@ export default function useMarkFailedRun(dagId: string, runId: string) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post(markFailedUrl, params, {
+      return axios.post<AxiosResponse, string>(markFailedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

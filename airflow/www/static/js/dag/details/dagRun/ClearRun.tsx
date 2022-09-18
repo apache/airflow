@@ -20,42 +20,53 @@
 import React, { useState } from 'react';
 import { Button, useDisclosure } from '@chakra-ui/react';
 
-import { useMarkFailedRun } from '../../../api';
-import ConfirmDialog from '../ConfirmDialog';
-import { getMetaValue } from '../../../utils';
+import { useClearRun } from 'src/api';
+import { getMetaValue } from 'src/utils';
+import ConfirmDialog from 'src/components/ConfirmDialog';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const MarkFailedRun = ({ dagId, runId }) => {
-  const [affectedTasks, setAffectedTasks] = useState([]);
+interface Props {
+  dagId: string;
+  runId: string;
+}
+
+const ClearRun = ({ dagId, runId }: Props) => {
+  const [affectedTasks, setAffectedTasks] = useState('');
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { mutateAsync: markFailed, isLoading } = useMarkFailedRun(dagId, runId);
+  const { mutateAsync: onClear, isLoading } = useClearRun(dagId, runId);
 
   const onClick = async () => {
-    const data = await markFailed({ confirmed: false });
+    const data = await onClear({ confirmed: false });
     setAffectedTasks(data);
     onOpen();
   };
 
-  const onConfirm = () => {
-    markFailed({ confirmed: true });
-    setAffectedTasks([]);
+  const onConfirm = async () => {
+    await onClear({ confirmed: true });
+    setAffectedTasks('');
     onClose();
   };
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="red" isLoading={isLoading} isDisabled={!canEdit}>Mark Failed</Button>
+      <Button
+        onClick={onClick}
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+      >
+        Clear existing tasks
+      </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to mark as failed or skipped:"
+        description="Task instances you are about to clear:"
         body={affectedTasks}
       />
     </>
   );
 };
 
-export default MarkFailedRun;
+export default ClearRun;

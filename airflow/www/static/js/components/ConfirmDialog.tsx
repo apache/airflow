@@ -37,7 +37,7 @@ interface Props {
   onClose: () => void;
   title?: string;
   description: string;
-  body?: string[];
+  body?: string[] | string;
   onConfirm: () => void;
   isLoading?: boolean;
 }

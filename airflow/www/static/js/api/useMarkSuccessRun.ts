@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
@@ -41,7 +41,7 @@ export default function useMarkSuccessRun(dagId: string, runId: string) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post(markSuccessUrl, params, {
+      return axios.post<AxiosResponse, string>(markSuccessUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

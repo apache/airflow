@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import { getMetaValue } from '../utils';
@@ -40,7 +40,7 @@ export default function useQueueRun(dagId: string, runId: string) {
         dag_id: dagId,
         dag_run_id: runId,
       }).toString();
-      return axios.post(queuedUrl, params, {
+      return axios.post<AxiosResponse, string>(queuedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

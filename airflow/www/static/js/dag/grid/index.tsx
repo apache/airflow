@@ -44,7 +44,7 @@ const dagId = getMetaValue('dag_id');
 
 interface Props {
   isPanelOpen?: boolean;
-  onPanelToggle: () => void;
+  onPanelToggle?: () => void;
   hoveredTaskState?: string | null;
 }
 
