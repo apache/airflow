@@ -47,7 +47,7 @@ Create a replication task
 To create a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsCreateTaskOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_create_task]
@@ -61,7 +61,7 @@ Start a replication task
 To start a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_start_task]
@@ -75,7 +75,7 @@ Get details of replication tasks
 To retrieve the details for a list of replication tasks you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_describe_tasks]
@@ -89,7 +89,7 @@ Stop a replication task
 To stop a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_stop_task]
@@ -103,7 +103,7 @@ Delete a replication task
 To delete a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDeleteTaskOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_delete_task]
@@ -120,7 +120,7 @@ Wait for a replication task to complete
 To check the state of a replication task until it is completed, you can use
 :class:`~airflow.providers.amazon.aws.sensors.dms.DmsTaskCompletedSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_dms_task_completed]
