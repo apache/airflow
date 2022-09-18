@@ -541,6 +541,13 @@ class UtcAwareFilterMixin:
         return super().apply(query, value)
 
 
+class StateAwareFilterMixin:
+    """Mixin for filter for State field."""
+
+    def apply(self, query, value):
+        return super().apply(query, None if not value.strip() or value.lower() == "none" else value)
+
+
 class FilterGreaterOrEqual(BaseFilter):
     """Greater than or Equal filter."""
 
@@ -571,6 +578,14 @@ class FilterSmallerOrEqual(BaseFilter):
             return query
 
         return query.filter(field <= value)
+
+
+class StateAwareFilterEqual(StateAwareFilterMixin, fab_sqlafilters.FilterEqual):
+    """Equal To filter for State."""
+
+
+class StateAwareFilterNotEqual(StateAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
+    """Not Equal To filter for State."""
 
 
 class UtcAwareFilterSmallerOrEqual(UtcAwareFilterMixin, FilterSmallerOrEqual):
@@ -621,6 +636,19 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         (
             'is_extendedjson',
             [],
+        ),
+        (
+            'is_state',
+            [
+                StateAwareFilterEqual,
+                StateAwareFilterNotEqual,
+                fab_sqlafilters.FilterStartsWith,
+                fab_sqlafilters.FilterEndsWith,
+                fab_sqlafilters.FilterContains,
+                fab_sqlafilters.FilterNotStartsWith,
+                fab_sqlafilters.FilterNotEndsWith,
+                fab_sqlafilters.FilterNotContains,
+            ],
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
 
@@ -677,6 +705,9 @@ class CustomSQLAInterface(SQLAInterface):
                 and isinstance(obj.impl, ExtendedJSON)
             )
         return False
+
+    def is_state(self, col_name):
+        return col_name == "state"
 
     def get_col_default(self, col_name: str) -> Any:
         if col_name not in self.list_columns:
