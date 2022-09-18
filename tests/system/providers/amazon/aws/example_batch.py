@@ -30,7 +30,12 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, split_string
+from tests.system.providers.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    purge_logs,
+    split_string,
+)
 
 DAG_ID = 'example_batch'
 
@@ -134,6 +139,16 @@ def delete_job_queue(job_queue_name):
     )
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_logs(env_id: str) -> None:
+    generated_log_groups: list[tuple[str, str | None]] = [
+        # Format: ('log group name', 'log stream prefix')
+        ('/aws/batch/job', env_id),
+    ]
+
+    purge_logs(generated_log_groups)
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule='@once',
@@ -142,11 +157,12 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
 
-    batch_job_name: str = f'{test_context[ENV_ID_KEY]}-test-job'
-    batch_job_definition_name: str = f'{test_context[ENV_ID_KEY]}-test-job-definition'
-    batch_job_compute_environment_name: str = f'{test_context[ENV_ID_KEY]}-test-job-compute-environment'
-    batch_job_queue_name: str = f'{test_context[ENV_ID_KEY]}-test-job-queue'
+    batch_job_name: str = f'{env_id}-test-job'
+    batch_job_definition_name: str = f'{env_id}-test-job-definition'
+    batch_job_compute_environment_name: str = f'{env_id}-test-job-compute-environment'
+    batch_job_queue_name: str = f'{env_id}-test-job-queue'
 
     security_groups = split_string(test_context[SECURITY_GROUPS_KEY])
     subnets = split_string(test_context[SUBNETS_KEY])
@@ -238,6 +254,7 @@ with DAG(
         wait_for_compute_environment_disabled,
         delete_compute_environment(batch_job_compute_environment_name),
         delete_job_definition(batch_job_definition_name),
+        delete_logs(env_id),
     )
 
     from tests.system.utils.watcher import watcher
