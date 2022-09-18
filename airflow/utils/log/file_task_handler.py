@@ -22,7 +22,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 from airflow.configuration import AirflowConfigException, conf
@@ -31,6 +31,7 @@ from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -129,7 +130,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):
+    def _read(self, ti: TaskInstance, try_number: int, metadata: dict[str, Any] | None = None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -138,7 +139,18 @@ class FileTaskHandler(logging.Handler):
         :param try_number: current try_number to read log from
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
+                         Following attributes are used:
+                         log_pos: (absolute) Char position to which the log
+                                  which was retrieved in previous calls, this
+                                  part will be skipped and only following test
+                                  returned to be added to tail.
+
         :return: log message as a string and metadata.
+                 Following attributes are used in metadata:
+                 end_of_log: Boolean, True if end of log is reached or False
+                             if further calls might get more log text.
+                             This is determined by the status of the TaskInstance
+                 log_pos: (absolute) Char position to which the log is retrieved
         """
         from airflow.utils.jwt_signer import JWTSigner
 
@@ -158,6 +170,7 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
+                return log, {'end_of_log': True}
         elif conf.get('core', 'executor') == 'KubernetesExecutor':
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
@@ -194,6 +207,7 @@ class FileTaskHandler(logging.Handler):
 
             except Exception as f:
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
+                return log, {'end_of_log': True}
         else:
             import httpx
 
@@ -219,7 +233,7 @@ class FileTaskHandler(logging.Handler):
                 response = httpx.get(
                     url,
                     timeout=timeout,
-                    headers={b'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
+                    headers={'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 
@@ -240,8 +254,16 @@ class FileTaskHandler(logging.Handler):
                 log += '\n' + response.text
             except Exception as e:
                 log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+                return log, {'end_of_log': True}
 
-        return log, {'end_of_log': True}
+        # Process tailing if log is not at it's end
+        end_of_log = ti.try_number != try_number or ti.state not in State.running
+        log_pos = len(log)
+        if metadata and 'log_pos' in metadata:
+            previous_chars = metadata['log_pos']
+            log = log[previous_chars:]  # Cut off previously passed log test as new tail
+
+        return log, {'end_of_log': end_of_log, 'log_pos': log_pos}
 
     def read(self, task_instance, try_number=None, metadata=None):
         """
@@ -273,11 +295,11 @@ class FileTaskHandler(logging.Handler):
         logs = [''] * len(try_numbers)
         metadata_array = [{}] * len(try_numbers)
         for i, try_number_element in enumerate(try_numbers):
-            log, metadata = self._read(task_instance, try_number_element, metadata)
+            log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
-            metadata_array[i] = metadata
+            metadata_array[i] = out_metadata
 
         return logs, metadata_array
 

@@ -123,7 +123,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
           .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(`${date}+00:00`)}</time>`)
           .replaceAll(iso8601Regex, (date) => `<time datetime="${date}" data-with-tz="true">${formatDateTime(`${date}`)}</time>`);
-        logBlock.innerHTML += `${linkifiedMessage}\n`;
+        logBlock.innerHTML += `${linkifiedMessage}`;
       });
 
       // Auto scroll window to the end if current window location is near the end.

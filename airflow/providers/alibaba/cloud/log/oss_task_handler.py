@@ -114,7 +114,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = log_relative_path
 
         if not self.oss_log_exists(remote_loc):
-            return super()._read(ti, try_number)
+            return super()._read(ti, try_number, metadata)
         # If OSS remote file exists, we do not fetch logs from task instance
         # local machine even if there are errors reading remote logs, as
         # returned remote_log will contain error messages.

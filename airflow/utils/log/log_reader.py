@@ -27,6 +27,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import State
 
 
 class TaskLogReader:
@@ -77,7 +78,10 @@ class TaskLogReader:
             metadata.pop('end_of_log', None)
             metadata.pop('max_offset', None)
             metadata.pop('offset', None)
-            while 'end_of_log' not in metadata or not metadata['end_of_log']:
+            metadata.pop('log_pos', None)
+            while 'end_of_log' not in metadata or (
+                not metadata['end_of_log'] and ti.state not in State.running
+            ):
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
                     yield "\n".join([host or '', log]) + "\n"
