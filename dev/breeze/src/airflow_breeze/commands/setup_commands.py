@@ -362,7 +362,7 @@ def get_commands() -> list[str]:
         content = COMMAND_HASH_FILE_PATH.read_text()
         for line in content.splitlines():
             strip_line = line.strip()
-            if strip_line.strip() == '' or strip_line.startswith("#"):
+            if strip_line == '' or strip_line.startswith("#"):
                 continue
             results.append(':'.join(strip_line.split(":")[:-1]))
     return results
