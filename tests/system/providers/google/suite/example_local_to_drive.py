@@ -31,8 +31,7 @@ DAG_ID = "example_local_to_drive"
 FILE_NAME_1 = "test1"
 FILE_NAME_2 = "test2"
 
-CURRENT_FOLDER = Path(__file__).parent
-LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
+LOCAL_PATH = str(Path(__file__).parent / "resources")
 
 SINGLE_FILE_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1)]
 MULTIPLE_FILES_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1), str(Path(LOCAL_PATH) / FILE_NAME_2)]
@@ -41,6 +40,7 @@ DRIVE_FOLDER = "test-folder"
 
 with models.DAG(
     DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
