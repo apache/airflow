@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List
 
 import boto3
 
@@ -75,7 +76,7 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 
 @task
-def setup_security_group(sec_group_name: str, ip_permissions: List[dict]):
+def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
     client = boto3.client('ec2')
     vpc_id = client.describe_vpcs()['Vpcs'][0]['VpcId']
     security_group = client.create_security_group(

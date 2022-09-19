@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -485,7 +485,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
         self.poll_interval = poll_interval
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.redshift_hook.delete_cluster(
             cluster_identifier=self.cluster_identifier,
             skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
