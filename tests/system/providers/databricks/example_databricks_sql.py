@@ -16,19 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example DAG which uses the DatabricksSubmitRunOperator.
-In this example, we create two tasks which execute sequentially.
-The first task is to run a notebook at the workspace path "/test"
-and the second task is to run a JAR uploaded to DBFS. Both,
-tasks use new clusters.
-
-Because we have set a downstream dependency on the notebook task,
-the spark jar task will NOT run until the notebook task completes
-successfully.
-
-The definition of a successful run is if the run has a result_state of "SUCCESS".
-For more information about the state of a run refer to
-https://docs.databricks.com/api/latest/jobs.html#runstate
+This is an example DAG which uses the DatabricksSqlOperator
+and DatabricksCopyIntoOperator. The first task creates the table
+and inserts values into it. The second task uses DatabricksSqlOperator
+to select the data. The third task selects the data and stores the
+output of selected data in file path and format specified. The fourth
+task runs the select SQL statement written in the test.sql file. The
+final task using DatabricksCopyIntoOperator loads the data from the
+file_location passed into Delta table.
 """
 from __future__ import annotations
 
