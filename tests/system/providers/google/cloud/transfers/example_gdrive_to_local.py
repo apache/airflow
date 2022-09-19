@@ -38,12 +38,12 @@ OUTPUT_FILE = "out_file.txt"
 DAG_ID = "example_gdrive_to_local"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-CURRENT_FOLDER = Path(__file__).parent
 LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule="@once",
     catchup=False,
     tags=["example"],
 ) as dag:
