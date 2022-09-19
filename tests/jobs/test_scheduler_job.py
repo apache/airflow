@@ -4439,6 +4439,49 @@ class TestSchedulerJob:
             .scalar()
         ) > (timezone.utcnow() - timedelta(days=2))
 
+    def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
+        """Test that the _update_dagrun_state_for_paused_dag does not affect backfilled dagruns"""
+
+        with dag_maker('testdag') as dag:
+            EmptyOperator(task_id='task1')
+
+        # Backfill run
+        backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        ti = backfill_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.SUCCESS)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        # scheduled run
+        scheduled_run = dag_maker.create_dagrun(
+            execution_date=datetime.datetime(2022, 1, 1), run_type=DagRunType.SCHEDULED
+        )
+        ti = scheduled_run.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.SUCCESS)
+        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm.is_paused = True
+        session.merge(dm)
+        session.merge(ti)
+        session.flush()
+
+        assert dag.dag_id in DagModel.get_all_paused_dag_ids()
+        assert backfill_run.state == State.RUNNING
+        assert scheduled_run.state == State.RUNNING
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
+        self.scheduler_job._update_dag_run_state_for_paused_dags()
+        session.flush()
+
+        (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
+        assert backfill_run.state == State.RUNNING
+
+        (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
+        assert scheduled_run.state == State.SUCCESS
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
