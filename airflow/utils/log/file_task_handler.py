@@ -212,7 +212,8 @@ class FileTaskHandler(logging.Handler):
             import httpx
 
             url = urljoin(
-                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log", log_relative_path
+                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+                log_relative_path,
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
