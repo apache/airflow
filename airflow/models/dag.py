@@ -2460,6 +2460,7 @@ class DAG(LoggingMixin):
             handler.setFormatter(format)
             # only add log handler once
             if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
+                self.log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
                 ti.log.addHandler(handler)
 
         execution_date = execution_date or timezone.utcnow()
@@ -2469,7 +2470,7 @@ class DAG(LoggingMixin):
             dag_run_state=False,  # type: ignore
             session=session,
         )
-
+        self.log.debug("Getting dagrun for dag %s", self.dag_id)
         dr: DagRun = _get_or_create_dagrun(
             dag=self,
             start_date=execution_date,
@@ -2480,7 +2481,7 @@ class DAG(LoggingMixin):
         )
 
         tasks = self.task_dict
-        self.log.info("starting dagrun")
+        self.log.debug("starting dagrun")
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
