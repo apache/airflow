@@ -44,14 +44,6 @@ VALID_CONN_IDS = [
 ]
 
 
-def conn_error_retry_handler():
-    return TEST_CONN_ERROR_RETRY_HANDLER
-
-
-def rate_limit_retry_handler():
-    return TEST_RATE_LIMIT_RETRY_HANDLER
-
-
 @pytest.fixture(scope="module", autouse=True)
 def slack_api_connections():
     """Create tests connections."""
@@ -170,16 +162,11 @@ class TestSlackHook:
                     "timeout": "9000",
                     "base_url": "http://conn-base-url:4321",
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": (
-                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
-                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
-                    ),
                 },
                 {
                     "timeout": 9000,
                     "base_url": "http://conn-base-url:4321",
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER, TEST_CONN_ERROR_RETRY_HANDLER],
                 },
             ),
             (  # Test Case: Connection from the UI
@@ -188,16 +175,11 @@ class TestSlackHook:
                     "extra__slack__timeout": 9000,
                     "extra__slack__base_url": "http://conn-base-url:4321",
                     "extra__slack__proxy": "https://conn-proxy:4321",
-                    "extra__slack__retry_handlers": (
-                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
-                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
-                    ),
                 },
                 {
                     "timeout": 9000,
                     "base_url": "http://conn-base-url:4321",
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER, TEST_CONN_ERROR_RETRY_HANDLER],
                 },
             ),
             (  # Test Case: Merge configs - hook args overwrite conn config
@@ -209,10 +191,6 @@ class TestSlackHook:
                 {
                     "timeout": 9000,
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": (
-                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
-                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
-                    ),
                 },
                 {
                     "timeout": 1,
@@ -227,12 +205,10 @@ class TestSlackHook:
                 {
                     "timeout": 9000,
                     "proxy": "https://conn-proxy:4334",
-                    "retry_handlers": ("tests.providers.slack.hooks.test_slack.conn_error_retry_handler"),
                 },
                 {
                     "timeout": 1,
                     "proxy": "https://conn-proxy:4334",
-                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER],
                 },
             ),
             (  # Test Case: empty configs
