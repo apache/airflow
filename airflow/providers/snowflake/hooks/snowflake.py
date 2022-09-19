@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from contextlib import closing
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Callable, Iterable, Mapping
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -83,7 +85,7 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -109,7 +111,7 @@ class SnowflakeHook(DbApiHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         import json
 
@@ -149,9 +151,9 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.query_ids: List[str] = []
+        self.query_ids: list[str] = []
 
-    def _get_conn_params(self) -> Dict[str, Optional[str]]:
+    def _get_conn_params(self) -> dict[str, str | None]:
         """
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
@@ -243,7 +245,7 @@ class SnowflakeHook(DbApiHook):
         conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
-    def _conn_params_to_sqlalchemy_uri(self, conn_params: Dict) -> str:
+    def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
         return URL(
             **{
                 k: v
@@ -285,13 +287,13 @@ class SnowflakeHook(DbApiHook):
 
     def run(
         self,
-        sql: Union[str, Iterable[str]],
+        sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        handler: Optional[Callable] = None,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> Optional[Union[Any, List[Any]]]:
+    ) -> Any | list[Any] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute

@@ -4133,6 +4133,14 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the StatsD pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

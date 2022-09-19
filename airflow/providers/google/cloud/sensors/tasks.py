@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Task sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.sensors.base import BaseSensorOperator
@@ -55,10 +57,10 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         self,
         *,
         location: str,
-        project_id: Optional[str] = None,
-        queue_name: Optional[str] = None,
+        project_id: str | None = None,
+        queue_name: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,7 +70,7 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Context) -> bool:
 
         hook = CloudTasksHook(
             gcp_conn_id=self.gcp_conn_id,

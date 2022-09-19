@@ -14,12 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import shlex
 import sys
 import time
 from copy import deepcopy
 from re import match
-from typing import IO, Dict, List, Optional, Tuple
+from typing import IO
 
 import click
 
@@ -65,7 +67,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import GenericRegexpProgressMatcher, check_async_run_results, run_with_pool
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -84,7 +86,7 @@ option_debug_release_management = click.option(
 
 def run_with_debug(
     params: ShellParams,
-    command: List[str],
+    command: list[str],
     verbose: bool,
     dry_run: bool,
     debug: bool,
@@ -168,7 +170,7 @@ def prepare_airflow_packages(
 ):
     perform_environment_checks(verbose=verbose)
     assert_pre_commit_installed(verbose=verbose)
-    run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
+    run_compile_www_assets(dev=False, run_in_background=False, verbose=verbose, dry_run=dry_run)
     shell_params = ShellParams(
         verbose=verbose,
         github_repository=github_repository,
@@ -204,9 +206,9 @@ def prepare_provider_documentation(
     verbose: bool,
     dry_run: bool,
     github_repository: str,
-    answer: Optional[str],
+    answer: str | None,
     debug: bool,
-    packages: List[str],
+    packages: list[str],
 ):
     perform_environment_checks(verbose=verbose)
     shell_params = ShellParams(
@@ -254,7 +256,7 @@ def prepare_provider_packages(
     version_suffix_for_pypi: str,
     package_list_file: IO,
     debug: bool,
-    packages: Tuple[str, ...],
+    packages: tuple[str, ...],
 ):
     perform_environment_checks(verbose=verbose)
     packages_list = list(packages)
@@ -286,8 +288,8 @@ def run_generate_constraints(
     dry_run: bool,
     verbose: bool,
     debug: bool,
-    output: Optional[Output],
-) -> Tuple[int, str]:
+    output: Output | None,
+) -> tuple[int, str]:
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
     ]
@@ -305,9 +307,14 @@ def run_generate_constraints(
     )
 
 
+CONSTRAINT_PROGRESS_MATCHER = (
+    r'Found|Uninstalling|uninstalled|Collecting|Downloading|eta|Running|Installing|built|Attempting'
+)
+
+
 def run_generate_constraints_in_parallel(
-    shell_params_list: List[ShellParams],
-    python_version_list: List[str],
+    shell_params_list: list[ShellParams],
+    python_version_list: list[str],
     include_success_outputs: bool,
     parallelism: int,
     skip_cleanup: bool,
@@ -320,7 +327,13 @@ def run_generate_constraints_in_parallel(
             f"Constraints {shell_params.airflow_constraints_mode}:{shell_params.python}"
             for shell_params in shell_params_list
         ]
-        with run_with_pool(parallelism=parallelism, all_params=all_params) as (pool, outputs):
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            progress_matcher=GenericRegexpProgressMatcher(
+                regexp=CONSTRAINT_PROGRESS_MATCHER, lines_to_search=6
+            ),
+        ) as (pool, outputs):
             results = [
                 pool.apply_async(
                     run_generate_constraints,
@@ -368,8 +381,8 @@ def generate_constraints(
     parallelism: int,
     skip_cleanup: bool,
     python_versions: str,
-    image_tag: Optional[str],
-    answer: Optional[str],
+    image_tag: str | None,
+    answer: str | None,
     debug: bool,
     airflow_constraints_mode: str,
 ):
@@ -466,7 +479,7 @@ def generate_constraints(
 def verify_provider_packages(
     verbose: bool,
     dry_run: bool,
-    use_airflow_version: Optional[str],
+    use_airflow_version: str | None,
     airflow_constraints_reference: str,
     skip_constraints: bool,
     airflow_extras: str,
@@ -503,7 +516,7 @@ def verify_provider_packages(
     sys.exit(result_command.returncode)
 
 
-def convert_build_args_dict_to_array_of_args(build_args: Dict[str, str]) -> List[str]:
+def convert_build_args_dict_to_array_of_args(build_args: dict[str, str]) -> list[str]:
     array_of_args = []
     for key, value in build_args.items():
         array_of_args.append("--build-arg")
@@ -562,7 +575,7 @@ def release_prod_images(
     dockerhub_repo: str,
     slim_images: bool,
     limit_platform: str,
-    limit_python: Optional[str],
+    limit_python: str | None,
     skip_latest: bool,
     verbose: bool,
     dry_run: bool,

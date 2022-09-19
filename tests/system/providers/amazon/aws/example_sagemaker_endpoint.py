@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from datetime import datetime
 
@@ -210,20 +212,17 @@ with DAG(
     train_model = SageMakerTrainingOperator(
         task_id='train_model',
         config=test_setup['training_config'],
-        do_xcom_push=False,
     )
 
     create_model = SageMakerModelOperator(
         task_id='create_model',
         config=test_setup['model_config'],
-        do_xcom_push=False,
     )
 
     # [START howto_operator_sagemaker_endpoint_config]
     configure_endpoint = SageMakerEndpointConfigOperator(
         task_id='configure_endpoint',
         config=test_setup['endpoint_config_config'],
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_endpoint_config]
 
@@ -233,7 +232,6 @@ with DAG(
         config=test_setup['deploy_endpoint_config'],
         # Waits by default, setting as False to demonstrate the Sensor below.
         wait_for_completion=False,
-        do_xcom_push=False,
     )
     # [END howto_operator_sagemaker_endpoint]
 

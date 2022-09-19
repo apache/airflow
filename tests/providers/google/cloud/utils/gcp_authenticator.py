@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -48,7 +50,6 @@ GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_GKE_KEY = "gcp_gke.json"
 GCP_KMS_KEY = "gcp_kms.json"
-GCP_LIFE_SCIENCES_KEY = 'gcp_life_sciences.json'
 GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SECRET_MANAGER_KEY = 'gcp_secret_manager.json'
@@ -78,7 +79,7 @@ class GcpAuthenticator(CommandExecutor):
 
     original_account = None  # type: Optional[str]
 
-    def __init__(self, gcp_key: str, project_extra: Optional[str] = None):
+    def __init__(self, gcp_key: str, project_extra: str | None = None):
         super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime as dt
 import os
 
@@ -237,6 +239,8 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "task_id": "task_2",
             "try_number": 0,
             "unixname": getuser(),
+            "trigger": None,
+            "triggerer_job": None,
         }
 
     def test_should_raises_401_unauthenticated(self):

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from logging.config import fileConfig
 
@@ -32,6 +33,9 @@ def include_object(_, name, type_, *args):
     else:
         return True
 
+
+# Make sure everything is imported so that alembic can find it all
+models.import_all_models()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

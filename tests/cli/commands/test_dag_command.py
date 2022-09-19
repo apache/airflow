@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import io
 import json
@@ -79,6 +81,30 @@ class TestCliDags(unittest.TestCase):
         with create_session() as session:
             serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
+
+    def test_reserialize_should_support_subdir_argument(self):
+        # Run clear of serialized dags
+        dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize', "--clear-only"]))
+
+        # Assert no serialized Dags
+        with create_session() as session:
+            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_clear) == 0
+
+        # Serialize manually
+        dag_path = self.dagbag.dags['example_bash_operator'].fileloc
+        # Set default value of include_examples parameter to false
+        dagbag_default = list(DagBag.__init__.__defaults__)
+        dagbag_default[1] = False
+        with mock.patch(
+            'airflow.cli.commands.dag_command.DagBag.__init__.__defaults__', tuple(dagbag_default)
+        ):
+            dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize', '--subdir', dag_path]))
+
+        # Check serialized DAG are back
+        with create_session() as session:
+            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
@@ -473,12 +499,13 @@ class TestCliDags(unittest.TestCase):
             [
                 'dags',
                 'list-runs',
+                '--dag-id',
+                'example_bash_operator',
                 '--no-backfill',
                 '--start-date',
                 DEFAULT_DATE.isoformat(),
                 '--end-date',
                 timezone.make_aware(datetime.max).isoformat(),
-                'example_bash_operator',
             ]
         )
         dag_command.dag_list_dag_runs(args)

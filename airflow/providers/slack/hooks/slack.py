@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Sequence
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -84,12 +86,12 @@ class SlackHook(BaseHook):
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        slack_conn_id: Optional[str] = None,
-        base_url: Optional[str] = None,
-        timeout: Optional[int] = None,
-        proxy: Optional[str] = None,
-        retry_handlers: Optional[List["RetryHandler"]] = None,
+        token: str | None = None,
+        slack_conn_id: str | None = None,
+        base_url: str | None = None,
+        timeout: int | None = None,
+        proxy: str | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
         **extra_client_args: Any,
     ) -> None:
         if not token and not slack_conn_id:
@@ -130,10 +132,10 @@ class SlackHook(BaseHook):
         """Get the underlying slack_sdk.WebClient (cached)."""
         return self.client
 
-    def _get_conn_params(self) -> Dict[str, Any]:
+    def _get_conn_params(self) -> dict[str, Any]:
         """Fetch connection params as a dict and merge it with hook parameters."""
         conn = self.get_connection(self.slack_conn_id) if self.slack_conn_id else None
-        conn_params: Dict[str, Any] = {}
+        conn_params: dict[str, Any] = {"retry_handlers": self.retry_handlers}
 
         if self._token:
             conn_params["token"] = self._token
@@ -156,9 +158,6 @@ class SlackHook(BaseHook):
                 "timeout": self.timeout or extra_config.getint("timeout", default=None),
                 "base_url": self.base_url or extra_config.get("base_url", default=None),
                 "proxy": self.proxy or extra_config.get("proxy", default=None),
-                "retry_handlers": (
-                    self.retry_handlers or extra_config.getimports("retry_handlers", default=None)
-                ),
             }
         )
 
@@ -196,7 +195,7 @@ class SlackHook(BaseHook):
 
         raise AirflowException('Cannot get token: No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, api_method: str, **kwargs) -> "SlackResponse":
+    def call(self, api_method: str, **kwargs) -> SlackResponse:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 
@@ -212,6 +211,58 @@ class SlackHook(BaseHook):
             iterated on to execute subsequent requests.
         """
         return self.client.api_call(api_method, **kwargs)
+
+    def send_file(
+        self,
+        *,
+        channels: str | Sequence[str] | None = None,
+        file: str | Path | None = None,
+        content: str | None = None,
+        filename: str | None = None,
+        filetype: str | None = None,
+        initial_comment: str | None = None,
+        title: str | None = None,
+    ) -> SlackResponse:
+        """
+        Create or upload an existing file.
+
+        :param channels: Comma-separated list of channel names or IDs where the file will be shared.
+            If omitting this parameter, then file will send to workspace.
+        :param file: Path to file which need to be sent.
+        :param content: File contents. If omitting this parameter, you must provide a file.
+        :param filename: Displayed filename.
+        :param filetype: A file type identifier.
+        :param initial_comment: The message text introducing the file in specified ``channels``.
+        :param title: Title of file.
+
+        .. seealso::
+            - `Slack API files.upload method <https://api.slack.com/methods/files.upload>`_
+            - `File types <https://api.slack.com/types/file#file_types>`_
+        """
+        if not ((not file) ^ (not content)):
+            raise ValueError("Either `file` or `content` must be provided, not both.")
+        elif file:
+            file = Path(file)
+            with open(file, "rb") as fp:
+                if not filename:
+                    filename = file.name
+                return self.client.files_upload(
+                    file=fp,
+                    filename=filename,
+                    filetype=filetype,
+                    initial_comment=initial_comment,
+                    title=title,
+                    channels=channels,
+                )
+
+        return self.client.files_upload(
+            content=content,
+            filename=filename,
+            filetype=filetype,
+            initial_comment=initial_comment,
+            title=title,
+            channels=channels,
+        )
 
     def test_connection(self):
         """Tests the Slack API connection.
@@ -237,7 +288,7 @@ class SlackHook(BaseHook):
             return True, str(response)
 
     @classmethod
-    def get_connection_form_widgets(cls) -> Dict[str, Any]:
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns dictionary of widgets to be added for the hook to handle extra values."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -260,16 +311,10 @@ class SlackHook(BaseHook):
                 widget=BS3TextFieldWidget(),
                 description="Optional. Proxy to make the Slack API call.",
             ),
-            prefixed_extra_field("retry_handlers", cls.conn_type): StringField(
-                lazy_gettext('Retry Handlers'),
-                widget=BS3TextFieldWidget(),
-                description="Optional. Comma separated list of import paths to zero-argument callable "
-                "which returns retry handler for Slack WebClient.",
-            ),
         }
 
     @classmethod
-    def get_ui_field_behaviour(cls) -> Dict[str, Any]:
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["login", "port", "host", "schema", "extra"],
@@ -281,9 +326,5 @@ class SlackHook(BaseHook):
                 prefixed_extra_field("timeout", cls.conn_type): "30",
                 prefixed_extra_field("base_url", cls.conn_type): "https://www.slack.com/api/",
                 prefixed_extra_field("proxy", cls.conn_type): "http://localhost:9000",
-                prefixed_extra_field("retry_handlers", cls.conn_type): (
-                    "slack_sdk.http_retry.builtin_handlers.ConnectionErrorRetryHandler,"
-                    "slack_sdk.http_retry.builtin_handlers.RateLimitErrorRetryHandler"
-                ),
             },
         }

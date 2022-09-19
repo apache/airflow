@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import datetime
 import os
 from unittest import mock
@@ -28,7 +29,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.dag_processing.processor import DagFileProcessor
+from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
@@ -97,8 +98,10 @@ class TestDagFileProcessor:
             self.scheduler_job = None
         self.clean_db()
 
-    def _process_file(self, file_path, session):
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+    def _process_file(self, file_path, dag_directory, session):
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
+        )
 
         dag_file_processor.process_file(file_path, [], False, session)
 
@@ -124,7 +127,9 @@ class TestDagFileProcessor:
 
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         dag_file_processor.manage_slas(dag=dag, session=session)
 
         assert sla_callback.called
@@ -153,7 +158,9 @@ class TestDagFileProcessor:
 
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         dag_file_processor.manage_slas(dag=dag, session=session)
         sla_callback.assert_not_called()
 
@@ -192,7 +199,9 @@ class TestDagFileProcessor:
         )
 
         # Now call manage_slas and see if the sla_miss callback gets called
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         dag_file_processor.manage_slas(dag=dag, session=session)
 
         sla_callback.assert_not_called()
@@ -220,7 +229,9 @@ class TestDagFileProcessor:
         session.merge(ti)
         session.flush()
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         dag_file_processor.manage_slas(dag=dag, session=session)
         sla_miss_count = (
             session.query(SlaMiss)
@@ -264,7 +275,7 @@ class TestDagFileProcessor:
 
         # Now call manage_slas and see if the sla_miss callback gets called
         mock_log = mock.MagicMock()
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
+        dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock_log)
         dag_file_processor.manage_slas(dag=dag, session=session)
         assert sla_callback.called
         mock_log.exception.assert_called_once_with(
@@ -294,7 +305,9 @@ class TestDagFileProcessor:
 
         session.merge(SlaMiss(task_id='sla_missed', dag_id='test_sla_miss', execution_date=test_start_date))
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
 
         dag_file_processor.manage_slas(dag=dag, session=session)
 
@@ -333,7 +346,7 @@ class TestDagFileProcessor:
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
         mock_log = mock.MagicMock()
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
+        dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock_log)
 
         dag_file_processor.manage_slas(dag=dag, session=session)
         mock_log.exception.assert_called_once_with(
@@ -364,13 +377,15 @@ class TestDagFileProcessor:
         )
 
         mock_log = mock.MagicMock()
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
+        dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock_log)
         dag_file_processor.manage_slas(dag=dag, session=session)
 
     @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag('example_branch_operator')
@@ -401,7 +416,9 @@ class TestDagFileProcessor:
     @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks_without_dag(self, mock_ti_handle_failure, has_serialized_dag):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag('example_branch_operator')
@@ -431,7 +448,9 @@ class TestDagFileProcessor:
 
     def test_failure_callbacks_should_not_drop_hostname(self):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
         dag_file_processor.UNIT_TEST_MODE = False
 
         with create_session() as session:
@@ -462,7 +481,9 @@ class TestDagFileProcessor:
         callback_file = tmp_path.joinpath("callback.txt")
         callback_file.touch()
         monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
 
         dag = get_test_dag('test_on_failure_callback')
         task = dag.get_task(task_id='test_on_failure_callback_task')
@@ -496,7 +517,7 @@ class TestDagFileProcessor:
             unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, session)
+            self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -513,7 +534,7 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(zip_filename, session)
+            self._process_file(zip_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -530,7 +551,7 @@ class TestDagFileProcessor:
             for line in main_dag:
                 next_dag.write(line)
         # first we parse the dag
-        self._process_file(temp_dagfile, session)
+        self._process_file(temp_dagfile, dag_directory=tmpdir, session=session)
         # assert DagModel.has_import_errors is false
         dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
         assert not dm.has_import_errors
@@ -538,7 +559,7 @@ class TestDagFileProcessor:
         with open(temp_dagfile, 'a') as file:
             file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
-        self._process_file(temp_dagfile, session)
+        self._process_file(temp_dagfile, dag_directory=tmpdir, session=session)
         import_errors = session.query(errors.ImportError).all()
 
         assert len(import_errors) == 1
@@ -555,7 +576,7 @@ class TestDagFileProcessor:
             parseable_file.writelines(PARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(parseable_filename, session)
+            self._process_file(parseable_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
@@ -568,7 +589,7 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(zip_filename, session)
+            self._process_file(zip_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
@@ -583,14 +604,14 @@ class TestDagFileProcessor:
         with open(unparseable_filename, 'w') as unparseable_file:
             unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
         session = settings.Session()
-        self._process_file(unparseable_filename, session)
+        self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
 
         # Generate replacement import error (the error will be on the second line now)
         with open(unparseable_filename, 'w') as unparseable_file:
             unparseable_file.writelines(
                 PARSEABLE_DAG_FILE_CONTENTS + os.linesep + UNPARSEABLE_DAG_FILE_CONTENTS
             )
-        self._process_file(unparseable_filename, session)
+        self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
 
         import_errors = session.query(errors.ImportError).all()
 
@@ -612,7 +633,7 @@ class TestDagFileProcessor:
         with open(filename_to_parse, 'w') as file_to_parse:
             file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
         session = settings.Session()
-        self._process_file(filename_to_parse, session)
+        self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
 
         import_error_1 = (
             session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
@@ -620,7 +641,7 @@ class TestDagFileProcessor:
 
         # process the file multiple times
         for _ in range(10):
-            self._process_file(filename_to_parse, session)
+            self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
 
         import_error_2 = (
             session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
@@ -636,12 +657,12 @@ class TestDagFileProcessor:
         with open(filename_to_parse, 'w') as file_to_parse:
             file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
         session = settings.Session()
-        self._process_file(filename_to_parse, session)
+        self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
 
         # Remove the import error from the file
         with open(filename_to_parse, 'w') as file_to_parse:
             file_to_parse.writelines(PARSEABLE_DAG_FILE_CONTENTS)
-        self._process_file(filename_to_parse, session)
+        self._process_file(filename_to_parse, dag_directory=tmpdir, session=session)
 
         import_errors = session.query(errors.ImportError).all()
 
@@ -656,7 +677,7 @@ class TestDagFileProcessor:
         zip_filename = os.path.join(tmpdir, "test_zip.zip")
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
-        self._process_file(zip_filename, session)
+        self._process_file(zip_filename, dag_directory=tmpdir, session=session)
 
         import_errors = session.query(errors.ImportError).all()
         assert len(import_errors) == 1
@@ -664,7 +685,7 @@ class TestDagFileProcessor:
         # Remove the import error from the file
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, 'import os # airflow DAG')
-        self._process_file(zip_filename, session)
+        self._process_file(zip_filename, dag_directory=tmpdir, session=session)
 
         import_errors = session.query(errors.ImportError).all()
         assert len(import_errors) == 0
@@ -677,7 +698,7 @@ class TestDagFileProcessor:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, session)
+            self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -703,7 +724,7 @@ class TestDagFileProcessor:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, session)
+            self._process_file(unparseable_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -726,7 +747,7 @@ class TestDagFileProcessor:
             invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(invalid_zip_filename, session)
+            self._process_file(invalid_zip_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -753,7 +774,7 @@ class TestDagFileProcessor:
             invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(invalid_zip_filename, session)
+            self._process_file(invalid_zip_filename, dag_directory=tmpdir, session=session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 1
@@ -768,6 +789,52 @@ class TestDagFileProcessor:
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
 
+    @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
+    @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
+    @mock.patch('airflow.dag_processing.processor.redirect_stdout')
+    def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
+        processor = DagFileProcessorProcess(
+            file_path='abc.txt',
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor._run_file_processor(
+            result_channel=MagicMock(),
+            parent_channel=MagicMock(),
+            file_path="fake_file_path",
+            pickle_dags=False,
+            dag_ids=[],
+            thread_name="fake_thread_name",
+            callback_requests=[],
+            dag_directory=[],
+        )
+        mock_redirect_stdout_for_file.assert_not_called()
+
+    @conf_vars({("logging", "dag_processor_log_target"): "file"})
+    @mock.patch('airflow.dag_processing.processor.settings.dispose_orm', MagicMock)
+    @mock.patch('airflow.dag_processing.processor.redirect_stdout')
+    def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
+        processor = DagFileProcessorProcess(
+            file_path='abc.txt',
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor._run_file_processor(
+            result_channel=MagicMock(),
+            parent_channel=MagicMock(),
+            file_path="fake_file_path",
+            pickle_dags=False,
+            dag_ids=[],
+            thread_name="fake_thread_name",
+            callback_requests=[],
+            dag_directory=[],
+        )
+        mock_redirect_stdout_for_file.assert_called_once()
+
 
 class TestProcessorAgent:
     @pytest.fixture(autouse=True)
@@ -779,7 +846,7 @@ class TestProcessorAgent:
 
     def test_error_when_waiting_in_async_mode(self, tmp_path):
         self.processor_agent = DagFileProcessorAgent(
-            dag_directory=str(tmp_path),
+            dag_directory=tmp_path,
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
@@ -792,7 +859,7 @@ class TestProcessorAgent:
 
     def test_default_multiprocessing_behaviour(self, tmp_path):
         self.processor_agent = DagFileProcessorAgent(
-            dag_directory=str(tmp_path),
+            dag_directory=tmp_path,
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
@@ -806,7 +873,7 @@ class TestProcessorAgent:
     @conf_vars({("core", "mp_start_method"): "spawn"})
     def test_spawn_multiprocessing_behaviour(self, tmp_path):
         self.processor_agent = DagFileProcessorAgent(
-            dag_directory=str(tmp_path),
+            dag_directory=tmp_path,
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],

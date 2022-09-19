@@ -14,11 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest.mock import ANY
 
 import pytest
 
-from airflow.models import DagModel, DagWarning
+from airflow.models.dag import DagModel
+from airflow.models.dagwarning import DagWarning
 from airflow.security import permissions
 from airflow.utils.session import create_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user

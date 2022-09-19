@@ -21,11 +21,5 @@ echo "Welcome to your tmux based running Airflow environment (courtesy of Breeze
 echo
 echo "     To stop Airflow and exit tmux, just type 'stop_airflow'."
 echo
-echo "     NOTE! If you want to rebuild webserver assets dynamically:"
-echo
-echo "        * Restart airflow webserver with '-d' flag."
-echo "          AND (in a separate terminal in your host):"
-echo "        * Run 'breeze compile-www-assets --dev'."
-echo "           OR"
-echo "        * Run 'yarn dev' in the 'airflow/www' if you have yarn installed and want to watch recompiling happens."
+echo "     If you want to build webserver assets dynamically, run start-airflow command with --dev-mode"
 echo

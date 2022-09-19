@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import abc
 import logging
 import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
-from typing import IO, Optional
+from typing import IO
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -38,7 +40,7 @@ def remove_escape_codes(text: str) -> str:
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name"""
 
-    _log: Optional[logging.Logger] = None
+    _log: logging.Logger | None = None
 
     def __init__(self, context=None):
         self._set_context(context)

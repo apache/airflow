@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import os
 import time
 import traceback
 
+import sqlalchemy.orm.mapper
 from sqlalchemy import event, exc
 
 from airflow.configuration import conf
@@ -30,6 +32,9 @@ log = logging.getLogger(__name__)
 
 def setup_event_handlers(engine):
     """Setups event handlers."""
+    from airflow.models import import_all_models
+
+    event.listen(sqlalchemy.orm.mapper, "before_configured", import_all_models, once=True)
 
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 import re
@@ -26,11 +27,7 @@ from typing import (
     Generic,
     Iterator,
     Mapping,
-    Optional,
     Sequence,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -91,8 +88,8 @@ def validate_python_callable(python_callable: Any) -> None:
 
 def get_unique_task_id(
     task_id: str,
-    dag: Optional[DAG] = None,
-    task_group: Optional[TaskGroup] = None,
+    dag: DAG | None = None,
+    task_group: TaskGroup | None = None,
 ) -> str:
     """
     Generate unique task id given a DAG (or if run in a DAG context)
@@ -159,10 +156,10 @@ class DecoratedOperator(BaseOperator):
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
         multiple_outputs: bool = False,
-        kwargs_to_upstream: Optional[Dict[str, Any]] = None,
+        kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         task_id = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
@@ -249,9 +246,9 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
     """
 
     function: Callable[FParams, FReturn] = attr.ib()
-    operator_class: Type[OperatorSubclass]
+    operator_class: type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
-    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+    kwargs: dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
 
@@ -271,7 +268,7 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault('task_id', self.function.__name__)
 
-    def __call__(self, *args: "FParams.args", **kwargs: "FParams.kwargs") -> XComArg:
+    def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -297,11 +294,11 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
         return any(v.kind == inspect.Parameter.VAR_KEYWORD for v in parameters.values())
 
     @cached_property
-    def _mappable_function_argument_names(self) -> Set[str]:
+    def _mappable_function_argument_names(self) -> set[str]:
         """Arguments that can be mapped against."""
         return set(self.function_signature.parameters)
 
-    def _validate_arg_names(self, func: ValidationSource, kwargs: Dict[str, Any]):
+    def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.
         context_keys_being_mapped = KNOWN_CONTEXT_KEYS.intersection(kwargs)
         if len(context_keys_being_mapped) == 1:
@@ -430,14 +427,14 @@ class _TaskDecorator(Generic[FParams, FReturn, OperatorSubclass]):
         )
         return XComArg(operator=operator)
 
-    def partial(self, **kwargs: Any) -> "_TaskDecorator[FParams, FReturn, OperatorSubclass]":
+    def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)
         old_kwargs = self.kwargs.get("op_kwargs", {})
         prevent_duplicates(old_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(old_kwargs)
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": kwargs})
 
-    def override(self, **kwargs: Any) -> "_TaskDecorator[FParams, FReturn, OperatorSubclass]":
+    def override(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
 
@@ -461,13 +458,13 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> Tuple[Mapping[str, Any], Set[int]]:
+    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         assert self.expand_input is EXPAND_INPUT_EMPTY
         op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         partial_op_kwargs = self.partial_kwargs["op_kwargs"]
         mapped_op_kwargs = mapped_kwargs["op_kwargs"]
 
@@ -501,7 +498,7 @@ class Task(Generic[FParams, FReturn]):
     def __wrapped__(self) -> Callable[FParams, FReturn]:
         ...
 
-    def partial(self, **kwargs: Any) -> "Task[FParams, FReturn]":
+    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]:
         ...
 
     def expand(self, **kwargs: OperatorExpandArgument) -> XComArg:
@@ -510,7 +507,7 @@ class Task(Generic[FParams, FReturn]):
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         ...
 
-    def override(self, **kwargs: Any) -> "Task[FParams, FReturn]":
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
         ...
 
 
@@ -528,20 +525,20 @@ class TaskDecorator(Protocol):
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         **kwargs: Any,
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
 
-    def override(self, **kwargs: Any) -> "Task[FParams, FReturn]":
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
         ...
 
 
 def task_decorator_factory(
-    python_callable: Optional[Callable] = None,
+    python_callable: Callable | None = None,
     *,
-    multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Type[BaseOperator],
+    multiple_outputs: bool | None = None,
+    decorated_operator_class: type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
     """Generate a wrapper that wraps a function into an Airflow operator.

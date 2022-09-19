@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP to Google Cloud Storage operator."""
+from __future__ import annotations
+
 import os
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -84,14 +86,14 @@ class SFTPToGCSOperator(BaseOperator):
         *,
         source_path: str,
         destination_bucket: str,
-        destination_path: Optional[str] = None,
+        destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         mime_type: str = "application/octet-stream",
         gzip: bool = False,
         move_object: bool = False,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,7 +109,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -170,7 +172,7 @@ class SFTPToGCSOperator(BaseOperator):
             sftp_hook.delete_file(source_path)
 
     @staticmethod
-    def _set_destination_path(path: Union[str, None]) -> str:
+    def _set_destination_path(path: str | None) -> str:
         if path is not None:
             return path.lstrip("/") if path.startswith("/") else path
         return ""

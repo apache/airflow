@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
-from typing import Mapping, Optional
+from typing import Mapping
 from unittest import mock
 from unittest.mock import call
 
@@ -73,8 +74,8 @@ class TestDagRun:
         self,
         dag: DAG,
         *,
-        task_states: Optional[Mapping[str, TaskInstanceState]] = None,
-        execution_date: Optional[datetime.datetime] = None,
+        task_states: Mapping[str, TaskInstanceState] | None = None,
+        execution_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         session: Session,
     ):
@@ -426,6 +427,8 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
+        DAG.bulk_write_to_db(dags=[dag], processor_subdir='/tmp/test', session=session)
+
         dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
         dag_task2 = EmptyOperator(task_id='test_state_succeeded2', dag=dag)
         dag_task1.set_downstream(dag_task2)
@@ -449,6 +452,7 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
+            processor_subdir='/tmp/test',
             msg="success",
         )
 
@@ -461,6 +465,8 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
+        DAG.bulk_write_to_db(dags=[dag], processor_subdir='/tmp/test', session=session)
+
         dag_task1 = EmptyOperator(task_id='test_state_succeeded1', dag=dag)
         dag_task2 = EmptyOperator(task_id='test_state_failed2', dag=dag)
         dag_task1.set_downstream(dag_task2)
@@ -484,6 +490,7 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
+            processor_subdir='/tmp/test',
             msg="task_failure",
         )
 
