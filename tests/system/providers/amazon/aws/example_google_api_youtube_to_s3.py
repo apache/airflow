@@ -44,6 +44,7 @@ https://airflow.apache.org/docs/apache-airflow-providers-google/stable/connectio
 The required scope for this DAG is https://www.googleapis.com/auth/youtube.readonly.
 This can be set via the environment variable AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT.
 """
+from __future__ import annotations
 
 from datetime import datetime
 
