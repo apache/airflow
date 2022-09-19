@@ -40,27 +40,24 @@ Take a look at the following snippet of code:
     from datetime import datetime
 
     from airflow import DAG
-    from airflow.decorators import task
     from airflow.operators.bash import BashOperator
+    from airflow.operators.python import PythonOperator
 
     # A DAG represents a workflow, a collection of tasks
     with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
 
         # Tasks are represented as operators
         hello = BashOperator(task_id="hello", bash_command="echo hello")
-
-        @task()
-        def airflow():
-            print("airflow")
+        airflow = PythonOperator(task_id="airflow", python_callable=lambda: print("airflow"))
 
         # Set dependencies between tasks
-        hello >> airflow()
+        hello >> airflow
 
 
 Here you see:
 
 - A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
-- Two tasks, a BashOperator running a Bash script and a Python function defined using the ``@task`` decorator
+- Two tasks, a BashOperator running a Bash script and a PythonOperator running a Python script
 - ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
 
 Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
