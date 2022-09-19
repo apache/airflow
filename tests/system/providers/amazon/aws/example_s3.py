@@ -47,6 +47,13 @@ DATA = '''
     bread,4.0
 '''
 
+# Empty string prefix refers to the bucket root
+# See what prefix is here https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-prefixes.html
+PREFIX = ''
+DELIMITER = '/'
+TAG_KEY = 'test-s3-bucket-tagging-key'
+TAG_VALUE = 'test-s3-bucket-tagging-value'
+
 with DAG(
     dag_id=DAG_ID,
     schedule='@once',
@@ -57,19 +64,11 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
 
-    bucket_name = f's3-bucket-{env_id}'
-    bucket_name_2 = f's3-bucket-2-{env_id}'
+    bucket_name = f'{env_id}-s3-bucket'
+    bucket_name_2 = f'{env_id}-s3-bucket-2'
 
     key = f'{env_id}-key'
     key_2 = f'{env_id}-key2'
-
-    tag_key = 'test-s3-bucket-tagging-key'
-    tag_value = 'test-s3-bucket-tagging-value'
-
-    # Empty string prefix refers to the bucket root
-    # See what prefix is here https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-prefixes.html
-    prefix = ''
-    delimiter = '/'
 
     # [START howto_sensor_s3_key_function_definition]
     def check_fn(files: list) -> bool:
@@ -100,8 +99,8 @@ with DAG(
     put_tagging = S3PutBucketTaggingOperator(
         task_id='put_tagging',
         bucket_name=bucket_name,
-        key=tag_key,
-        value=tag_value,
+        key=TAG_KEY,
+        value=TAG_VALUE,
     )
     # [END howto_operator_s3_put_bucket_tagging]
 
@@ -141,8 +140,8 @@ with DAG(
     list_prefixes = S3ListPrefixesOperator(
         task_id="list_prefixes",
         bucket=bucket_name,
-        prefix=prefix,
-        delimiter=delimiter,
+        prefix=PREFIX,
+        delimiter=DELIMITER,
     )
     # [END howto_operator_s3_list_prefixes]
 
@@ -150,7 +149,7 @@ with DAG(
     list_keys = S3ListOperator(
         task_id="list_keys",
         bucket=bucket_name,
-        prefix=prefix,
+        prefix=PREFIX,
     )
     # [END howto_operator_s3_list]
 
@@ -207,8 +206,8 @@ with DAG(
     sensor_keys_unchanged = S3KeysUnchangedSensor(
         task_id="sensor_keys_unchanged",
         bucket_name=bucket_name_2,
-        prefix=prefix,
-        inactivity_period=10,
+        prefix=PREFIX,
+        inactivity_period=10,  # inactivity_period in seconds
     )
     # [END howto_sensor_s3_keys_unchanged]
 
@@ -222,9 +221,19 @@ with DAG(
 
     # [START howto_operator_s3_delete_bucket]
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket', bucket_name=bucket_name, force_delete=True, trigger_rule=TriggerRule.ALL_DONE
+        task_id='delete_bucket',
+        bucket_name=bucket_name,
+        force_delete=True,
     )
     # [END howto_operator_s3_delete_bucket]
+    delete_bucket.trigger_rule = TriggerRule.ALL_DONE
+
+    delete_bucket_2 = S3DeleteBucketOperator(
+        task_id='delete_bucket_2',
+        bucket_name=bucket_name_2,
+        force_delete=True,
+    )
+    delete_bucket_2.trigger_rule = TriggerRule.ALL_DONE
 
     chain(
         # TEST SETUP
@@ -246,6 +255,7 @@ with DAG(
         # TEST TEARDOWN
         delete_objects,
         delete_bucket,
+        delete_bucket_2,
     )
     from tests.system.utils.watcher import watcher
 
