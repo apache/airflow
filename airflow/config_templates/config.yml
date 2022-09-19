@@ -253,7 +253,7 @@
       description: |
           The number of seconds each task is going to wait by default between retries. Can be overridden at
           dag or task level.
-      version_added: 2.3.2
+      version_added: 2.4.0
       type: integer
       example: ~
       default: "300"
@@ -669,7 +669,7 @@
     - name: dag_processor_log_format
       description: |
         Format of Dag Processor Log line
-      version_added: 2.3.4
+      version_added: 2.4.0
       type: string
       example: ~
       default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
