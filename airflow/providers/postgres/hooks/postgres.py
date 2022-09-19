@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from contextlib import closing
 from copy import deepcopy
 from typing import Iterable, Union
@@ -67,11 +68,13 @@ class PostgresHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
-        if "schema" in kwargs:
-            self.log.error(
-                'The "schema" will be ignored as Postgres does not allow passing a schema on connect.'
-                ' In case you want to set the database, please set "database".'
+        if 'schema' in kwargs:
+            warnings.warn(
+                'The "schema" arg has been renamed to "database" as it contained the database name.'
+                'Please use "database" to set the database name.',
+                DeprecationWarning,
             )
+            kwargs['database'] = kwargs['schema']
         super().__init__(*args, **kwargs)
         self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
