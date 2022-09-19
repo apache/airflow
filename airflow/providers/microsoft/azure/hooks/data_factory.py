@@ -25,6 +25,7 @@
     PipelineRun
     TriggerResource
     datafactory
+    DataFlow
     mgmt
 """
 from __future__ import annotations
@@ -39,6 +40,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
+    DataFlow,
     DatasetResource,
     Factory,
     LinkedServiceResource,
@@ -479,11 +481,120 @@ class AzureDataFactoryHook(BaseHook):
         Delete the dataset.
 
         :param dataset_name: The dataset name.
-        :param resource_group_name: The dataset name.
+        :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
         self.get_conn().datasets.delete(resource_group_name, factory_name, dataset_name, **config)
+
+    @provide_targeted_factory
+    def get_dataflow(
+        self,
+        dataflow_name: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> DataFlow:
+        """
+        Get the dataflow.
+
+        :param dataflow_name: The dataflow name.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        :return: The dataflow.
+        """
+        return self.get_conn().data_flows.get(resource_group_name, factory_name, dataflow_name, **config)
+
+    def _dataflow_exists(
+        self,
+        dataflow_name: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+    ) -> bool:
+        """Return whether the dataflow already exists."""
+        dataflows = {
+            dataflow.name
+            for dataflow in self.get_conn().data_flows.list_by_factory(resource_group_name, factory_name)
+        }
+
+        return dataflow_name in dataflows
+
+    @provide_targeted_factory
+    def update_dataflow(
+        self,
+        dataflow_name: str,
+        dataflow: DataFlow,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> DataFlow:
+        """
+        Update the dataflow.
+
+        :param dataflow_name: The dataflow name.
+        :param dataflow: The dataflow resource definition.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        :raise AirflowException: If the dataset does not exist.
+        :return: The dataflow.
+        """
+        if not self._dataflow_exists(
+            dataflow_name,
+            resource_group_name,
+            factory_name,
+        ):
+            raise AirflowException(f"Dataflow {dataflow_name!r} does not exist.")
+
+        return self.get_conn().data_flows.create_or_update(
+            resource_group_name, factory_name, dataflow_name, dataflow, **config
+        )
+
+    @provide_targeted_factory
+    def create_dataflow(
+        self,
+        dataflow_name: str,
+        dataflow: DataFlow,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> DataFlow:
+        """
+        Create the dataflow.
+
+        :param dataflow_name: The dataflow name.
+        :param dataflow: The dataflow resource definition.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        :raise AirflowException: If the dataset already exists.
+        :return: The dataset.
+        """
+        if self._dataflow_exists(dataflow_name, resource_group_name, factory_name):
+            raise AirflowException(f"Dataflow {dataflow_name!r} already exists.")
+
+        return self.get_conn().data_flows.create_or_update(
+            resource_group_name, factory_name, dataflow_name, dataflow, **config
+        )
+
+    @provide_targeted_factory
+    def delete_dataflow(
+        self,
+        dataflow_name: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> None:
+        """
+        Delete the dataflow.
+
+        :param dataflow_name: The dataflow name.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        """
+        self.get_conn().data_flows.delete(resource_group_name, factory_name, dataflow_name, **config)
 
     @provide_targeted_factory
     def get_pipeline(
