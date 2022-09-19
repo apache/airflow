@@ -21,19 +21,6 @@
 
 .. towncrier release notes start
 
-Airflow 2.4.1
--------------------------------
-
-Significant Changes
-^^^^^^^^^^^^^^^^^^^
-
-airflow dags test no longer performs a backfill job
-"""""""""""""""""""""""""""""""""""""""""""""""""""
-
-In order to make ``airflow dags test`` more useful as a testing and debugging tool, we no
-longer run a backfill job and instead run a "local task runner". Users can still backfill
-their DAGs using the ``airflow dags backfill`` command.
-
 Airflow 2.4.0beta1 (2022-09-08)
 -------------------------------
 
