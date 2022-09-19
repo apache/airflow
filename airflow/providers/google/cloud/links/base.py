@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
 
+BASE_LINK = "https://console.cloud.google.com"
+
+
 class BaseGoogleLink(BaseOperatorLink):
     """:meta private:"""
 
@@ -49,5 +52,8 @@ class BaseGoogleLink(BaseOperatorLink):
                 task_id=operator.task_id,
                 execution_date=dttm,
             )
-
-        return self.format_str.format(**conf) if conf else ""
+        if not conf:
+            return ""
+        if self.format_str.startswith(BASE_LINK):
+            return self.format_str.format(**conf)
+        return BASE_LINK + self.format_str.format(**conf)

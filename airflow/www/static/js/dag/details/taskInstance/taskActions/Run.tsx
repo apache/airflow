@@ -24,17 +24,24 @@ import {
   ButtonGroup,
 } from '@chakra-ui/react';
 
-import { useRunTask } from '../../../../api';
-import { getMetaValue } from '../../../../utils';
+import { useRunTask } from 'src/api';
+import { getMetaValue } from 'src/utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
+
+interface Props {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  mapIndexes: number[];
+}
 
 const Run = ({
   dagId,
   runId,
   taskId,
   mapIndexes,
-}) => {
+}: Props) => {
   const [ignoreAllDeps, setIgnoreAllDeps] = useState(false);
   const onToggleAllDeps = () => setIgnoreAllDeps(!ignoreAllDeps);
 
@@ -59,21 +66,21 @@ const Run = ({
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
         <Button
-          bg={ignoreAllDeps && 'gray.100'}
+          bg={ignoreAllDeps ? 'gray.100' : undefined}
           onClick={onToggleAllDeps}
           title="Ignores all non-critical dependencies, including task state and task_deps"
         >
           Ignore All Deps
         </Button>
         <Button
-          bg={ignoreTaskState && 'gray.100'}
+          bg={ignoreTaskState ? 'gray.100' : undefined}
           onClick={onToggleTaskState}
           title="Ignore previous success/failure"
         >
           Ignore Task State
         </Button>
         <Button
-          bg={ignoreTaskDeps && 'gray.100'}
+          bg={ignoreTaskDeps ? 'gray.100' : undefined}
           onClick={onToggleTaskDeps}
           title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past"
         >

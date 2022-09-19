@@ -152,7 +152,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             log = f'*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n'
             self.log.error(log)
-            local_log, metadata = super()._read(ti, try_number)
+            local_log, metadata = super()._read(ti, try_number, metadata)
             log += local_log
             return log, metadata
 

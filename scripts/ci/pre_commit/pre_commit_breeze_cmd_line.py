@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import os
-import platform
 import sys
 from pathlib import Path
 from subprocess import call
@@ -62,7 +61,7 @@ def verify_all_commands_described_in_docs():
         sys.exit(1)
 
 
-def is_regeneration_is_needed() -> bool:
+def is_regeneration_needed() -> bool:
     env = os.environ.copy()
     env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
     # needed to keep consistent output
@@ -82,35 +81,26 @@ def is_regeneration_is_needed() -> bool:
 
 def run_image_regeneration_in_breeze() -> int:
     sys.path.insert(0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import MOUNT_SELECTED
-    from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker, get_extra_docker_flags
-    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
+    from airflow_breeze.commands.setup_commands import regenerate_help_images_for_all_commands
+    from airflow_breeze.utils.run_utils import run_command
 
-    airflow_image = get_ci_image_for_pre_commits(verbose=VERBOSE, dry_run=DRY_RUN)
-    cmd_result = run_command(
-        [
-            "docker",
-            "run",
-            "-t",
-            *get_extra_docker_flags(MOUNT_SELECTED),
-            "-e",
-            "SKIP_ENVIRONMENT_INITIALIZATION=true",
-            "-e",
-            "BACKEND=sqlite",
-            "-e",
-            "FORCE",
-            "--pull",
-            "never",
-            airflow_image,
-            "/opt/airflow/scripts/in_container/run_breeze_image_generation.sh",
-        ],
-        check=False,
-        verbose=VERBOSE,
-        dry_run=DRY_RUN,
+    result = run_command(['breeze', 'version'], check=False, capture_output=True)
+    if result.returncode != 0:
+        run_command(
+            [
+                sys.executable,
+                '-m',
+                'pip',
+                'install',
+                '-e',
+                os.fspath(AIRFLOW_SOURCES_DIR / "dev" / "breeze"),
+            ],
+            check=True,
+            capture_output=True,
+        )
+    return regenerate_help_images_for_all_commands(
+        commands=(), check_only=False, force=False, verbose=VERBOSE, dry_run=DRY_RUN
     )
-    if platform.system().lower() == 'linux' and not os.environ.get('CI'):
-        fix_ownership_using_docker(dry_run=DRY_RUN, verbose=VERBOSE)
-    return cmd_result.returncode
 
 
 if __name__ == '__main__':
@@ -122,14 +112,14 @@ if __name__ == '__main__':
         console.print(
             '[bright_blue]Force regenerating all images. It will be run in Breeze image for consistency.'
         )
-    elif is_regeneration_is_needed():
+    elif is_regeneration_needed():
         run_generation = True
         console.print('[yellow]Image generation is needed. It will be run in Breeze image for consistency.')
     if run_generation:
         return_code = run_image_regeneration_in_breeze()
         if return_code != 0 and os.environ.get('CI'):
             console.print(
-                "\n\n[yellow]Please run this command and commit resulting bneeze images:[/]"
+                "\n\n[yellow]Please run this command and commit resulting breeze images:[/]"
                 "\n\n    `breeze setup regenerate-command-images`\n"
                 "\n\n[yellow]This will regenerate all the images in your commit!\n\n"
             )

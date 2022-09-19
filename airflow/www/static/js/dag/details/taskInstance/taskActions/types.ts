@@ -21,7 +21,7 @@ import type { Dag, DagRun, TaskInstance } from 'src/types';
 
 export interface CommonActionProps {
   runId: DagRun['runId'],
-  taskId: TaskInstance['taskId'] | null,
+  taskId: TaskInstance['taskId'],
   dagId: Dag['id'],
   executionDate: DagRun['executionDate'],
   mapIndexes: number[]

@@ -23,9 +23,10 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 
+import { Wrapper } from 'src/utils/testUtils';
+import * as useGridDataModule from 'src/api/useGridData';
+
 import Grid from '.';
-import { Wrapper } from '../../utils/testUtils';
-import * as useGridDataModule from '../../api/useGridData';
 
 const mockGridData = {
   groups: {
@@ -33,16 +34,11 @@ const mockGridData = {
     label: null,
     children: [
       {
-        extraLinks: [],
         id: 'group_1',
         label: 'group_1',
         instances: [
           {
-            dagId: 'dagId',
-            duration: 0,
             endDate: '2021-10-26T15:42:03.391939+00:00',
-            executionDate: '2021-10-25T15:41:09.726436+00:00',
-            operator: 'DummyOperator',
             runId: 'run1',
             startDate: '2021-10-26T15:42:03.391917+00:00',
             state: 'success',
@@ -53,15 +49,11 @@ const mockGridData = {
         children: [
           {
             id: 'group_1.task_1',
+            operator: 'DummyOperator',
             label: 'task_1',
-            extraLinks: [],
             instances: [
               {
-                dagId: 'dagId',
-                duration: 0,
                 endDate: '2021-10-26T15:42:03.391939+00:00',
-                executionDate: '2021-10-25T15:41:09.726436+00:00',
-                operator: 'DummyOperator',
                 runId: 'run1',
                 startDate: '2021-10-26T15:42:03.391917+00:00',
                 state: 'success',
@@ -74,13 +66,10 @@ const mockGridData = {
                 id: 'group_1.task_1.sub_task_1',
                 label: 'sub_task_1',
                 extraLinks: [],
+                operator: 'DummyOperator',
                 instances: [
                   {
-                    dagId: 'dagId',
-                    duration: 0,
                     endDate: '2021-10-26T15:42:03.391939+00:00',
-                    executionDate: '2021-10-25T15:41:09.726436+00:00',
-                    operator: 'DummyOperator',
                     runId: 'run1',
                     startDate: '2021-10-26T15:42:03.391917+00:00',
                     state: 'success',
@@ -98,18 +87,19 @@ const mockGridData = {
   },
   dagRuns: [
     {
-      dagId: 'dagId',
       runId: 'run1',
-      dataIntervalStart: new Date(),
-      dataIntervalEnd: new Date(),
+      dataIntervalStart: '2021-11-08T21:14:19.704433+00:00',
+      dataIntervalEnd: '2021-11-08T21:17:13.206426+00:00',
       startDate: '2021-11-08T21:14:19.704433+00:00',
       endDate: '2021-11-08T21:17:13.206426+00:00',
       state: 'failed',
       runType: 'scheduled',
       executionDate: '2021-11-08T21:14:19.704433+00:00',
+      lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
     },
   ],
-};
+  ordering: ['dataIntervalStart'],
+} as useGridDataModule.GridData;
 
 const EXPAND = 'Expand all task groups';
 const COLLAPSE = 'Collapse all task groups';
@@ -128,9 +118,12 @@ describe('Test ToggleGroups', () => {
   });
 
   beforeEach(() => {
-    jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
+    const returnValue = {
       data: mockGridData,
-    }));
+      isSuccess: true,
+    } as any;
+
+    jest.spyOn(useGridDataModule, 'default').mockImplementation(() => returnValue);
   });
 
   test('Group defaults to closed', () => {
@@ -208,19 +201,13 @@ describe('Test ToggleGroups', () => {
       expect(taskElement).toHaveStyle('opacity: 1');
     });
 
-    rerender(
-      <Grid hoveredTaskState="success" />,
-      { wrapper: Wrapper },
-    );
+    rerender(<Grid hoveredTaskState="success" />);
 
     taskElements.forEach((taskElement) => {
       expect(taskElement).toHaveStyle('opacity: 1');
     });
 
-    rerender(
-      <Grid hoveredTaskState="failed" />,
-      { wrapper: Wrapper },
-    );
+    rerender(<Grid hoveredTaskState="failed" />);
 
     taskElements.forEach((taskElement) => {
       expect(taskElement).toHaveStyle('opacity: 0.3');
