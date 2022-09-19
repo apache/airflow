@@ -69,16 +69,3 @@ class TestConnectionExtra:
         )
         assert extra_config.getint("int_arg_1") == 42
         assert extra_config.getint("int_arg_2") == 9000
-
-    def test_get_parse_imports(self):
-        extra_config = ConnectionExtraConfig(
-            conn_type="slack",
-            extra={
-                "imports_arg_1": "builtins.str",
-                "imports_arg_2": "builtins.str,builtins.dict",
-                "imports_arg_3": " builtins.str , builtins.dict ",
-            },
-        )
-        assert extra_config.getimports("imports_arg_1") == ['']
-        assert extra_config.getimports("imports_arg_2") == ['', {}]
-        assert extra_config.getimports("imports_arg_3") == ['', {}]

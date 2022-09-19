@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow.utils.module_loading import import_string
-
 try:
     from airflow.utils.types import NOTSET
 except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
@@ -77,23 +75,4 @@ class ConnectionExtraConfig:
         value = self.get(field=field, default=default)
         if value != default:
             value = int(value)
-        return value
-
-    def getimports(self, field, default: Any = NOTSET) -> Any:
-        """Get specified field from Connection Extra and imports the full qualified name separated by comma.
-
-        .. note::
-            This method intends to use with zero-argument callable objects.
-
-        :param field: Connection extra field name.
-        :param default: If specified then use as default value if field not present in Connection Extra.
-        """
-        value = self.get(field=field, default=default)
-        if value != default:
-            if not isinstance(value, str):
-                raise TypeError(
-                    f"Connection ({self.conn_id!r}) Extra {field!r} expected string "
-                    f"when return value not equal `default={default}`, got {type(value).__name__}."
-                )
-            value = [import_string(part.strip())() for part in value.split(",")]
         return value

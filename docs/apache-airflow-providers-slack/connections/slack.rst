@@ -51,8 +51,6 @@ Extra (optional)
     * ``timeout``: The maximum number of seconds the client will wait to connect and receive a response from Slack API.
     * ``base_url``: A string representing the Slack API base URL.
     * ``proxy``: Proxy to make the Slack Incoming Webhook call.
-    * ``retry_handlers``: Comma separated list of import paths to zero-argument callable which returns retry handler
-      for Slack WebClient.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
