@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
-from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -552,7 +551,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             get_state_args={'applicationId': application_id},
             parse_response=['application', 'state'],
             desired_state={'CREATED'},
-            failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+            failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
             object_type='application',
             action='created',
         )
@@ -567,7 +566,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 get_state_args={'applicationId': application_id},
                 parse_response=['application', 'state'],
                 desired_state={'STARTED'},
-                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
@@ -633,7 +632,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.log.info('Starting job on Application: %s', self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
-        if app_state not in EmrServerlessApplicationSensor.SUCCESS_STATES:
+        if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
 
             self.hook.waiter(
@@ -641,7 +640,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],
                 desired_state={'STARTED'},
-                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
@@ -668,8 +667,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
                     'jobRunId': response['jobRunId'],
                 },
                 parse_response=['jobRun', 'state'],
-                desired_state=EmrServerlessJobSensor.TERMINAL_STATES,
-                failure_states=EmrServerlessJobSensor.FAILURE_STATES,
+                desired_state=EmrServerlessHook.JOB_SUCCESS_STATES,
+                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
                 object_type='job',
                 action='run',
             )
@@ -719,7 +718,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
                 'applicationId': self.application_id,
             },
             parse_response=['application', 'state'],
-            desired_state=EmrServerlessApplicationSensor.FAILURE_STATES,
+            desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
             failure_states=set(),
             object_type='application',
             action='stopped',
@@ -738,7 +737,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],
                 desired_state={'TERMINATED'},
-                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
                 object_type='application',
                 action='deleted',
             )

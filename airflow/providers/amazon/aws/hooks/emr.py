@@ -105,6 +105,15 @@ class EmrServerlessHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
+    JOB_INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
+    JOB_FAILURE_STATES = {'FAILED', 'CANCELLING', 'CANCELLED'}
+    JOB_SUCCESS_STATES = {'SUCCESS'}
+    JOB_TERMINAL_STATES = JOB_SUCCESS_STATES.union(JOB_FAILURE_STATES)
+
+    APPLICATION_INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
+    APPLICATION_FAILURE_STATES = {'STOPPED', 'TERMINATED'}
+    APPLICATION_SUCCESS_STATES = {'CREATED', 'STARTED'}
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)

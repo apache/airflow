@@ -220,6 +220,38 @@ class TestEmrServerlessStartJobOperator:
             configurationOverrides=configuration_overrides,
         )
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_job_run_job_failed(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            'jobRunId': job_run_id,
+            'ResponseMetadata': {'HTTPStatusCode': 200},
+        }
+
+        mock_conn.get_job_run.return_value = {'jobRun': {'state': 'FAILED'}}
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+        )
+        with pytest.raises(AirflowException) as ex_message:
+            id = operator.execute(None)
+            assert id == job_run_id
+        assert "Job reached failure state FAILED." in str(ex_message.value)
+        mock_conn.get_application.assert_called_once_with(applicationId=application_id)
+        mock_conn.get_job_run.assert_called_once_with(applicationId=application_id, jobRunId=job_run_id)
+        mock_conn.start_job_run.assert_called_once_with(
+            clientToken=client_request_token,
+            applicationId=application_id,
+            executionRoleArn=execution_role_arn,
+            jobDriver=job_driver,
+            configurationOverrides=configuration_overrides,
+        )
+
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
     def test_job_run_app_not_started(self, mock_conn, mock_waiter):
