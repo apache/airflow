@@ -177,15 +177,15 @@ class AwsConnectionWrapper(LoggingMixin):
             )
 
         # Warn the user that an invalid parameter is being used which actually not related to 'profile_name'.
-        if "profile" in extra and "s3_config_file" not in extra:
-            if "profile_name" not in self.session_kwargs:
-                warnings.warn(
-                    f"Found 'profile' without specifying 's3_config_file' in {self.conn_repr} extra. "
-                    "If required profile from AWS Shared Credentials please "
-                    f"set 'profile_name' in {self.conn_repr} extra['session_kwargs'].",
-                    UserWarning,
-                    stacklevel=2,
-                )
+        # ToDo: Remove this check entirely as soon as drop support credentials from s3_config_file
+        if "profile" in extra and "s3_config_file" not in extra and not self.profile_name:
+            warnings.warn(
+                f"Found 'profile' without specifying 's3_config_file' in {self.conn_repr} extra. "
+                "If required profile from AWS Shared Credentials please "
+                f"set 'profile_name' in {self.conn_repr} extra.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         config_kwargs = extra.get("config_kwargs")
         if not self.botocore_config and config_kwargs:

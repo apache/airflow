@@ -1095,7 +1095,7 @@ ARG CASS_DRIVER_NO_CYTHON="1"
 # Build cassandra driver on multiple CPUs
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
-ARG AIRFLOW_VERSION="2.3.0.dev"
+ARG AIRFLOW_VERSION="2.5.0.dev0"
 
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""

@@ -19,10 +19,11 @@
 
 import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
+
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import { getMetaValue } from '../utils';
-import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../utils/useErrorToast';
+import { getMetaValue } from 'src/utils';
+import { useAutoRefresh } from 'src/context/autorefresh';
+import useErrorToast from 'src/utils/useErrorToast';
 
 const csrfToken = getMetaValue('csrf_token');
 const clearRunUrl = getMetaValue('dagrun_clear_url');

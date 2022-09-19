@@ -223,6 +223,7 @@ ClassifyTextResponse
 classname
 classpath
 classpaths
+cleartext
 cli
 clientId
 Cloudant
@@ -1555,6 +1556,7 @@ virtualenv
 vm
 VolumeMount
 volumeMounts
+vpc
 WaiterModel
 warmup
 Wasb
