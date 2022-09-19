@@ -21,6 +21,7 @@ Example Airflow DAG that creates and manage Data Loss Prevention info types.
 """
 
 from __future__ import annotations
+
 import os
 from datetime import datetime
 from pathlib import Path

@@ -21,6 +21,7 @@ Example Airflow DAG that de-identifies potentially sensitive info using Data Los
 """
 
 from __future__ import annotations
+
 import os
 from datetime import datetime
 

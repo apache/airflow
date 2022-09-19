@@ -20,6 +20,8 @@
 Example Airflow DAG that creates, update, get and delete trigger for Data Loss Prevention actions.
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

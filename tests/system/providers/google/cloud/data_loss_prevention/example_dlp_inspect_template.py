@@ -21,6 +21,7 @@ Example Airflow DAG that creates, updates, list and deletes Data Loss Prevention
 """
 
 from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -37,7 +38,7 @@ from airflow.providers.google.cloud.operators.dlp import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-DAG_ID = "dlp"
+DAG_ID = "dlp_inspect_template"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
