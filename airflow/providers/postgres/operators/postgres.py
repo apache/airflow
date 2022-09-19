@@ -40,7 +40,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param database: name of database which overwrite defined one in connection
     :param runtime_parameters: a mapping of runtime params added to the final sql being executed.
-        E.g you could set the schema via {"search_path": "CUSTOM_SCHEMA"}
+        For example, you could set the schema via `{"search_path": "CUSTOM_SCHEMA"}`.
     """
 
     template_fields: Sequence[str] = ("sql",)
