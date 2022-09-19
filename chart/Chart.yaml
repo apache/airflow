@@ -49,7 +49,7 @@ annotations:
       url: https://airflow.apache.org/docs/apache-airflow/2.4.0/_images/dags.png
     - title: Datasets View
       url: https://airflow.apache.org/docs/apache-airflow/2.4.0/_images/datasets.png
-    - title: Tree View
+    - title: Grid View
       url: https://airflow.apache.org/docs/apache-airflow/2.4.0/_images/grid.png
     - title: Graph View
       url: https://airflow.apache.org/docs/apache-airflow/2.4.0/_images/graph.png
