@@ -772,7 +772,7 @@ Values are not accumulated meaning that if runAsUser is set to 10 in <node>.secu
 any extra values set to securityContexts or uid+gid will be ignored.
 
 The template can be called like so:
-   include "localPodSecurityContextsIds" (list . .Values.webserver)
+   include "airflowPodSecurityContextsIds" (list . .Values.webserver)
 
 Where `.` is the global variables scope and `.Values.workers` the local variables scope for the workers template.
 */}}
