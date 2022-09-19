@@ -26,6 +26,10 @@ from googleapiclient.errors import HttpError
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
+from airflow.providers.google.cloud.links.cloud_functions import (
+    CloudFunctionsDetailsLink,
+    CloudFunctionsListLink,
+)
 from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
@@ -144,6 +148,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcf_function_deploy_template_fields]
+    operator_extra_links = (CloudFunctionsDetailsLink(),)
 
     def __init__(
         self,
@@ -226,6 +231,15 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             self._create_new_function(hook)
         else:
             self._update_function(hook)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudFunctionsDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location=self.location,
+                project_id=project_id,
+                function_name=self.body['name'].split("/")[-1],
+            )
 
 
 GCF_SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
@@ -347,6 +361,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcf_function_delete_template_fields]
+    operator_extra_links = (CloudFunctionsListLink(),)
 
     def __init__(
         self,
@@ -355,9 +370,11 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         impersonation_chain: str | Sequence[str] | None = None,
+        project_id: str | None = None,
         **kwargs,
     ) -> None:
         self.name = name
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
@@ -379,6 +396,13 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
+            project_id = self.project_id or hook.project_id
+            if project_id:
+                CloudFunctionsListLink.persist(
+                    context=context,
+                    task_instance=self,
+                    project_id=project_id,
+                )
             return hook.delete_function(self.name)
         except HttpError as e:
             status = e.resp.status
@@ -423,6 +447,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         'project_id',
         'impersonation_chain',
     )
+    operator_extra_links = (CloudFunctionsDetailsLink(),)
 
     def __init__(
         self,
@@ -460,4 +485,15 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         )
         self.log.info('Function called successfully. Execution id %s', result.get('executionId'))
         self.xcom_push(context=context, key='execution_id', value=result.get('executionId'))
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudFunctionsDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location=self.location,
+                project_id=project_id,
+                function_name=self.function_id,
+            )
+
         return result
