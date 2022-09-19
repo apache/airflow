@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that translates text in Google Cloud Translate
 service in the Google Cloud.
-
 """
+from __future__ import annotations
+
 from datetime import datetime
 
 from airflow import models
@@ -31,7 +31,7 @@ DAG_ID = "example_gcp_translate"
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],

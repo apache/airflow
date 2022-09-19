@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains operator to move data from Hive to DynamoDB."""
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
@@ -63,10 +63,10 @@ class HiveToDynamoDBOperator(BaseOperator):
         sql: str,
         table_name: str,
         table_keys: list,
-        pre_process: Optional[Callable] = None,
-        pre_process_args: Optional[list] = None,
-        pre_process_kwargs: Optional[list] = None,
-        region_name: Optional[str] = None,
+        pre_process: Callable | None = None,
+        pre_process_args: list | None = None,
+        pre_process_kwargs: list | None = None,
+        region_name: str | None = None,
         schema: str = 'default',
         hiveserver2_conn_id: str = 'hiveserver2_default',
         aws_conn_id: str = 'aws_default',
@@ -84,7 +84,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info('Extracting data from Hive')

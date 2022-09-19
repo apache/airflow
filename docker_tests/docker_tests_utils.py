@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 
@@ -83,11 +84,11 @@ In case 2) - Follow the steps below:
 
 CI image:
 
-     ./breeze ci-image build --upgrade-to-newer-dependencies --python 3.7
+     breeze ci-image build --upgrade-to-newer-dependencies --python 3.7
 
 Production image:
 
-     ./breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.7
+     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.7
 
 * You will see error messages there telling which requirements are conflicting and which packages caused the
   conflict. Add the limitation that caused the conflict to EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS

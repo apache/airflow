@@ -24,6 +24,29 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bump dep on common-sql to fix issue with SQLTableCheckOperator (#26143)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``postgres provider: use non-binary psycopg2 (#25710)``
+   * ``Add common-sql lower bound for common-sql (#25789)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use only public AwsHook's methods during IAM authorization (#25424)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
 5.1.0
 .....
 

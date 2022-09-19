@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -82,7 +84,7 @@ class DataSyncTestCaseBase(unittest.TestCase):
         self.dag = DAG(
             TEST_DAG_ID + "test_schedule_dag_once",
             default_args=args,
-            schedule_interval="@once",
+            schedule="@once",
         )
 
         self.client = boto3.client("datasync", region_name="us-east-1")

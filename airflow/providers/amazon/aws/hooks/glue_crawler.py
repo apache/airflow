@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
+from __future__ import annotations
+
 from time import sleep
 
 from airflow.compat.functools import cached_property
@@ -157,19 +158,3 @@ class GlueCrawlerHook(AwsBaseHook):
                     self.log.info("Crawler should finish soon")
 
                 sleep(poll_interval)
-
-
-class AwsGlueCrawlerHook(GlueCrawlerHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

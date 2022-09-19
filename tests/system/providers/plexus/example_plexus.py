@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -31,7 +32,7 @@ with DAG(
     default_args={'owner': 'core scientific', 'retries': 1},
     description='testing plexus operator',
     start_date=datetime(2021, 1, 1),
-    schedule_interval='@once',
+    schedule='@once',
     catchup=False,
 ) as dag:
     # [START plexus_job_op]

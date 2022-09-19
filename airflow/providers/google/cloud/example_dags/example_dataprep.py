@@ -17,6 +17,8 @@
 """
 Example Airflow DAG that shows how to use Google Dataprep.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -52,7 +54,6 @@ DATA = {
 
 with models.DAG(
     "example_dataprep",
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:

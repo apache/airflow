@@ -491,13 +491,13 @@ export interface paths {
   "/datasets": {
     get: operations["get_datasets"];
   };
-  "/datasets/{id}": {
-    /** Get a dataset by id. */
+  "/datasets/{uri}": {
+    /** Get a dataset by uri. */
     get: operations["get_dataset"];
     parameters: {
       path: {
-        /** The Dataset ID */
-        id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
   };
@@ -1147,6 +1147,29 @@ export interface components {
       description?: string | null;
       notification_sent?: boolean;
     };
+    Trigger: {
+      id?: number;
+      classpath?: string;
+      kwargs?: string;
+      /** Format: datetime */
+      created_date?: string;
+      triggerer_id?: number | null;
+    };
+    Job: {
+      id?: number;
+      dag_id?: string | null;
+      state?: string | null;
+      job_type?: string | null;
+      /** Format: datetime */
+      start_date?: string | null;
+      /** Format: datetime */
+      end_date?: string | null;
+      /** Format: datetime */
+      latest_heartbeat?: string | null;
+      executor_class?: string | null;
+      hostname?: string | null;
+      unixname?: string | null;
+    };
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
@@ -1171,8 +1194,8 @@ export interface components {
       unixname?: string;
       pool?: string;
       pool_slots?: number;
-      queue?: string;
-      priority_weight?: number;
+      queue?: string | null;
+      priority_weight?: number | null;
       /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
       operator?: string | null;
       queued_when?: string | null;
@@ -1185,6 +1208,8 @@ export interface components {
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
+      trigger?: components["schemas"]["Trigger"] | null;
+      triggerer_job?: components["schemas"]["Job"] | null;
     };
     /**
      * @description Collection of task instances.
@@ -1349,7 +1374,7 @@ export interface components {
       is_mapped?: boolean;
       wait_for_downstream?: boolean;
       retries?: number;
-      queue?: string;
+      queue?: string | null;
       pool?: string;
       pool_slots?: number;
       execution_timeout?: components["schemas"]["TimeDelta"] | null;
@@ -1477,15 +1502,15 @@ export interface components {
       created_at?: string;
       /** @description The dataset update time */
       updated_at?: string;
-      downstream_dag_references?: components["schemas"]["DatasetDagRef"][];
-      upstream_task_references?: components["schemas"]["DatasetTaskRef"][];
+      consuming_dags?: components["schemas"]["DagScheduleDatasetReference"][];
+      producing_tasks?: components["schemas"]["TaskOutletDatasetReference"][];
     };
     /**
      * @description A datasets reference to an upstream task.
      *
      * *New in version 2.4.0*
      */
-    DatasetTaskRef: {
+    TaskOutletDatasetReference: {
       /** @description The DAG ID that updates the dataset. */
       dag_id?: string | null;
       /** @description The task ID that updates the dataset. */
@@ -1500,7 +1525,7 @@ export interface components {
      *
      * *New in version 2.4.0*
      */
-    DatasetDagRef: {
+    DagScheduleDatasetReference: {
       /** @description The DAG ID that depends on the dataset. */
       dag_id?: string | null;
       /** @description The dataset reference creation time */
@@ -1536,8 +1561,41 @@ export interface components {
       source_run_id?: string | null;
       /** @description The task map index that updated the dataset. */
       source_map_index?: number | null;
+      created_dagruns?: components["schemas"]["BasicDAGRun"][];
       /** @description The dataset event creation time */
       timestamp?: string;
+    };
+    BasicDAGRun: {
+      /** @description Run ID. */
+      run_id?: string;
+      dag_id?: string;
+      /**
+       * Format: date-time
+       * @description The logical date (previously called execution date). This is the time or interval covered by
+       * this DAG run, according to the DAG definition.
+       *
+       * The value of this field can be set only when creating the object. If you try to modify the
+       * field of an existing object, the request fails with an BAD_REQUEST error.
+       *
+       * This together with DAG_ID are a unique key.
+       *
+       * *New in version 2.2.0*
+       */
+      logical_date?: string;
+      /**
+       * Format: date-time
+       * @description The start time. The time when DAG run was actually created.
+       *
+       * *Changed in version 2.1.3*&#58; Field becomes nullable.
+       */
+      start_date?: string | null;
+      /** Format: date-time */
+      end_date?: string | null;
+      /** Format: date-time */
+      data_interval_start?: string | null;
+      /** Format: date-time */
+      data_interval_end?: string | null;
+      state?: components["schemas"]["DagState"];
     };
     /**
      * @description A collection of dataset events.
@@ -2027,8 +2085,8 @@ export interface components {
     EventLogID: number;
     /** @description The import error ID. */
     ImportErrorID: number;
-    /** @description The Dataset ID */
-    DatasetID: number;
+    /** @description The encoded Dataset URI */
+    DatasetURI: string;
     /** @description The pool name. */
     PoolName: string;
     /** @description The variable Key. */
@@ -3194,7 +3252,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstance"];
+          "application/json": components["schemas"]["TaskInstanceCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3379,6 +3437,20 @@ export interface operations {
         task_id: components["parameters"]["TaskID"];
         /** The XCom key. */
         xcom_key: components["parameters"]["XComKey"];
+      };
+      query: {
+        /**
+         * Whether to deserialize an XCom value when using a custom XCom backend.
+         *
+         * The XCom API endpoint calls `orm_deserialize_value` by default since an XCom may contain value
+         * that is potentially expensive to deserialize in the web server. Setting this to true overrides
+         * the consideration, and calls `deserialize_value` instead.
+         *
+         * This parameter is not meaningful when using the default XCom backend.
+         *
+         * *New in version 2.4.0*
+         */
+        deserialize?: boolean;
       };
     };
     responses: {
@@ -3619,12 +3691,12 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  /** Get a dataset by id. */
+  /** Get a dataset by uri. */
   get_dataset: {
     parameters: {
       path: {
-        /** The Dataset ID */
-        id: components["parameters"]["DatasetID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
       };
     };
     responses: {
@@ -4088,6 +4160,8 @@ export type PoolCollection = CamelCasedPropertiesDeep<components['schemas']['Poo
 export type Provider = CamelCasedPropertiesDeep<components['schemas']['Provider']>;
 export type ProviderCollection = CamelCasedPropertiesDeep<components['schemas']['ProviderCollection']>;
 export type SLAMiss = CamelCasedPropertiesDeep<components['schemas']['SLAMiss']>;
+export type Trigger = CamelCasedPropertiesDeep<components['schemas']['Trigger']>;
+export type Job = CamelCasedPropertiesDeep<components['schemas']['Job']>;
 export type TaskInstance = CamelCasedPropertiesDeep<components['schemas']['TaskInstance']>;
 export type TaskInstanceCollection = CamelCasedPropertiesDeep<components['schemas']['TaskInstanceCollection']>;
 export type TaskInstanceReference = CamelCasedPropertiesDeep<components['schemas']['TaskInstanceReference']>;
@@ -4112,10 +4186,11 @@ export type ActionCollection = CamelCasedPropertiesDeep<components['schemas']['A
 export type Resource = CamelCasedPropertiesDeep<components['schemas']['Resource']>;
 export type ActionResource = CamelCasedPropertiesDeep<components['schemas']['ActionResource']>;
 export type Dataset = CamelCasedPropertiesDeep<components['schemas']['Dataset']>;
-export type DatasetTaskRef = CamelCasedPropertiesDeep<components['schemas']['DatasetTaskRef']>;
-export type DatasetDagRef = CamelCasedPropertiesDeep<components['schemas']['DatasetDagRef']>;
+export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<components['schemas']['TaskOutletDatasetReference']>;
+export type DagScheduleDatasetReference = CamelCasedPropertiesDeep<components['schemas']['DagScheduleDatasetReference']>;
 export type DatasetCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetCollection']>;
 export type DatasetEvent = CamelCasedPropertiesDeep<components['schemas']['DatasetEvent']>;
+export type BasicDAGRun = CamelCasedPropertiesDeep<components['schemas']['BasicDAGRun']>;
 export type DatasetEventCollection = CamelCasedPropertiesDeep<components['schemas']['DatasetEventCollection']>;
 export type ConfigOption = CamelCasedPropertiesDeep<components['schemas']['ConfigOption']>;
 export type ConfigSection = CamelCasedPropertiesDeep<components['schemas']['ConfigSection']>;
@@ -4146,67 +4221,67 @@ export type HealthStatus = CamelCasedPropertiesDeep<components['schemas']['Healt
 export type Operations = operations;
 
 /* Types for operation variables  */
-export type GetConnectionsVariables = operations['get_connections']['parameters']['query'];
-export type PostConnectionVariables = operations['post_connection']['requestBody']['content']['application/json'];
-export type GetConnectionVariables = operations['get_connection']['parameters']['path'];
-export type DeleteConnectionVariables = operations['delete_connection']['parameters']['path'];
-export type PatchConnectionVariables = operations['patch_connection']['parameters']['path'] & operations['patch_connection']['parameters']['query'] & operations['patch_connection']['requestBody']['content']['application/json'];
-export type TestConnectionVariables = operations['test_connection']['requestBody']['content']['application/json'];
-export type GetDagsVariables = operations['get_dags']['parameters']['query'];
-export type PatchDagsVariables = operations['patch_dags']['parameters']['query'] & operations['patch_dags']['requestBody']['content']['application/json'];
-export type GetDagVariables = operations['get_dag']['parameters']['path'];
-export type DeleteDagVariables = operations['delete_dag']['parameters']['path'];
-export type PatchDagVariables = operations['patch_dag']['parameters']['path'] & operations['patch_dag']['parameters']['query'] & operations['patch_dag']['requestBody']['content']['application/json'];
-export type PostClearTaskInstancesVariables = operations['post_clear_task_instances']['parameters']['path'] & operations['post_clear_task_instances']['requestBody']['content']['application/json'];
-export type PostSetTaskInstancesStateVariables = operations['post_set_task_instances_state']['parameters']['path'] & operations['post_set_task_instances_state']['requestBody']['content']['application/json'];
-export type GetDagRunsVariables = operations['get_dag_runs']['parameters']['path'] & operations['get_dag_runs']['parameters']['query'];
-export type PostDagRunVariables = operations['post_dag_run']['parameters']['path'] & operations['post_dag_run']['requestBody']['content']['application/json'];
-export type GetDagRunsBatchVariables = operations['get_dag_runs_batch']['requestBody']['content']['application/json'];
-export type GetDagRunVariables = operations['get_dag_run']['parameters']['path'];
-export type DeleteDagRunVariables = operations['delete_dag_run']['parameters']['path'];
-export type UpdateDagRunStateVariables = operations['update_dag_run_state']['parameters']['path'] & operations['update_dag_run_state']['requestBody']['content']['application/json'];
-export type ClearDagRunVariables = operations['clear_dag_run']['parameters']['path'] & operations['clear_dag_run']['requestBody']['content']['application/json'];
-export type GetUpstreamDatasetEventsVariables = operations['get_upstream_dataset_events']['parameters']['path'];
-export type GetEventLogsVariables = operations['get_event_logs']['parameters']['query'];
-export type GetEventLogVariables = operations['get_event_log']['parameters']['path'];
-export type GetImportErrorsVariables = operations['get_import_errors']['parameters']['query'];
-export type GetImportErrorVariables = operations['get_import_error']['parameters']['path'];
-export type GetPoolsVariables = operations['get_pools']['parameters']['query'];
-export type PostPoolVariables = operations['post_pool']['requestBody']['content']['application/json'];
-export type GetPoolVariables = operations['get_pool']['parameters']['path'];
-export type DeletePoolVariables = operations['delete_pool']['parameters']['path'];
-export type PatchPoolVariables = operations['patch_pool']['parameters']['path'] & operations['patch_pool']['parameters']['query'] & operations['patch_pool']['requestBody']['content']['application/json'];
-export type GetTaskInstancesVariables = operations['get_task_instances']['parameters']['path'] & operations['get_task_instances']['parameters']['query'];
-export type GetTaskInstanceVariables = operations['get_task_instance']['parameters']['path'];
-export type GetMappedTaskInstanceVariables = operations['get_mapped_task_instance']['parameters']['path'];
-export type GetMappedTaskInstancesVariables = operations['get_mapped_task_instances']['parameters']['path'] & operations['get_mapped_task_instances']['parameters']['query'];
-export type GetTaskInstancesBatchVariables = operations['get_task_instances_batch']['requestBody']['content']['application/json'];
-export type GetVariablesVariables = operations['get_variables']['parameters']['query'];
-export type PostVariablesVariables = operations['post_variables']['requestBody']['content']['application/json'];
-export type GetVariableVariables = operations['get_variable']['parameters']['path'];
-export type DeleteVariableVariables = operations['delete_variable']['parameters']['path'];
-export type PatchVariableVariables = operations['patch_variable']['parameters']['path'] & operations['patch_variable']['parameters']['query'] & operations['patch_variable']['requestBody']['content']['application/json'];
-export type GetXcomEntriesVariables = operations['get_xcom_entries']['parameters']['path'] & operations['get_xcom_entries']['parameters']['query'];
-export type GetXcomEntryVariables = operations['get_xcom_entry']['parameters']['path'];
-export type GetExtraLinksVariables = operations['get_extra_links']['parameters']['path'];
-export type GetLogVariables = operations['get_log']['parameters']['path'] & operations['get_log']['parameters']['query'];
-export type GetDagDetailsVariables = operations['get_dag_details']['parameters']['path'];
-export type GetTasksVariables = operations['get_tasks']['parameters']['path'] & operations['get_tasks']['parameters']['query'];
-export type GetTaskVariables = operations['get_task']['parameters']['path'];
-export type GetDagSourceVariables = operations['get_dag_source']['parameters']['path'];
-export type GetDagWarningsVariables = operations['get_dag_warnings']['parameters']['query'];
-export type GetDatasetsVariables = operations['get_datasets']['parameters']['query'];
-export type GetDatasetVariables = operations['get_dataset']['parameters']['path'];
-export type GetDatasetEventsVariables = operations['get_dataset_events']['parameters']['query'];
-export type GetPluginsVariables = operations['get_plugins']['parameters']['query'];
-export type GetRolesVariables = operations['get_roles']['parameters']['query'];
-export type PostRoleVariables = operations['post_role']['requestBody']['content']['application/json'];
-export type GetRoleVariables = operations['get_role']['parameters']['path'];
-export type DeleteRoleVariables = operations['delete_role']['parameters']['path'];
-export type PatchRoleVariables = operations['patch_role']['parameters']['path'] & operations['patch_role']['parameters']['query'] & operations['patch_role']['requestBody']['content']['application/json'];
-export type GetPermissionsVariables = operations['get_permissions']['parameters']['query'];
-export type GetUsersVariables = operations['get_users']['parameters']['query'];
-export type PostUserVariables = operations['post_user']['requestBody']['content']['application/json'];
-export type GetUserVariables = operations['get_user']['parameters']['path'];
-export type DeleteUserVariables = operations['delete_user']['parameters']['path'];
-export type PatchUserVariables = operations['patch_user']['parameters']['path'] & operations['patch_user']['parameters']['query'] & operations['patch_user']['requestBody']['content']['application/json'];
+export type GetConnectionsVariables = CamelCasedPropertiesDeep<operations['get_connections']['parameters']['query']>;
+export type PostConnectionVariables = CamelCasedPropertiesDeep<operations['post_connection']['requestBody']['content']['application/json']>;
+export type GetConnectionVariables = CamelCasedPropertiesDeep<operations['get_connection']['parameters']['path']>;
+export type DeleteConnectionVariables = CamelCasedPropertiesDeep<operations['delete_connection']['parameters']['path']>;
+export type PatchConnectionVariables = CamelCasedPropertiesDeep<operations['patch_connection']['parameters']['path'] & operations['patch_connection']['parameters']['query'] & operations['patch_connection']['requestBody']['content']['application/json']>;
+export type TestConnectionVariables = CamelCasedPropertiesDeep<operations['test_connection']['requestBody']['content']['application/json']>;
+export type GetDagsVariables = CamelCasedPropertiesDeep<operations['get_dags']['parameters']['query']>;
+export type PatchDagsVariables = CamelCasedPropertiesDeep<operations['patch_dags']['parameters']['query'] & operations['patch_dags']['requestBody']['content']['application/json']>;
+export type GetDagVariables = CamelCasedPropertiesDeep<operations['get_dag']['parameters']['path']>;
+export type DeleteDagVariables = CamelCasedPropertiesDeep<operations['delete_dag']['parameters']['path']>;
+export type PatchDagVariables = CamelCasedPropertiesDeep<operations['patch_dag']['parameters']['path'] & operations['patch_dag']['parameters']['query'] & operations['patch_dag']['requestBody']['content']['application/json']>;
+export type PostClearTaskInstancesVariables = CamelCasedPropertiesDeep<operations['post_clear_task_instances']['parameters']['path'] & operations['post_clear_task_instances']['requestBody']['content']['application/json']>;
+export type PostSetTaskInstancesStateVariables = CamelCasedPropertiesDeep<operations['post_set_task_instances_state']['parameters']['path'] & operations['post_set_task_instances_state']['requestBody']['content']['application/json']>;
+export type GetDagRunsVariables = CamelCasedPropertiesDeep<operations['get_dag_runs']['parameters']['path'] & operations['get_dag_runs']['parameters']['query']>;
+export type PostDagRunVariables = CamelCasedPropertiesDeep<operations['post_dag_run']['parameters']['path'] & operations['post_dag_run']['requestBody']['content']['application/json']>;
+export type GetDagRunsBatchVariables = CamelCasedPropertiesDeep<operations['get_dag_runs_batch']['requestBody']['content']['application/json']>;
+export type GetDagRunVariables = CamelCasedPropertiesDeep<operations['get_dag_run']['parameters']['path']>;
+export type DeleteDagRunVariables = CamelCasedPropertiesDeep<operations['delete_dag_run']['parameters']['path']>;
+export type UpdateDagRunStateVariables = CamelCasedPropertiesDeep<operations['update_dag_run_state']['parameters']['path'] & operations['update_dag_run_state']['requestBody']['content']['application/json']>;
+export type ClearDagRunVariables = CamelCasedPropertiesDeep<operations['clear_dag_run']['parameters']['path'] & operations['clear_dag_run']['requestBody']['content']['application/json']>;
+export type GetUpstreamDatasetEventsVariables = CamelCasedPropertiesDeep<operations['get_upstream_dataset_events']['parameters']['path']>;
+export type GetEventLogsVariables = CamelCasedPropertiesDeep<operations['get_event_logs']['parameters']['query']>;
+export type GetEventLogVariables = CamelCasedPropertiesDeep<operations['get_event_log']['parameters']['path']>;
+export type GetImportErrorsVariables = CamelCasedPropertiesDeep<operations['get_import_errors']['parameters']['query']>;
+export type GetImportErrorVariables = CamelCasedPropertiesDeep<operations['get_import_error']['parameters']['path']>;
+export type GetPoolsVariables = CamelCasedPropertiesDeep<operations['get_pools']['parameters']['query']>;
+export type PostPoolVariables = CamelCasedPropertiesDeep<operations['post_pool']['requestBody']['content']['application/json']>;
+export type GetPoolVariables = CamelCasedPropertiesDeep<operations['get_pool']['parameters']['path']>;
+export type DeletePoolVariables = CamelCasedPropertiesDeep<operations['delete_pool']['parameters']['path']>;
+export type PatchPoolVariables = CamelCasedPropertiesDeep<operations['patch_pool']['parameters']['path'] & operations['patch_pool']['parameters']['query'] & operations['patch_pool']['requestBody']['content']['application/json']>;
+export type GetTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_task_instances']['parameters']['path'] & operations['get_task_instances']['parameters']['query']>;
+export type GetTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_task_instance']['parameters']['path']>;
+export type GetMappedTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instance']['parameters']['path']>;
+export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instances']['parameters']['path'] & operations['get_mapped_task_instances']['parameters']['query']>;
+export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<operations['get_task_instances_batch']['requestBody']['content']['application/json']>;
+export type GetVariablesVariables = CamelCasedPropertiesDeep<operations['get_variables']['parameters']['query']>;
+export type PostVariablesVariables = CamelCasedPropertiesDeep<operations['post_variables']['requestBody']['content']['application/json']>;
+export type GetVariableVariables = CamelCasedPropertiesDeep<operations['get_variable']['parameters']['path']>;
+export type DeleteVariableVariables = CamelCasedPropertiesDeep<operations['delete_variable']['parameters']['path']>;
+export type PatchVariableVariables = CamelCasedPropertiesDeep<operations['patch_variable']['parameters']['path'] & operations['patch_variable']['parameters']['query'] & operations['patch_variable']['requestBody']['content']['application/json']>;
+export type GetXcomEntriesVariables = CamelCasedPropertiesDeep<operations['get_xcom_entries']['parameters']['path'] & operations['get_xcom_entries']['parameters']['query']>;
+export type GetXcomEntryVariables = CamelCasedPropertiesDeep<operations['get_xcom_entry']['parameters']['path'] & operations['get_xcom_entry']['parameters']['query']>;
+export type GetExtraLinksVariables = CamelCasedPropertiesDeep<operations['get_extra_links']['parameters']['path']>;
+export type GetLogVariables = CamelCasedPropertiesDeep<operations['get_log']['parameters']['path'] & operations['get_log']['parameters']['query']>;
+export type GetDagDetailsVariables = CamelCasedPropertiesDeep<operations['get_dag_details']['parameters']['path']>;
+export type GetTasksVariables = CamelCasedPropertiesDeep<operations['get_tasks']['parameters']['path'] & operations['get_tasks']['parameters']['query']>;
+export type GetTaskVariables = CamelCasedPropertiesDeep<operations['get_task']['parameters']['path']>;
+export type GetDagSourceVariables = CamelCasedPropertiesDeep<operations['get_dag_source']['parameters']['path']>;
+export type GetDagWarningsVariables = CamelCasedPropertiesDeep<operations['get_dag_warnings']['parameters']['query']>;
+export type GetDatasetsVariables = CamelCasedPropertiesDeep<operations['get_datasets']['parameters']['query']>;
+export type GetDatasetVariables = CamelCasedPropertiesDeep<operations['get_dataset']['parameters']['path']>;
+export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<operations['get_dataset_events']['parameters']['query']>;
+export type GetPluginsVariables = CamelCasedPropertiesDeep<operations['get_plugins']['parameters']['query']>;
+export type GetRolesVariables = CamelCasedPropertiesDeep<operations['get_roles']['parameters']['query']>;
+export type PostRoleVariables = CamelCasedPropertiesDeep<operations['post_role']['requestBody']['content']['application/json']>;
+export type GetRoleVariables = CamelCasedPropertiesDeep<operations['get_role']['parameters']['path']>;
+export type DeleteRoleVariables = CamelCasedPropertiesDeep<operations['delete_role']['parameters']['path']>;
+export type PatchRoleVariables = CamelCasedPropertiesDeep<operations['patch_role']['parameters']['path'] & operations['patch_role']['parameters']['query'] & operations['patch_role']['requestBody']['content']['application/json']>;
+export type GetPermissionsVariables = CamelCasedPropertiesDeep<operations['get_permissions']['parameters']['query']>;
+export type GetUsersVariables = CamelCasedPropertiesDeep<operations['get_users']['parameters']['query']>;
+export type PostUserVariables = CamelCasedPropertiesDeep<operations['post_user']['requestBody']['content']['application/json']>;
+export type GetUserVariables = CamelCasedPropertiesDeep<operations['get_user']['parameters']['path']>;
+export type DeleteUserVariables = CamelCasedPropertiesDeep<operations['delete_user']['parameters']['path']>;
+export type PatchUserVariables = CamelCasedPropertiesDeep<operations['patch_user']['parameters']['path'] & operations['patch_user']['parameters']['query'] & operations['patch_user']['requestBody']['content']['application/json']>;

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage GCSFileTransformOperator operator.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -47,7 +48,7 @@ TRANSFORM_SCRIPT_PATH = str(Path(__file__).parent / "resources" / "transform_scr
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],

@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the BashOperator."""
+from __future__ import annotations
 
 import datetime
 
@@ -31,7 +31,7 @@ args = {
 dag = DAG(
     dag_id='miscellaneous_test_dag',
     default_args=args,
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     start_date=datetime.datetime(2022, 1, 1),
     dagrun_timeout=datetime.timedelta(minutes=60),
     tags=['example', 'example2'],

@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
+from __future__ import annotations
 
 from datetime import datetime
 from os import environ
@@ -32,6 +30,9 @@ from airflow.providers.amazon.aws.operators.eks import (
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 
+# Ignore missing args provided by default_args
+# type: ignore[call-arg]
+
 CLUSTER_NAME = 'eks-demo'
 NODEGROUP_SUFFIX = '-nodegroup'
 NODEGROUP_NAME = CLUSTER_NAME + NODEGROUP_SUFFIX
@@ -46,7 +47,6 @@ VPC_CONFIG = {
 
 with DAG(
     dag_id='example_eks_with_nodegroups',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

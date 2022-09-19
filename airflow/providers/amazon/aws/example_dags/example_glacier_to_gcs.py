@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -28,7 +30,6 @@ OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
 
 with DAG(
     "example_glacier_to_gcs",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:

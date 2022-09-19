@@ -18,6 +18,8 @@
 """
 Example Airflow DAG that shows how to use GoogleAdsToGcsOperator.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -72,7 +74,7 @@ FIELDS_TO_EXTRACT = [
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "ads"],

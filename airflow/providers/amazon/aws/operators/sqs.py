@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Publish message to SQS queue"""
-import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -59,9 +59,9 @@ class SqsPublishOperator(BaseOperator):
         *,
         sqs_queue: str,
         message_content: str,
-        message_attributes: Optional[dict] = None,
+        message_attributes: dict | None = None,
         delay_seconds: int = 0,
-        message_group_id: Optional[str] = None,
+        message_group_id: str | None = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
@@ -73,7 +73,7 @@ class SqsPublishOperator(BaseOperator):
         self.message_attributes = message_attributes or {}
         self.message_group_id = message_group_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Publish the message to the Amazon SQS queue
 
@@ -95,19 +95,3 @@ class SqsPublishOperator(BaseOperator):
         self.log.info('send_message result: %s', result)
 
         return result
-
-
-class SQSPublishOperator(SqsPublishOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

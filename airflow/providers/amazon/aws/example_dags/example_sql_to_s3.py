@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -28,7 +28,6 @@ SQL_QUERY = os.environ.get("SQL_QUERY", "SHOW tables")
 
 with models.DAG(
     "example_sql_to_s3",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

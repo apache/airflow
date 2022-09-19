@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the SubDagOperator."""
+from __future__ import annotations
 
 # [START example_subdag_operator]
 import datetime
@@ -32,7 +32,7 @@ with DAG(
     dag_id=DAG_NAME,
     default_args={"retries": 2},
     start_date=datetime.datetime(2022, 1, 1),
-    schedule_interval="@once",
+    schedule="@once",
     tags=['example'],
 ) as dag:
 

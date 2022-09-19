@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 from unittest import mock
@@ -48,7 +49,7 @@ def ctx(create_task_instance):
     ti = create_task_instance(
         dag_id=DAG_ID,
         task_id=TASK_ID,
-        schedule_interval="0 12 * * *",
+        schedule="0 12 * * *",
     )
     yield {"task_instance": ti}
 

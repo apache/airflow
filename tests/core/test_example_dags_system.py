@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 from parameterized import parameterized
 
@@ -27,8 +29,7 @@ class TestExampleDagsSystem(SystemTest):
         [
             "example_bash_operator",
             "example_branch_operator",
-            "tutorial_etl_dag",
-            "tutorial_functional_etl_dag",
+            "tutorial_dag",
             "example_dag_decorator",
         ]
     )

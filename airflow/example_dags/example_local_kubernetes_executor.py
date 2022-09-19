@@ -18,6 +18,8 @@
 """
 This is an example dag for using a Local Kubernetes Executor Configuration.
 """
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 
@@ -41,7 +43,7 @@ except ImportError:
 if k8s:
     with DAG(
         dag_id='example_local_kubernetes_executor',
-        schedule_interval=None,
+        schedule=None,
         start_date=datetime(2021, 1, 1),
         catchup=False,
         tags=['example3'],

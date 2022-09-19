@@ -53,7 +53,7 @@ Package apache-airflow-providers-odbc
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 
-Release: 3.1.0
+Release: 3.1.1
 
 Provider package
 ----------------
@@ -104,7 +104,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-odbc 3.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-odbc-3.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-odbc-3.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-odbc-3.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-odbc 3.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-3.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-3.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-3.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-odbc 3.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-odbc-3.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-odbc-3.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-odbc-3.1.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-odbc 3.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-3.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-3.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_odbc-3.1.1-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/odbc/CHANGELOG.rst

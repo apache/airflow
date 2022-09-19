@@ -14,24 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import timedelta
 from unittest import mock
-from uuid import uuid4
 
-import pendulum
 import pytest
 from freezegun import freeze_time
 from parameterized import parameterized
 
-from airflow import settings
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models import DAG, DagModel, DagRun, Dataset
-from airflow.models.dataset import DatasetEvent
+from airflow.datasets import Dataset
+from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
@@ -121,7 +121,7 @@ class TestDagRunEndpoint:
         dag_instance = DagModel(dag_id=dag_id)
         with create_session() as session:
             session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule_interval=None)
+        dag = DAG(dag_id=dag_id, schedule=None)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
@@ -1044,7 +1044,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_dag_run_id = f"manual__{expected_logical_date}"
         else:
             expected_dag_run_id = dag_run_id
-        assert {
+        assert response.json == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
@@ -1058,7 +1058,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-        } == response.json
+        }
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
@@ -1490,129 +1490,34 @@ class TestClearDagRun(TestDagRunEndpoint):
         assert response.status_code == 404
 
 
-def test__get_upstream_dataset_events_no_prior(configured_app):
-    """If no prior dag runs, return all events"""
-    from airflow.api_connexion.endpoints.dag_run_endpoint import _get_upstream_dataset_events
-
-    # setup dags and datasets
-    unique_id = str(uuid4())
-    session = settings.Session()
-    dataset1a = Dataset(uri=f"s3://{unique_id}-1a")
-    dataset1b = Dataset(uri=f"s3://{unique_id}-1b")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1a, dataset1b])
-    DAG.bulk_write_to_db(dags=[dag2], session=session)
-    session.add_all([dataset1a, dataset1b])
-    session.commit()
-
-    # add 5 events
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id), DatasetEvent(dataset_id=dataset1b.id)])
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id), DatasetEvent(dataset_id=dataset1b.id)])
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id)])
-    session.commit()
-
-    # create a single dag run, no prior dag runs
-    dr = DagRun(dag2.dag_id, run_id=unique_id, run_type=DagRunType.DATASET_TRIGGERED)
-    dr.dag = dag2
-    session.add(dr)
-    session.commit()
-    session.expunge_all()
-
-    # check result
-    events = _get_upstream_dataset_events(dag_run=dr, session=session)
-    assert len(events) == 5
-
-
-def test__get_upstream_dataset_events_with_prior(configured_app):
-    """
-    Events returned should be those that occurred after last DATASET_TRIGGERED
-    dag run and up to the exec date of current dag run.
-    """
-    from airflow.api_connexion.endpoints.dag_run_endpoint import _get_upstream_dataset_events
-
-    # setup dags and datasets
-    unique_id = str(uuid4())
-    session = settings.Session()
-    dataset1a = Dataset(uri=f"s3://{unique_id}-1a")
-    dataset1b = Dataset(uri=f"s3://{unique_id}-1b")
-    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1a, dataset1b])
-    DAG.bulk_write_to_db(dags=[dag2], session=session)
-    session.add_all([dataset1a, dataset1b])
-    session.commit()
-
-    # add 2 events, then a dag run, then 3 events, then another dag run then another event
-    first_timestamp = pendulum.datetime(2022, 1, 1, tz='UTC')
-    session.add_all(
-        [
-            DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp),
-            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp),
-        ]
-    )
-    dr1 = DagRun(
-        dag2.dag_id,
-        run_id=unique_id + '-1',
-        run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=first_timestamp.add(microseconds=1000),
-    )
-    dr1.dag = dag2
-    session.add(dr1)
-    session.add_all(
-        [
-            DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp.add(microseconds=2000)),
-            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp.add(microseconds=3000)),
-            DatasetEvent(dataset_id=dataset1b.id, timestamp=first_timestamp.add(microseconds=4000)),
-        ]
-    )
-    dr2 = DagRun(  # this dag run should be ignored
-        dag2.dag_id,
-        run_id=unique_id + '-3',
-        run_type=DagRunType.MANUAL,
-        execution_date=first_timestamp.add(microseconds=3000),
-    )
-    dr2.dag = dag2
-    session.add(dr2)
-    dr3 = DagRun(
-        dag2.dag_id,
-        run_id=unique_id + '-2',
-        run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=first_timestamp.add(microseconds=4000),  # exact same time as 3rd event in window
-    )
-    dr3.dag = dag2
-    session.add(dr3)
-    session.add_all([DatasetEvent(dataset_id=dataset1a.id, timestamp=first_timestamp.add(microseconds=5000))])
-    session.commit()
-    session.expunge_all()
-
-    events = _get_upstream_dataset_events(dag_run=dr3, session=session)
-
-    event_times = [x.timestamp for x in events]
-    assert event_times == [
-        first_timestamp.add(microseconds=2000),
-        first_timestamp.add(microseconds=3000),
-        first_timestamp.add(microseconds=4000),
-    ]
-
-
+@pytest.mark.need_serialized_dag
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
-    @mock.patch('airflow.api_connexion.endpoints.dag_run_endpoint._get_upstream_dataset_events')
-    def test_should_respond_200(self, mock_get_events, session):
-        dagrun_model = DagRun(
-            dag_id="TEST_DAG_ID",
-            run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.DATASET_TRIGGERED,
-            execution_date=timezone.parse(self.default_time),
-            start_date=timezone.parse(self.default_time),
-            external_trigger=True,
-            state=DagRunState.RUNNING,
+    def test_should_respond_200(self, dag_maker, session):
+        dataset1 = Dataset(uri="ds1")
+
+        with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
+            EmptyOperator(task_id="task", outlets=[dataset1])
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+
+        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        event = DatasetEvent(
+            dataset_id=ds1_id,
+            source_task_id=ti.task_id,
+            source_dag_id=ti.dag_id,
+            source_run_id=ti.run_id,
+            source_map_index=ti.map_index,
         )
-        session.add(dagrun_model)
+        session.add(event)
+
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
+            pass
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
+        dr.consumed_dataset_events.append(event)
+
         session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 1
-        created_at = pendulum.now('UTC')
-        # make sure whatever is returned by this func is what comes out in response.
-        d = DatasetEvent(dataset_id=1, timestamp=created_at)
-        d.dataset = Dataset(id=1, uri='hello', created_at=created_at, updated_at=created_at)
-        mock_get_events.return_value = [d]
+        assert event.timestamp
+
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
             environ_overrides={'REMOTE_USER': "test"},
@@ -1621,15 +1526,27 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         expected_response = {
             'dataset_events': [
                 {
-                    'timestamp': str(created_at),
-                    'dataset_id': 1,
-                    'dataset_uri': d.dataset.uri,
+                    'timestamp': event.timestamp.isoformat(),
+                    'dataset_id': ds1_id,
+                    'dataset_uri': dataset1.uri,
                     'extra': {},
-                    'id': None,
-                    'source_dag_id': None,
-                    'source_map_index': None,
-                    'source_run_id': None,
-                    'source_task_id': None,
+                    'id': event.id,
+                    'source_dag_id': ti.dag_id,
+                    'source_map_index': ti.map_index,
+                    'source_run_id': ti.run_id,
+                    'source_task_id': ti.task_id,
+                    'created_dagruns': [
+                        {
+                            'dag_id': 'TEST_DAG_ID',
+                            'dag_run_id': 'TEST_DAG_RUN_ID',
+                            'data_interval_end': dr.data_interval_end.isoformat(),
+                            'data_interval_start': dr.data_interval_start.isoformat(),
+                            'end_date': None,
+                            'logical_date': dr.logical_date.isoformat(),
+                            'start_date': dr.start_date.isoformat(),
+                            'state': 'running',
+                        }
+                    ],
                 }
             ],
             'total_entries': 1,

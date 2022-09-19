@@ -18,6 +18,7 @@
 """
 Example use of LevelDB operators.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -32,7 +33,7 @@ DAG_ID = "example_leveldb"
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval='@once',
+    schedule='@once',
     catchup=False,
     tags=['example'],
 ) as dag:

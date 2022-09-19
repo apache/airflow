@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import unittest
-from typing import Union
 
 import jmespath
 from parameterized import parameterized
@@ -81,7 +81,7 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
 
         assert expected_doc_count == len(docs)
 
-    def _get_connection(self, values: dict) -> Union[str, None]:
+    def _get_connection(self, values: dict) -> str | None:
         docs = render_chart(
             values=values,
             show_only=["templates/secrets/result-backend-connection-secret.yaml"],

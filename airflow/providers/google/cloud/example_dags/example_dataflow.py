@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google Cloud Dataflow service
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Callable, Dict, List
+from typing import Callable
 from urllib.parse import urlparse
 
 from airflow import models
@@ -64,7 +65,6 @@ default_args = {
 
 with models.DAG(
     "example_gcp_dataflow_native_java",
-    schedule_interval='@once',  # Override to match your needs
     start_date=START_DATE,
     catchup=False,
     tags=['example'],
@@ -115,7 +115,6 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_native_python:
 
@@ -151,7 +150,6 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_native_python_async:
     # [START howto_operator_start_python_job_async]
@@ -187,7 +185,7 @@ with models.DAG(
     def check_metric_scalar_gte(metric_name: str, value: int) -> Callable:
         """Check is metric greater than equals to given value."""
 
-        def callback(metrics: List[Dict]) -> bool:
+        def callback(metrics: list[dict]) -> bool:
             dag_native_python_async.log.info("Looking for '%s' >= %d", metric_name, value)
             for metric in metrics:
                 context = metric.get("name", {}).get("context", {})
@@ -209,7 +207,7 @@ with models.DAG(
     # [END howto_sensor_wait_for_job_metric]
 
     # [START howto_sensor_wait_for_job_message]
-    def check_message(messages: List[dict]) -> bool:
+    def check_message(messages: list[dict]) -> bool:
         """Check message"""
         for message in messages:
             if "Adding workflow start and stop steps." in message.get("messageText", ""):
@@ -226,7 +224,7 @@ with models.DAG(
     # [END howto_sensor_wait_for_job_message]
 
     # [START howto_sensor_wait_for_job_autoscaling_event]
-    def check_autoscaling_event(autoscaling_events: List[dict]) -> bool:
+    def check_autoscaling_event(autoscaling_events: list[dict]) -> bool:
         """Check autoscaling event"""
         for autoscaling_event in autoscaling_events:
             if "Worker pool started." in autoscaling_event.get("description", {}).get("messageText", ""):
@@ -253,7 +251,6 @@ with models.DAG(
     default_args=default_args,
     start_date=START_DATE,
     catchup=False,
-    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_template:
     # [START howto_operator_start_template_job]

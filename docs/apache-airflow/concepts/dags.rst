@@ -39,7 +39,7 @@ which will add the DAG to anything inside it implicitly::
 
     with DAG(
         "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        schedule_interval="@daily", catchup=False
+        schedule="@daily", catchup=False
     ) as dag:
         op = EmptyOperator(task_id="task")
 
@@ -47,13 +47,13 @@ Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
     my_dag = DAG("my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-                 schedule_interval="@daily", catchup=False)
+                 schedule="@daily", catchup=False)
     op = EmptyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
     @dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-         schedule_interval="@daily", catchup=False)
+         schedule="@daily", catchup=False)
     def generate_dag():
         op = EmptyOperator(task_id="task")
 
@@ -145,21 +145,21 @@ DAGs will run in one of two ways:
  - When they are *triggered* either manually or via the API
  - On a defined *schedule*, which is defined as part of the DAG
 
-DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule_interval`` argument, like this::
+DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule`` argument, like this::
 
-    with DAG("my_daily_dag", schedule_interval="@daily"):
+    with DAG("my_daily_dag", schedule="@daily"):
         ...
 
-The ``schedule_interval`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
+The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
-    with DAG("my_daily_dag", schedule_interval="0 * * * *"):
+    with DAG("my_daily_dag", schedule="0 * * * *"):
         ...
 
 .. tip::
 
-    For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
+    For more information on ``schedule`` values, see :doc:`DAG Run </dag-run>`.
 
-    If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
+    If ``schedule`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
     For more information on ``logical date``, see :ref:`data-interval` and
     :ref:`faq:what-does-execution-date-mean`.
 
@@ -222,7 +222,7 @@ Often, many Operators inside a DAG need the same set of default arguments (such 
     with DAG(
         dag_id='my_dag',
         start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
-        schedule_interval='@daily',
+        schedule='@daily',
         catchup=False,
         default_args={'retries': 2},
     ) as dag:
@@ -269,11 +269,11 @@ By default, a DAG will only run a Task when all the Tasks it depends on are succ
 Branching
 ~~~~~~~~~
 
-You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the branching Operators come in.
+You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the ``@task.branch`` decorator come in.
 
-The ``BranchPythonOperator`` is much like the PythonOperator except that it expects a ``python_callable`` that returns a task_id (or list of task_ids). The task_id returned is followed, and all of the other paths are skipped. It can also return None to skip all downstream task.
+The ``@task.branch`` decorator is much like ``@task``, except that it expects the decorated function to return an ID to a task (or a list of IDs). The specified task is followed, while all other paths are skipped. It can also return *None* to skip all downstream tasks.
 
-The task_id returned by the Python function has to reference a task directly downstream from the BranchPythonOperator task.
+The task_id returned by the Python function has to reference a task directly downstream from the ``@task.branch`` decorated task.
 
 .. note::
     When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
@@ -282,10 +282,11 @@ The task_id returned by the Python function has to reference a task directly dow
 
     The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
-The ``BranchPythonOperator`` can also be used with XComs allowing branching context to dynamically decide what branch to follow based on upstream tasks. For example:
+The ``@task.branch`` can also be used with XComs allowing branching context to dynamically decide what branch to follow based on upstream tasks. For example:
 
 .. code-block:: python
 
+    @task.branch(task_id="branch_task")
     def branch_func(ti):
         xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
@@ -303,20 +304,19 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
         dag=dag,
     )
 
-    branch_op = BranchPythonOperator(
-        task_id="branch_task",
-        python_callable=branch_func,
-        dag=dag,
-    )
+    branch_op = branch_func()
 
     continue_op = EmptyOperator(task_id="continue_task", dag=dag)
     stop_op = EmptyOperator(task_id="stop_task", dag=dag)
 
     start_op >> branch_op >> [continue_op, stop_op]
 
-If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``BranchPythonOperator`` but expects you to provide an implementation of the method ``choose_branch``.
+If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
-As with the callable for ``BranchPythonOperator``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
+.. note::
+    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
+
+As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
     class MyBranchOperator(BaseBranchOperator):
         def choose_branch(self, context):
@@ -404,16 +404,22 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
-        from airflow.operators.python import BranchPythonOperator
 
         dag = DAG(
             dag_id="branch_without_trigger",
-            schedule_interval="@once",
+            schedule="@once",
             start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
         )
 
         run_this_first = EmptyOperator(task_id="run_this_first", dag=dag)
-        branching = BranchPythonOperator(task_id="branching", dag=dag, python_callable=lambda: "branch_a")
+
+
+        @task.branch(task_id="branching")
+        def do_branching():
+            return "branch_a"
+
+
+        branching = do_branching()
 
         branch_a = EmptyOperator(task_id="branch_a", dag=dag)
         follow_branch_a = EmptyOperator(task_id="follow_branch_a", dag=dag)
@@ -481,32 +487,39 @@ Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tas
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``::
 
-    with TaskGroup("group1") as group1:
+    from airflow.decorators import task_group
+
+    @task_group()
+    def group1():
         task1 = EmptyOperator(task_id="task1")
         task2 = EmptyOperator(task_id="task2")
 
     task3 = EmptyOperator(task_id="task3")
 
-    group1 >> task3
+    group1() >> task3
 
 TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
     import pendulum
 
+    from airflow.decorators import task_group
+
     with DAG(
         dag_id='dag1',
         start_date=pendulum.datetime(2016, 1, 1, tz="UTC"),
-        schedule_interval="@daily",
+        schedule="@daily",
         catchup=False,
         default_args={'retries': 1},
     ):
-        with TaskGroup('group1', default_args={'retries': 3}):
+        @task_group(default_args={'retries': 3}):
+        def group1():
+            """This docstring will become the tooltip for the TaskGroup."
             task1 = EmptyOperator(task_id='task1')
             task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
             print(task1.retries) # 3
             print(task2.retries) # 2
 
-If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group.py`` example DAG that comes with Airflow.
+If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group_decorator.py`` example DAG that comes with Airflow.
 
 .. note::
 
@@ -514,6 +527,9 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 
     To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup, but note that you will now be responsible for ensuring every single task and group has a unique ID of its own.
 
+.. note::
+
+    When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``tooltip`` value is explicitly supplied.
 
 .. _concepts:edge-labels:
 
@@ -579,7 +595,7 @@ This is especially useful if your tasks are built dynamically from configuration
     dag = DAG(
         "my_dag",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        schedule_interval="@daily",
+        schedule="@daily",
         catchup=False,
     )
     dag.doc_md = __doc__

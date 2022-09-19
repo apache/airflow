@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 
 import boto3
@@ -83,7 +85,7 @@ def delete_cluster(cluster_name: str) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

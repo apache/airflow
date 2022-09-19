@@ -14,10 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
+from typing import cast
 
 from airflow.models import DAG
+from airflow.models.xcom_arg import XComArg
 
 try:
     from airflow.operators.empty import EmptyOperator
@@ -34,7 +38,7 @@ DAG_ID = "example_adf_run_pipeline"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 8, 13),
-    schedule_interval="@daily",
+    schedule="@daily",
     catchup=False,
     default_args={
         "retries": 1,
@@ -65,7 +69,7 @@ with DAG(
 
     pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor",
-        run_id=run_pipeline2.output["run_id"],
+        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
     )
     # [END howto_operator_adf_run_pipeline_async]
 

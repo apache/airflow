@@ -18,6 +18,8 @@
 """
 Example use of MsSql related operators.
 """
+from __future__ import annotations
+
 # [START mssql_operator_howto_guide]
 import os
 from datetime import datetime
@@ -32,7 +34,7 @@ DAG_ID = "example_mssql"
 
 with DAG(
     DAG_ID,
-    schedule_interval='@daily',
+    schedule='@daily',
     start_date=datetime(2021, 10, 1),
     tags=['example'],
     catchup=False,

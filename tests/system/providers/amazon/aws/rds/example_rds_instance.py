@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -24,6 +25,7 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
     RdsDeleteDbInstanceOperator,
 )
+from airflow.providers.amazon.aws.sensors.rds import RdsDbSensor
 from tests.system.providers.amazon.aws.utils import set_env_id
 
 ENV_ID = set_env_id()
@@ -37,7 +39,7 @@ RDS_PASSWORD = 'database_password'
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
@@ -46,7 +48,7 @@ with DAG(
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id='create_db_instance',
         db_instance_identifier=RDS_DB_IDENTIFIER,
-        db_instance_class="db.m5.large",
+        db_instance_class="db.t4g.micro",
         engine="postgres",
         rds_kwargs={
             "MasterUsername": RDS_USERNAME,
@@ -55,6 +57,13 @@ with DAG(
         },
     )
     # [END howto_operator_rds_create_db_instance]
+
+    # [START howto_sensor_rds_instance]
+    db_instance_available = RdsDbSensor(
+        task_id="db_instance_available",
+        db_identifier=RDS_DB_IDENTIFIER,
+    )
+    # [END howto_sensor_rds_instance]
 
     # [START howto_operator_rds_delete_db_instance]
     delete_db_instance = RdsDeleteDbInstanceOperator(
@@ -66,7 +75,7 @@ with DAG(
     )
     # [END howto_operator_rds_delete_db_instance]
 
-    chain(create_db_instance, delete_db_instance)
+    chain(create_db_instance, db_instance_available, delete_db_instance)
 
 from tests.system.utils import get_test_run  # noqa: E402
 

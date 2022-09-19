@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, subqueryload
@@ -31,24 +30,25 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.api_connexion.types import APIResponse
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
-def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
+def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
     dataset = (
-        session.query(Dataset)
-        .options(joinedload(Dataset.downstream_dag_references), joinedload(Dataset.upstream_task_references))
-        .get(id)
+        session.query(DatasetModel)
+        .filter(DatasetModel.uri == uri)
+        .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
+        .one_or_none()
     )
     if not dataset:
         raise NotFound(
             "Dataset not found",
-            detail=f"The Dataset with id: `{id}` was not found",
+            detail=f"The Dataset with uri: `{uri}` was not found",
         )
     return dataset_schema.dump(dataset)
 
@@ -60,22 +60,20 @@ def get_datasets(
     *,
     limit: int,
     offset: int = 0,
-    uri_pattern: Optional[str] = None,
+    uri_pattern: str | None = None,
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get datasets"""
     allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
-    total_entries = session.query(func.count(Dataset.id)).scalar()
-    query = session.query(Dataset)
+    total_entries = session.query(func.count(DatasetModel.id)).scalar()
+    query = session.query(DatasetModel)
     if uri_pattern:
-        query = query.filter(Dataset.uri.ilike(f"%{uri_pattern}%"))
+        query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = (
-        query.options(
-            subqueryload(Dataset.downstream_dag_references), subqueryload(Dataset.upstream_task_references)
-        )
+        query.options(subqueryload(DatasetModel.consuming_dags), subqueryload(DatasetModel.producing_tasks))
         .offset(offset)
         .limit(limit)
         .all()
@@ -91,11 +89,11 @@ def get_dataset_events(
     limit: int,
     offset: int = 0,
     order_by: str = "timestamp",
-    dataset_id: Optional[int] = None,
-    source_dag_id: Optional[str] = None,
-    source_task_id: Optional[str] = None,
-    source_run_id: Optional[str] = None,
-    source_map_index: Optional[int] = None,
+    dataset_id: int | None = None,
+    source_dag_id: str | None = None,
+    source_task_id: str | None = None,
+    source_run_id: str | None = None,
+    source_map_index: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dataset events"""
@@ -113,6 +111,8 @@ def get_dataset_events(
         query = query.filter(DatasetEvent.source_run_id == source_run_id)
     if source_map_index:
         query = query.filter(DatasetEvent.source_map_index == source_map_index)
+
+    query = query.options(subqueryload(DatasetEvent.created_dagruns))
 
     total_entries = query.count()
     query = apply_sorting(query, order_by, {}, allowed_attrs)

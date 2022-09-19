@@ -18,6 +18,8 @@
 """
 Example DAG using TrinoToGCSOperator.
 """
+from __future__ import annotations
+
 import os
 import re
 from datetime import datetime
@@ -52,7 +54,7 @@ def safe_name(s: str) -> str:
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',  # Override to match your needs
+    schedule='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "gcs"],

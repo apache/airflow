@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import unittest
 
@@ -51,7 +53,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         self.dag = DAG(
             "branch_day_of_week_operator_test",
             start_date=DEFAULT_DATE,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Callable, Optional, Sequence
+from typing import Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonOperator
@@ -41,6 +42,8 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
+    custom_operator_name: str = '@task'
+
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {
             "python_callable": python_callable,
@@ -57,8 +60,8 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
 
 
 def python_task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: Optional[bool] = None,
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """Wraps a function into an Airflow operator.

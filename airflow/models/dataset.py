@@ -15,19 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from urllib.parse import urlparse
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Table,
+    text,
+)
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import ID_LEN, Base, StringID
+from airflow.datasets import Dataset
+from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class Dataset(Base):
+class DatasetModel(Base):
     """
     A table to store datasets.
 
@@ -52,14 +65,18 @@ class Dataset(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    downstream_dag_references = relationship("DatasetDagRef", back_populates="dataset")
-    upstream_task_references = relationship("DatasetTaskRef", back_populates="dataset")
+    consuming_dags = relationship("DagScheduleDatasetReference", back_populates="dataset")
+    producing_tasks = relationship("TaskOutletDatasetReference", back_populates="dataset")
 
     __tablename__ = "dataset"
     __table_args__ = (
         Index('idx_uri_unique', uri, unique=True),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
+
+    @classmethod
+    def from_public(cls, obj: Dataset) -> DatasetModel:
+        return cls(uri=obj.uri, extra=obj.extra)
 
     def __init__(self, uri: str, **kwargs):
         try:
@@ -72,7 +89,7 @@ class Dataset(Base):
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
-        if isinstance(other, self.__class__):
+        if isinstance(other, (self.__class__, Dataset)):
             return self.uri == other.uri
         else:
             return NotImplemented
@@ -84,24 +101,37 @@ class Dataset(Base):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
 
-class DatasetDagRef(Base):
-    """References from a DAG to an upstream dataset."""
+class DagScheduleDatasetReference(Base):
+    """References from a DAG to a dataset of which it is a consumer."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship('Dataset')
+    dataset = relationship('DatasetModel', back_populates="consuming_dags")
+    queue_records = relationship(
+        "DatasetDagRunQueue",
+        primaryjoin="""and_(
+            DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+            DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+        )""",
+    )
 
-    __tablename__ = "dataset_dag_ref"
+    __tablename__ = "dag_schedule_dataset_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, dag_id, name="datasetdagref_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey", mssql_clustered=True),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='datasetdagref_dataset_fkey',
+            name='dsdr_dataset_fkey',
             ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=['dag.dag_id'],
+            name='dsdr_dag_id_fkey',
+            ondelete='CASCADE',
         ),
     )
 
@@ -121,26 +151,32 @@ class DatasetDagRef(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
-class DatasetTaskRef(Base):
-    """References from a task to a downstream dataset."""
+class TaskOutletDatasetReference(Base):
+    """References from a task to a dataset that it updates / produces."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
-    task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("Dataset")
+    dataset = relationship("DatasetModel", back_populates="producing_tasks")
 
-    __tablename__ = "dataset_task_ref"
+    __tablename__ = "task_outlet_dataset_reference"
     __table_args__ = (
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='datasettaskref_dataset_fkey',
+            name='todr_dataset_fkey',
             ondelete="CASCADE",
         ),
-        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="datasettaskref_pkey", mssql_clustered=True),
+        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey", mssql_clustered=True),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=['dag.dag_id'],
+            name='todr_dag_id_fkey',
+            ondelete='CASCADE',
+        ),
     )
 
     def __eq__(self, other):
@@ -203,11 +239,21 @@ class DatasetDagRunQueue(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
+association_table = Table(
+    "dagrun_dataset_event",
+    Base.metadata,
+    Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dagrun_dataset_events_dag_run_id", "dag_run_id"),
+    Index("idx_dagrun_dataset_events_event_id", "event_id"),
+)
+
+
 class DatasetEvent(Base):
     """
     A table to store datasets events.
 
-    :param dataset_id: reference to Dataset record
+    :param dataset_id: reference to DatasetModel record
     :param extra: JSON field for arbitrary extra info
     :param source_task_id: the task_id of the TI which updated the dataset
     :param source_dag_id: the dag_id of the TI which updated the dataset
@@ -234,6 +280,12 @@ class DatasetEvent(Base):
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
+    created_dagruns = relationship(
+        "DagRun",
+        secondary=association_table,
+        backref="consumed_dataset_events",
+    )
+
     source_task_instance = relationship(
         "TaskInstance",
         primaryjoin="""and_(
@@ -257,8 +309,8 @@ class DatasetEvent(Base):
         uselist=False,
     )
     dataset = relationship(
-        Dataset,
-        primaryjoin="DatasetEvent.dataset_id == foreign(Dataset.id)",
+        DatasetModel,
+        primaryjoin="DatasetEvent.dataset_id == foreign(DatasetModel.id)",
         viewonly=True,
         lazy="select",
         uselist=False,
@@ -267,15 +319,6 @@ class DatasetEvent(Base):
     @property
     def uri(self):
         return self.dataset.uri
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.timestamp == other.timestamp
-        else:
-            return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash((self.dataset_id, self.created_at))
 
     def __repr__(self) -> str:
         args = []

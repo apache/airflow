@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
@@ -42,7 +44,7 @@ SPREADSHEET = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',  # Override to match your needs,
+    schedule='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "sheets"],
@@ -68,7 +70,7 @@ with models.DAG(
     # [START print_spreadsheet_url]
     print_spreadsheet_url = BashOperator(
         task_id="print_spreadsheet_url",
-        bash_command=f"echo {create_spreadsheet.output['spreadsheet_url']}",
+        bash_command=f"echo {XComArg(create_spreadsheet, key='spreadsheet_url')}",
     )
     # [END print_spreadsheet_url]
 

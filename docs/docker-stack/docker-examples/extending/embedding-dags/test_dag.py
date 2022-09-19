@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# [START dag]
 """This dag only runs some simple tasks to test Airflow's task execution."""
+from __future__ import annotations
+
+# [START dag]
 import datetime
 
 import pendulum
@@ -31,7 +33,7 @@ DAG_NAME = 'test_dag_v1'
 
 dag = DAG(
     DAG_NAME,
-    schedule_interval='*/10 * * * *',
+    schedule='*/10 * * * *',
     default_args={'depends_on_past': True},
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,

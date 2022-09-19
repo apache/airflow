@@ -15,14 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that uses Google AutoML services.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
+from typing import cast
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator,
@@ -63,7 +66,7 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 # Example DAG for AutoML Vision Classification
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",  # Override to match your needs
+    schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
@@ -73,7 +76,7 @@ with models.DAG(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
-    dataset_id = create_dataset_task.output["dataset_id"]
+    dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -86,7 +89,7 @@ with models.DAG(
 
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
 
-    model_id = create_model.output["model_id"]
+    model_id = cast(str, XComArg(create_model, key="model_id"))
 
     delete_model_task = AutoMLDeleteModelOperator(
         task_id="delete_model_task",

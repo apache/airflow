@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
@@ -66,7 +66,7 @@ def test_exec_date_dep(
             'test_localtaskjob_heartbeat',
             start_date=datetime(2015, 1, 1),
             end_date=datetime(2016, 11, 5),
-            schedule_interval=schedule_interval,
+            schedule=schedule_interval,
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
         )
@@ -83,7 +83,7 @@ def test_exec_date_after_end_date(session, dag_maker, create_dummy_dag):
         'test_localtaskjob_heartbeat',
         start_date=datetime(2015, 1, 1),
         end_date=datetime(2016, 11, 5),
-        schedule_interval=None,
+        schedule=None,
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )

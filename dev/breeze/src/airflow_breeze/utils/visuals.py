@@ -17,6 +17,7 @@
 """
 Visuals displayed to the user when entering Breeze shell.
 """
+from __future__ import annotations
 
 from airflow_breeze.global_constants import (
     FLOWER_HOST_PORT,
@@ -117,7 +118,7 @@ CHEATSHEET = f"""
 
         [info]* Other options[/]
 
-        Check out `--help` for ./breeze commands. It will show you other options, such as running
+        Check out `--help` for `breeze` command. It will show you other options, such as running
         integration or starting complete Airflow using `start-airflow` command as well as ways
         of cleaning up the installation.
 
@@ -126,7 +127,7 @@ CHEATSHEET = f"""
 
         You can disable this cheatsheet by running:
 
-            ./breeze setup config --no-cheatsheet
+            breeze setup config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -40,7 +40,7 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
@@ -71,20 +71,23 @@ with DAG(
         release_label='emr-6.6.0',
         job_type="SPARK",
         config={'name': 'new_application'},
+        wait_for_completion=False,
     )
     # [END howto_operator_emr_serverless_create_application]
+
+    emr_serverless_app_id = emr_serverless_app.output
 
     # [START howto_sensor_emr_serverless_application]
     wait_for_app_creation = EmrServerlessApplicationSensor(
         task_id='wait_for_app_creation',
-        application_id=emr_serverless_app.output,
+        application_id=emr_serverless_app_id,
     )
     # [END howto_sensor_emr_serverless_application]
 
     # [START howto_operator_emr_serverless_start_job]
     start_job = EmrServerlessStartJobOperator(
         task_id='start_emr_serverless_job',
-        application_id=emr_serverless_app.output,
+        application_id=emr_serverless_app_id,
         execution_role_arn=role_arn,
         job_driver=SPARK_JOB_DRIVER,
         configuration_overrides=SPARK_CONFIGURATION_OVERRIDES,
@@ -93,14 +96,14 @@ with DAG(
 
     # [START howto_sensor_emr_serverless_job]
     wait_for_job = EmrServerlessJobSensor(
-        task_id='wait_for_job', application_id=emr_serverless_app.output, job_run_id=start_job.output
+        task_id='wait_for_job', application_id=emr_serverless_app_id, job_run_id=start_job.output
     )
     # [END howto_sensor_emr_serverless_job]
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
         task_id='delete_application',
-        application_id=emr_serverless_app.output,
+        application_id=emr_serverless_app_id,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_emr_serverless_delete_application]

@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Celery command"""
+from __future__ import annotations
 
 from multiprocessing import Process
-from typing import Optional
 
 import daemon
 import psutil
@@ -75,6 +75,7 @@ def flower(args):
                 pidfile=TimeoutPIDLockFile(pidfile, -1),
                 stdout=stdout,
                 stderr=stderr,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
                 celery_app.start(options)
@@ -82,7 +83,7 @@ def flower(args):
         celery_app.start(options)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
+def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
     """Starts serve_logs sub-process"""
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
@@ -183,6 +184,8 @@ def worker(args):
         with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
             if args.umask:
                 umask = args.umask
+            else:
+                umask = conf.get('celery', 'worker_umask', fallback=settings.DAEMON_UMASK)
 
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)

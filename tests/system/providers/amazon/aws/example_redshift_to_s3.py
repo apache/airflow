@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv
@@ -31,7 +32,7 @@ REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "redshift_table")
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     tags=['example'],
 ) as dag:

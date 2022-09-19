@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google BigQuery service testing tables.
 """
+from __future__ import annotations
+
 import os
 import time
 from datetime import datetime
@@ -53,7 +54,7 @@ GCS_PATH_TO_SCHEMA_JSON = f"gs://{BUCKET_NAME}/{SCHEMA_JSON_DESTINATION}"
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "bigquery"],

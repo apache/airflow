@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 This file should only contain constants used for the EKS tests.
 """
+from __future__ import annotations
+
 import re
 from enum import Enum
-from typing import Any, Dict, List, Pattern, Tuple
+from typing import Any, Pattern
 
 DEFAULT_CONN_ID: str = "aws_default"
 DEFAULT_NAMESPACE: str = "default_namespace"
@@ -37,28 +37,28 @@ NON_EXISTING_CLUSTER_NAME: str = "non_existing_cluster"
 NON_EXISTING_FARGATE_PROFILE_NAME: str = "non_existing_fargate_profile"
 NON_EXISTING_NODEGROUP_NAME: str = "non_existing_nodegroup"
 REGION: str = "us-east-1"
-SUBNET_IDS: List[str] = ["subnet-12345ab", "subnet-67890cd"]
+SUBNET_IDS: list[str] = ["subnet-12345ab", "subnet-67890cd"]
 TASK_ID: str = "test-eks-operator"
 
-AMI_TYPE: Tuple[str, str] = ("amiType", "AL2_x86_64")
-CLIENT_REQUEST_TOKEN: Tuple[str, str] = ("clientRequestToken", "test_request_token")
-DISK_SIZE: Tuple[str, int] = ("diskSize", 30)
-ENCRYPTION_CONFIG: Tuple[str, List] = (
+AMI_TYPE: tuple[str, str] = ("amiType", "AL2_x86_64")
+CLIENT_REQUEST_TOKEN: tuple[str, str] = ("clientRequestToken", "test_request_token")
+DISK_SIZE: tuple[str, int] = ("diskSize", 30)
+ENCRYPTION_CONFIG: tuple[str, list] = (
     "encryptionConfig",
     [{"resources": ["secrets"], "provider": {"keyArn": "arn:of:the:key"}}],
 )
-INSTANCE_TYPES: Tuple[str, List] = ("instanceTypes", ["t3.medium"])
-KUBERNETES_NETWORK_CONFIG: Tuple[str, Dict] = (
+INSTANCE_TYPES: tuple[str, list] = ("instanceTypes", ["t3.medium"])
+KUBERNETES_NETWORK_CONFIG: tuple[str, dict] = (
     "kubernetesNetworkConfig",
     {"serviceIpv4Cidr": "172.20.0.0/16"},
 )
-LABELS: Tuple[str, Dict] = ("labels", {"purpose": "example"})
-LAUNCH_TEMPLATE: Tuple[str, Dict] = ("launchTemplate", {"name": "myTemplate", "version": "2", "id": "123456"})
-LOGGING: Tuple[str, Dict] = ("logging", {"clusterLogging": [{"types": ["api"], "enabled": True}]})
-NODEROLE_ARN: Tuple[str, str] = ("nodeRole", "arn:aws:iam::123456789012:role/role_name")
-POD_EXECUTION_ROLE_ARN: Tuple[str, str] = ("podExecutionRoleArn", "arn:aws:iam::123456789012:role/role_name")
-REMOTE_ACCESS: Tuple[str, Dict] = ("remoteAccess", {"ec2SshKey": "eksKeypair"})
-RESOURCES_VPC_CONFIG: Tuple[str, Dict] = (
+LABELS: tuple[str, dict] = ("labels", {"purpose": "example"})
+LAUNCH_TEMPLATE: tuple[str, dict] = ("launchTemplate", {"name": "myTemplate", "version": "2", "id": "123456"})
+LOGGING: tuple[str, dict] = ("logging", {"clusterLogging": [{"types": ["api"], "enabled": True}]})
+NODEROLE_ARN: tuple[str, str] = ("nodeRole", "arn:aws:iam::123456789012:role/role_name")
+POD_EXECUTION_ROLE_ARN: tuple[str, str] = ("podExecutionRoleArn", "arn:aws:iam::123456789012:role/role_name")
+REMOTE_ACCESS: tuple[str, dict] = ("remoteAccess", {"ec2SshKey": "eksKeypair"})
+RESOURCES_VPC_CONFIG: tuple[str, dict] = (
     "resourcesVpcConfig",
     {
         "subnetIds": SUBNET_IDS,
@@ -66,13 +66,13 @@ RESOURCES_VPC_CONFIG: Tuple[str, Dict] = (
         "endpointPrivateAccess": False,
     },
 )
-ROLE_ARN: Tuple[str, str] = ("roleArn", "arn:aws:iam::123456789012:role/role_name")
-SCALING_CONFIG: Tuple[str, Dict] = ("scalingConfig", {"minSize": 2, "maxSize": 3, "desiredSize": 2})
-SELECTORS: Tuple[str, List] = ("selectors", [{"namespace": "profile-namespace"}])
-STATUS: Tuple[str, str] = ("status", "ACTIVE")
-SUBNETS: Tuple[str, List] = ("subnets", SUBNET_IDS)
-TAGS: Tuple[str, Dict] = ("tags", {"hello": "world"})
-VERSION: Tuple[str, str] = ("version", "1")
+ROLE_ARN: tuple[str, str] = ("roleArn", "arn:aws:iam::123456789012:role/role_name")
+SCALING_CONFIG: tuple[str, dict] = ("scalingConfig", {"minSize": 2, "maxSize": 3, "desiredSize": 2})
+SELECTORS: tuple[str, list] = ("selectors", [{"namespace": "profile-namespace"}])
+STATUS: tuple[str, str] = ("status", "ACTIVE")
+SUBNETS: tuple[str, list] = ("subnets", SUBNET_IDS)
+TAGS: tuple[str, dict] = ("tags", {"hello": "world"})
+VERSION: tuple[str, str] = ("version", "1")
 
 
 class ResponseAttributes:
@@ -98,8 +98,8 @@ class ErrorAttributes:
 class ClusterInputs:
     """All possible inputs for creating an EKS Cluster."""
 
-    REQUIRED: List[Tuple[str, Any]] = [ROLE_ARN, RESOURCES_VPC_CONFIG]
-    OPTIONAL: List[Tuple[str, Any]] = [
+    REQUIRED: list[tuple[str, Any]] = [ROLE_ARN, RESOURCES_VPC_CONFIG]
+    OPTIONAL: list[tuple[str, Any]] = [
         CLIENT_REQUEST_TOKEN,
         ENCRYPTION_CONFIG,
         LOGGING,
@@ -112,15 +112,15 @@ class ClusterInputs:
 class FargateProfileInputs:
     """All possible inputs for creating an AWS Fargate profile."""
 
-    REQUIRED: List[Tuple[str, Any]] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
-    OPTIONAL: List[Tuple[str, Any]] = [SUBNETS, TAGS]
+    REQUIRED: list[tuple[str, Any]] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
+    OPTIONAL: list[tuple[str, Any]] = [SUBNETS, TAGS]
 
 
 class NodegroupInputs:
     """All possible inputs for creating an EKS Managed Nodegroup."""
 
-    REQUIRED: List[Tuple[str, Any]] = [NODEROLE_ARN, SUBNETS]
-    OPTIONAL: List[Tuple[str, Any]] = [
+    REQUIRED: list[tuple[str, Any]] = [NODEROLE_ARN, SUBNETS]
+    OPTIONAL: list[tuple[str, Any]] = [
         AMI_TYPE,
         DISK_SIZE,
         INSTANCE_TYPES,

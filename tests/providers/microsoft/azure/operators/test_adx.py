@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -64,7 +64,7 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE, 'provide_context': True}
 
-        self.dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args, schedule_interval='@once')
+        self.dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args, schedule='@once')
         self.operator = AzureDataExplorerQueryOperator(dag=self.dag, **MOCK_DATA)
 
     def test_init(self):

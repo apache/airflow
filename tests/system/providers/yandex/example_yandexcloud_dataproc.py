@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import uuid
 from datetime import datetime
@@ -44,7 +46,7 @@ DAG_ID = 'example_yandexcloud_dataproc_operator'
 
 with DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
 ) as dag:

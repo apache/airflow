@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import unittest
 from argparse import Namespace
 from tempfile import NamedTemporaryFile
@@ -354,6 +356,7 @@ class TestFlowerCommand(unittest.TestCase):
                 pidfile=mock_pid_file.return_value,
                 stderr=mock_open.return_value,
                 stdout=mock_open.return_value,
+                umask=0o077,
             ),
             mock.call.DaemonContext().__enter__(),
             mock.call.DaemonContext().__exit__(None, None, None),

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv
@@ -23,7 +24,9 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
+    RedshiftCreateClusterSnapshotOperator,
     RedshiftDeleteClusterOperator,
+    RedshiftDeleteClusterSnapshotOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -34,11 +37,14 @@ from tests.system.providers.amazon.aws.utils import set_env_id
 ENV_ID = set_env_id()
 DAG_ID = 'example_redshift_cluster'
 REDSHIFT_CLUSTER_IDENTIFIER = getenv("REDSHIFT_CLUSTER_IDENTIFIER", "redshift-cluster-1")
+REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER = getenv(
+    "REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER", "redshift-cluster-snapshot-1"
+)
 
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     tags=['example'],
 ) as dag:
@@ -85,6 +91,24 @@ with DAG(
     )
     # [END howto_operator_redshift_resume_cluster]
 
+    # [START howto_operator_redshift_create_cluster_snapshot]
+    task_create_cluster_snapshot = RedshiftCreateClusterSnapshotOperator(
+        task_id='create_cluster_snapshot',
+        cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
+        snapshot_identifier=REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER,
+        retention_period=1,
+        wait_for_completion=True,
+    )
+    # [END howto_operator_redshift_create_cluster_snapshot]
+
+    # [START howto_operator_redshift_delete_cluster_snapshot]
+    task_delete_cluster_snapshot = RedshiftDeleteClusterSnapshotOperator(
+        task_id='delete_cluster_snapshot',
+        cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
+        snapshot_identifier=REDSHIFT_CLUSTER_SNAPSHOT_IDENTIFIER,
+    )
+    # [END howto_operator_redshift_delete_cluster_snapshot]
+
     # [START howto_operator_redshift_delete_cluster]
     task_delete_cluster = RedshiftDeleteClusterOperator(
         task_id="delete_cluster",
@@ -99,6 +123,8 @@ with DAG(
         task_pause_cluster,
         task_wait_cluster_paused,
         task_resume_cluster,
+        task_create_cluster_snapshot,
+        task_delete_cluster_snapshot,
         task_delete_cluster,
     )
 

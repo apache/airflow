@@ -20,4 +20,11 @@
 
 testing::get_docker_compose_local
 testing::setup_docker_compose_backend "downgrade"
-testing::run_command_in_docker "downgrade" "airflow db downgrade -r e959f08ac86c -y"
+# This runs downgrades for DBs created from the migration file
+testing::run_command_in_docker "downgrade" "airflow db reset --skip-init -y \
+    && airflow db upgrade --to-revision heads && airflow db downgrade -r e959f08ac86c -y \
+    && airflow db upgrade"
+# This tests upgrade/downgrade for DBs created from the ORM
+testing::run_command_in_docker "downgrade" "airflow db reset -y \
+    && airflow db upgrade && airflow db downgrade -r e959f08ac86c -y \
+    && airflow db upgrade"

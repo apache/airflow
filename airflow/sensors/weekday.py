@@ -15,8 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
+from __future__ import annotations
 
+import warnings
+from typing import Iterable
+
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
@@ -65,13 +69,23 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
+        To use ``WeekDay`` enum, import it from ``airflow.utils.weekday``
+
     :param use_task_logical_date: If ``True``, uses task's logical date to compare
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
+    :param use_task_execution_day: deprecated parameter, same effect as `use_task_logical_date`
     """
 
-    def __init__(self, *, week_day, use_task_logical_date=False, use_task_execution_day=False, **kwargs):
+    def __init__(
+        self,
+        *,
+        week_day: str | Iterable[str] | WeekDay | Iterable[WeekDay],
+        use_task_logical_date: bool = False,
+        use_task_execution_day: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.week_day = week_day
         self.use_task_logical_date = use_task_logical_date
@@ -79,12 +93,12 @@ class DayOfWeekSensor(BaseSensorOperator):
             self.use_task_logical_date = use_task_execution_day
             warnings.warn(
                 "Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         self.log.info(
             'Poking until weekday is in %s, Today is %s',
             self.week_day,

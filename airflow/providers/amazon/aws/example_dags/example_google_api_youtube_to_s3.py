@@ -33,6 +33,7 @@ https://developers.google.com/youtube/v3/docs/videos/list#parameters for more in
 YOUTUBE_CONN_ID is optional for public videos. It does only need to authenticate when there are private videos
 on a YouTube channel you want to retrieve.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from os import getenv
@@ -66,7 +67,6 @@ def transform_video_ids(**kwargs):
 
 with DAG(
     dag_id="example_google_api_youtube_to_s3",
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

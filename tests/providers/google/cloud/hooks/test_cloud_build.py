@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains various unit tests for
 functions in CloudBuildHook
 """
-
+from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock, patch
@@ -63,7 +62,7 @@ class TestCloudBuildHook(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_credentials")
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_credentials")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
     def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()

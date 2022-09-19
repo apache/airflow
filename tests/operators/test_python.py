@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import logging
 import os
@@ -24,7 +26,6 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
-from typing import List
 
 import pytest
 
@@ -388,7 +389,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag = DAG(
             'branch_operator_test',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
@@ -596,7 +597,7 @@ class TestShortCircuitOperator:
         self.dag = DAG(
             "short_circuit_op_test",
             start_date=DEFAULT_DATE,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
 
         with self.dag:
@@ -833,7 +834,7 @@ class TestShortCircuitOperator:
         assert xcom_value_short_op_no_push_xcom is None
 
 
-virtualenv_string_args: List[str] = []
+virtualenv_string_args: list[str] = []
 
 
 class TestPythonVirtualenvOperator(unittest.TestCase):
@@ -843,7 +844,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
             template_searchpath=TEMPLATE_SEARCHPATH,
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -1303,7 +1304,7 @@ def test_virtualenv_serializable_context_fields(create_task_instance):
     ti = create_task_instance(
         dag_id="test_virtualenv_serializable_context_fields",
         task_id="test_virtualenv_serializable_context_fields_task",
-        schedule_interval=None,
+        schedule=None,
     )
     context = ti.get_template_context()
 

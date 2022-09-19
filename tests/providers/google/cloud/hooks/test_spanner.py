@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -41,7 +42,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         ):
             self.spanner_hook_default_project_id = SpannerHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.Client")
     def test_spanner_client_creation(self, mock_client, mock_get_creds):
         result = self.spanner_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
@@ -435,7 +436,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             self.spanner_hook_no_default_project_id = SpannerHook(gcp_conn_id='test')
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_credentials",
+        "airflow.providers.google.cloud.hooks.spanner.SpannerHook.get_credentials",
         return_value="CREDENTIALS",
     )
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.Client")

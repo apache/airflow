@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 
@@ -49,7 +51,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.polling_period_seconds = polling_period_seconds
         self.hook = DatabricksHook(databricks_conn_id)
 
-    def serialize(self) -> Tuple[str, Dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             'airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger',
             {

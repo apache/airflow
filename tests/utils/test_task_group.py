@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pendulum
 import pytest
@@ -26,8 +27,8 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup
-from airflow.www.views import dag_edges, task_group_to_dict
+from airflow.utils.dag_edges import dag_edges
+from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
 
 EXPECTED_JSON = {
@@ -1025,7 +1026,7 @@ def test_pass_taskgroup_output_to_task():
     def increment(num):
         return num + 1
 
-    @dag(schedule_interval=None, start_date=pendulum.DateTime(2022, 1, 1), default_args={"owner": "airflow"})
+    @dag(schedule=None, start_date=pendulum.DateTime(2022, 1, 1), default_args={"owner": "airflow"})
     def wrap():
         total_1 = one()
         assert isinstance(total_1, XComArg)
@@ -1247,3 +1248,18 @@ def test_task_group_edge_modifier_chain():
     assert tg.downstream_task_ids == {t3.node_id}
     # Check that we can perform a topological_sort
     dag.topological_sort()
+
+
+def test_mapped_task_group_id_prefix_task_id():
+    from tests.test_utils.mock_operators import MockOperator
+
+    with DAG(dag_id="d", start_date=DEFAULT_DATE) as dag:
+        t1 = MockOperator.partial(task_id="t1").expand(arg1=[])
+        with TaskGroup("g"):
+            t2 = MockOperator.partial(task_id="t2").expand(arg1=[])
+
+    assert t1.task_id == "t1"
+    assert t2.task_id == "g.t2"
+
+    dag.get_task("t1") == t1
+    dag.get_task("g.t2") == t2

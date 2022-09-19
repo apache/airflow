@@ -30,6 +30,7 @@ The definition of a successful run is if the run has a result_state of "SUCCESS"
 For more information about the state of a run refer to
 https://docs.databricks.com/api/latest/jobs.html#runstate
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -42,7 +43,7 @@ DAG_ID = "example_databricks_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@daily',
+    schedule='@daily',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

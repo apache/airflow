@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Example DAG demonstrating the usage of the PigOperator."""
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -29,7 +29,7 @@ DAG_ID = "example_adf_run_pipeline"
 
 with DAG(
     dag_id='example_pig_operator',
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

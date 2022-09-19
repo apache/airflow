@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import errno
 import os
 import re
@@ -23,7 +25,6 @@ import sys
 import tempfile
 from threading import Event, Thread
 from time import sleep
-from typing import Dict, List, Optional, Tuple
 
 import click
 
@@ -50,6 +51,7 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console, message_type_from_return_code
 from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
+    DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
 )
@@ -82,8 +84,8 @@ def docker_compose_tests(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
-    extra_pytest_args: Tuple,
+    image_tag: str | None,
+    extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
     if image_name is None:
@@ -150,14 +152,14 @@ def escape_ansi(line):
 
 
 def run_with_progress(
-    cmd: List[str],
-    env_variables: Dict[str, str],
+    cmd: list[str],
+    env_variables: dict[str, str],
     test_type: str,
     python: str,
     backend: str,
     verbose: bool,
     dry_run: bool,
-    version: Optional[str] = None,
+    version: str | None = None,
 ) -> RunCommandResult:
     backend_version = backend + (":" + version) if version else backend
     title = f"Running tests: {test_type}, Python: {python}, Backend: {backend_version}"
@@ -217,6 +219,12 @@ def run_with_progress(
     default="All",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
+@click.option(
+    "--test-timeout",
+    help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
+    default="60",
+    show_default=True,
+)
 @option_db_reset
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def tests(
@@ -228,11 +236,12 @@ def tests(
     mysql_version: str,
     mssql_version: str,
     limit_progress_output: bool,
-    integration: Tuple,
-    extra_pytest_args: Tuple,
+    integration: tuple,
+    extra_pytest_args: tuple,
     test_type: str,
+    test_timeout: str,
     db_reset: bool,
-    image_tag: Optional[str],
+    image_tag: str | None,
     mount_sources: str,
 ):
     exec_shell_params = ShellParams(
@@ -253,6 +262,8 @@ def tests(
         if "[" in test_type and not test_type.startswith("Providers"):
             get_console().print("[error]Only 'Providers' test type can specify actual tests with \\[\\][/]")
             sys.exit(1)
+    if test_timeout:
+        env_variables["TEST_TIMEOUT"] = test_timeout
     if integration:
         if "trino" in integration:
             integration = integration + ("kerberos",)
@@ -260,7 +271,7 @@ def tests(
     if db_reset:
         env_variables["DB_RESET"] = "true"
     perform_environment_checks(verbose=verbose)
-    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
     version = (
         mssql_version
@@ -297,20 +308,14 @@ def tests(
 )
 @option_dry_run
 @option_verbose
-@click.option(
-    '--limit-progress-output',
-    help="Limit progress to percentage only and just show the summary when tests complete.",
-    is_flag=True,
-)
 @option_image_tag_for_running
 @option_mount_sources
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def helm_tests(
     dry_run: bool,
     verbose: bool,
-    extra_pytest_args: Tuple,
-    image_tag: Optional[str],
-    limit_progress_output: bool,
+    extra_pytest_args: tuple,
+    image_tag: str | None,
     mount_sources: str,
 ):
     exec_shell_params = ShellParams(
@@ -323,18 +328,7 @@ def helm_tests(
     env_variables['RUN_TESTS'] = "true"
     env_variables['TEST_TYPE'] = 'Helm'
     perform_environment_checks(verbose=verbose)
-    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd = [*DOCKER_COMPOSE_COMMAND, 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
-    if limit_progress_output:
-        result = run_with_progress(
-            cmd=cmd,
-            python=exec_shell_params.python,
-            backend=exec_shell_params.backend,
-            test_type='Helm',
-            env_variables=env_variables,
-            verbose=verbose,
-            dry_run=dry_run,
-        )
-    else:
-        result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+    result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)

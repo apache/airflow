@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 from unittest import TestCase
@@ -74,7 +74,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
                 'start_date': datetime.datetime.today(),
                 'end_date': datetime.datetime.today() + datetime.timedelta(days=1),
             },
-            schedule_interval='@daily',
+            schedule='@daily',
         )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')

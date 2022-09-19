@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """This module contains the AWS DynamoDB hook"""
-import warnings
-from typing import Iterable, List, Optional
+from __future__ import annotations
+
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -40,7 +39,7 @@ class DynamoDBHook(AwsBaseHook):
     """
 
     def __init__(
-        self, *args, table_keys: Optional[List] = None, table_name: Optional[str] = None, **kwargs
+        self, *args, table_keys: list | None = None, table_name: str | None = None, **kwargs
     ) -> None:
         self.table_keys = table_keys
         self.table_name = table_name
@@ -58,19 +57,3 @@ class DynamoDBHook(AwsBaseHook):
             return True
         except Exception as general_error:
             raise AirflowException(f"Failed to insert items in dynamodb, error: {str(general_error)}")
-
-
-class AwsDynamoDBHook(DynamoDBHook):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.dynamodb.DynamoDBHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

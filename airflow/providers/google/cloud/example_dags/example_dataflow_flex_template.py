@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google Cloud Dataflow service
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -47,7 +48,6 @@ with models.DAG(
     dag_id="example_gcp_dataflow_flex_template_java",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    schedule_interval='@once',  # Override to match your needs
 ) as dag_flex_template:
     # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(

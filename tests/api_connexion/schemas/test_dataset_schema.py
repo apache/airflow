@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from freezegun import freeze_time
 
@@ -25,7 +26,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_event_schema,
     dataset_schema,
 )
-from airflow.models.dataset import Dataset, DatasetEvent
+from airflow.datasets import Dataset
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
@@ -50,16 +52,16 @@ class TestDatasetSchema(TestDatasetSchemaBase):
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
-        session.add(dataset)
-        session.flush()
         with dag_maker(dag_id="test_dataset_upstream_schema", serialized=True, session=session):
             EmptyOperator(task_id="task1", outlets=[dataset])
         with dag_maker(
-            dag_id="test_dataset_downstream_schema", schedule_on=[dataset], serialized=True, session=session
+            dag_id="test_dataset_downstream_schema", schedule=[dataset], serialized=True, session=session
         ):
             EmptyOperator(task_id="task2")
-        session.flush()
-        serialized_data = dataset_schema.dump(dataset)
+
+        dataset_model = session.query(DatasetModel).filter_by(uri=dataset.uri).one()
+
+        serialized_data = dataset_schema.dump(dataset_model)
         serialized_data['id'] = 1
         assert serialized_data == {
             "id": 1,
@@ -67,14 +69,14 @@ class TestDatasetSchema(TestDatasetSchemaBase):
             "extra": {'foo': 'bar'},
             "created_at": self.timestamp,
             "updated_at": self.timestamp,
-            "downstream_dag_references": [
+            "consuming_dags": [
                 {
                     "dag_id": "test_dataset_downstream_schema",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 }
             ],
-            "upstream_task_references": [
+            "producing_tasks": [
                 {
                     "task_id": "task1",
                     "dag_id": "test_dataset_upstream_schema",
@@ -89,7 +91,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
 
         datasets = [
-            Dataset(
+            DatasetModel(
                 uri=f"s3://bucket/key/{i+1}",
                 extra={"foo": "bar"},
             )
@@ -110,8 +112,8 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
-                    "downstream_dag_references": [],
-                    "upstream_task_references": [],
+                    "consuming_dags": [],
+                    "producing_tasks": [],
                 },
                 {
                     "id": 2,
@@ -119,8 +121,8 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "extra": {'foo': 'bar'},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
-                    "downstream_dag_references": [],
-                    "upstream_task_references": [],
+                    "consuming_dags": [],
+                    "producing_tasks": [],
                 },
             ],
             "total_entries": 2,
@@ -129,7 +131,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-        d = Dataset('s3://abc')
+        d = DatasetModel('s3://abc')
         session.add(d)
         session.commit()
         event = DatasetEvent(
@@ -154,6 +156,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
             "source_run_id": "custom",
             "source_map_index": -1,
             "timestamp": self.timestamp,
+            "created_dagruns": [],
         }
 
 
@@ -166,6 +169,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
+            "created_dagruns": [],
         }
 
         events = [DatasetEvent(id=i, **common) for i in [1, 2]]

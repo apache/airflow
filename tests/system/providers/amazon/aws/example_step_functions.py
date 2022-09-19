@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from datetime import datetime
 
@@ -63,7 +65,7 @@ def delete_state_machine(state_machine_arn):
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
@@ -83,15 +85,17 @@ with DAG(
     )
     # [END howto_operator_step_function_start_execution]
 
+    execution_arn = start_execution.output
+
     # [START howto_sensor_step_function_execution]
     wait_for_execution = StepFunctionExecutionSensor(
-        task_id='wait_for_execution', execution_arn=start_execution.output
+        task_id='wait_for_execution', execution_arn=execution_arn
     )
     # [END howto_sensor_step_function_execution]
 
     # [START howto_operator_step_function_get_execution_output]
     get_execution_output = StepFunctionGetExecutionOutputOperator(
-        task_id='get_execution_output', execution_arn=start_execution.output
+        task_id='get_execution_output', execution_arn=execution_arn
     )
     # [END howto_operator_step_function_get_execution_output]
 

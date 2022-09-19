@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add indexes for CASCADE deletes on task_instance
 
 Some databases don't add indexes on the FK columns so we have to add them for performance on CASCADE deletes.
@@ -25,6 +24,7 @@ Revises: 3c94c427fdf6
 Create Date: 2022-06-15 18:04:54.081789
 
 """
+from __future__ import annotations
 
 from alembic import context, op
 

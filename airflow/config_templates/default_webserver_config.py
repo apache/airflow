@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default configuration for the Airflow webserver"""
+from __future__ import annotations
+
 import os
 
 from airflow.www.fab_security.manager import AUTH_DB
@@ -98,3 +100,31 @@ AUTH_TYPE = AUTH_DB
 #    { 'name': 'AOL', 'url': 'http://openid.aol.com/<username>' },
 #    { 'name': 'Flickr', 'url': 'http://www.flickr.com/<username>' },
 #    { 'name': 'MyOpenID', 'url': 'https://www.myopenid.com' }]
+
+# ----------------------------------------------------
+# Theme CONFIG
+# ----------------------------------------------------
+# Flask App Builder comes up with a number of predefined themes
+# that you can use for Apache Airflow.
+# http://flask-appbuilder.readthedocs.io/en/latest/customizing.html#changing-themes
+# Please make sure to remove "navbar_color" configuration from airflow.cfg
+# in order to fully utilize the theme. (or use that property in conjunction with theme)
+# APP_THEME = "bootstrap-theme.css"  # default bootstrap
+# APP_THEME = "amelia.css"
+# APP_THEME = "cerulean.css"
+# APP_THEME = "cosmo.css"
+# APP_THEME = "cyborg.css"
+# APP_THEME = "darkly.css"
+# APP_THEME = "flatly.css"
+# APP_THEME = "journal.css"
+# APP_THEME = "lumen.css"
+# APP_THEME = "paper.css"
+# APP_THEME = "readable.css"
+# APP_THEME = "sandstone.css"
+# APP_THEME = "simplex.css"
+# APP_THEME = "slate.css"
+# APP_THEME = "solar.css"
+# APP_THEME = "spacelab.css"
+# APP_THEME = "superhero.css"
+# APP_THEME = "united.css"
+# APP_THEME = "yeti.css"

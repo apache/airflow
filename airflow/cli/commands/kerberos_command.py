@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Kerberos command"""
+from __future__ import annotations
+
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
@@ -42,6 +43,7 @@ def kerberos(args):
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                umask=int(settings.DAEMON_UMASK, 8),
             )
 
             with ctx:

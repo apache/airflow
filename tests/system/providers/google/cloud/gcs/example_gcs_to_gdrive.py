@@ -18,6 +18,8 @@
 """
 Example DAG using GoogleCloudStorageToGoogleDriveOperator.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -31,7 +33,7 @@ GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example', 'gcs'],

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 
@@ -61,7 +62,7 @@ class TestLatestOnlyOperator:
         self.dag = DAG(
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+            schedule=INTERVAL,
         )
         self.freezer = freeze_time(FROZEN_NOW)
         self.freezer.start()

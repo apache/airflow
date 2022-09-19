@@ -26,8 +26,9 @@ import {
 import { getMetaValue, appendSearchParams } from 'src/utils';
 import LinkButton from 'src/components/LinkButton';
 import type { Task, DagRun } from 'src/types';
+import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 
-const dagId = getMetaValue('dag_id') || '';
+const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
@@ -37,7 +38,7 @@ const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const xcomUrl = getMetaValue('xcom_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
-const gridUrl = getMetaValue('grid_url') || '';
+const gridUrl = getMetaValue('grid_url');
 const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
 interface Props {
@@ -46,31 +47,33 @@ interface Props {
   executionDate: string;
   operator?: string;
   isMapped?: boolean;
+  mapIndex?: number;
 }
 
 const Nav = ({
-  runId, taskId, executionDate, operator, isMapped = false,
+  runId, taskId, executionDate, operator, isMapped = false, mapIndex,
 }: Props) => {
   if (!taskId) return null;
-  const params = new URLSearchParams({
+  const params = new URLSearchParamsWrapper({
     task_id: taskId,
     execution_date: executionDate,
-  }).toString();
+    map_index: mapIndex ?? -1,
+  });
   const detailsLink = `${taskUrl}&${params}`;
   const renderedLink = `${renderedTemplatesUrl}&${params}`;
   const logLink = `${logUrl}&${params}`;
   const xcomLink = `${xcomUrl}&${params}`;
   const k8sLink = `${renderedK8sUrl}&${params}`;
-  const listParams = new URLSearchParams({
+  const listParams = new URLSearchParamsWrapper({
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: 'dag_run.execution_date',
   });
-  const subDagParams = new URLSearchParams({
+  const subDagParams = new URLSearchParamsWrapper({
     execution_date: executionDate,
   }).toString();
 
-  const filterParams = new URLSearchParams({
+  const filterParams = new URLSearchParamsWrapper({
     task_id: taskId,
     dag_run_id: runId,
     root: taskId,
@@ -90,7 +93,7 @@ const Nav = ({
   return (
     <>
       <Flex flexWrap="wrap">
-        {!isMapped && (
+        {(!isMapped || mapIndex !== undefined) && (
         <>
           <LinkButton href={detailsLink}>Task Instance Details</LinkButton>
           <LinkButton href={renderedLink}>Rendered Template</LinkButton>

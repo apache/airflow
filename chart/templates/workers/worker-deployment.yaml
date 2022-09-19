@@ -66,8 +66,8 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
+{{- if or (.Values.labels) (.Values.workers.labels) }}
+{{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
 {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -157,6 +157,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.workers.waitForMigrations.env }}
+{{ tpl (toYaml .Values.workers.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
@@ -175,6 +178,22 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
+          {{- if .Values.workers.livenessProbe.enabled }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.workers.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                  {{- if .Values.workers.livenessProbe.command }}
+                  {{ toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                  {{- else}}
+                  - sh
+                  - -c
+                  - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.executors.celery_executor.app inspect ping -d celery@$(hostname)
+                  {{- end }}
+          {{- end }}
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
@@ -214,6 +233,7 @@ spec:
               value: "0"
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.workers.env) | indent 10 }}
           {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}

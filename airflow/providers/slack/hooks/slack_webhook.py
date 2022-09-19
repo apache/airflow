@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import json
 import warnings
-from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -30,6 +30,10 @@ class SlackWebhookHook(HttpHook):
     Takes both Slack webhook token directly and connection that has Slack webhook token.
     If both supplied, http_conn_id will be used as base_url,
     and webhook_token will be taken as endpoint, the relative path of the url.
+
+    .. warning::
+        This hook intend to use `Slack Webhook` connection
+        and might not work correctly with `Slack API` connection.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
@@ -83,7 +87,7 @@ class SlackWebhookHook(HttpHook):
         self.link_names = link_names
         self.proxy = proxy
 
-    def _get_token(self, token: str, http_conn_id: Optional[str]) -> str:
+    def _get_token(self, token: str, http_conn_id: str | None) -> str:
         """
         Given either a manually set token or a conn_id, return the webhook_token to use.
 

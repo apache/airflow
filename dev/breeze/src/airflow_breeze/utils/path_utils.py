@@ -17,6 +17,8 @@
 """
 Useful tools for various Paths used inside Airflow Sources.
 """
+from __future__ import annotations
+
 import hashlib
 import os
 import subprocess
@@ -24,7 +26,6 @@ import sys
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.confirm import set_forced_answer
@@ -34,7 +35,7 @@ from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_c
 AIRFLOW_CFG_FILE = "setup.cfg"
 
 
-def search_upwards_for_airflow_sources_root(start_from: Path) -> Optional[Path]:
+def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
     root = Path(start_from.root)
     d = start_from
     while d != root:
@@ -59,6 +60,10 @@ def in_help() -> bool:
 
 def skip_upgrade_check():
     return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
+
+
+def skip_group_output():
+    return in_autocomplete() or in_help() or os.environ.get('SKIP_GROUP_OUTPUT') is not None
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -163,7 +168,7 @@ def reinstall_if_different_sources(airflow_sources: Path) -> bool:
     return False
 
 
-def get_installation_airflow_sources() -> Optional[Path]:
+def get_installation_airflow_sources() -> Path | None:
     """
     Retrieves the Root of the Airflow Sources where Breeze was installed from.
     :return: the Path for Airflow sources.
@@ -269,7 +274,7 @@ def create_volume_if_missing(volume_name: str):
             )
 
 
-def create_static_check_volumes():
+def create_mypy_volume_if_needed():
     create_volume_if_missing("mypy-cache-volume")
 
 
@@ -290,4 +295,3 @@ def create_directories_and_files() -> None:
     (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
     (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
     (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
-    create_static_check_volumes()

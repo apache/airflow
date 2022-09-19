@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import unittest
 from unittest import mock
@@ -57,7 +59,7 @@ class TestDmsDescribeTasksOperator(unittest.TestCase):
             "start_date": DEFAULT_DATE,
         }
 
-        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule_interval="@once")
+        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule="@once")
 
     def test_init(self):
         dms_operator = DmsDescribeTasksOperator(

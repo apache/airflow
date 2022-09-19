@@ -36,29 +36,6 @@ We call it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
-.. note::
-  We are currently migrating old Bash-based ./breeze-legacy to the Python-based breeze. Some of the
-  commands are already converted to breeze, but some old commands should use breeze-legacy. The
-  documentation mentions when ``./breeze-legacy`` is involved.
-
-  The new ``breeze`` after installing is available on your PATH and you should launch it simply as
-  ``breeze <COMMAND> <FLAGS>``. Previously you had to prepend breeze with ``./`` but this is not needed
-  any more. For convenience, we will keep ``./breeze`` script for a while to run the new breeze and you
-  can still use the legacy Breeze with ``./breeze-legacy``.
-
-Watch the video below about Airflow Breeze. It explains the motivation for Breeze
-and screencast all its uses. The video describes old ``./breeze-legacy`` (in video it still
-called ``./breeze`` ).
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68">
-        <img src="images/breeze/overlayed_breeze.png" width="640"
-             alt="Airflow Breeze - Development and Test Environment for Apache Airflow">
-      </a>
-    </div>
-
 Prerequisites
 =============
 
@@ -249,6 +226,7 @@ command.
 Those are all available commands for Breeze and details about the commands are described below:
 
 .. image:: ./images/breeze/output-commands.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-commands.svg
   :width: 100%
   :alt: Breeze commands
 
@@ -298,6 +276,12 @@ You should set up the autocomplete option automatically by running:
 
    breeze setup autocomplete
 
+Automating breeze installation
+------------------------------
+
+Breeze on POSIX-compliant systems (Linux, MacOS) can be automatically installed by running the
+``scripts/tools/setup_breeze`` bash script. This includes checking and installing ``pipx``, setting up
+``breeze`` with it and setting up autocomplete.
 
 Customizing your environment
 ----------------------------
@@ -375,9 +359,6 @@ default settings.
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
 .. raw:: html
 
     <div align="center">
@@ -426,11 +407,10 @@ easily identify the location the problems with documentation originated from.
 Those are all available flags of ``build-docs`` command:
 
 .. image:: ./images/breeze/output_build-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_build-docs.svg
   :width: 100%
   :alt: Breeze build documentation
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
 
 .. raw:: html
 
@@ -489,20 +469,10 @@ If you ever need to get a list of the files that will be checked (for troublesho
 Those are all available flags of ``static-checks`` command:
 
 .. image:: ./images/breeze/output_static-checks.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_static-checks.svg
   :width: 100%
   :alt: Breeze static checks
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1675">
-        <img src="images/breeze/overlayed_breeze_static_checks.png" width="640"
-             alt="Airflow Breeze - Static checks">
-      </a>
-    </div>
 
 .. note::
 
@@ -530,11 +500,12 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql --use-airflow-version 2.2.5 start-airflow
+    breeze start-airflow --python 3.7 --backend mysql --use-airflow-version 2.2.5
 
 Those are all available flags of ``start-airflow`` command:
 
 .. image:: ./images/breeze/output_start-airflow.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_start-airflow.svg
   :width: 100%
   :alt: Breeze start-airflow
 
@@ -550,39 +521,16 @@ capability of creating multiple virtual terminals and multiplex between them. Mo
 found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
-Here is the part of Breeze video which is relevant:
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=824">
-        <img src="images/breeze/overlayed_breeze_using_tmux.png" width="640"
-             alt="Airflow Breeze - Using tmux">
-      </a>
-    </div>
-
-
 Another way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
 to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Here is the part of Breeze video which is relevant:
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=978">
-        <img src="images/breeze/overlayed_breeze_using_exec.png" width="640"
-             alt="Airflow Breeze - Using tmux">
-      </a>
-    </div>
-
-
 Those are all available flags of ``exec`` command:
 
 .. image:: ./images/breeze/output_exec.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_exec.svg
   :width: 100%
   :alt: Breeze exec
 
@@ -594,6 +542,7 @@ Airflow webserver needs to prepare www assets - compiled with node and yarn. The
 command takes care about it. This is needed when you want to run webserver inside of the breeze.
 
 .. image:: ./images/breeze/output_compile-www-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_compile-www-assets.svg
   :width: 100%
   :alt: Breeze compile-www-assets
 
@@ -609,6 +558,7 @@ Those are all available flags of ``cleanup`` command:
 
 
 .. image:: ./images/breeze/output_cleanup.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
   :alt: Breeze setup cleanup
 
@@ -625,6 +575,7 @@ and you can also use it to execute arbitrary commands inside the container.
 Those are all available flags of ``shell`` command:
 
 .. image:: ./images/breeze/output_shell.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_shell.svg
   :width: 100%
   :alt: Breeze shell
 
@@ -644,21 +595,9 @@ You can always stop it via:
 Those are all available flags of ``stop`` command:
 
 .. image:: ./images/breeze/output_stop.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_stop.svg
   :width: 100%
   :alt: Breeze stop
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=2639">
-        <img src="images/breeze/overlayed_breeze_stop.png" width="640"
-             alt="Airflow Breeze - Stop environment">
-      </a>
-    </div>
-
 
 Troubleshooting
 ===============
@@ -702,6 +641,7 @@ types easily. You can run unit tests in different ways, either interactively run
 Here is the detailed set of options for the ``breeze testing`` command.
 
 .. image:: ./images/breeze/output_testing.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing.svg
   :width: 100%
   :alt: Breeze testing
 
@@ -736,20 +676,7 @@ re-running the test to iterate over the tests. You can also add more flags when 
 in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
 on how to run them.
 
-This apply to all kind of tests - all our tests can be run using pytest.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the new ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=262">
-        <img src="images/breeze/overlayed_breeze_running_tests.png" width="640"
-             alt="Airflow Breeze - Running tests">
-      </a>
-    </div>
-
+This applies to all kind of tests - all our tests can be run using pytest.
 
 Running unit/integration tests in groups
 ........................................
@@ -768,6 +695,7 @@ tests for airbyte and http providers.
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
 .. image:: ./images/breeze/output_testing_tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
 
@@ -778,6 +706,7 @@ You can use Breeze to run all Helm tests. Those tests are run inside the breeze 
 necessary tools installed there.
 
 .. image:: ./images/breeze/output_testing_helm-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_helm-tests.svg
   :width: 100%
   :alt: Breeze testing helm-tests
 
@@ -791,6 +720,7 @@ You can use Breeze to run all docker-compose tests. Those tests are run using Pr
 and they are running test with the Quick-start docker compose we have.
 
 .. image:: ./images/breeze/output_testing_docker-compose-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_docker-compose-tests.svg
   :width: 100%
   :alt: Breeze testing docker-compose-tests
 
@@ -802,7 +732,7 @@ through ``breeze testing docker-compose-tests`` command.
 The docker-compose tests are in ``docker-tests/`` folder in the main repo.
 
 Running Kubernetes tests
-........................
+------------------------
 
 Breeze helps with running Kubernetes tests in the same environment/way as CI tests are run.
 Breeze helps to setup KinD cluster for testing, setting up virtualenv and downloads the right tools
@@ -810,23 +740,286 @@ automatically to run the tests.
 
 You can:
 
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze-legacy kind-cluster`` commands
-* Run Kubernetes tests  specified with ``./breeze-legacy kind-cluster tests`` command
-* Enter the interactive kubernetes test environment with ``./breeze-legacy kind-cluster shell`` command
+* Setup environment for k8s tests with ``breeze k8s setup-env``
+* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze k8s create-cluster``,
+  ``breeze k8s deploy-airflow``, ``breeze k8s status``, ``breeze k8s delete-cluster`` commands
+* Run Kubernetes tests  specified with ``breeze k8s tests`` command
+* Enter the interactive kubernetes test environment with ``breeze k8s shell`` and ``breeze k8s k9s`` command
+* Run multi-cluster-operations ``breeze k8s list-all-clusters`` and
+  ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
+  via ``breeze k8s run-complete-tests`` and export logs from all clusters to a temp directory
+  via ``breeze k8s dump-logs`` command
 
 This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the current ``breeze`` command):
+You can read more about KinD that we use in `The documentation <https://kind.sigs.k8s.io/>`_
 
-.. raw:: html
+Here is the detailed set of options for the ``breeze k8s`` command.
 
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=2093">
-        <img src="images/breeze/overlayed_breeze_kubernetes_tests.png" width="640"
-             alt="Airflow Breeze - Kubernetes tests">
-      </a>
-    </div>
+.. image:: ./images/breeze/output_k8s.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s.svg
+  :width: 100%
+  :alt: Breeze k8s
+
+
+Setting up K8S environment
+..........................
+
+Kubernetes environment can be set with the ``breeze k8s setup-env`` command.
+It will create appropriate virtualenv to run tests and download the right set of tools to run
+the tests: ``kind``, ``kubectl`` and ``helm`` in the right versions. You can re-run the command
+when you want to make sure the expected versions of the tools are installed properly in the
+virtualenv. The Virtualenv is available in ``.build/.k8s-env/bin`` subdirectory of your Airflow
+installation.
+
+.. image:: ./images/breeze/output_k8s_setup-env.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_setup-env.svg
+  :width: 100%
+  :alt: Breeze k8s setup-env
+
+Creating K8S cluster
+....................
+
+You can create kubernetes cluster (separate cluster for each python/kubernetes version) via
+``breeze k8s create-cluster`` command. With ``--force`` flag the cluster will be
+deleted if exists. You can also use it to create multiple clusters in parallel with
+``--run-in-parallel`` flag - this is what happens in our CI.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_create-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_create-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s create-cluster
+
+Deleting K8S cluster
+....................
+
+You can delete current kubernetes cluster via ``breeze k8s delete-cluster`` command. You can also add
+``--run-in-parallel`` flag to delete all clusters.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_delete-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_delete-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s delete-cluster
+
+Building Airflow K8s images
+...........................
+
+Before deploying Airflow Helm Chart, you need to make sure the appropriate Airflow image is build (it has
+embedded test dags, pod templates and webserver is configured to refresh immediately. This can
+be done via ``breeze k8s build-k8s-image`` command. It can also be done in parallel for all images via
+``--run-in-parallel`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_build-k8s-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_build-k8s-image.svg
+  :width: 100%
+  :alt: Breeze k8s build-k8s-image
+
+Uploading Airflow K8s images
+............................
+
+The K8S airflow images need to be uploaded to the KinD cluster. This can be done via
+``breeze k8s upload-k8s-image`` command. It can also be done in parallel for all images via
+``--run-in-parallel`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_upload-k8s-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_upload-k8s-image.svg
+  :width: 100%
+  :alt: Breeze k8s upload-k8s-image
+
+Configuring K8S cluster
+.......................
+
+In order to deploy Airflow, the cluster needs to be configured. Airflow namespace needs to be created
+and test resources should be deployed. By passing ``--run-in-parallel`` the configuration can be run
+for all clusters in parallel.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_configure-cluster.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_configure-cluster.svg
+  :width: 100%
+  :alt: Breeze k8s configure-cluster
+
+Deploying Airflow to the Cluster
+................................
+
+Airflow can be deployed to the Cluster with ``breeze k8s deploy-airflow``. This step will automatically
+(unless disabled by switches) will rebuild the image to be deployed. It also uses the latest version
+of the Airflow Helm Chart to deploy it. You can also choose to upgrade existing airflow deployment
+and pass extra arguments to ``helm install`` or ``helm upgrade`` commands that are used to
+deploy airflow. By passing ``--run-in-parallel`` the deployment can be run
+for all clusters in parallel.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_deploy-airflow.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_deploy-airflow.svg
+  :width: 100%
+  :alt: Breeze k8s deploy-airflow
+
+Checking status of the K8S cluster
+..................................
+
+You can delete kubernetes cluster and airflow deployed in the current cluster
+via ``breeze k8s status`` command. It can be also checked fora all clusters created so far by passing
+``--all`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_status.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_status.svg
+  :width: 100%
+  :alt: Breeze k8s status
+
+Running k8s tests
+.................
+
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
+you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
+for all clusters in parallel.
+
+Run all tests:
+
+.. code-block::bash
+
+    breeze k8s tests
+
+Run selected tests:
+
+.. code-block::bash
+
+    breeze k8s tests kubernetes_tests/test_kubernetes_executor.py
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_tests.svg
+  :width: 100%
+  :alt: Breeze k8s tests
+
+You can also specify any pytest flags as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s tests -- --help
+
+The options that are not overlapping with the ``tests`` command options can be passed directly and mixed
+with the specifications of tests you want to run. For example the command below will only run
+``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
+output during test execution.
+
+.. code-block::bash
+
+    breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+
+Entering k8s shell
+..................
+
+You can have multiple clusters created - with different versions of Kubernetes and Python at the same time.
+Breeze enables you to interact with the chosen cluster by entering dedicated shell session that has the
+cluster pre-configured. This is done via ``breeze k8s shell`` command.
+
+Once you are in the shell, the prompt will indicate which cluster you are interacting with as well
+as executor you use, similar to:
+
+.. code-block::bash
+
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+
+
+The shell automatically activates the virtual environment that has all appropriate dependencies
+installed and you can interactively run all k8s tests with pytest command (of course the cluster need to
+be created and airflow deployed to it before running the tests):
+
+.. code-block::bash
+
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest kubernetes_tests/test_kubernetes_executor.py
+    ================================================= test session starts =================================================
+    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
+    cachedir: .pytest_cache
+    rootdir: /home/jarek/code/airflow, configfile: pytest.ini
+    plugins: anyio-3.6.1
+    collected 2 items
+
+    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
+    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
+
+    ================================================== warnings summary ===================================================
+    .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/.build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+
+        self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+    -- Docs: https://docs.pytest.org/en/stable/warnings.html
+    ============================================ 2 passed, 1 warning in 38.62s ============================================
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_shell.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_shell.svg
+  :width: 100%
+  :alt: Breeze k8s shell
+
+You can also specify any shell flags and commands as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s shell -- --help
+
+Running k9s tool
+................
+
+The ``k9s`` is a fantastic tool that allows you to interact with running k8s cluster. Since we can have
+multiple clusters capability, ``breeze k8s k9s`` allows you to start k9s without setting it up or
+downloading - it uses k9s docker image to run it and connect it to the right cluster.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_k9s.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_k9s.svg
+  :width: 100%
+  :alt: Breeze k8s k9s
+
+You can also specify any ``k9s`` flags and commands as extra parameters - they will be passed to the
+``k9s`` command directly. In case the ``k9s`` parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the
+``k9s`` you have:
+
+.. code-block::bash
+
+    breeze k8s k9s -- --help
+
+Dumping logs from all k8s clusters
+..................................
+
+KinD allows to export logs from the running cluster so that you can troubleshoot your deployment.
+This can be done with ``breeze k8s logs`` command. Logs can be also dumped fora all clusters created
+so far by passing ``--all`` flag.
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_logs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_logs.svg
+  :width: 100%
+  :alt: Breeze k8s logs
+
 
 CI Image tasks
 --------------
@@ -835,6 +1028,7 @@ The image building is usually run for users automatically when needed,
 but sometimes Breeze users might want to manually build, pull or verify the CI images.
 
 .. image:: ./images/breeze/output_ci-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image.svg
   :width: 100%
   :alt: Breeze ci-image
 
@@ -843,18 +1037,6 @@ For all development tasks, unit tests, integration tests, and static code checks
 
 The CI image is built automatically as needed, however it can be rebuilt manually with
 ``ci image build`` command.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1387">
-        <img src="images/breeze/overlayed_breeze_build_images.png" width="640"
-             alt="Airflow Breeze - Building images">
-      </a>
-    </div>
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
@@ -872,6 +1054,7 @@ Building CI image
 Those are all available flags of ``ci-image build`` command:
 
 .. image:: ./images/breeze/output_ci-image_build.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_build.svg
   :width: 100%
   :alt: Breeze ci-image build
 
@@ -883,6 +1066,7 @@ You can also pull the CI images locally in parallel with optional verification.
 Those are all available flags of ``pull`` command:
 
 .. image:: ./images/breeze/output_ci-image_pull.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_pull.svg
   :width: 100%
   :alt: Breeze ci-image pull
 
@@ -895,6 +1079,7 @@ with an arbitrary image.
 Those are all available flags of ``verify`` command:
 
 .. image:: ./images/breeze/output_ci-image_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_verify.svg
   :width: 100%
   :alt: Breeze ci-image verify
 
@@ -906,6 +1091,7 @@ use the PROD image, the regular docker build commands are recommended. See
 `building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
 
 .. image:: ./images/breeze/output_prod-image.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image.svg
   :width: 100%
   :alt: Breeze prod-image
 
@@ -962,20 +1148,9 @@ Building PROD image
 Those are all available flags of ``build-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_build.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_build.svg
   :width: 100%
   :alt: Breeze prod-image build
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1496">
-        <img src="images/breeze/overlayed_breeze_build_images_prod.png" width="640"
-             alt="Airflow Breeze - Building Production images">
-      </a>
-    </div>
 
 Pulling PROD image
 ..................
@@ -985,6 +1160,7 @@ You can also pull PROD images in parallel with optional verification.
 Those are all available flags of ``pull-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_pull.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_pull.svg
   :width: 100%
   :alt: Breeze prod-image pull
 
@@ -997,6 +1173,7 @@ with an arbitrary image.
 Those are all available flags of ``verify-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_verify.svg
   :width: 100%
   :alt: Breeze prod-image verify
 
@@ -1011,6 +1188,7 @@ host operating system for Breeze autocompletion.
 Those are all available flags of ``setup`` command:
 
 .. image:: ./images/breeze/output_setup.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup.svg
   :width: 100%
   :alt: Breeze setup
 
@@ -1034,6 +1212,7 @@ rather than colours.
 Those are all available flags of ``setup config`` command:
 
 .. image:: ./images/breeze/output_setup_config.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_config.svg
   :width: 100%
   :alt: Breeze setup config
 
@@ -1051,6 +1230,7 @@ also force reinstalling the autocomplete via:
 Those are all available flags of ``setup-autocomplete`` command:
 
 .. image:: ./images/breeze/output_setup_autocomplete.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_autocomplete.svg
   :width: 100%
   :alt: Breeze setup autocomplete
 
@@ -1063,6 +1243,7 @@ Breeze is installed from and details about setup hashes.
 Those are all available flags of ``version`` command:
 
 .. image:: ./images/breeze/output_setup_version.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_version.svg
   :width: 100%
   :alt: Breeze version
 
@@ -1073,28 +1254,26 @@ Breeze self-upgrade
 You can self-upgrade breeze automatically. Those are all available flags of ``self-upgrade`` command:
 
 .. image:: ./images/breeze/output_setup_self-upgrade.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_self-upgrade.svg
   :width: 100%
   :alt: Breeze setup self-upgrade
-
-Exporting breeze command hash output
-....................................
-
-You can also dump hash of the configuration options used - this is mostly used to generate the dump
-of help of the commands only when they change by pre-commit..
-
-.. image:: ./images/breeze/output_setup_command-hash-export.svg
-  :width: 100%
-  :alt: Breeze config command-hash-export
 
 
 Regenerating images for documentation
 .....................................
 
 This documentation contains exported images with "help" of their commands and parameters. You can
-regenerate all those images (which might be needed in case new version of rich is used) via
-``regenerate-command-images`` command.
+regenerate those images that need to be regenerated because their commands changed (usually after
+the breeze code has been changed) via ``regenerate-command-images`` command. Usually this is done
+automatically via pre-commit, but sometimes (for example when ``rich`` or ``rich-click`` library changes)
+you need to regenerate those images.
+
+You can add ``--force`` flag (or ``FORCE="true"`` environment variable to regenerate all images (not
+only those that need regeneration). You can also run the command with ``--check-only`` flag to simply
+check if there are any images that need regeneration.
 
 .. image:: ./images/breeze/output_setup_regenerate-command-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_regenerate-command-images.svg
   :width: 100%
   :alt: Breeze setup regenerate-command-images
 
@@ -1105,6 +1284,7 @@ CI tasks
 Breeze hase a number of commands that are mostly used in CI environment to perform cleanup.
 
 .. image:: ./images/breeze/output_ci.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci.svg
   :width: 100%
   :alt: Breeze ci commands
 
@@ -1118,6 +1298,7 @@ manually run resource check any time by ``breeze ci resource-check`` command.
 Those are all available flags of ``resource-check`` command:
 
 .. image:: ./images/breeze/output_ci_resource-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_resource-check.svg
   :width: 100%
   :alt: Breeze ci resource-check
 
@@ -1131,6 +1312,7 @@ that might be a bit invasive - such are removing swap file and complete pruning 
 Those are all available flags of ``free-space`` command:
 
 .. image:: ./images/breeze/output_ci_free-space.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_free-space.svg
   :width: 100%
   :alt: Breeze ci free-space
 
@@ -1150,6 +1332,7 @@ by the root user, you can fix the ownership of those files by running :
 Those are all available flags of ``fix-ownership`` command:
 
 .. image:: ./images/breeze/output_ci_fix-ownership.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_fix-ownership.svg
   :width: 100%
   :alt: Breeze ci fix-ownership
 
@@ -1167,8 +1350,23 @@ found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 Those are all available flags of ``selective-check`` command:
 
 .. image:: ./images/breeze/output_ci_selective-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_selective-check.svg
   :width: 100%
   :alt: Breeze ci selective-check
+
+Getting workflow information
+............................
+
+When our CI runs a job, it might be within one of several workflows. Information about those workflows
+is stored in GITHUB_CONTEXT. Rather than using some jq/bash commands, we retrieve the necessary information
+(like PR labels, event_type, where the job runs on, job description and convert them into GA outputs.
+
+Those are all available flags of ``get-workflow-info`` command:
+
+.. image:: ./images/breeze/output_ci_get-workflow-info.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_get-workflow-info.svg
+  :width: 100%
+  :alt: Breeze ci get-workflow-info
 
 Tracking backtracking issues for CI builds
 ..........................................
@@ -1183,6 +1381,7 @@ which new dependency might have caused the backtracking. The whole process is de
 Those are all available flags of ``find-newer-dependencies`` command:
 
 .. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
   :width: 100%
   :alt: Breeze ci find-newer-dependencies
 
@@ -1193,6 +1392,7 @@ Maintainers also can use Breeze for other purposes (those are commands that regu
 do not need or have no access to run). Those are usually connected with releasing Airflow:
 
 .. image:: ./images/breeze/output_release-management.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management.svg
   :width: 100%
   :alt: Breeze release management
 
@@ -1230,6 +1430,7 @@ importable, but you can add ``--skip-package-verification`` to skip it.
 You can also add ``--answer yes`` to perform non-interactive build.
 
 .. image:: ./images/breeze/output_release-management_prepare-provider-documentation.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-provider-documentation.svg
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
@@ -1262,6 +1463,7 @@ You can see all providers available by running this command:
      breeze release-management prepare-provider-packages --help
 
 .. image:: ./images/breeze/output_release-management_prepare-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-provider-packages.svg
   :width: 100%
   :alt: Breeze prepare-provider-packages
 
@@ -1285,6 +1487,7 @@ You can also run the verification with an earlier airflow version to check for c
 All the command parameters are here:
 
 .. image:: ./images/breeze/output_release-management_verify-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
 
@@ -1308,6 +1511,7 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
      breeze release-management prepare-airflow-package --package-format=wheel
 
 .. image:: ./images/breeze/output_release-management_prepare-airflow-package.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-package
 
@@ -1352,6 +1556,7 @@ Constraints are generated separately for each python version and there are separ
 Those are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/breeze/output_release-management_generate-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-constraints.svg
   :width: 100%
   :alt: Breeze generate-constraints
 
@@ -1390,6 +1595,7 @@ step can be skipped if you pass the ``--skip-latest`` flag.
 These are all of the available flags for the ``release-prod-images`` command:
 
 .. image:: ./images/breeze/output_release-management_release-prod-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_release-prod-images.svg
   :width: 100%
   :alt: Breeze release management release prod images
 
@@ -1408,6 +1614,7 @@ Then, next time when you start Breeze, it will have the data pre-populated.
 Those are all available flags of ``stop`` command:
 
 .. image:: ./images/breeze/output-stop.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-stop.svg
   :width: 100%
   :alt: Breeze stop
 
@@ -1460,19 +1667,6 @@ Once integration is started, it will continue to run until the environment is st
 
 Note that running integrations uses significant resources - CPU and memory.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1187">
-        <img src="images/breeze/overlayed_breeze_integrations.png" width="640"
-             alt="Airflow Breeze - Integrations">
-      </a>
-    </div>
-
-
 
 Using local virtualenv environment in Your Host IDE
 ---------------------------------------------------
@@ -1508,18 +1702,6 @@ Note that you can also use the local virtualenv for Airflow development without 
 This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
-
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-but it is not available in the ``breeze`` command):
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1920">
-        <img src="images/breeze/overlayed_breeze_initialize_virtualenv.png" width="640"
-             alt="Airflow Breeze - Initialize virtualenv">
-      </a>
-    </div>
 
 
 Internal details of Breeze
@@ -1561,17 +1743,6 @@ Note that when running in your local environment, the ``/root/airflow/logs`` fol
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
 visible in the host as well. Every time you enter the container, the ``logs`` directory is
 cleaned so that logs do not accumulate.
-
-Running "Docker Compose" commands
----------------------------------
-
-To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
-``docker-compose`` command. To add extra arguments, specify them
-after ``--`` as extra arguments.
-
-.. code-block:: bash
-
-     ./breeze-legacy docker-compose pull -- --ignore-pull-failures
 
 Setting default answers for user interaction
 --------------------------------------------
@@ -1669,7 +1840,7 @@ Managing Dependencies
 
 If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
 for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
-or ``airflow/ui``, you need to compile them in the host with ``breeze compile-www-assets`` command.
+, you need to compile them in the host with ``breeze compile-www-assets`` command.
 
 Adding Dependencies Permanently
 ...............................

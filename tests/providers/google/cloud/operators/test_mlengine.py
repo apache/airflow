@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import copy
 import unittest
@@ -100,7 +101,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 'start_date': DEFAULT_DATE,
                 'end_date': DEFAULT_DATE,
             },
-            schedule_interval='@daily',
+            schedule='@daily',
         )
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')

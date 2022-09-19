@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -54,7 +53,7 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
 def get_import_errors(
     *,
     limit: int,
-    offset: Optional[int] = None,
+    offset: int | None = None,
     order_by: str = "import_error_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:

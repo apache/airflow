@@ -22,36 +22,20 @@ import {
   Box,
   Heading,
   Flex,
-  Button,
-  Link,
   Text,
+  Link,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
 import type { Row, SortingRule } from 'react-table';
 
 import { useDatasets } from 'src/api';
-import { Table, CodeCell } from 'src/components/Table';
+import { Table } from 'src/components/Table';
 import type { API } from 'src/types';
-import { MdOutlineAccountTree } from 'react-icons/md';
-import InfoTooltip from 'src/components/InfoTooltip';
+import { getMetaValue } from 'src/utils';
 
 interface Props {
   onSelect: (datasetId: string) => void;
 }
-
-const UpstreamHeader = () => (
-  <Flex>
-    <Text>Producing Tasks</Text>
-    <InfoTooltip size={12} label="Number of tasks that will update this dataset." />
-  </Flex>
-);
-
-const DownstreamHeader = () => (
-  <Flex>
-    <Text>Consuming DAGs</Text>
-    <InfoTooltip size={12} label="Number of DAGs that will run based on updates to this dataset." />
-  </Flex>
-);
 
 const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
@@ -69,22 +53,6 @@ const DatasetsList = ({ onSelect }: Props) => {
         Header: 'URI',
         accessor: 'uri',
       },
-      {
-        Header: 'Extra',
-        accessor: 'extra',
-        disableSortBy: true,
-        Cell: CodeCell,
-      },
-      {
-        Header: UpstreamHeader,
-        accessor: 'upstreamTaskReferences',
-        Cell: ({ cell: { value } }: any) => value.length,
-      },
-      {
-        Header: DownstreamHeader,
-        accessor: 'downstreamDagReferences',
-        Cell: ({ cell: { value } }: any) => value.length,
-      },
     ],
     [],
   );
@@ -95,25 +63,27 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    if (row.original.id) onSelect(row.original.id.toString());
+    if (row.original.uri) onSelect(row.original.uri);
   };
 
+  const docsUrl = getMetaValue('datasets_docs');
+
   return (
-    <Box maxWidth="1500px">
+    <Box>
       <Flex justifyContent="space-between" alignItems="center">
-        <Heading mt={3} mb={2} fontWeight="normal" title="View Dag-Dataset Dependencies">
+        <Heading mt={3} mb={2} fontWeight="normal" size="lg">
           Datasets
         </Heading>
-        <Button
-          as={Link}
-          variant="outline"
-          colorScheme="blue"
-          href="/dag-dependencies"
-          leftIcon={<MdOutlineAccountTree />}
-        >
-          Graph
-        </Button>
       </Flex>
+      {!datasets.length && !isLoading && (
+        <Text>
+          Looks like you do not have any datasets yet. Check out the
+          {' '}
+          <Link color="blue" href={docsUrl} isExternal>docs</Link>
+          {' '}
+          to learn how to create a dataset.
+        </Text>
+      )}
       <Box borderWidth={1}>
         <Table
           data={data}

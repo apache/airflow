@@ -31,9 +31,6 @@
 /airflow/api/ @mik-laj @ephraimbuddy
 /airflow/api_connexion/ @mik-laj @ephraimbuddy
 
-# UI
-/airflow/ui/ @ryanahamilton @ashb @bbovenzi
-
 # WWW
 /airflow/www/ @ryanahamilton @ashb @bbovenzi
 
@@ -73,8 +70,6 @@
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
-breeze @potiuk
-breeze-complete @potiuk
 Dockerfile @potiuk @ashb @mik-laj
 Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham

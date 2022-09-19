@@ -68,7 +68,7 @@ const generateVariableAliases = (node, operationPath, operationName) => {
 
   if (variableTypes.length === 0) return '';
   const typeName = `${toPascalCase(operationName)}Variables`;
-  return [typeName, `export type ${typeName} = ${variableTypes.join(' & ')};`];
+  return [typeName, `export type ${typeName} = CamelCasedPropertiesDeep<${variableTypes.join(' & ')}>;`];
 };
 
 // Generate Type Aliases

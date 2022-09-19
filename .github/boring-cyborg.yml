@@ -87,10 +87,8 @@ labelPRBasedOnFilePath:
     - scripts/**/*
     - dev/**/*
     - .github/**/*
-    - breeze
     - Dockerfile.ci
     - BREEZE.rst
-    - breeze-complete
     - CONTRIBUTING.*
     - LOCAL_VIRTUALENV.rst
     - STATIC_CODE_CHECKS.rst
@@ -133,7 +131,6 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
-    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py

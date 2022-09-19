@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for DataprocSubmitJobOperator with spark sql job.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -66,7 +67,7 @@ SPARK_SQL_JOB = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataproc"],

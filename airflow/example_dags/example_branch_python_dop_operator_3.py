@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating the usage of ``@task.branch`` TaskFlow API decorator with depends_on_past=True,
 where tasks may be run or skipped on alternating runs.
 """
+from __future__ import annotations
+
 import pendulum
 
 from airflow import DAG
@@ -47,7 +48,7 @@ def should_run(**kwargs):
 
 with DAG(
     dag_id='example_branch_dop_operator_v3',
-    schedule_interval='*/1 * * * *',
+    schedule='*/1 * * * *',
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     default_args={'depends_on_past': True},

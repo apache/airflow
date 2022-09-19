@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add common-sql lower bound for common-sql (#25789)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix placeholders in 'TrinoHook', 'PrestoHook', 'SqliteHook' (#25939)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.0.0
+.....
+
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -31,6 +51,19 @@ Deprecated ``hql`` parameter has been removed in ``get_records``, ``get_first``,
 methods of the ``PrestoHook``.
 
 Remove ``PrestoToSlackOperator`` in favor of Slack provider ``SqlToSlackOperator``.
+
+* ``Remove 'PrestoToSlackOperator' (#25425)``
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
+
+Features
+~~~~~~~~~
+
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
 
 3.1.0
 .....

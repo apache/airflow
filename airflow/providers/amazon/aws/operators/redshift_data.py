@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
@@ -36,7 +38,7 @@ class RedshiftDataOperator(BaseOperator):
         :ref:`howto/operator:RedshiftDataOperator`
 
     :param database: the name of the database
-    :param sql: the SQL statement text to run
+    :param sql: the SQL statement or list of  SQL statement to run
     :param cluster_identifier: unique identifier of a cluster
     :param db_user: the database username
     :param parameters: the parameters for the SQL statement
@@ -65,17 +67,17 @@ class RedshiftDataOperator(BaseOperator):
     def __init__(
         self,
         database: str,
-        sql: str,
-        cluster_identifier: Optional[str] = None,
-        db_user: Optional[str] = None,
-        parameters: Optional[list] = None,
-        secret_arn: Optional[str] = None,
-        statement_name: Optional[str] = None,
+        sql: str | list,
+        cluster_identifier: str | None = None,
+        db_user: str | None = None,
+        parameters: list | None = None,
+        secret_arn: str | None = None,
+        statement_name: str | None = None,
         with_event: bool = False,
         await_result: bool = True,
         poll_interval: int = 10,
         aws_conn_id: str = 'aws_default',
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -105,7 +107,7 @@ class RedshiftDataOperator(BaseOperator):
         return RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
     def execute_query(self):
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "ClusterIdentifier": self.cluster_identifier,
             "Database": self.database,
             "Sql": self.sql,
@@ -117,6 +119,20 @@ class RedshiftDataOperator(BaseOperator):
         }
 
         resp = self.hook.conn.execute_statement(**trim_none_values(kwargs))
+        return resp['Id']
+
+    def execute_batch_query(self):
+        kwargs: dict[str, Any] = {
+            "ClusterIdentifier": self.cluster_identifier,
+            "Database": self.database,
+            "Sqls": self.sql,
+            "DbUser": self.db_user,
+            "Parameters": self.parameters,
+            "WithEvent": self.with_event,
+            "SecretArn": self.secret_arn,
+            "StatementName": self.statement_name,
+        }
+        resp = self.hook.conn.batch_execute_statement(**trim_none_values(kwargs))
         return resp['Id']
 
     def wait_for_results(self, statement_id):
@@ -134,11 +150,13 @@ class RedshiftDataOperator(BaseOperator):
                 self.log.info("Query %s", status)
             sleep(self.poll_interval)
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Execute a statement against Amazon Redshift"""
         self.log.info("Executing statement: %s", self.sql)
-
-        self.statement_id = self.execute_query()
+        if isinstance(self.sql, list):
+            self.statement_id = self.execute_batch_query()
+        else:
+            self.statement_id = self.execute_query()
 
         if self.await_result:
             self.wait_for_results(self.statement_id)

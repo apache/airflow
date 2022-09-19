@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 
 import boto3
@@ -23,17 +25,16 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import set_env_id
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-ENV_ID = set_env_id()
+sys_test_context_task = SystemTestContextBuilder().build()
+
 DAG_ID = 'example_sns'
-
-SNS_TOPIC_NAME = f'{ENV_ID}-test-topic'
 
 
 @task
-def create_topic() -> str:
-    return boto3.client('sns').create_topic(Name=SNS_TOPIC_NAME)['TopicArn']
+def create_topic(topic_name) -> str:
+    return boto3.client('sns').create_topic(Name=topic_name)['TopicArn']
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -43,13 +44,17 @@ def delete_topic(topic_arn) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context['ENV_ID']
 
-    create_sns_topic = create_topic()
+    sns_topic_name = f'{env_id}-test-topic'
+
+    create_sns_topic = create_topic(sns_topic_name)
 
     # [START howto_operator_sns_publish_operator]
     publish_message = SnsPublishOperator(
@@ -61,6 +66,7 @@ with DAG(
 
     chain(
         # TEST SETUP
+        test_context,
         create_sns_topic,
         # TEST BODY
         publish_message,

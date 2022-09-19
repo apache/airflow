@@ -25,7 +25,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 
-import { getMetaValue, getTask } from 'src/utils';
+import { getDagRunLabel, getMetaValue, getTask } from 'src/utils';
 import useSelection from 'src/dag/useSelection';
 import Time from 'src/components/Time';
 import { useGridData } from 'src/api';
@@ -36,9 +36,9 @@ import BreadcrumbText from './BreadcrumbText';
 const dagId = getMetaValue('dag_id');
 
 const Header = () => {
-  const { data: { dagRuns, groups } } = useGridData();
+  const { data: { dagRuns, groups, ordering } } = useGridData();
 
-  const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();
+  const { selected: { taskId, runId, mapIndex }, onSelect, clearSelection } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
 
   // clearSelection if the current selected dagRun is
@@ -58,7 +58,7 @@ const Header = () => {
       || runId.includes('backfill__')
       || runId.includes('dataset_triggered__')
     )
-      ? <Time dateTime={dagRun.dataIntervalStart || dagRun.executionDate} />
+      ? <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
       : runId;
     runLabel = (
       <>
@@ -75,7 +75,8 @@ const Header = () => {
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
-  const isTaskDetails = runId && taskId;
+  const isTaskDetails = runId && taskId && mapIndex === null;
+  const isMappedTaskDetails = runId && taskId && mapIndex !== null;
 
   return (
     <Breadcrumb separator={<Text color="gray.300">/</Text>}>
@@ -93,8 +94,15 @@ const Header = () => {
       )}
       {taskId && (
         <BreadcrumbItem isCurrentPage mt={4}>
-          <BreadcrumbLink _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
+          <BreadcrumbLink onClick={() => onSelect({ runId, taskId })} _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
             <BreadcrumbText label="Task" value={`${taskName}${group?.isMapped ? ' []' : ''}`} />
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+      )}
+      {mapIndex !== null && (
+        <BreadcrumbItem isCurrentPage mt={4}>
+          <BreadcrumbLink _hover={isMappedTaskDetails ? { cursor: 'default' } : undefined}>
+            <BreadcrumbText label="Map Index" value={mapIndex} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}

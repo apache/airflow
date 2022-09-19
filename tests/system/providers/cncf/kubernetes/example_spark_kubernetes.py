@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
 This is an example DAG which uses SparkKubernetesOperator and SparkKubernetesSensor.
 In this example, we create two tasks which execute sequentially.
@@ -49,7 +51,7 @@ with DAG(
     DAG_ID,
     default_args={'max_active_runs': 1},
     description='submit spark-pi as sparkApplication on kubernetes',
-    schedule_interval=timedelta(days=1),
+    schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

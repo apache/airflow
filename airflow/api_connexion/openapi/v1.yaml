@@ -1210,7 +1210,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1412,6 +1412,23 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entry
       tags: [XCom]
+      parameters:
+        - in: query
+          name: deserialize
+          schema:
+            type: boolean
+            default: false
+          required: false
+          description: |
+            Whether to deserialize an XCom value when using a custom XCom backend.
+
+            The XCom API endpoint calls `orm_deserialize_value` by default since an XCom may contain value
+            that is potentially expensive to deserialize in the web server. Setting this to true overrides
+            the consideration, and calls `deserialize_value` instead.
+
+            This parameter is not meaningful when using the default XCom backend.
+
+            *New in version 2.4.0*
       responses:
         '200':
           description: Success.
@@ -1667,12 +1684,12 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /datasets/{id}:
+  /datasets/{uri}:
     parameters:
-      - $ref: '#/components/parameters/DatasetID'
+      - $ref: '#/components/parameters/DatasetURI'
     get:
       summary: Get a dataset
-      description: Get a dataset by id.
+      description: Get a dataset by uri.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
       operationId: get_dataset
       tags: [Dataset]
@@ -2912,6 +2929,58 @@ components:
         notification_sent:
           type: boolean
 
+    Trigger:
+      type: object
+      properties:
+        id:
+          type: integer
+        classpath:
+          type: string
+        kwargs:
+          type: string
+        created_date:
+          type: string
+          format: datetime
+        triggerer_id:
+          type: integer
+          nullable: true
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        dag_id:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        job_type:
+          type: string
+          nullable: true
+        start_date:
+          type: string
+          format: datetime
+          nullable: true
+        end_date:
+          type: string
+          format: datetime
+          nullable: true
+        latest_heartbeat:
+          type: string
+          format: datetime
+          nullable: true
+        executor_class:
+          type: string
+          nullable: true
+        hostname:
+          type: string
+          nullable: true
+        unixname:
+          type: string
+          nullable: true
+
     TaskInstance:
       type: object
       properties:
@@ -2958,8 +3027,10 @@ components:
           type: integer
         queue:
           type: string
+          nullable: true
         priority_weight:
           type: integer
+          nullable: true
         operator:
           type: string
           nullable: true
@@ -2982,6 +3053,12 @@ components:
 
             *New in version 2.3.0*
           type: object
+        trigger:
+          $ref: '#/components/schemas/Trigger'
+          nullable: true
+        triggerer_job:
+          $ref: '#/components/schemas/Job'
+          nullable: true
 
     TaskInstanceCollection:
       type: object
@@ -3279,6 +3356,7 @@ components:
         queue:
           type: string
           readOnly: true
+          nullable: true
         pool:
           type: string
           readOnly: true
@@ -3519,17 +3597,17 @@ components:
           type: string
           description: The dataset update time
           nullable: false
-        downstream_dag_references:
+        consuming_dags:
             type: array
             items:
-              $ref: '#/components/schemas/DatasetDagRef'
-        upstream_task_references:
+              $ref: '#/components/schemas/DagScheduleDatasetReference'
+        producing_tasks:
             type: array
             items:
-              $ref: '#/components/schemas/DatasetTaskRef'
+              $ref: '#/components/schemas/TaskOutletDatasetReference'
 
 
-    DatasetTaskRef:
+    TaskOutletDatasetReference:
       description: |
         A datasets reference to an upstream task.
 
@@ -3553,7 +3631,7 @@ components:
           description: The dataset update time
           nullable: false
 
-    DatasetDagRef:
+    DagScheduleDatasetReference:
       description: |
         A datasets reference to a downstream DAG.
 
@@ -3622,10 +3700,65 @@ components:
           type: integer
           description: The task map index that updated the dataset.
           nullable: true
+        created_dagruns:
+            type: array
+            items:
+              $ref: '#/components/schemas/BasicDAGRun'
         timestamp:
           type: string
           description: The dataset event creation time
           nullable: false
+
+    BasicDAGRun:
+      type: object
+      properties:
+        run_id:
+          type: string
+          description: |
+            Run ID.
+        dag_id:
+          type: string
+          readOnly: true
+        logical_date:
+          type: string
+          description: |
+            The logical date (previously called execution date). This is the time or interval covered by
+            this DAG run, according to the DAG definition.
+
+            The value of this field can be set only when creating the object. If you try to modify the
+            field of an existing object, the request fails with an BAD_REQUEST error.
+
+            This together with DAG_ID are a unique key.
+
+            *New in version 2.2.0*
+          format: date-time
+        start_date:
+          type: string
+          format: date-time
+          description: |
+            The start time. The time when DAG run was actually created.
+
+            *Changed in version 2.1.3*&#58; Field becomes nullable.
+          readOnly: true
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_start:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_end:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        state:
+          $ref: '#/components/schemas/DagState'
+          readOnly: true
 
     DatasetEventCollection:
       description: |
@@ -4313,13 +4446,14 @@ components:
       required: true
       description: The import error ID.
 
-    DatasetID:
+    DatasetURI:
       in: path
-      name: id
+      name: uri
       schema:
-        type: integer
+        type: string
+        format: path
       required: true
-      description: The Dataset ID
+      description: The encoded Dataset URI
 
     PoolName:
       in: path
@@ -4334,6 +4468,7 @@ components:
       name: variable_key
       schema:
         type: string
+        format: path
       required: true
       description: The variable Key.
 

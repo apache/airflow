@@ -14,11 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 from traceback import format_exception
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, func, or_
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -55,9 +58,14 @@ class Trigger(Base):
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
 
-    def __init__(
-        self, classpath: str, kwargs: Dict[str, Any], created_date: Optional[datetime.datetime] = None
-    ):
+    triggerer_job = relationship(
+        "BaseJob",
+        primaryjoin="BaseJob.id == Trigger.triggerer_id",
+        foreign_keys=triggerer_id,
+        uselist=False,
+    )
+
+    def __init__(self, classpath: str, kwargs: dict[str, Any], created_date: datetime.datetime | None = None):
         super().__init__()
         self.classpath = classpath
         self.kwargs = kwargs
@@ -74,7 +82,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: Iterable[int], session=None) -> Dict[int, "Trigger"]:
+    def bulk_fetch(cls, ids: Iterable[int], session=None) -> dict[int, Trigger]:
         """
         Fetches all of the Triggers by ID and returns a dict mapping
         ID -> Trigger instance

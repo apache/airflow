@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import filecmp
 import os
@@ -41,7 +42,7 @@ DAG_ID = "example_qubole_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=START_DATE,
     tags=['example'],
 ) as dag:

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -24,7 +25,9 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCancelExportTaskOperator,
+    RdsCreateDbInstanceOperator,
     RdsCreateDbSnapshotOperator,
+    RdsDeleteDbInstanceOperator,
     RdsDeleteDbSnapshotOperator,
     RdsStartExportTaskOperator,
 )
@@ -45,43 +48,14 @@ sys_test_context_task = (
 
 
 @task
-def create_rds_instance(db_name: str, instance_name: str) -> None:
-    rds_client = RdsHook().conn
-    rds_client.create_db_instance(
-        DBName=db_name,
-        DBInstanceIdentifier=instance_name,
-        AllocatedStorage=20,
-        DBInstanceClass='db.t3.micro',
-        Engine='postgres',
-        MasterUsername='username',
-        # NEVER store your production password in plaintext in a DAG like this.
-        # Use Airflow Secrets or a secret manager for this in production.
-        MasterUserPassword='rds_password',
-    )
-
-    rds_client.get_waiter('db_instance_available').wait(DBInstanceIdentifier=instance_name)
-
-
-@task
 def get_snapshot_arn(snapshot_name: str) -> str:
     result = RdsHook().conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_name)
     return result['DBSnapshots'][0]['DBSnapshotArn']
 
 
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_rds_instance(instance_name) -> None:
-    rds_client = RdsHook().get_conn()
-    rds_client.delete_db_instance(
-        DBInstanceIdentifier=instance_name,
-        SkipFinalSnapshot=True,
-    )
-
-    rds_client.get_waiter('db_instance_deleted').wait(DBInstanceIdentifier=instance_name)
-
-
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
@@ -99,6 +73,21 @@ with DAG(
     create_bucket = S3CreateBucketOperator(
         task_id='create_bucket',
         bucket_name=bucket_name,
+    )
+
+    create_db_instance = RdsCreateDbInstanceOperator(
+        task_id="create_db_instance",
+        db_instance_identifier=rds_instance_name,
+        db_instance_class="db.t4g.micro",
+        engine="postgres",
+        rds_kwargs={
+            "MasterUsername": "rds_username",
+            # NEVER store your production password in plaintext in a DAG like this.
+            # Use Airflow Secrets or a secret manager for this in production.
+            "MasterUserPassword": "rds_password",
+            "AllocatedStorage": 20,
+            "DBName": rds_db_name,
+        },
     )
 
     create_snapshot = RdsCreateDbSnapshotOperator(
@@ -126,6 +115,8 @@ with DAG(
         s3_prefix='rds-test',
         iam_role_arn=test_context[ROLE_ARN_KEY],
         kms_key_id=test_context[KMS_KEY_ID_KEY],
+        # Waits by default, set False to test the CancelExportTaskOperator below
+        wait_for_completion=False,
     )
     # [END howto_operator_rds_start_export_task]
 
@@ -158,11 +149,18 @@ with DAG(
         force_delete=True,
     )
 
+    delete_db_instance = RdsDeleteDbInstanceOperator(
+        task_id="delete_db_instance",
+        db_instance_identifier=rds_instance_name,
+        rds_kwargs={"SkipFinalSnapshot": True},
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     chain(
         # TEST SETUP
         test_context,
         create_bucket,
-        create_rds_instance(rds_db_name, rds_instance_name),
+        create_db_instance,
         create_snapshot,
         await_snapshot,
         snapshot_arn,
@@ -173,7 +171,7 @@ with DAG(
         # TEST TEARDOWN
         delete_snapshot,
         delete_bucket,
-        delete_rds_instance(rds_instance_name),
+        delete_db_instance,
     )
 
     from tests.system.utils.watcher import watcher

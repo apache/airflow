@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -30,7 +31,7 @@ DAG_ID = 'example_redshift_sql'
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     tags=['example'],
 ) as dag:

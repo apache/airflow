@@ -20,6 +20,8 @@ This is an example dag that performs two refresh operations on a Tableau Workboo
 waits until it succeeds. The second does not wait since this is an asynchronous operation and we don't know
 when the operation actually finishes. That's why we have another task that checks only that.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 
@@ -34,7 +36,7 @@ with DAG(
     dag_id='example_tableau',
     default_args={'site_id': 'my_site'},
     dagrun_timeout=timedelta(hours=2),
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
 ) as dag:
