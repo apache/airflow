@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.4.0b1'
+version = '2.5.0.dev0'
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
