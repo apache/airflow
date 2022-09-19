@@ -35,8 +35,8 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     """
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
-    template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
+    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).

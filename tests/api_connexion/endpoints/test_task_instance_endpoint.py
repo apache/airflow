@@ -204,7 +204,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": None,
@@ -258,7 +258,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": None,
@@ -302,7 +302,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": None,
@@ -349,7 +349,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 8,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "sla_miss": {
@@ -367,7 +367,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+            "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
             "trigger": None,
             "triggerer_job": None,
         }
@@ -411,7 +411,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
-                "priority_weight": 8,
+                "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
                 'sla_miss': None,
@@ -421,7 +421,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {'op_args': [], 'op_kwargs': {}},
+                "rendered_fields": {'op_args': [], 'op_kwargs': {}, 'templates_dict': None},
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -832,8 +832,8 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             (
                 "with dag filter",
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
-                16,
-                16,
+                17,
+                17,
             ),
         ],
     )
@@ -1154,6 +1154,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
                 "state": State.RUNNING,
             },
+            {
+                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
+                "state": State.RUNNING,
+            },
         ]
 
         self.create_task_instances(
@@ -1182,30 +1186,36 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_1',
                 'execution_date': '2020-01-02T00:00:00+00:00',
-                'task_id': 'sleep_for_0',
+                'task_id': 'log_sql_query',
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_2',
                 'execution_date': '2020-01-03T00:00:00+00:00',
-                'task_id': 'sleep_for_1',
+                'task_id': 'sleep_for_0',
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_3',
                 'execution_date': '2020-01-04T00:00:00+00:00',
-                'task_id': 'sleep_for_2',
+                'task_id': 'sleep_for_1',
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_4',
                 'execution_date': '2020-01-05T00:00:00+00:00',
+                'task_id': 'sleep_for_2',
+            },
+            {
+                'dag_id': 'example_python_operator',
+                'dag_run_id': 'TEST_DAG_RUN_ID_5',
+                'execution_date': '2020-01-06T00:00:00+00:00',
                 'task_id': 'sleep_for_3',
             },
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 5 == len(response.json["task_instances"])
+        assert 6 == len(response.json["task_instances"])
         assert 0 == failed_dag_runs, 0
 
     def test_should_raises_401_unauthenticated(self):
