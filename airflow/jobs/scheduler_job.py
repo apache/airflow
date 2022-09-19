@@ -1224,9 +1224,7 @@ class SchedulerJob(BaseJob):
 
     @retry_db_transaction
     def _schedule_all_dag_runs(self, guard, dag_runs, session):
-        """
-        Makes scheduling decisions for all `dag_runs`.
-        """
+        """Makes scheduling decisions for all `dag_runs`"""
         callback_tuples = []
         callback_to_run = None
         for dag_run in dag_runs:
