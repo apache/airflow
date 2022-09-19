@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from datetime import datetime as dt
 from unittest import mock
-from unittest.mock import ANY, call
+from unittest.mock import call
 
 import pytest
 from watchtower import CloudWatchLogHandler
@@ -99,27 +99,6 @@ class TestCloudwatchTaskHandler:
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)
-
-    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
-    def test_hook_raises(self):
-        handler = CloudwatchTaskHandler(
-            self.local_log_location,
-            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
-        )
-
-        with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook") as mock_hook:
-                mock_hook.side_effect = Exception('Failed to connect')
-                # Initialize the hook
-                handler.hook
-
-            mock_error.assert_called_once_with(
-                'Could not create an AwsLogsHook with connection id "%s". Please make '
-                'sure that apache-airflow[aws] is installed and the Cloudwatch '
-                'logs connection exists. Exception: "%s"',
-                'aws_default',
-                ANY,
-            )
 
     def test_handler(self):
         self.cloudwatch_task_handler.set_context(self.ti)

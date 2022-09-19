@@ -23,6 +23,7 @@ import watchtower
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -51,20 +52,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     @cached_property
     def hook(self):
         """Returns AwsLogsHook."""
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
-        try:
-            from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-
-            return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception as e:
-            self.log.error(
-                'Could not create an AwsLogsHook with connection id "%s". '
-                'Please make sure that apache-airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists. Exception: "%s"',
-                remote_conn_id,
-                e,
-            )
-            return None
+        return AwsLogsHook(
+            aws_conn_id=conf.get('logging', 'REMOTE_LOG_CONN_ID'), region_name=self.region_name
+        )
 
     def _render_filename(self, ti, try_number):
         # Replace unsupported log group name characters
