@@ -706,9 +706,9 @@ Create the name of the cleanup service account to use
 Set the default value for pod securityContext
 If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
 
-    +------------------------+           +-----------------+             +-----------------+           +-----------------+      +-------------------------+
+    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
     | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | securityContexts.pod |  ->  | securityContext |  ->  | Values.uid + Values.gid |
-    +------------------------+           +-----------------+             +-----------------+           +-----------------+      +-------------------------+
+    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
 
 Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContexts.pod,
 any extra values set to securityContext or uid+gid will be ignored.
