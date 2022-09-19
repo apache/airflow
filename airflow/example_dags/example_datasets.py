@@ -21,20 +21,20 @@ Notes on usage:
 
 Turn on all the dags.
 
-DAG example_dataset_dag1 should run because it's on a schedule.
+DAG dataset_produces_1 should run because it's on a schedule.
 
-After example_dataset_dag1 runs, example_dataset_dag3_req_dag1 should be triggered immediately
-because its only dataset dependency is managed by example_dataset_dag1.
+After dataset_produces_1 runs, dataset_consumes_1 should be triggered immediately
+because its only dataset dependency is managed by dataset_produces_1.
 
-No other dags should be triggered.  Note that even though example_dataset_dag4_req_dag1_dag2 depends on
-the dataset in example_dataset_dag1, it will not be triggered until example_dataset_dag2 runs
-(and example_dataset_dag2 is left with no schedule so that we can trigger it manually).
+No other dags should be triggered.  Note that even though dataset_consumes_1_and_2 depends on
+the dataset in dataset_produces_1, it will not be triggered until dataset_produces_2 runs
+(and dataset_produces_2 is left with no schedule so that we can trigger it manually).
 
-Next, trigger example_dataset_dag2.  After example_dataset_dag2 finishes,
-example_dataset_dag4_req_dag1_dag2 should run.
+Next, trigger dataset_produces_2.  After dataset_produces_2 finishes,
+dataset_consumes_1_and_2 should run.
 
-Dags example_dataset_dag5_req_dag1_D and example_dataset_dag6_req_DD should not run because they depend on
-datasets that never get updated.
+Dags dataset_consumes_1_never_scheduled and dataset_consumes_unknown_never_scheduled should not run because
+they depend on datasets that never get updated.
 """
 from __future__ import annotations
 
