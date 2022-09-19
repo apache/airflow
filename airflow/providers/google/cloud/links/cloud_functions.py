@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Spanner links."""
+"""This module contains Google Cloud Functions links."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -26,51 +27,54 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-SPANNER_BASE_LINK = "/spanner/instances"
-SPANNER_INSTANCE_LINK = SPANNER_BASE_LINK + "/{instance_id}/details/databases?project={project_id}"
-SPANNER_DATABASE_LINK = (
-    SPANNER_BASE_LINK + "/{instance_id}/databases/{database_id}/details/tables?project={project_id}"
+
+CLOUD_FUNCTIONS_BASE_LINK = "https://console.cloud.google.com/functions"
+
+CLOUD_FUNCTIONS_DETAILS_LINK = (
+    CLOUD_FUNCTIONS_BASE_LINK + "/details/{location}/{function_name}?project={project_id}"
 )
 
+CLOUD_FUNCTIONS_LIST_LINK = CLOUD_FUNCTIONS_BASE_LINK + "/list?project={project_id}"
 
-class SpannerInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Spanner Instance Link"""
 
-    name = "Spanner Instance"
-    key = "spanner_instance"
-    format_str = SPANNER_INSTANCE_LINK
+class CloudFunctionsDetailsLink(BaseGoogleLink):
+    """Helper class for constructing Cloud Functions Details Link"""
+
+    name = "Cloud Functions Details"
+    key = "cloud_functions_details"
+    format_str = CLOUD_FUNCTIONS_DETAILS_LINK
 
     @staticmethod
     def persist(
         context: Context,
         task_instance: BaseOperator,
-        instance_id: str,
-        project_id: str | None,
+        function_name: str,
+        location: str,
+        project_id: str,
     ):
+
         task_instance.xcom_push(
             context,
-            key=SpannerInstanceLink.key,
-            value={"instance_id": instance_id, "project_id": project_id},
+            key=CloudFunctionsDetailsLink.key,
+            value={"function_name": function_name, "location": location, "project_id": project_id},
         )
 
 
-class SpannerDatabaseLink(BaseGoogleLink):
-    """Helper class for constructing Spanner Database Link"""
+class CloudFunctionsListLink(BaseGoogleLink):
+    """Helper class for constructing Cloud Functions Details Link"""
 
-    name = "Spanner Database"
-    key = "spanner_database"
-    format_str = SPANNER_DATABASE_LINK
+    name = "Cloud Functions List"
+    key = "cloud_functions_list"
+    format_str = CLOUD_FUNCTIONS_LIST_LINK
 
     @staticmethod
     def persist(
         context: Context,
         task_instance: BaseOperator,
-        instance_id: str,
-        database_id: str,
-        project_id: str | None,
+        project_id: str,
     ):
         task_instance.xcom_push(
             context,
-            key=SpannerDatabaseLink.key,
-            value={"instance_id": instance_id, "database_id": database_id, "project_id": project_id},
+            key=CloudFunctionsDetailsLink.key,
+            value={"project_id": project_id},
         )

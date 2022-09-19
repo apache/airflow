@@ -452,6 +452,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     external_executor_id = Column(StringID())
 
@@ -506,14 +507,8 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger = relationship(
-        "Trigger",
-        primaryjoin="TaskInstance.trigger_id == Trigger.id",
-        foreign_keys=trigger_id,
-        uselist=False,
-        innerjoin=True,
-    )
-
+    trigger = relationship("Trigger", uselist=False)
+    triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy='noload', uselist=False)
 
