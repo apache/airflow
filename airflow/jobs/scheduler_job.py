@@ -774,7 +774,8 @@ class SchedulerJob(BaseJob):
                     self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
-    def _update_dag_run_state_for_paused_dags(self) -> None:
+    @provide_session
+    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
             paused_dag_ids = DagModel.get_all_paused_dag_ids()
             for dag_id in paused_dag_ids:
@@ -784,7 +785,11 @@ class SchedulerJob(BaseJob):
                 dag = SerializedDagModel.get_dag(dag_id)
                 if dag is None:
                     continue
-                dag_runs = DagRun.find(dag_id=dag_id, state=DagRunState.RUNNING)
+                dag_runs = session.query(DagRun).filter(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == DagRunState.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
+                )
                 for dag_run in dag_runs:
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False)
