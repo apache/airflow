@@ -36,6 +36,7 @@ BASIC_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.BasicAuth
 KERBEROS_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication'
 TRINO_DBAPI_CONNECT = 'airflow.providers.trino.hooks.trino.trino.dbapi.connect'
 JWT_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication'
+CERT_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.CertificateAuthentication'
 
 
 class TestTrinoHookConn:
@@ -92,7 +93,7 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
+            AirflowException, match=re.escape("The 'kerberos' authorization type doesn't support password.")
         ):
             TrinoHook().get_conn()
 
@@ -110,6 +111,23 @@ class TestTrinoHookConn:
         )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
+
+    @patch(CERT_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_get_conn_cert_auth(self, mock_get_connection, mock_connect, mock_cert_auth):
+        extras = {
+            'auth': 'certs',
+            'certs__client_cert_path': '/path/to/client.pem',
+            'certs__client_key_path': '/path/to/client.key',
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_cert_auth)
+        mock_cert_auth.assert_called_once_with('/path/to/client.pem', '/path/to/client.key')
 
     @patch(KERBEROS_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
