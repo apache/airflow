@@ -19,11 +19,14 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
+from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -31,15 +34,16 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gdrive_to_gcs_with_gdrive_sensor"
 
-BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 OBJECT = "abc123xyz"
-FOLDER_ID = "test"
-FILE_NAME = "file.pdf"
+FOLDER_ID = ""
+FILE_NAME = "example_upload.txt"
+LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -49,11 +53,26 @@ with models.DAG(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload_file",
+        src=LOCAL_PATH,
+        dst=FILE_NAME,
+        bucket=BUCKET_NAME,
+    )
+
+    copy_single_file = GCSToGoogleDriveOperator(
+        task_id="copy_single_file",
+        source_bucket=BUCKET_NAME,
+        source_object=FILE_NAME,
+        destination_object=FILE_NAME,
+    )
+
     # [START detect_file]
     detect_file = GoogleDriveFileExistenceSensor(
         task_id="detect_file", folder_id=FOLDER_ID, file_name=FILE_NAME
     )
     # [END detect_file]
+
     # [START upload_gdrive_to_gcs]
     upload_gdrive_to_gcs = GoogleDriveToGCSOperator(
         task_id="upload_gdrive_object_to_gcs",
@@ -71,6 +90,8 @@ with models.DAG(
     (
         # TEST SETUP
         create_bucket
+        >> upload_file
+        >> copy_single_file
         # TEST BODY
         >> detect_file
         >> upload_gdrive_to_gcs
