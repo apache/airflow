@@ -101,12 +101,17 @@ class TrinoHook(DbApiHook):
         extra = db.extra_dejson
         auth = None
         user = db.login
-        if db.password and extra.get('auth') == 'kerberos':
-            raise AirflowException("Kerberos authorization doesn't support password.")
+        if db.password and extra.get('auth') in ('kerberos', 'certs'):
+            raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get('auth') == 'jwt':
             auth = trino.auth.JWTAuthentication(token=extra.get('jwt__token'))
+        elif extra.get('auth') == 'certs':
+            auth = trino.auth.CertificateAuthentication(
+                extra.get('certs__client_cert_path'),
+                extra.get('certs__client_key_path'),
+            )
         elif extra.get('auth') == 'kerberos':
             auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
                 config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
