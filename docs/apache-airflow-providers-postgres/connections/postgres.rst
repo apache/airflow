@@ -29,7 +29,7 @@ Host (required)
     The host to connect to.
 
 Schema (optional)
-    Specify the database name.
+    Specify the name of the database to connect to. Note that a database schema is not allowed during connect. Instead you can use ``SET search_path TO custom_schema`` if you want to change the default schema being used in a session for your queries. If you are using ``PostgresOperator`` see :ref:`Passing Server Configuration Parameters into PostgresOperator`.
 
 Login (required)
     Specify the user name to connect.
