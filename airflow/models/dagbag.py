@@ -634,6 +634,7 @@ class DagBag(LoggingMixin):
         """Sync DAG specific permissions, if necessary"""
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
         from airflow.www.fab_security.sqla.models import Action, Permission, Resource
+        from airflow.www.security import ApplessAirflowSecurityManager
 
         root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
 
@@ -651,9 +652,30 @@ class DagBag(LoggingMixin):
                     return True
             return False
 
-        if dag.access_control or needs_perms(root_dag_id):
-            self.log.debug("Syncing DAG permissions: %s to the DB", root_dag_id)
-            from airflow.www.security import ApplessAirflowSecurityManager
+        def need_owner_perms(owner: str) -> bool:
+            owner_list = owner.split(',')
+            for owner_value in owner_list:
+                dag_resource_name = resource_name_for_dag(owner_value)
+                for permission_name in DAG_ACTIONS:
+                    if not (
+                        session.query(Permission)
+                        .join(Action)
+                        .join(Resource)
+                        .filter(Action.name == permission_name)
+                        .filter(Resource.name == dag_resource_name)
+                        .one_or_none()
+                    ):
+                        return True
+            return False
 
-            security_manager = ApplessAirflowSecurityManager(session=session)
+        dag_owner = dag.owner
+        security_manager = ApplessAirflowSecurityManager(session=session)
+        if dag.access_control or needs_perms(root_dag_id):
+            self.log.debug(
+                "Syncing DAG and DAG Owner permissions: %s and %s to the DB", root_dag_id, dag_owner
+            )
             security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
+            security_manager.sync_perm_for_owner(dag_owner)
+        elif need_owner_perms(dag_owner):
+            self.log.debug("Syncing DAG Owner permissions: %s to the DB", dag_owner)
+            security_manager.sync_perm_for_owner(dag_owner)

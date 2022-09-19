@@ -23,6 +23,7 @@ RESOURCE_AUDIT_LOG = "Audit Logs"
 RESOURCE_BROWSE_MENU = "Browse"
 RESOURCE_DAG = "DAGs"
 RESOURCE_DAG_PREFIX = "DAG:"
+RESOURCE_OWNER_PREFIX = "OWNER:"
 RESOURCE_LOGIN = "Logins"
 RESOURCE_DOCS_MENU = "Docs"
 RESOURCE_DOCS = "Documentation"
@@ -80,3 +81,17 @@ def resource_name_for_dag(root_dag_id: str) -> str:
     if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
         return root_dag_id
     return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+
+
+def resource_name_for_owner(owner: str) -> str:
+    """Returns the resource name for a DAG id.
+
+    Note that since a sub-DAG should follow the permission of its
+    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
+    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
+    """
+    if owner == RESOURCE_DAG:
+        return owner
+    if owner.startswith(RESOURCE_OWNER_PREFIX):
+        return owner
+    return f"{RESOURCE_OWNER_PREFIX}{owner}"

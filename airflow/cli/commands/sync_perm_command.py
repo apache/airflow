@@ -31,3 +31,4 @@ def sync_perm(args):
     if args.include_dags:
         print('Updating permission on all DAG views')
         appbuilder.sm.create_dag_specific_permissions()
+        appbuilder.sm.create_owner_specific_permissions()

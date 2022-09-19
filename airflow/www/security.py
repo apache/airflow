@@ -332,6 +332,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             roles = user_query.roles
 
         resources = set()
+        owners = set()
         for role in roles:
             for permission in role.permissions:
                 action = permission.action.name
@@ -344,9 +345,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                     resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                elif resource.startswith(permissions.RESOURCE_OWNER_PREFIX):
+                    owners.add(resource[len(permissions.RESOURCE_OWNER_PREFIX) :])
                 else:
                     resources.add(resource)
-        return {dag.dag_id for dag in session.query(DagModel.dag_id).filter(DagModel.dag_id.in_(resources))}
+
+        owner_filters = [DagModel.owners.contains(owner) for owner in owners]
+        return {
+            dag.dag_id
+            for dag in session.query(DagModel.dag_id).filter(
+                or_(DagModel.dag_id.in_(resources), *owner_filters)
+            )
+        }
 
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
@@ -554,6 +564,32 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
             if dag.access_control:
                 self.sync_perm_for_dag(dag_resource_name, dag.access_control)
+                self.sync_perm_for_owner(dag.owner)
+
+    def create_owner_specific_permissions(self) -> None:
+        """
+        Creates 'can_read', 'can_edit', and 'can_delete' permissions for all
+        Unique Owners, along with any `access_control` permissions provided in them.
+
+        This does iterate through ALL the Unique Owners entered by the user,
+        which can be slow. See `sync_perm_for_owner` if you only need to sync a single Owner.
+
+        :return: None.
+        """
+        perms = self.get_all_permissions()
+        dagbag = DagBag(read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
+        dags = dagbag.dags.values()
+        owners = []
+        for dag in dags:
+            for owner in dag.owner.split(','):
+                if owner not in owners:
+                    owners.append(owner)
+        for owner in owners:
+            dag_resource_name = permissions.resource_name_for_owner(owner)
+            for action_name in self.DAG_ACTIONS:
+                if (action_name, dag_resource_name) not in perms:
+                    self._merge_perm(action_name, dag_resource_name)
 
     def update_admin_permission(self):
         """
@@ -623,6 +659,21 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         if access_control:
             self._sync_dag_view_permissions(dag_resource_name, access_control)
+
+    def sync_perm_for_owner(self, owner):
+        """
+        Sync permissions for given owner. The owner surely exists in our dag bag
+        as only / refresh button or DagBag will call this function
+
+        :param owner: the Owner whose permissions should be updated
+        :return:
+        """
+        self.log.info(owner)
+        owner_list = owner.split(',')
+        for owner_value in owner_list:
+            dag_resource_name = permissions.resource_name_for_owner(owner_value)
+            for dag_action_name in self.DAG_ACTIONS:
+                self.create_permission(dag_action_name, dag_resource_name)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """
