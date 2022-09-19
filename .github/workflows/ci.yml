@@ -605,6 +605,18 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python -m pip install -r ./docker_tests/requirements.txt &&
           python -m pytest docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes
 
+  test-git-clone-on-windows:
+    timeout-minutes: 5
+    name: "Test git clone on Windows"
+    runs-on: windows-latest
+    needs: [build-info]
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
