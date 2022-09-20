@@ -61,11 +61,9 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import expression
 
 import airflow.templates
-from airflow.configuration import secrets_backend_list
-from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
-from airflow.configuration import conf
+from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -83,6 +81,7 @@ from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQue
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
+from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -2468,10 +2467,10 @@ class DAG(LoggingMixin):
                 ti.log.addHandler(handler)
 
         if conn_file_path or variable_file_path:
-            local_secrets = LocalFilesystemBackend(variables_file_path=variable_file_path,
-                                                   connections_file_path=conn_file_path)
+            local_secrets = LocalFilesystemBackend(
+                variables_file_path=variable_file_path, connections_file_path=conn_file_path
+            )
             secrets_backend_list.insert(0, local_secrets)
-
 
         execution_date = execution_date or timezone.utcnow()
         self.log.debug("Clearing existing task instances for execution date %s", execution_date)
@@ -3637,7 +3636,5 @@ def _get_or_create_dagrun(
         session=session,
         conf=conf,  # type: ignore
     )
-    session.add(dr)
-    session.flush()
-    print("created dagrun " + str(dr))
+    log.info("created dagrun " + str(dr))
     return dr
