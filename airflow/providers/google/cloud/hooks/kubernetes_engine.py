@@ -180,7 +180,7 @@ class GKEHook(GoogleBaseHook):
                 retry=retry,
                 timeout=timeout,
             )
-            resource = self.wait_for_operation(resource)
+            resource = self.wait_for_operation(resource, project_id)
             # Returns server-defined url for the resource
             return resource.self_link
         except NotFound as error:
@@ -234,7 +234,7 @@ class GKEHook(GoogleBaseHook):
                 retry=retry,
                 timeout=timeout,
             )
-            resource = self.wait_for_operation(resource)
+            resource = self.wait_for_operation(resource, project_id)
 
             return resource.target_link
         except AlreadyExists as error:
