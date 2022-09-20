@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+.. warning::
+  In this version of provider Amazon S3 Connection (``conn_type="s3"``) removed due to the fact that it was always
+  an alias to :ref:`Amazon Web Services Connection <howto/connection:aws>` (``conn_type="aws"``).
+  This might only have effect to testing connection in the UI/API.
+  In order to restore ability to test connection you need to change connection type from **Amazon S3**
+  to **Amazon Web Services** manually.
+
+
 5.1.0
 .....
 
