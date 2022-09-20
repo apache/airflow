@@ -29,7 +29,14 @@ Host (required)
     The host to connect to.
 
 Schema (optional)
-    Specify the name of the database to connect to. Note that a database schema is not allowed during connect. Instead you can use ``SET search_path TO custom_schema`` if you want to change the default schema being used in a session for your queries. If you are using ``PostgresOperator`` see :ref:`Passing Server Configuration Parameters into PostgresOperator <howto/operators:postgres>`.
+    Specify the name of the database to connect to.
+
+    .. note::
+
+        If you want to define a default database schema:
+
+        * using ``PostgresOperator`` see :ref:`Passing Server Configuration Parameters into PostgresOperator <howto/operators:postgres>`
+        * using ``PostgresHook`` see `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>_`
 
 Login (required)
     Specify the user name to connect.
