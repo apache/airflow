@@ -50,7 +50,7 @@ securityContexts:
 # Used for mount paths
 airflowHome: /opt/airflow
 
-# Default airflow repository -- overrides all the specific images below
+# Default airflow repository -- overridden by all the specific images below
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
@@ -1444,6 +1444,8 @@ statsd:
   # Additional mappings for StatsD exporter.
   extraMappings: []
 
+  podAnnotations: {}
+
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer
@@ -1772,6 +1774,7 @@ config:
     # For Airflow 1.10
     rbac: 'True'
   celery:
+    flower_url_prefix: '{{ .Values.ingress.flower.path }}'
     worker_concurrency: 16
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'

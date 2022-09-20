@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
@@ -78,7 +79,7 @@ class TaskSchema(Schema):
 class TaskCollection(NamedTuple):
     """List of Tasks with metadata"""
 
-    tasks: List[Operator]
+    tasks: list[Operator]
     total_entries: int
 
 

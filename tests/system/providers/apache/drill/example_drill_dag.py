@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG to execute SQL in an Apache Drill environment using the `DrillOperator`.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

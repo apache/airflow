@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``dag_stats`` table
 
 Revision ID: f2ca10b85618
@@ -23,6 +22,8 @@ Revises: 64de9cddf6c9
 Create Date: 2016-07-20 15:08:28.247537
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 

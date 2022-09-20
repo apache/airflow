@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that sense a cloud task queue being empty.
 
@@ -25,6 +24,7 @@ This DAG relies on the following OS environment variables
 * GCP_ZONE - Google Cloud zone where the cloud task queue exists.
 * QUEUE_NAME - Name of the cloud task queue.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime

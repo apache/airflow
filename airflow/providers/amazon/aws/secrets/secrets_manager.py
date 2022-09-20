@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing secrets from AWS Secrets Manager"""
+from __future__ import annotations
 
 import ast
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlencode
 
 from airflow.compat.functools import cached_property
@@ -115,8 +116,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = 'airflow/config',
         sep: str = "/",
         full_url_mode: bool = True,
-        are_secret_values_urlencoded: Optional[bool] = None,
-        extra_conn_words: Optional[Dict[str, List[str]]] = None,
+        are_secret_values_urlencoded: bool | None = None,
+        extra_conn_words: dict[str, list[str]] | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -196,7 +197,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_string
 
-    def get_connection(self, conn_id: str) -> Optional["Connection"]:
+    def get_connection(self, conn_id: str) -> Connection | None:
         if not self.full_url_mode:
             # Avoid circular import problems when instantiating the backend during configuration.
             from airflow.models.connection import Connection
@@ -215,7 +216,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             if self.are_secret_values_urlencoded:
                 data = self._remove_escaping_in_secret_dict(secret=data, conn_id=conn_id)
 
-            port: Optional[int] = None
+            port: int | None = None
 
             if data['port'] is not None:
                 port = int(data['port'])
@@ -233,7 +234,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return super().get_connection(conn_id=conn_id)
 
-    def _standardize_secret_keys(self, secret: Dict[str, Any]) -> Dict[str, Any]:
+    def _standardize_secret_keys(self, secret: dict[str, Any]) -> dict[str, Any]:
         """Standardize the names of the keys in the dict. These keys align with"""
         possible_words_for_conn_fields = {
             'user': ['user', 'username', 'login', 'user_name'],
@@ -248,7 +249,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         for conn_field, extra_words in self.extra_conn_words.items():
             possible_words_for_conn_fields[conn_field].extend(extra_words)
 
-        conn_d: Dict[str, Any] = {}
+        conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
             try:
                 conn_d[conn_field] = [v for k, v in secret.items() if k in possible_words][0]
@@ -257,19 +258,19 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_d
 
-    def get_uri_from_secret(self, secret: Dict[str, str]) -> str:
-        conn_d: Dict[str, str] = {k: v if v else '' for k, v in self._standardize_secret_keys(secret).items()}
+    def get_uri_from_secret(self, secret: dict[str, str]) -> str:
+        conn_d: dict[str, str] = {k: v if v else '' for k, v in self._standardize_secret_keys(secret).items()}
         conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
         return self._format_uri_with_extra(secret, conn_string)
 
-    def _deserialize_json_string(self, value: Optional[str]) -> Optional[Dict[Any, Any]]:
+    def _deserialize_json_string(self, value: str | None) -> dict[Any, Any] | None:
         if not value:
             return None
         try:
             # Use ast.literal_eval for backwards compatibility.
             # Previous version of this code had a comment saying that using json.loads caused errors.
             # This likely means people were using dict reprs instead of valid JSONs.
-            res: Dict[str, Any] = json.loads(value)
+            res: dict[str, Any] = json.loads(value)
         except json.JSONDecodeError:
             try:
                 res = ast.literal_eval(value) if value else None
@@ -282,7 +283,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return res
 
-    def _remove_escaping_in_secret_dict(self, secret: Dict[str, Any], conn_id: str) -> Dict[str, Any]:
+    def _remove_escaping_in_secret_dict(self, secret: dict[str, Any], conn_id: str) -> dict[str, Any]:
         # When ``unquote(v) == v``, then removing unquote won't affect the user, regardless of
         # whether or not ``v`` is URL-encoded. For example, "foo bar" is not URL-encoded. But
         # because decoding it doesn't affect the value, then it will migrate safely when
@@ -350,7 +351,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return secret
 
-    def get_conn_value(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> str | None:
         """
         Get serialized representation of Connection
 
@@ -392,7 +393,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return connection
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
 
@@ -410,7 +411,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
         return self.get_conn_value(conn_id)
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable from Environment Variable
         :param key: Variable Key
@@ -421,7 +422,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.variables_prefix, key)
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Get Airflow Configuration
         :param key: Configuration Option Key
@@ -432,7 +433,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix, secret_id: str) -> Optional[str]:
+    def _get_secret(self, path_prefix, secret_id: str) -> str | None:
         """
         Get secret value from Secrets Manager
         :param path_prefix: Prefix for the Path to get Secret

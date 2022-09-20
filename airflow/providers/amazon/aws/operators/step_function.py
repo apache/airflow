@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -52,10 +52,10 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         self,
         *,
         state_machine_arn: str,
-        name: Optional[str] = None,
-        state_machine_input: Union[dict, str, None] = None,
+        name: str | None = None,
+        state_machine_input: dict | str | None = None,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -65,7 +65,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         execution_arn = hook.start_execution(self.state_machine_arn, self.name, self.input)
@@ -101,7 +101,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         *,
         execution_arn: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -109,7 +109,7 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         execution_status = hook.describe_execution(self.execution_arn)

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """compare types between ORM and DB.
 
 Revision ID: 44b7034f6bdc
@@ -23,6 +22,7 @@ Revises: 424117c37d18
 Create Date: 2022-05-31 09:16:44.558754
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

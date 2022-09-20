@@ -25,8 +25,10 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+from __future__ import annotations
+
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from requests import exceptions as requests_exceptions
 
@@ -99,7 +101,7 @@ class RunState:
         return json.dumps(self.__dict__)
 
     @classmethod
-    def from_json(cls, data: str) -> 'RunState':
+    def from_json(cls, data: str) -> RunState:
         return RunState(**json.loads(data))
 
 
@@ -125,7 +127,7 @@ class DatabricksHook(BaseDatabricksHook):
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
-        retry_args: Optional[Dict[Any, Any]] = None,
+        retry_args: dict[Any, Any] | None = None,
         caller: str = "DatabricksHook",
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
@@ -152,7 +154,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
 
-    def list_jobs(self, limit: int = 25, offset: int = 0, expand_tasks: bool = False) -> List[Dict[str, Any]]:
+    def list_jobs(self, limit: int = 25, offset: int = 0, expand_tasks: bool = False) -> list[dict[str, Any]]:
         """
         Lists the jobs in the Databricks Job Service.
 
@@ -178,7 +180,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return jobs
 
-    def find_job_id_by_name(self, job_name: str) -> Optional[int]:
+    def find_job_id_by_name(self, job_name: str) -> int | None:
         """
         Finds job id by its name. If there are multiple jobs with the same name, raises AirflowException.
 
@@ -261,7 +263,7 @@ class DatabricksHook(BaseDatabricksHook):
         state = response['state']
         return RunState(**state)
 
-    def get_run(self, run_id: int) -> Dict[str, Any]:
+    def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.
 
@@ -272,7 +274,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response
 
-    async def a_get_run(self, run_id: int) -> Dict[str, Any]:
+    async def a_get_run(self, run_id: int) -> dict[str, Any]:
         """
         Async version of `get_run`.
 
@@ -387,7 +389,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
-    def update_repo(self, repo_id: str, json: Dict[str, Any]) -> dict:
+    def update_repo(self, repo_id: str, json: dict[str, Any]) -> dict:
         """
         Updates given Databricks Repos
 
@@ -408,7 +410,7 @@ class DatabricksHook(BaseDatabricksHook):
         repos_endpoint = ('DELETE', f'api/2.0/repos/{repo_id}')
         self._do_api_call(repos_endpoint)
 
-    def create_repo(self, json: Dict[str, Any]) -> dict:
+    def create_repo(self, json: dict[str, Any]) -> dict:
         """
         Creates a Databricks Repos
 
@@ -418,7 +420,7 @@ class DatabricksHook(BaseDatabricksHook):
         repos_endpoint = ('POST', 'api/2.0/repos')
         return self._do_api_call(repos_endpoint, json)
 
-    def get_repo_by_path(self, path: str) -> Optional[str]:
+    def get_repo_by_path(self, path: str) -> str | None:
         """
         Obtains Repos ID by path
         :param path: path to a repository

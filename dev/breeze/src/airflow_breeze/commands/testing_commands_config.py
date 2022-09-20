@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Union
+from __future__ import annotations
 
-TESTING_COMMANDS: Dict[str, Union[str, List[str]]] = {
+TESTING_COMMANDS: dict[str, str | list[str]] = {
     "name": "Testing",
     "commands": ["tests", "helm-tests", "docker-compose-tests"],
 }
-TESTING_PARAMETERS: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
+TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze testing tests": [
         {
             "name": "Basic flag for tests command",

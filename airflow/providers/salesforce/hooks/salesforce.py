@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """
 This module contains a Salesforce Hook which allows you to connect to your Salesforce instance,
 retrieve data from it, and write that data to a file for other uses.
@@ -23,9 +22,11 @@ retrieve data from it, and write that data to a file for other uses.
 .. note:: this hook also relies on the simple_salesforce package:
       https://github.com/simple-salesforce/simple-salesforce
 """
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable
 
 import pandas as pd
 from requests import Session
@@ -68,8 +69,8 @@ class SalesforceHook(BaseHook):
     def __init__(
         self,
         salesforce_conn_id: str = default_conn_name,
-        session_id: Optional[str] = None,
-        session: Optional[Session] = None,
+        session_id: str | None = None,
+        session: Session | None = None,
     ) -> None:
         super().__init__()
         self.conn_id = salesforce_conn_id
@@ -77,7 +78,7 @@ class SalesforceHook(BaseHook):
         self.session = session
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -114,7 +115,7 @@ class SalesforceHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
@@ -156,9 +157,7 @@ class SalesforceHook(BaseHook):
         """Returns a Salesforce instance. (cached)"""
         return self.conn
 
-    def make_query(
-        self, query: str, include_deleted: bool = False, query_params: Optional[dict] = None
-    ) -> dict:
+    def make_query(self, query: str, include_deleted: bool = False, query_params: dict | None = None) -> dict:
         """
         Make a query to Salesforce.
 
@@ -194,7 +193,7 @@ class SalesforceHook(BaseHook):
 
         return conn.__getattr__(obj).describe()
 
-    def get_available_fields(self, obj: str) -> List[str]:
+    def get_available_fields(self, obj: str) -> list[str]:
         """
         Get a list of all available fields for an object.
 
@@ -267,7 +266,7 @@ class SalesforceHook(BaseHook):
 
     def write_object_to_file(
         self,
-        query_results: List[dict],
+        query_results: list[dict],
         filename: str,
         fmt: str = "csv",
         coerce_to_timestamp: bool = False,
@@ -344,7 +343,7 @@ class SalesforceHook(BaseHook):
         return df
 
     def object_to_df(
-        self, query_results: List[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
+        self, query_results: list[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
     ) -> pd.DataFrame:
         """
         Export query results to dataframe.

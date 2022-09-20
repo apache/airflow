@@ -269,11 +269,11 @@ By default, a DAG will only run a Task when all the Tasks it depends on are succ
 Branching
 ~~~~~~~~~
 
-You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the branching Operators come in.
+You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the ``@task.branch`` decorator come in.
 
-The ``BranchPythonOperator`` is much like the PythonOperator except that it expects a ``python_callable`` that returns a task_id (or list of task_ids). The task_id returned is followed, and all of the other paths are skipped. It can also return None to skip all downstream task.
+The ``@task.branch`` decorator is much like ``@task``, except that it expects the decorated function to return an ID to a task (or a list of IDs). The specified task is followed, while all other paths are skipped. It can also return *None* to skip all downstream tasks.
 
-The task_id returned by the Python function has to reference a task directly downstream from the BranchPythonOperator task.
+The task_id returned by the Python function has to reference a task directly downstream from the ``@task.branch`` decorated task.
 
 .. note::
     When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
@@ -282,10 +282,11 @@ The task_id returned by the Python function has to reference a task directly dow
 
     The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
-The ``BranchPythonOperator`` can also be used with XComs allowing branching context to dynamically decide what branch to follow based on upstream tasks. For example:
+The ``@task.branch`` can also be used with XComs allowing branching context to dynamically decide what branch to follow based on upstream tasks. For example:
 
 .. code-block:: python
 
+    @task.branch(task_id="branch_task")
     def branch_func(ti):
         xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
@@ -303,20 +304,19 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
         dag=dag,
     )
 
-    branch_op = BranchPythonOperator(
-        task_id="branch_task",
-        python_callable=branch_func,
-        dag=dag,
-    )
+    branch_op = branch_func()
 
     continue_op = EmptyOperator(task_id="continue_task", dag=dag)
     stop_op = EmptyOperator(task_id="stop_task", dag=dag)
 
     start_op >> branch_op >> [continue_op, stop_op]
 
-If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``BranchPythonOperator`` but expects you to provide an implementation of the method ``choose_branch``.
+If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
-As with the callable for ``BranchPythonOperator``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
+.. note::
+    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
+
+As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
     class MyBranchOperator(BaseBranchOperator):
         def choose_branch(self, context):
@@ -404,7 +404,6 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
-        from airflow.operators.python import BranchPythonOperator
 
         dag = DAG(
             dag_id="branch_without_trigger",
@@ -413,7 +412,14 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         )
 
         run_this_first = EmptyOperator(task_id="run_this_first", dag=dag)
-        branching = BranchPythonOperator(task_id="branching", dag=dag, python_callable=lambda: "branch_a")
+
+
+        @task.branch(task_id="branching")
+        def do_branching():
+            return "branch_a"
+
+
+        branching = do_branching()
 
         branch_a = EmptyOperator(task_id="branch_a", dag=dag)
         follow_branch_a = EmptyOperator(task_id="follow_branch_a", dag=dag)

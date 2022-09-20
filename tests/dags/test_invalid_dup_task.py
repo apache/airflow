@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pytest
+from __future__ import annotations
 
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_FUNCTION_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+from datetime import datetime
 
+from airflow import DAG
+from airflow.operators.empty import EmptyOperator
 
-@pytest.mark.backend("mysql", "postgres")
-@pytest.mark.credential_file(GCP_FUNCTION_KEY)
-class GcpFunctionExampleDagsSystemTest(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
-
-    @provide_gcp_context(GCP_FUNCTION_KEY)
-    def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_function', CLOUD_DAG_FOLDER)
-
-    def tearDown(self):
-        super().tearDown()
+with DAG(
+    "test_invalid_dup_task",
+    start_date=datetime(2021, 1, 1),
+    schedule="@once",
+):
+    EmptyOperator(task_id="hi")
+    EmptyOperator(task_id="hi")

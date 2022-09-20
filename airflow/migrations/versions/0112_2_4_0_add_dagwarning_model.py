@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add DagWarning model
 
 Revision ID: 424117c37d18
 Revises: 3c94c427fdf6
 Create Date: 2022-04-27 15:57:36.736743
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
@@ -50,7 +51,7 @@ class OpenFaasHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         return conn
 
-    def deploy_function(self, overwrite_function_if_exist: bool, body: Dict[str, Any]) -> None:
+    def deploy_function(self, overwrite_function_if_exist: bool, body: dict[str, Any]) -> None:
         """Deploy OpenFaaS function"""
         if overwrite_function_if_exist:
             self.log.info("Function already exist %s going to update", self.function_name)
@@ -66,7 +67,7 @@ class OpenFaasHook(BaseHook):
             else:
                 self.log.info("Function deployed %s", self.function_name)
 
-    def invoke_async_function(self, body: Dict[str, Any]) -> None:
+    def invoke_async_function(self, body: dict[str, Any]) -> None:
         """Invoking function asynchronously"""
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
         self.log.info("Invoking function asynchronously %s", url)
@@ -77,7 +78,7 @@ class OpenFaasHook(BaseHook):
             self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
 
-    def invoke_function(self, body: Dict[str, Any]) -> None:
+    def invoke_function(self, body: dict[str, Any]) -> None:
         """Invoking function synchronously, will block until function completes and returns"""
         url = self.get_conn().host + self.INVOKE_FUNCTION + self.function_name
         self.log.info("Invoking function synchronously %s", url)
@@ -90,7 +91,7 @@ class OpenFaasHook(BaseHook):
             self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
 
-    def update_function(self, body: Dict[str, Any]) -> None:
+    def update_function(self, body: dict[str, Any]) -> None:
         """Update OpenFaaS function"""
         url = self.get_conn().host + self.UPDATE_FUNCTION
         self.log.info("Updating function %s", url)

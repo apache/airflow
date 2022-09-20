@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import random
@@ -27,7 +28,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
+from typing import Any, NamedTuple, Optional
 from urllib import request
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -55,7 +56,7 @@ CHART_PATH = AIRFLOW_SOURCES_ROOT / "chart"
 # we also add them to  the "used set" so even if another thread will get between closing the socket
 # and creating the cluster they will not reuse it and quickly close it
 
-USED_SOCKETS: Set[int] = set()
+USED_SOCKETS: set[int] = set()
 
 
 def get_kind_cluster_name(python: str, kubernetes_version: str) -> str:
@@ -110,12 +111,12 @@ def _download_tool_if_needed(
     tool: str,
     version: str,
     url: str,
-    version_flag: List[str],
+    version_flag: list[str],
     version_pattern: str,
     path: Path,
     verbose: bool,
     dry_run: bool,
-    uncompress_file: Optional[str] = None,
+    uncompress_file: str | None = None,
 ):
     expected_version = version.replace("v", "")
     try:
@@ -304,6 +305,38 @@ def _requirements_changed() -> bool:
     return False
 
 
+def _install_packages_in_k8s_virtualenv(dry_run: bool, verbose: bool, with_constraints: bool):
+    install_command = [
+        str(PYTHON_BIN_PATH),
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        str(K8S_REQUIREMENTS.resolve()),
+    ]
+    if with_constraints:
+        install_command.extend(
+            [
+                "--constraint",
+                f"https://raw.githubusercontent.com/apache/airflow/{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/"
+                f"constraints-{sys.version_info.major}.{sys.version_info.minor}.txt",
+            ]
+        )
+    install_packages_result = run_command(
+        install_command,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+        capture_output=True,
+    )
+    if install_packages_result.returncode != 0:
+        get_console().print(
+            f'[error]Error when updating pip to {PIP_VERSION}:[/]\n'
+            f'{install_packages_result.stdout}\n{install_packages_result.stderr}'
+        )
+    return install_packages_result
+
+
 def create_virtualenv(force: bool, verbose: bool, dry_run: bool) -> RunCommandResult:
     K8S_CLUSTERS_PATH.mkdir(parents=True, exist_ok=True)
     if not force and not _requirements_changed():
@@ -353,45 +386,33 @@ def create_virtualenv(force: bool, verbose: bool, dry_run: bool) -> RunCommandRe
         )
         return pip_reinstall_result
     get_console().print(f'[info]Installing necessary packages in {K8S_ENV_PATH}')
-    install_packages_result = run_command(
-        [
-            str(PYTHON_BIN_PATH),
-            "-m",
-            "pip",
-            "install",
-            "-r",
-            str(K8S_REQUIREMENTS.resolve()),
-            "--constraint",
-            f"https://raw.githubusercontent.com/apache/airflow/{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/"
-            f"constraints-{sys.version_info.major}.{sys.version_info.minor}.txt",
-        ],
-        verbose=verbose,
-        dry_run=dry_run,
-        check=False,
-        capture_output=True,
+
+    install_packages_result = _install_packages_in_k8s_virtualenv(
+        dry_run=dry_run, verbose=verbose, with_constraints=True
     )
     if install_packages_result.returncode != 0:
-        get_console().print(
-            f'[error]Error when updating pip to {PIP_VERSION}:[/]\n'
-            f'{install_packages_result.stdout}\n{install_packages_result.stderr}'
+        # if the first installation fails, attempt to install it without constraints
+        install_packages_result = _install_packages_in_k8s_virtualenv(
+            dry_run=dry_run, verbose=verbose, with_constraints=False
         )
-    CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
+    if install_packages_result.returncode == 0:
+        CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
     return install_packages_result
 
 
 def run_command_with_k8s_env(
-    cmd: List[str],
+    cmd: list[str],
     python: str,
     kubernetes_version: str,
-    executor: Optional[str] = None,
-    title: Optional[str] = None,
+    executor: str | None = None,
+    title: str | None = None,
     *,
     check: bool = True,
     verbose: bool = False,
     dry_run: bool = False,
     no_output_dump_on_exception: bool = False,
-    output: Optional[Output] = None,
-    input: Optional[str] = None,
+    output: Output | None = None,
+    input: str | None = None,
     **kwargs,
 ) -> RunCommandResult:
     return run_command(
@@ -408,7 +429,7 @@ def run_command_with_k8s_env(
     )
 
 
-def get_k8s_env(python: str, kubernetes_version: str, executor: Optional[str] = None) -> Dict[str, str]:
+def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = None) -> dict[str, str]:
     new_env = os.environ.copy()
     new_env['PATH'] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env['PATH']
     new_env['KUBECONFIG'] = str(get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version))
@@ -447,7 +468,7 @@ def _get_free_port() -> int:
         return port
 
 
-def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> Optional[Dict[str, Any]]:
+def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> dict[str, Any] | None:
     if not get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).exists():
         return None
     import yaml
@@ -457,7 +478,7 @@ def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> Op
     )
 
 
-def set_random_cluster_ports(python: str, kubernetes_version: str, output: Optional[Output]) -> None:
+def set_random_cluster_ports(python: str, kubernetes_version: str, output: Output | None) -> None:
     """
     Creates cluster config file and returns sockets keeping the ports bound.
     The sockets should be closed just before creating the cluster.
@@ -480,7 +501,7 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Optio
     get_console(output=output).print("\n")
 
 
-def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> Tuple[int, int]:
+def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
     if conf is None:
         return 0, 0
@@ -554,7 +575,7 @@ class KubernetesPythonVersion(NamedTuple):
 
 
 def _get_k8s_python_version(
-    index: int, kubernetes_version_array: List[str], python_version_array: List[str]
+    index: int, kubernetes_version_array: list[str], python_version_array: list[str]
 ) -> KubernetesPythonVersion:
     current_python = python_version_array[index % len(python_version_array)]
     current_kubernetes_version = kubernetes_version_array[index % len(kubernetes_version_array)]
@@ -565,9 +586,9 @@ def _get_k8s_python_version(
 
 def get_kubernetes_python_combos(
     kubernetes_version_array, python_version_array
-) -> Tuple[List[str], List[str], List[KubernetesPythonVersion]]:
+) -> tuple[list[str], list[str], list[KubernetesPythonVersion]]:
     num_tests = max(len(python_version_array), len(kubernetes_version_array))
-    combos: List[KubernetesPythonVersion] = [
+    combos: list[KubernetesPythonVersion] = [
         _get_k8s_python_version(i, kubernetes_version_array, python_version_array) for i in range(num_tests)
     ]
     combo_titles = [

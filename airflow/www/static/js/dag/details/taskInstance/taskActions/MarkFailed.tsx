@@ -25,21 +25,28 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
+import { useConfirmMarkTask, useMarkFailedTask } from 'src/api';
+import ConfirmDialog from 'src/components/ConfirmDialog';
+import { getMetaValue } from 'src/utils';
+
 import ActionButton from './ActionButton';
-import ConfirmDialog from '../../ConfirmDialog';
-import { useClearTask } from '../../../../api';
-import { getMetaValue } from '../../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const Run = ({
+interface Props {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  mapIndexes: number[];
+}
+
+const MarkFailed = ({
   dagId,
   runId,
   taskId,
-  executionDate,
   mapIndexes,
-}) => {
-  const [affectedTasks, setAffectedTasks] = useState([]);
+}: Props) => {
+  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
   const [past, setPast] = useState(false);
@@ -51,31 +58,27 @@ const Run = ({
   const [upstream, setUpstream] = useState(false);
   const onToggleUpstream = () => setUpstream(!upstream);
 
-  const [downstream, setDownstream] = useState(true);
+  const [downstream, setDownstream] = useState(false);
   const onToggleDownstream = () => setDownstream(!downstream);
-
-  const [recursive, setRecursive] = useState(true);
-  const onToggleRecursive = () => setRecursive(!recursive);
-
-  const [failed, setFailed] = useState(false);
-  const onToggleFailed = () => setFailed(!failed);
 
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { mutateAsync: clearTask, isLoading } = useClearTask({
-    dagId, runId, taskId, executionDate,
+  const { mutateAsync: markFailedMutation, isLoading: isMarkLoading } = useMarkFailedTask({
+    dagId, runId, taskId,
+  });
+  const {
+    mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
+  } = useConfirmMarkTask({
+    dagId, runId, taskId, state: 'failed',
   });
 
   const onClick = async () => {
-    const data = await clearTask({
+    const data = await confirmChangeMutation({
       past,
       future,
       upstream,
       downstream,
-      recursive,
-      failed,
-      confirmed: false,
       mapIndexes,
     });
     setAffectedTasks(data);
@@ -83,49 +86,40 @@ const Run = ({
   };
 
   const onConfirm = async () => {
-    await clearTask({
+    await markFailedMutation({
       past,
       future,
       upstream,
       downstream,
-      recursive,
-      failed,
-      confirmed: true,
       mapIndexes,
     });
     setAffectedTasks([]);
     onClose();
   };
 
+  const isLoading = isMarkLoading || isConfirmLoading;
+
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
-        <ActionButton bg={past && 'gray.100'} onClick={onTogglePast} name="Past" />
-        <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
-        <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
-        <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
-        <ActionButton bg={recursive && 'gray.100'} onClick={onToggleRecursive} name="Recursive" />
-        <ActionButton bg={failed && 'gray.100'} onClick={onToggleFailed} name="Failed" />
+        <ActionButton bg={past ? 'gray.100' : undefined} onClick={onTogglePast} name="Past" />
+        <ActionButton bg={future ? 'gray.100' : undefined} onClick={onToggleFuture} name="Future" />
+        <ActionButton bg={upstream ? 'gray.100' : undefined} onClick={onToggleUpstream} name="Upstream" />
+        <ActionButton bg={downstream ? 'gray.100' : undefined} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button
-        colorScheme="blue"
-        onClick={onClick}
-        isLoading={isLoading}
-        isDisabled={!canEdit}
-        title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
-      >
-        Clear
+      <Button colorScheme="red" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
+        Mark Failed
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to clear:"
+        description="Task instances you are about to mark as failed:"
         body={affectedTasks}
       />
     </Flex>
   );
 };
 
-export default Run;
+export default MarkFailed;

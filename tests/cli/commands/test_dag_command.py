@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import io
 import json
@@ -497,12 +499,13 @@ class TestCliDags(unittest.TestCase):
             [
                 'dags',
                 'list-runs',
+                '--dag-id',
+                'example_bash_operator',
                 '--no-backfill',
                 '--start-date',
                 DEFAULT_DATE.isoformat(),
                 '--end-date',
                 timezone.make_aware(datetime.max).isoformat(),
-                'example_bash_operator',
             ]
         )
         dag_command.dag_list_dag_runs(args)

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -41,14 +42,6 @@ VALID_CONN_IDS = [
     "conn_host_with_schema",
     "conn_parts",
 ]
-
-
-def conn_error_retry_handler():
-    return TEST_CONN_ERROR_RETRY_HANDLER
-
-
-def rate_limit_retry_handler():
-    return TEST_RATE_LIMIT_RETRY_HANDLER
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -169,16 +162,11 @@ class TestSlackHook:
                     "timeout": "9000",
                     "base_url": "http://conn-base-url:4321",
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": (
-                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
-                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
-                    ),
                 },
                 {
                     "timeout": 9000,
                     "base_url": "http://conn-base-url:4321",
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER, TEST_CONN_ERROR_RETRY_HANDLER],
                 },
             ),
             (  # Test Case: Connection from the UI
@@ -187,16 +175,11 @@ class TestSlackHook:
                     "extra__slack__timeout": 9000,
                     "extra__slack__base_url": "http://conn-base-url:4321",
                     "extra__slack__proxy": "https://conn-proxy:4321",
-                    "extra__slack__retry_handlers": (
-                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
-                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
-                    ),
                 },
                 {
                     "timeout": 9000,
                     "base_url": "http://conn-base-url:4321",
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": [TEST_RATE_LIMIT_RETRY_HANDLER, TEST_CONN_ERROR_RETRY_HANDLER],
                 },
             ),
             (  # Test Case: Merge configs - hook args overwrite conn config
@@ -208,10 +191,6 @@ class TestSlackHook:
                 {
                     "timeout": 9000,
                     "proxy": "https://conn-proxy:4321",
-                    "retry_handlers": (
-                        "tests.providers.slack.hooks.test_slack.rate_limit_retry_handler,"
-                        "tests.providers.slack.hooks.test_slack.conn_error_retry_handler"
-                    ),
                 },
                 {
                     "timeout": 1,
@@ -226,12 +205,10 @@ class TestSlackHook:
                 {
                     "timeout": 9000,
                     "proxy": "https://conn-proxy:4334",
-                    "retry_handlers": ("tests.providers.slack.hooks.test_slack.conn_error_retry_handler"),
                 },
                 {
                     "timeout": 1,
                     "proxy": "https://conn-proxy:4334",
-                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER],
                 },
             ),
             (  # Test Case: empty configs
@@ -253,7 +230,7 @@ class TestSlackHook:
     )
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
     def test_client_configuration(
-        self, mock_webclient_cls, hook_config, conn_extra, expected: Dict[str, Any]
+        self, mock_webclient_cls, hook_config, conn_extra, expected: dict[str, Any]
     ):
         """Test read/parse/merge WebClient config from connection and hook arguments."""
         expected["token"] = MOCK_SLACK_API_TOKEN

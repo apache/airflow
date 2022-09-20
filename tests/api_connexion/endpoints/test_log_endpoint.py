@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import copy
 import logging.config
 import sys
@@ -167,7 +169,7 @@ class TestGetLog:
             == f"[('localhost', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json['continuation_token'])
-        assert info == {'end_of_log': True}
+        assert info == {'end_of_log': True, 'log_pos': 41 + len(expected_filename)}
         assert 200 == response.status_code
 
     @pytest.mark.parametrize(

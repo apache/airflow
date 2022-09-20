@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``password`` column to ``user`` table
 
 Revision ID: 561833c1c74b
@@ -23,6 +22,8 @@ Revises: 40e67319e3a9
 Create Date: 2015-11-30 06:51:25.872557
 
 """
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 

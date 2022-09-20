@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -77,7 +78,7 @@ class DatasetSchema(SQLAlchemySchema):
 class DatasetCollection(NamedTuple):
     """List of Datasets with meta"""
 
-    datasets: List[DatasetModel]
+    datasets: list[DatasetModel]
     total_entries: int
 
 
@@ -134,7 +135,7 @@ class DatasetEventSchema(SQLAlchemySchema):
 class DatasetEventCollection(NamedTuple):
     """List of Dataset events with meta"""
 
-    dataset_events: List[DatasetEvent]
+    dataset_events: list[DatasetEvent]
     total_entries: int
 
 

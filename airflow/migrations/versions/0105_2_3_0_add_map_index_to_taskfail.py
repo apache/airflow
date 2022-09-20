@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add map_index to TaskFail
 
 Drop index idx_task_fail_dag_task_date
@@ -28,8 +27,7 @@ Revision ID: 48925b2719cb
 Revises: 4eaab2fe6582
 Create Date: 2022-03-14 10:31:11.220720
 """
-
-from typing import List
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
@@ -81,7 +79,7 @@ def _update_value_from_dag_run(
     dialect_name: str,
     target_table: sa.Table,
     target_column: ColumnElement,
-    join_columns: List[str],
+    join_columns: list[str],
 ) -> Update:
     """
     Grabs a value from the source table ``dag_run`` and updates target with this value.

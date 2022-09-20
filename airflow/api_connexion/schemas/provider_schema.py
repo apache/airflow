@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
@@ -41,7 +42,7 @@ class Provider(TypedDict):
 class ProviderCollection(NamedTuple):
     """List of Providers."""
 
-    providers: List[Provider]
+    providers: list[Provider]
     total_entries: int
 
 

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 
@@ -72,7 +73,7 @@ class TestGKEHookDelete(unittest.TestCase):
             retry=retry_mock,
             timeout=timeout_mock,
         )
-        wait_mock.assert_called_once_with(client_delete.return_value)
+        wait_mock.assert_called_once_with(client_delete.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("GKEHook.log"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -129,7 +130,7 @@ class TestGKEHookCreate(unittest.TestCase):
             retry=retry_mock,
             timeout=timeout_mock,
         )
-        wait_mock.assert_called_once_with(client_create.return_value)
+        wait_mock.assert_called_once_with(client_create.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("Cluster.from_json"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -150,7 +151,7 @@ class TestGKEHookCreate(unittest.TestCase):
             retry=retry_mock,
             timeout=timeout_mock,
         )
-        wait_mock.assert_called_once_with(client_create.return_value)
+        wait_mock.assert_called_once_with(client_create.return_value, TEST_GCP_PROJECT_ID)
 
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
     def test_create_cluster_error(self, wait_mock):

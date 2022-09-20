@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
@@ -52,7 +54,7 @@ class PigOperator(BaseOperator):
         pig: str,
         pig_cli_conn_id: str = 'pig_cli_default',
         pigparams_jinja_translate: bool = False,
-        pig_opts: Optional[str] = None,
+        pig_opts: str | None = None,
         **kwargs: Any,
     ) -> None:
 
@@ -61,13 +63,13 @@ class PigOperator(BaseOperator):
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
         self.pig_opts = pig_opts
-        self.hook: Optional[PigCliHook] = None
+        self.hook: PigCliHook | None = None
 
     def prepare_template(self):
         if self.pigparams_jinja_translate:
             self.pig = re.sub(r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Executing: %s', self.pig)
         self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)

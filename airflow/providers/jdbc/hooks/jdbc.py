@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import jaydebeapi
 
@@ -40,7 +41,7 @@ class JdbcHook(DbApiHook):
     supports_autocommit = True
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -54,7 +55,7 @@ class JdbcHook(DbApiHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['port', 'schema', 'extra'],
@@ -66,8 +67,8 @@ class JdbcHook(DbApiHook):
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
-        jdbc_driver_loc: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_path')
-        jdbc_driver_name: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_clsname')
+        jdbc_driver_loc: str | None = conn.extra_dejson.get('extra__jdbc__drv_path')
+        jdbc_driver_name: str | None = conn.extra_dejson.get('extra__jdbc__drv_clsname')
 
         conn = jaydebeapi.connect(
             jclassname=jdbc_driver_name,

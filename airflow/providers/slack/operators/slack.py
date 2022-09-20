@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import warnings
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
@@ -43,10 +45,10 @@ class SlackAPIOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_conn_id: Optional[str] = None,
-        token: Optional[str] = None,
-        method: Optional[str] = None,
-        api_params: Optional[Dict] = None,
+        slack_conn_id: str | None = None,
+        token: str | None = None,
+        method: str | None = None,
+        api_params: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -122,8 +124,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         'https://www.youtube.com/watch?v=J---aiyznGQ',
         icon_url: str = 'https://raw.githubusercontent.com/apache/'
         'airflow/main/airflow/www/static/pin_100.png',
-        attachments: Optional[List] = None,
-        blocks: Optional[List] = None,
+        attachments: list | None = None,
+        blocks: list | None = None,
         **kwargs,
     ) -> None:
         self.method = 'chat.postMessage'
@@ -196,13 +198,13 @@ class SlackAPIFileOperator(SlackAPIOperator):
 
     def __init__(
         self,
-        channels: Optional[Union[str, Sequence[str]]] = None,
-        initial_comment: Optional[str] = None,
-        filename: Optional[str] = None,
-        filetype: Optional[str] = None,
-        content: Optional[str] = None,
-        title: Optional[str] = None,
-        channel: Optional[str] = None,
+        channels: str | Sequence[str] | None = None,
+        initial_comment: str | None = None,
+        filename: str | None = None,
+        filetype: str | None = None,
+        content: str | None = None,
+        title: str | None = None,
+        channel: str | None = None,
         **kwargs,
     ) -> None:
         if channel:
