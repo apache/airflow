@@ -73,6 +73,7 @@ class PostgresHook(DbApiHook):
                 'The "schema" arg has been renamed to "database" as it contained the database name.'
                 'Please use "database" to set the database name.',
                 DeprecationWarning,
+                stacklevel=2,
             )
             kwargs['database'] = kwargs['schema']
         super().__init__(*args, **kwargs)
