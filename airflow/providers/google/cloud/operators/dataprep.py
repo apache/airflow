@@ -18,7 +18,7 @@
 """This module contains a Google Dataprep operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
@@ -46,7 +46,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
         self,
         *,
         dataprep_conn_id: str = "dataprep_default",
-        job_group_id: Union[int, str],
+        job_group_id: int | str,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,8 +88,8 @@ class DataprepGetJobGroupOperator(BaseOperator):
         self,
         *,
         dataprep_conn_id: str = "dataprep_default",
-        project_id: Optional[str] = None,
-        job_group_id: Union[int, str],
+        project_id: str | None = None,
+        job_group_id: int | str,
         embed: str,
         include_deleted: bool,
         **kwargs,
@@ -143,7 +143,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         dataprep_conn_id: str = "dataprep_default",
         body_request: dict,
         **kwargs,
@@ -192,9 +192,9 @@ class DataprepCopyFlowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         dataprep_conn_id: str = "dataprep_default",
-        flow_id: Union[int, str],
+        flow_id: int | str,
         name: str = "",
         description: str = "",
         copy_datasources: bool = False,
@@ -243,7 +243,7 @@ class DataprepDeleteFlowOperator(BaseOperator):
         self,
         *,
         dataprep_conn_id: str = "dataprep_default",
-        flow_id: Union[int, str],
+        flow_id: int | str,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -274,8 +274,8 @@ class DataprepRunFlowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        flow_id: Union[int, str],
+        project_id: str | None = None,
+        flow_id: int | str,
         body_request: dict,
         dataprep_conn_id: str = "dataprep_default",
         **kwargs,

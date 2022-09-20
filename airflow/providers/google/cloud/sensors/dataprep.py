@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Dataprep Job sensor."""
-from typing import TYPE_CHECKING, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook, JobGroupStatuses
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
@@ -37,7 +39,7 @@ class DataprepJobGroupIsFinishedSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        job_group_id: Union[int, str],
+        job_group_id: int | str,
         dataprep_conn_id: str = "dataprep_default",
         **kwargs,
     ):
@@ -45,7 +47,7 @@ class DataprepJobGroupIsFinishedSensor(BaseSensorOperator):
         self.job_group_id = job_group_id
         self.dataprep_conn_id = dataprep_conn_id
 
-    def poke(self, context: "Context") -> Union[bool, PokeReturnValue]:
+    def poke(self, context: Context) -> bool | PokeReturnValue:
         hooks = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         status = hooks.get_job_group_status(job_group_id=int(self.job_group_id))
         return status != JobGroupStatuses.IN_PROGRESS

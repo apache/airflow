@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 from unittest import mock
 
 from airflow.providers.google.cloud.hooks.dataprep import JobGroupStatuses

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -34,7 +36,7 @@ class DataprepFlowLink(BaseGoogleLink):
     format_str = DATAPREP_FLOW_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, project_id: str, flow_id: int):
+    def persist(context: Context, task_instance, project_id: str, flow_id: int):
         task_instance.xcom_push(
             context=context,
             key=DataprepFlowLink.key,
@@ -50,7 +52,7 @@ class DataprepJobGroupLink(BaseGoogleLink):
     format_str = DATAPREP_JOB_GROUP_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, project_id: str, job_group_id: int):
+    def persist(context: Context, task_instance, project_id: str, job_group_id: int):
         task_instance.xcom_push(
             context=context,
             key=DataprepJobGroupLink.key,

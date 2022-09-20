@@ -17,6 +17,8 @@
 """
 Example Airflow DAG that shows how to use Google Dataprep.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -40,7 +42,7 @@ GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 GCS_BUCKET_NAME = f"dataprep-bucket-heorhi-{DAG_ID}-{ENV_ID}"
 GCS_BUCKET_PATH = f"gs://{GCS_BUCKET_NAME}/task_results/"
 
-FLOW_ID = os.environ.get('FLOW_ID', 1)
+FLOW_ID = os.environ.get('FLOW_ID', '')
 RECIPE_ID = os.environ.get('RECIPE_ID')
 RECIPE_NAME = os.environ.get('RECIPE_NAME')
 WRITE_SETTINGS = (
@@ -57,19 +59,17 @@ WRITE_SETTINGS = (
 
 with models.DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
     tags=['example', 'dataprep'],
     render_template_as_native_obj=True,
 ) as dag:
-    # [START how_to_gcs_create_bucket_operator]
     create_bucket_task = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=GCS_BUCKET_NAME,
         project_id=GCP_PROJECT_ID,
     )
-    # [END how_to_gcs_create_bucket_operator]
 
     # [START how_to_dataprep_run_job_group_operator]
     run_job_group_task = DataprepRunJobGroupOperator(
@@ -140,14 +140,13 @@ with models.DAG(
         flow_id="{{ task_instance.xcom_pull('copy_flow')['id'] }}",
     )
     # [END how_to_dataprep_delete_flow_operator]
+    delete_flow_task.trigger_rule = TriggerRule.ALL_DONE
 
-    # [START gcs_delete_bucket_operator]
     delete_bucket_task = GCSDeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=GCS_BUCKET_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END gcs_delete_bucket_operator]
 
     (
         # TEST SETUP
