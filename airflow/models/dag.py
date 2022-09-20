@@ -61,6 +61,8 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import expression
 
 import airflow.templates
+from airflow.configuration import secrets_backend_list
+from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -2441,6 +2443,8 @@ class DAG(LoggingMixin):
         self,
         execution_date: datetime | None = None,
         run_conf: dict[str, Any] | None = None,
+        conn_file_path: str | None = None,
+        variable_file_path: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute one single DagRun for a given DAG and execution date."""
@@ -2462,6 +2466,12 @@ class DAG(LoggingMixin):
             if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
                 self.log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
                 ti.log.addHandler(handler)
+
+        if conn_file_path or variable_file_path:
+            local_secrets = LocalFilesystemBackend(variables_file_path=variable_file_path,
+                                                   connections_file_path=conn_file_path)
+            secrets_backend_list.insert(0, local_secrets)
+
 
         execution_date = execution_date or timezone.utcnow()
         self.log.debug("Clearing existing task instances for execution date %s", execution_date)
@@ -2492,6 +2502,9 @@ class DAG(LoggingMixin):
                 add_logger_if_needed(ti)
                 ti.task = tasks[ti.task_id]
                 _run_task(ti, session=session)
+        if conn_file_path or variable_file_path:
+            # Remove the local variables we have added to the secrets_backend_list
+            secrets_backend_list.pop(0)
 
     @provide_session
     def create_dagrun(
