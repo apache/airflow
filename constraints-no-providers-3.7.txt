@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-20T14:52:03Z
+# This constraints file was automatically generated on 2022-09-20T19:02:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -137,7 +137,7 @@ pyrsistent==0.18.1
 pyspnego==0.6.0
 python-daemon==2.3.1
 python-dateutil==2.8.2
-python-ldap==3.4.2
+python-ldap==3.4.3
 python-nvd3==0.15.0
 python-slugify==6.1.2
 pytz==2022.2.1
