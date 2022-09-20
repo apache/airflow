@@ -1654,7 +1654,6 @@ class TestDag:
         with dag:
             mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
             check_task(mapped_task)
-            # check_task_2(check_task())
 
         dag.test()
         mock_object.assert_called_with([0, 1, 2, 3, 4])
