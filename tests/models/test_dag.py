@@ -1606,15 +1606,58 @@ class TestDag:
 
     def test_dag_test_basic(self):
         dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
 
         @task_decorator
         def check_task():
-            print("foo")
+            # we call a mock object to ensure that this task actually ran.
+            mock_object()
 
         with dag:
             check_task()
 
         dag.test()
+        mock_object.assert_called_once()
+
+    def test_dag_test_with_dependencies(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator
+        def check_task():
+            return "output of first task"
+
+        @task_decorator
+        def check_task_2(my_input):
+            # we call a mock object to ensure that this task actually ran.
+            mock_object(my_input)
+
+        with dag:
+            check_task_2(check_task())
+
+        dag.test()
+        mock_object.assert_called_with("output of first task")
+
+    def test_dag_test_with_task_mapping(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator()
+        def get_index(current_val, ti=None):
+            return ti.map_index
+
+        @task_decorator
+        def check_task(my_input):
+            # we call a mock object with the combined map to ensure all expected indexes are called
+            mock_object(list(my_input))
+
+        with dag:
+            mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
+            check_task(mapped_task)
+            # check_task_2(check_task())
+
+        dag.test()
+        mock_object.assert_called_with([0, 1, 2, 3, 4])
 
     def test_dag_connection_file(self):
         test_connections_string = """
