@@ -54,7 +54,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import NOTSET
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     import pathlib
@@ -93,8 +93,8 @@ class DagBag(LoggingMixin):
     def __init__(
         self,
         dag_folder: str | pathlib.Path | None = None,
-        include_examples: bool = NOTSET,
-        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        include_examples: bool | ArgNotSet = NOTSET,
+        safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
         store_serialized_dags: bool | None = None,
         load_op_links: bool = True,
@@ -106,6 +106,9 @@ class DagBag(LoggingMixin):
 
         if include_examples is NOTSET:
             include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
+
+        if safe_mode is NOTSET:
+            safe_mode = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')
 
         if store_serialized_dags:
             warnings.warn(
