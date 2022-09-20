@@ -24,7 +24,9 @@ When you create new or modify existing DAG files, it is necessary to deploy them
 Bake DAGs in Docker image
 -------------------------
 
-The recommended way to update your DAGs with this chart is to build a new Docker image with the latest DAG code:
+With this approach, you include your dag files and related code in the airflow image.
+
+This method requires redeploying the services in the helm chart with the new docker image in order to deploy the new DAG code. This can work well particularly if DAG code is not expected to change frequently.
 
 .. code-block:: bash
 

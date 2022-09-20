@@ -20,7 +20,6 @@ from __future__ import annotations
 import contextlib
 import os
 from unittest import mock
-from unittest.mock import ANY
 
 import pytest
 from botocore.exceptions import ClientError
@@ -96,23 +95,6 @@ class TestS3TaskHandler:
     def test_hook(self):
         assert isinstance(self.s3_task_handler.hook, S3Hook)
         assert self.s3_task_handler.hook.transfer_config.use_threads is False
-
-    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
-    def test_hook_raises(self):
-        handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
-        with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
-                mock_hook.side_effect = Exception('Failed to connect')
-                # Initialize the hook
-                handler.hook
-
-            mock_error.assert_called_once_with(
-                'Could not create an S3Hook with connection id "%s". Please make '
-                'sure that apache-airflow[aws] is installed and the S3 connection exists. Exception : "%s"',
-                'aws_default',
-                ANY,
-                exc_info=True,
-            )
 
     def test_log_exists(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'')

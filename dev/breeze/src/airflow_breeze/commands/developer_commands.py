@@ -213,6 +213,18 @@ def shell(
 @option_mount_sources
 @option_integration
 @option_image_tag_for_running
+@click.option(
+    '--skip-asset-compilation',
+    help="Skips compilation of assets when starting airflow even if the content of www changed "
+    "(mutually exclusive with --dev-mode).",
+    is_flag=True,
+)
+@click.option(
+    '--dev-mode',
+    help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
+    "(mutually exclusive with --skip-asset-compilation).",
+    is_flag=True,
+)
 @option_db_reset
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
@@ -236,15 +248,25 @@ def start_airflow(
     use_packages_from_dist: bool,
     package_format: str,
     force_build: bool,
+    skip_asset_compilation: bool,
+    dev_mode: bool,
     image_tag: str | None,
     db_reset: bool,
     answer: str | None,
     platform: str | None,
     extra_args: tuple,
 ):
-    """Enter breeze environment and starts all Airflow components in the tmux session."""
-    if use_airflow_version is None:
-        run_compile_www_assets(dev=False, verbose=verbose, dry_run=dry_run)
+    """
+    Enter breeze environment and starts all Airflow components in the tmux session.
+    Compile assets if contents of www directory changed.
+    """
+    if dev_mode and skip_asset_compilation:
+        get_console().print(
+            '[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!'
+        )
+        skip_asset_compilation = True
+    if use_airflow_version is None and not skip_asset_compilation:
+        run_compile_www_assets(dev=dev_mode, run_in_background=True, verbose=verbose, dry_run=dry_run)
     enter_shell(
         verbose=verbose,
         dry_run=dry_run,
@@ -267,6 +289,7 @@ def start_airflow(
         force_build=force_build,
         db_reset=db_reset,
         start_airflow=True,
+        dev_mode=dev_mode,
         image_tag=image_tag,
         platform=platform,
         extra_args=extra_args,
@@ -454,7 +477,9 @@ def compile_www_assets(
 ):
     perform_environment_checks(verbose=verbose)
     assert_pre_commit_installed(verbose=verbose)
-    compile_www_assets_result = run_compile_www_assets(dev=dev, verbose=verbose, dry_run=dry_run)
+    compile_www_assets_result = run_compile_www_assets(
+        dev=dev, run_in_background=False, verbose=verbose, dry_run=dry_run
+    )
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)
