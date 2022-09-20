@@ -265,8 +265,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         'body' parameter when creating new Instance. All other parameters, such as 'machine_type', 'disks'
         and 'network_interfaces' will be passed to Instance as they are specified in the Instance Template.
         Full or partial URL and can be represented as examples below:
-        1. "https://www.googleapis.com/compute/v1/projects/your-project-name/global/"
-           "instanceTemplates/your-instanceTemplate-name"
+        1. "https://www.googleapis.com/compute/v1/projects/your-project-name/global"
+           "/instanceTemplates/your-instanceTemplate-name"
         2. "projects/your-project-name/global/instanceTemplates/your-instanceTemplate-name"
         3. "global/instanceTemplates/your-instanceTemplate-name"
     :param zone: Google Cloud zone where the instance exists.
