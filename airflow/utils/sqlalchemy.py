@@ -161,6 +161,8 @@ class ExecutorConfigType(PickleType):
     Airflow's serializer before pickling.
     """
 
+    cache_ok = True
+
     def bind_processor(self, dialect):
 
         from airflow.serialization.serialized_objects import BaseSerialization

@@ -21,6 +21,7 @@ from traceback import format_exception
 from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, func, or_
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -56,6 +57,13 @@ class Trigger(Base):
     kwargs = Column(ExtendedJSON, nullable=False)
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
+
+    triggerer_job = relationship(
+        "BaseJob",
+        primaryjoin="BaseJob.id == Trigger.triggerer_id",
+        foreign_keys=triggerer_id,
+        uselist=False,
+    )
 
     def __init__(self, classpath: str, kwargs: dict[str, Any], created_date: datetime.datetime | None = None):
         super().__init__()

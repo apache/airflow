@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pytest
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_FUNCTION_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+from airflow.jobs.base_job import BaseJob
 
 
-@pytest.mark.backend("mysql", "postgres")
-@pytest.mark.credential_file(GCP_FUNCTION_KEY)
-class GcpFunctionExampleDagsSystemTest(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
+class JobSchema(SQLAlchemySchema):
+    """Sla Miss Schema"""
 
-    @provide_gcp_context(GCP_FUNCTION_KEY)
-    def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_function', CLOUD_DAG_FOLDER)
+    class Meta:
+        """Meta"""
 
-    def tearDown(self):
-        super().tearDown()
+        model = BaseJob
+
+    id = auto_field(dump_only=True)
+    dag_id = auto_field(dump_only=True)
+    state = auto_field(dump_only=True)
+    job_type = auto_field(dump_only=True)
+    start_date = auto_field(dump_only=True)
+    end_date = auto_field(dump_only=True)
+    latest_heartbeat = auto_field(dump_only=True)
+    executor_class = auto_field(dump_only=True)
+    hostname = auto_field(dump_only=True)
+    unixname = auto_field(dump_only=True)

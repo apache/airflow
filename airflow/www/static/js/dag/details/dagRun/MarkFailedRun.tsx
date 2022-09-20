@@ -20,52 +20,47 @@
 import React, { useState } from 'react';
 import { Button, useDisclosure } from '@chakra-ui/react';
 
-import { useQueueRun } from '../../../api';
-import ConfirmDialog from '../ConfirmDialog';
-import { getMetaValue } from '../../../utils';
+import { useMarkFailedRun } from 'src/api';
+import { getMetaValue } from 'src/utils';
+import ConfirmDialog from 'src/components/ConfirmDialog';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const QueueRun = ({ dagId, runId }) => {
-  const [affectedTasks, setAffectedTasks] = useState([]);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const { mutateAsync: onQueue, isLoading } = useQueueRun(dagId, runId);
+interface Props {
+  dagId: string;
+  runId: string;
+}
 
-  // Get what the changes will be and show it in a modal
+const MarkFailedRun = ({ dagId, runId }: Props) => {
+  const [affectedTasks, setAffectedTasks] = useState('');
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { mutateAsync: markFailed, isLoading } = useMarkFailedRun(dagId, runId);
+
   const onClick = async () => {
-    const data = await onQueue({ confirmed: false });
+    const data = await markFailed({ confirmed: false });
     setAffectedTasks(data);
     onOpen();
   };
 
-  // Confirm changes
-  const onConfirm = async () => {
-    await onQueue({ confirmed: true });
-    setAffectedTasks([]);
+  const onConfirm = () => {
+    markFailed({ confirmed: true });
+    setAffectedTasks('');
     onClose();
   };
 
   return (
     <>
-      <Button
-        onClick={onClick}
-        isLoading={isLoading}
-        ml="5px"
-        title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
-        isDisabled={!canEdit}
-      >
-        Queue up new tasks
-      </Button>
+      <Button onClick={onClick} colorScheme="red" isLoading={isLoading} isDisabled={!canEdit}>Mark Failed</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to queue:"
+        description="Task instances you are about to mark as failed or skipped:"
         body={affectedTasks}
       />
     </>
   );
 };
 
-export default QueueRun;
+export default MarkFailedRun;

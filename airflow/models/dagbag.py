@@ -326,6 +326,7 @@ class DagBag(LoggingMixin):
                 loader.exec_module(new_module)
                 return [new_module]
             except Exception as e:
+                DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
                     self.import_errors[filepath] = traceback.format_exc(
@@ -391,6 +392,7 @@ class DagBag(LoggingMixin):
                     current_module = importlib.import_module(mod_name)
                     mods.append(current_module)
                 except Exception as e:
+                    DagContext.autoregistered_dags.clear()
                     fileloc = os.path.join(filepath, zip_info.filename)
                     self.log.exception("Failed to import: %s", fileloc)
                     if self.dagbag_import_error_tracebacks:

@@ -1572,6 +1572,8 @@ class Airflow(AirflowBaseView):
                 'log',
                 'log_url',
                 'task',
+                'trigger',
+                'triggerer_job',
             ]
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
@@ -2329,7 +2331,7 @@ class Airflow(AirflowBaseView):
         task_id = args.get('task_id')
         dag_run_id = args.get('dag_run_id')
         state = args.get('state')
-        origin = args.get('origin')
+        origin = get_safe_url(args.get('origin'))
 
         if 'map_index' not in args:
             map_indexes: list[int] | None = None

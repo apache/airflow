@@ -1147,6 +1147,29 @@ export interface components {
       description?: string | null;
       notification_sent?: boolean;
     };
+    Trigger: {
+      id?: number;
+      classpath?: string;
+      kwargs?: string;
+      /** Format: datetime */
+      created_date?: string;
+      triggerer_id?: number | null;
+    };
+    Job: {
+      id?: number;
+      dag_id?: string | null;
+      state?: string | null;
+      job_type?: string | null;
+      /** Format: datetime */
+      start_date?: string | null;
+      /** Format: datetime */
+      end_date?: string | null;
+      /** Format: datetime */
+      latest_heartbeat?: string | null;
+      executor_class?: string | null;
+      hostname?: string | null;
+      unixname?: string | null;
+    };
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
@@ -1185,6 +1208,8 @@ export interface components {
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
+      trigger?: components["schemas"]["Trigger"] | null;
+      triggerer_job?: components["schemas"]["Job"] | null;
     };
     /**
      * @description Collection of task instances.
@@ -4135,6 +4160,8 @@ export type PoolCollection = CamelCasedPropertiesDeep<components['schemas']['Poo
 export type Provider = CamelCasedPropertiesDeep<components['schemas']['Provider']>;
 export type ProviderCollection = CamelCasedPropertiesDeep<components['schemas']['ProviderCollection']>;
 export type SLAMiss = CamelCasedPropertiesDeep<components['schemas']['SLAMiss']>;
+export type Trigger = CamelCasedPropertiesDeep<components['schemas']['Trigger']>;
+export type Job = CamelCasedPropertiesDeep<components['schemas']['Job']>;
 export type TaskInstance = CamelCasedPropertiesDeep<components['schemas']['TaskInstance']>;
 export type TaskInstanceCollection = CamelCasedPropertiesDeep<components['schemas']['TaskInstanceCollection']>;
 export type TaskInstanceReference = CamelCasedPropertiesDeep<components['schemas']['TaskInstanceReference']>;

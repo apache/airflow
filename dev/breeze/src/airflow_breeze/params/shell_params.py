@@ -59,6 +59,7 @@ class ShellParams:
     backend: str = ALLOWED_BACKENDS[0]
     ci: bool = False
     db_reset: bool = False
+    dev_mode: bool = False
     dry_run: bool = False
     extra_args: tuple = ()
     force_build: bool = False

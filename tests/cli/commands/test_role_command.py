@@ -24,6 +24,8 @@ from contextlib import redirect_stdout
 import pytest
 
 from airflow.cli.commands import role_command
+from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import Role
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
@@ -45,7 +47,7 @@ class TestCliRoles:
             test_user = self.appbuilder.sm.find_user(email=email)
             if test_user:
                 self.appbuilder.sm.del_register_user(test_user)
-        for role_name in ['FakeTeamA', 'FakeTeamB']:
+        for role_name in ['FakeTeamA', 'FakeTeamB', 'FakeTeamC']:
             if self.appbuilder.sm.find_role(role_name):
                 self.appbuilder.sm.delete_role(role_name)
 
@@ -99,6 +101,47 @@ class TestCliRoles:
 
     def test_cli_list_roles_with_args(self):
         role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'yaml']))
+        role_command.roles_list(self.parser.parse_args(['roles', 'list', '-p', '--output', 'yaml']))
+
+    def test_cli_roles_add_and_del_perms(self):
+        assert self.appbuilder.sm.find_role('FakeTeamC') is None
+
+        role_command.roles_create(self.parser.parse_args(['roles', 'create', 'FakeTeamC']))
+        assert self.appbuilder.sm.find_role('FakeTeamC') is not None
+
+        role_command.roles_add_perms(
+            self.parser.parse_args(
+                [
+                    'roles',
+                    'add-perms',
+                    'FakeTeamC',
+                    '-r',
+                    permissions.RESOURCE_POOL,
+                    '-a',
+                    permissions.ACTION_CAN_EDIT,
+                ]
+            )
+        )
+        role: Role = self.appbuilder.sm.find_role('FakeTeamC')
+        assert len(role.permissions) == 1
+        assert role.permissions[0].resource.name == permissions.RESOURCE_POOL
+        assert role.permissions[0].action.name == permissions.ACTION_CAN_EDIT
+
+        role_command.roles_del_perms(
+            self.parser.parse_args(
+                [
+                    'roles',
+                    'del-perms',
+                    'FakeTeamC',
+                    '-r',
+                    permissions.RESOURCE_POOL,
+                    '-a',
+                    permissions.ACTION_CAN_EDIT,
+                ]
+            )
+        )
+        role: Role = self.appbuilder.sm.find_role('FakeTeamC')
+        assert len(role.permissions) == 0
 
     def test_cli_import_roles(self, tmp_path):
         fn = tmp_path / 'import_roles.json'

@@ -101,6 +101,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Asset compilation options",
+            "options": [
+                "--skip-asset-compilation",
+                "--dev-mode",
+            ],
+        },
+        {
             "name": "Advanced flag for running",
             "options": [
                 "--use-airflow-version",
