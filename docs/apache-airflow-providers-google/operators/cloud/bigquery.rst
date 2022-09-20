@@ -1,4 +1,5 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -348,6 +349,14 @@ idempotency. If this parameter is not passed then uuid will be used as ``job_id`
 operator will try to submit a new job with this ``job_id```. If there's already a job with such ``job_id``
 then it will reattach to the existing job.
 
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_insert_job_async]
+    :end-before: [END howto_operator_bigquery_insert_job_async]
+
 Validate data
 ^^^^^^^^^^^^^
 
@@ -370,8 +379,7 @@ return ``False`` the check is failed and errors out.
     :start-after: [START howto_operator_bigquery_check]
     :end-before: [END howto_operator_bigquery_check]
 
-Below example shows the usage of :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCheckAsyncOperator`,
-which is the deferrable version of the operator
+Also you can use deferrable mode in this operator
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
@@ -398,10 +406,7 @@ or numeric value. If numeric, you can also specify ``tolerance``.
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
 
-The below example shows how to use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckAsyncOperator`.
-Note that this is a deferrable operator which requires the Triggerer to be running on your Airflow
-deployment.
+Also you can use deferrable mode in this operator
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
@@ -425,10 +430,7 @@ tolerance of the ones from ``days_back`` before you can either use
     :start-after: [START howto_operator_bigquery_interval_check]
     :end-before: [END howto_operator_bigquery_interval_check]
 
-The below example shows how to use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckAsyncOperator`.
-Note that this is a deferrable operator which requires the Triggerer to be running on your Airflow
-deployment.
+Also you can use deferrable mode in this operator
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python

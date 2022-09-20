@@ -103,8 +103,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
-        self.running_job_id = None  # type: Optional[str]
-        self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
+        self.running_job_id: str | None = None
+        self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
         self.labels = labels
         self.credentials_path = "bigquery_hook_credentials.json"
 
@@ -2313,14 +2313,14 @@ class BigQueryBaseCursor(LoggingMixin):
         self.use_legacy_sql = use_legacy_sql
         if api_resource_configs:
             _validate_value("api_resource_configs", api_resource_configs, dict)
-        self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
+        self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
         self.running_job_id = None  # type: Optional[str]
         self.location = location
         self.num_retries = num_retries
         self.labels = labels
         self.hook = hook
 
-    def create_empty_table(self, *args, **kwargs) -> None:
+    def create_empty_table(self, *args, **kwargs):
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`
@@ -2372,7 +2372,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.delete_dataset(*args, **kwargs)
 
-    def create_external_table(self, *args, **kwargs) -> None:
+    def create_external_table(self, *args, **kwargs):
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`

@@ -30,7 +30,6 @@ from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCheckAsyncOperator,
     BigQueryCheckOperator,
     BigQueryConsoleIndexableLink,
     BigQueryConsoleLink,
@@ -40,20 +39,16 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryDeleteTableOperator,
     BigQueryExecuteQueryOperator,
-    BigQueryGetDataAsyncOperator,
     BigQueryGetDataOperator,
     BigQueryGetDatasetOperator,
     BigQueryGetDatasetTablesOperator,
-    BigQueryInsertJobAsyncOperator,
     BigQueryInsertJobOperator,
-    BigQueryIntervalCheckAsyncOperator,
     BigQueryIntervalCheckOperator,
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
-    BigQueryValueCheckAsyncOperator,
     BigQueryValueCheckOperator,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
@@ -69,9 +64,9 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags, clear_db_xcom
 
 TASK_ID = 'test-bq-generic-operator'
-TEST_DATASET = 'test-dataset'
-TEST_DATASET_LOCATION = 'EU'
-TEST_GCP_PROJECT_ID = 'test-project'
+TEST_DATASET = "test-dataset"
+TEST_DATASET_LOCATION = "EU"
+TEST_GCP_PROJECT_ID = "test-project"
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
@@ -1142,12 +1137,13 @@ def test_bigquery_insert_job_operator_async(mock_hook):
     }
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryInsertJobAsyncOperator(
+    op = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
         job_id=job_id,
         project_id=TEST_GCP_PROJECT_ID,
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -1168,12 +1164,13 @@ def test_bigquery_insert_job_operator_execute_failure():
     }
     job_id = "123456"
 
-    operator = BigQueryInsertJobAsyncOperator(
+    operator = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
         job_id=job_id,
         project_id=TEST_GCP_PROJECT_ID,
+        deferrable=True,
     )
 
     with pytest.raises(AirflowException):
@@ -1212,12 +1209,13 @@ def test_bigquery_insert_job_operator_execute_complete():
     }
     job_id = "123456"
 
-    operator = BigQueryInsertJobAsyncOperator(
+    operator = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
         job_id=job_id,
         project_id=TEST_GCP_PROJECT_ID,
+        deferrable=True,
     )
     with mock.patch.object(operator.log, "info") as mock_log_info:
         operator.execute_complete(
@@ -1249,13 +1247,14 @@ def test_bigquery_insert_job_operator_with_job_id_generate(mock_hook):
     )
     mock_hook.return_value.get_job.return_value = job
 
-    op = BigQueryInsertJobAsyncOperator(
+    op = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
         job_id=job_id,
         project_id=TEST_GCP_PROJECT_ID,
         reattach_states={"PENDING"},
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred):
@@ -1294,13 +1293,14 @@ def test_execute_reattach(mock_hook):
     )
     mock_hook.return_value.get_job.return_value = job
 
-    op = BigQueryInsertJobAsyncOperator(
+    op = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
         job_id=job_id,
         project_id=TEST_GCP_PROJECT_ID,
         reattach_states={"PENDING"},
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred):
@@ -1316,7 +1316,7 @@ def test_execute_reattach(mock_hook):
 
 
 @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-def test_execute_force_rerun(mock_hook):
+def test_execute_force_rerun_async(mock_hook):
     job_id = "123456"
     hash_ = "hash"
     real_job_id = f"{job_id}_{hash_}"
@@ -1338,13 +1338,14 @@ def test_execute_force_rerun(mock_hook):
     )
     mock_hook.return_value.get_job.return_value = job
 
-    op = BigQueryInsertJobAsyncOperator(
+    op = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration=configuration,
         location=TEST_DATASET_LOCATION,
         job_id=job_id,
         project_id=TEST_GCP_PROJECT_ID,
         reattach_states={"PENDING"},
+        deferrable=True,
     )
 
     with pytest.raises(AirflowException) as exc:
@@ -1377,10 +1378,11 @@ def test_bigquery_check_operator_async(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryCheckAsyncOperator(
+    op = BigQueryCheckOperator(
         task_id="bq_check_operator_job",
         sql="SELECT * FROM any",
         location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -1392,8 +1394,11 @@ def test_bigquery_check_operator_async(mock_hook):
 def test_bigquery_check_operator_execute_failure():
     """Tests that an AirflowException is raised in case of error event"""
 
-    operator = BigQueryCheckAsyncOperator(
-        task_id="bq_check_operator_execute_failure", sql="SELECT * FROM any", location=TEST_DATASET_LOCATION
+    operator = BigQueryCheckOperator(
+        task_id="bq_check_operator_execute_failure",
+        sql="SELECT * FROM any",
+        location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with pytest.raises(AirflowException):
@@ -1403,14 +1408,17 @@ def test_bigquery_check_operator_execute_failure():
 def test_bigquery_check_op_execute_complete_with_no_records():
     """Asserts that exception is raised with correct expected exception message"""
 
-    operator = BigQueryCheckAsyncOperator(
-        task_id="bq_check_operator_execute_complete", sql="SELECT * FROM any", location=TEST_DATASET_LOCATION
+    operator = BigQueryCheckOperator(
+        task_id="bq_check_operator_execute_complete",
+        sql="SELECT * FROM any",
+        location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with pytest.raises(AirflowException) as exc:
         operator.execute_complete(context=None, event={"status": "success", "records": None})
 
-    expected_exception_msg = "The query returned None"
+    expected_exception_msg = "The query returned empty results"
 
     assert str(exc.value) == expected_exception_msg
 
@@ -1420,8 +1428,11 @@ def test_bigquery_check_op_execute_complete_with_non_boolean_records():
 
     test_sql = "SELECT * FROM any"
 
-    operator = BigQueryCheckAsyncOperator(
-        task_id="bq_check_operator_execute_complete", sql=test_sql, location=TEST_DATASET_LOCATION
+    operator = BigQueryCheckOperator(
+        task_id="bq_check_operator_execute_complete",
+        sql=test_sql,
+        location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     expected_exception_msg = f"Test failed.\nQuery:\n{test_sql}\nResults:\n{[20, False]!s}"
@@ -1435,8 +1446,11 @@ def test_bigquery_check_op_execute_complete_with_non_boolean_records():
 def test_bigquery_check_operator_execute_complete():
     """Asserts that logging occurs as expected"""
 
-    operator = BigQueryCheckAsyncOperator(
-        task_id="bq_check_operator_execute_complete", sql="SELECT * FROM any", location=TEST_DATASET_LOCATION
+    operator = BigQueryCheckOperator(
+        task_id="bq_check_operator_execute_complete",
+        sql="SELECT * FROM any",
+        location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with mock.patch.object(operator.log, "info") as mock_log_info:
@@ -1447,28 +1461,30 @@ def test_bigquery_check_operator_execute_complete():
 def test_bigquery_interval_check_operator_execute_complete():
     """Asserts that logging occurs as expected"""
 
-    operator = BigQueryIntervalCheckAsyncOperator(
+    operator = BigQueryIntervalCheckOperator(
         task_id="bq_interval_check_operator_execute_complete",
         table="test_table",
         metrics_thresholds={"COUNT(*)": 1.5},
         location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with mock.patch.object(operator.log, "info") as mock_log_info:
         operator.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
     mock_log_info.assert_called_with(
-        "%s completed with response %s ", "bq_interval_check_operator_execute_complete", "success"
+        "%s completed with response %s ", "bq_interval_check_operator_execute_complete", "Job completed"
     )
 
 
 def test_bigquery_interval_check_operator_execute_failure():
     """Tests that an AirflowException is raised in case of error event"""
 
-    operator = BigQueryIntervalCheckAsyncOperator(
+    operator = BigQueryIntervalCheckOperator(
         task_id="bq_interval_check_operator_execute_complete",
         table="test_table",
         metrics_thresholds={"COUNT(*)": 1.5},
         location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with pytest.raises(AirflowException):
@@ -1487,11 +1503,12 @@ def test_bigquery_interval_check_operator_async(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryIntervalCheckAsyncOperator(
+    op = BigQueryIntervalCheckOperator(
         task_id="bq_interval_check_operator_execute_complete",
         table="test_table",
         metrics_thresholds={"COUNT(*)": 1.5},
         location=TEST_DATASET_LOCATION,
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -1514,12 +1531,13 @@ def test_bigquery_get_data_operator_async_with_selected_fields(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryGetDataAsyncOperator(
+    op = BigQueryGetDataOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
-        table_id=TEST_TABLE,
+        table_id=TEST_TABLE_ID,
         max_results=100,
         selected_fields="value,name",
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -1540,11 +1558,12 @@ def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
 
     mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-    op = BigQueryGetDataAsyncOperator(
+    op = BigQueryGetDataOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
-        table_id=TEST_TABLE,
+        table_id=TEST_TABLE_ID,
         max_results=100,
+        deferrable=True,
     )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -1556,11 +1575,12 @@ def test_bigquery_get_data_operator_async_without_selected_fields(mock_hook):
 def test_bigquery_get_data_operator_execute_failure():
     """Tests that an AirflowException is raised in case of error event"""
 
-    operator = BigQueryGetDataAsyncOperator(
+    operator = BigQueryGetDataOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
         table_id="any",
         max_results=100,
+        deferrable=True,
     )
 
     with pytest.raises(AirflowException):
@@ -1570,11 +1590,12 @@ def test_bigquery_get_data_operator_execute_failure():
 def test_bigquery_get_data_op_execute_complete_with_records():
     """Asserts that exception is raised with correct expected exception message"""
 
-    operator = BigQueryGetDataAsyncOperator(
+    operator = BigQueryGetDataOperator(
         task_id="get_data_from_bq",
         dataset_id=TEST_DATASET,
         table_id="any",
         max_results=100,
+        deferrable=True,
     )
 
     with mock.patch.object(operator.log, "info") as mock_log_info:
@@ -1583,15 +1604,15 @@ def test_bigquery_get_data_op_execute_complete_with_records():
 
 
 def _get_value_check_async_operator(use_legacy_sql: bool = False):
-    """Helper function to initialise BigQueryValueCheckOperatorAsync operator"""
     query = "SELECT COUNT(*) FROM Any"
     pass_val = 2
 
-    return BigQueryValueCheckAsyncOperator(
+    return BigQueryValueCheckOperator(
         task_id="check_value",
         sql=query,
         pass_value=pass_val,
         use_legacy_sql=use_legacy_sql,
+        deferrable=True,
     )
 
 
@@ -1642,7 +1663,7 @@ def test_bigquery_value_check_operator_execute_complete_failure():
 def test_bigquery_value_check_missing_param(kwargs, expected):
     """Assert the exception if require param not pass to BigQueryValueCheckOperatorAsync operator"""
     with pytest.raises(AirflowException) as missing_param:
-        BigQueryValueCheckAsyncOperator(**kwargs)
+        BigQueryValueCheckOperator(deferrable=True, **kwargs)
     assert missing_param.value.args[0] == expected
 
 
@@ -1653,5 +1674,5 @@ def test_bigquery_value_check_empty():
         "missing keyword arguments 'pass_value', 'sql'",
     )
     with pytest.raises(AirflowException) as missing_param:
-        BigQueryValueCheckAsyncOperator(kwargs={})
+        BigQueryValueCheckOperator(deferrable=True, kwargs={})
     assert (missing_param.value.args[0] == expected) or (missing_param.value.args[0] == expected1)
