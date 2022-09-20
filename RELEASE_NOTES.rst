@@ -48,7 +48,7 @@ A dataset is identified by a URI:
     # Or you can use a scheme to show where it lives.
     dataset2 = Dataset(uri='s3://bucket/prefix')
 
-To create a DAG that runs whenever a Dataset is updated use the new ``scheduler`` parameter (see below) and
+To create a DAG that runs whenever a Dataset is updated use the new ``schedule`` parameter (see below) and
 pass a list of 1 or more Datasets:
 
 ..  code-block:: python
