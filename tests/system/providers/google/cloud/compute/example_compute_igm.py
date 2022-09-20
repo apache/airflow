@@ -22,6 +22,8 @@ Example Airflow DAG that:
 * updates existing template in Instance Group Manager
 
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
