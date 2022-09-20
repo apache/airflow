@@ -36,6 +36,7 @@
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.scheduler) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.scheduler) }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
@@ -134,6 +135,7 @@ spec:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
@@ -161,6 +163,7 @@ spec:
         - name: scheduler
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.scheduler.command }}
           command: {{ tpl (toYaml .Values.scheduler.command) . | nindent 12 }}
           {{- end }}
@@ -193,7 +196,7 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
-          securityContext: {{ or .Values.scheduler.securityContexts.container .Values.securityContexts.container }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           volumeMounts:
             {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
@@ -226,9 +229,9 @@ spec:
         - name: scheduler-log-groomer
           resources:
 {{ toYaml .Values.scheduler.logGroomerSidecar.resources | indent 12 }}
-          securityContext: {{ or .Values.scheduler.securityContexts.container .Values.securityContexts.container }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.scheduler.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}
