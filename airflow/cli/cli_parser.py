@@ -847,6 +847,10 @@ ARG_USER_EXPORT = Arg(("export",), metavar="FILEPATH", help="Export all users to
 ARG_CREATE_ROLE = Arg(('-c', '--create'), help='Create a new role', action='store_true')
 ARG_LIST_ROLES = Arg(('-l', '--list'), help='List roles', action='store_true')
 ARG_ROLES = Arg(('role',), help='The name of a role', nargs='*')
+ARG_PERMISSIONS = Arg(('-p', '--permission'), help='Show role permissions', action='store_true')
+ARG_ROLE_RESOURCE = Arg(('-r', '--resource'), help='The name of permissions', nargs='*', required=True)
+ARG_ROLE_ACTION = Arg(('-a', '--action'), help='The action of permissions', nargs='*')
+ARG_ROLE_ACTION_REQUIRED = Arg(('-a', '--action'), help='The action of permissions', nargs='*', required=True)
 ARG_AUTOSCALE = Arg(('-a', '--autoscale'), help="Minimum and Maximum number of worker to autoscale")
 ARG_SKIP_SERVE_LOGS = Arg(
     ("-s", "--skip-serve-logs"),
@@ -1673,7 +1677,7 @@ ROLES_COMMANDS = (
         name='list',
         help='List roles',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_list'),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_PERMISSIONS, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='create',
@@ -1686,6 +1690,18 @@ ROLES_COMMANDS = (
         help='Delete role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_delete'),
         args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='add-perms',
+        help='Add roles permissions',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_add_perms'),
+        args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION_REQUIRED, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='del-perms',
+        help='Delete roles permissions',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_del_perms'),
+        args=(ARG_ROLES, ARG_ROLE_RESOURCE, ARG_ROLE_ACTION, ARG_VERBOSE),
     ),
     ActionCommand(
         name='export',
