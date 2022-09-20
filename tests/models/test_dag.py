@@ -1604,6 +1604,43 @@ class TestDag:
         dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
+    def test_dag_test_basic(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            print("foo")
+
+        with dag:
+            check_task()
+
+        dag.test()
+
+    def test_dag_connection_file(self):
+        test_connections_string = """
+---
+my_postgres_conn:
+  - conn_id: my_postgres_conn
+    conn_type: postgres
+        """
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            from airflow.configuration import secrets_backend_list
+            from airflow.secrets.local_filesystem import LocalFilesystemBackend
+
+            assert isinstance(secrets_backend_list[0], LocalFilesystemBackend)
+            local_secrets: LocalFilesystemBackend = secrets_backend_list[0]
+            assert local_secrets.get_connection("my_postgres_conn").conn_id == "my_postgres_conn"
+
+        with dag:
+            check_task()
+        with NamedTemporaryFile(suffix=".yaml") as tmp:
+            with open(tmp.name, 'w') as f:
+                f.write(test_connections_string)
+            dag.test(conn_file_path=tmp.name)
+
     def _make_test_subdag(self, session):
         dag_id = 'test_subdag'
         self._clean_up(dag_id)
