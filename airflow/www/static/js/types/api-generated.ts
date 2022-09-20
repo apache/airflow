@@ -334,6 +334,24 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/run": {
+    /**
+     * Run task instance.
+     *
+     * *New in version 2.5.0*
+     */
+    post: operations["run_task_instance"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+  };
   "/dags/~/dagRuns/~/taskInstances/list": {
     /**
      * List task instances from all DAGs and DAG runs.
@@ -1868,6 +1886,32 @@ export interface components {
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       queue?: string[];
     };
+    RunTaskInstanceForm: {
+      /**
+       * @description Ignore all dependencies state during execution.
+       *
+       * @default false
+       */
+      ignore_all_deps?: boolean;
+      /**
+       * @description Ignore task dependencies state during execution.
+       *
+       * @default false
+       */
+      ignore_task_deps?: boolean;
+      /**
+       * @description Ignore task instance state during execution.
+       *
+       * @default false
+       */
+      ignore_ti_state?: boolean;
+      /**
+       * @description Index of the mapped task to run. -1 if the task is not mapped.
+       *
+       * @default -1
+       */
+      map_index?: number;
+    };
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
      * execution_date to figure out the next schedule.
@@ -3261,6 +3305,39 @@ export interface operations {
     };
   };
   /**
+   * Run task instance.
+   *
+   * *New in version 2.5.0*
+   */
+  run_task_instance: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunTaskInstanceForm"];
+      };
+    };
+  };
+  /**
    * List task instances from all DAGs and DAG runs.
    * This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it would run in to maximum HTTP request URL length limits.
    */
@@ -4201,6 +4278,7 @@ export type ClearTaskInstances = CamelCasedPropertiesDeep<components['schemas'][
 export type UpdateTaskInstancesState = CamelCasedPropertiesDeep<components['schemas']['UpdateTaskInstancesState']>;
 export type ListDagRunsForm = CamelCasedPropertiesDeep<components['schemas']['ListDagRunsForm']>;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['ListTaskInstanceForm']>;
+export type RunTaskInstanceForm = CamelCasedPropertiesDeep<components['schemas']['RunTaskInstanceForm']>;
 export type ScheduleInterval = CamelCasedPropertiesDeep<components['schemas']['ScheduleInterval']>;
 export type TimeDelta = CamelCasedPropertiesDeep<components['schemas']['TimeDelta']>;
 export type RelativeDelta = CamelCasedPropertiesDeep<components['schemas']['RelativeDelta']>;
@@ -4255,6 +4333,7 @@ export type GetTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get
 export type GetTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_task_instance']['parameters']['path']>;
 export type GetMappedTaskInstanceVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instance']['parameters']['path']>;
 export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<operations['get_mapped_task_instances']['parameters']['path'] & operations['get_mapped_task_instances']['parameters']['query']>;
+export type RunTaskInstanceVariables = CamelCasedPropertiesDeep<operations['run_task_instance']['parameters']['path'] & operations['run_task_instance']['requestBody']['content']['application/json']>;
 export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<operations['get_task_instances_batch']['requestBody']['content']['application/json']>;
 export type GetVariablesVariables = CamelCasedPropertiesDeep<operations['get_variables']['parameters']['query']>;
 export type PostVariablesVariables = CamelCasedPropertiesDeep<operations['post_variables']['requestBody']['content']['application/json']>;
