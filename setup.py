@@ -376,6 +376,7 @@ devel_only = [
     'freezegun',
     'gitpython',
     'ipdb',
+    'isort',
     'jira',
     'jsondiff',
     'mongomock',
