@@ -2464,6 +2464,7 @@ class DAG(LoggingMixin):
                 ti.log.addHandler(handler)
 
         execution_date = execution_date or timezone.utcnow()
+        self.log.debug("Clearing existing task instances for execution date %s", execution_date)
         self.clear(
             start_date=execution_date,
             end_date=execution_date,
@@ -3606,7 +3607,7 @@ def _get_or_create_dagrun(
     :param session: sqlalchemy session
     :return:
     """
-    log.info("dagrun id:" + dag.dag_id)
+    log.info("dagrun id: %s", dag.dag_id)
     dr: DagRun = (
         session.query(DagRun)
         .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
