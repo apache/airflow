@@ -95,6 +95,7 @@ with DAG(
         subscription_name=rds_subscription_name,
     )
     # [END howto_operator_rds_delete_event_subscription]
+    delete_subscription.trigger_rule = TriggerRule.ALL_DONE
 
     delete_db_instance = RdsDeleteDbInstanceOperator(
         task_id="delete_db_instance",

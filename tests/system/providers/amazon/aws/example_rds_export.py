@@ -137,16 +137,16 @@ with DAG(
 
     delete_snapshot = RdsDeleteDbSnapshotOperator(
         task_id='delete_snapshot',
-        trigger_rule=TriggerRule.ALL_DONE,
         db_type='instance',
         db_snapshot_identifier=rds_snapshot_name,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = S3DeleteBucketOperator(
         task_id='delete_bucket',
-        trigger_rule=TriggerRule.ALL_DONE,
         bucket_name=bucket_name,
         force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_db_instance = RdsDeleteDbInstanceOperator(

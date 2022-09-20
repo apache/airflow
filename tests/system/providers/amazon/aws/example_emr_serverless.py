@@ -104,9 +104,9 @@ with DAG(
     delete_app = EmrServerlessDeleteApplicationOperator(
         task_id='delete_application',
         application_id=emr_serverless_app_id,
-        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_emr_serverless_delete_application]
+    delete_app.trigger_rule = TriggerRule.ALL_DONE
 
     delete_s3_bucket = S3DeleteBucketOperator(
         task_id='delete_s3_bucket',

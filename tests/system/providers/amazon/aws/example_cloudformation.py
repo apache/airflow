@@ -83,10 +83,10 @@ with DAG(
     # [START howto_operator_cloudformation_delete_stack]
     delete_stack = CloudFormationDeleteStackOperator(
         task_id='delete_stack',
-        trigger_rule=TriggerRule.ALL_DONE,
         stack_name=cloudformation_stack_name,
     )
     # [END howto_operator_cloudformation_delete_stack]
+    delete_stack.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_sensor_cloudformation_delete_stack]
     wait_for_stack_delete = CloudFormationDeleteStackSensor(
