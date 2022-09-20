@@ -1212,7 +1212,9 @@
       default: ""
     - name: expose_config
       description: |
-        Expose the configuration file in the web server
+        Expose the configuration file in the web server. Set to "non-sensitive-only" to show all values
+        except those that have security implications. "True" shows all values. "False" hides the
+        configuration completely.
       version_added: ~
       type: string
       example: ~
