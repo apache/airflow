@@ -46,7 +46,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``eks.amazonaws.com`` must be added to the Trusted Relationships
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster]
@@ -98,7 +98,7 @@ Delete an Amazon EKS Cluster
 To delete an existing Amazon EKS Cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_delete_cluster]
@@ -127,7 +127,7 @@ Note:  An AWS IAM role with the following permissions is required:
   ``AmazonEC2ContainerRegistryReadOnly`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_create_nodegroup]
@@ -141,7 +141,7 @@ Delete an Amazon EKS managed node group
 To delete an existing Amazon EKS managed node group you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_delete_nodegroup]
@@ -190,7 +190,7 @@ To run a pod on an existing Amazon EKS Cluster, you can use
 
 Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eks_pod_operator]
@@ -207,7 +207,7 @@ Wait on an Amazon EKS cluster state
 To check the state of an Amazon EKS Cluster until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_eks_cluster]
@@ -221,7 +221,7 @@ Wait on an Amazon EKS managed node group state
 To check the state of an Amazon EKS managed node group until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_eks_nodegroup]
