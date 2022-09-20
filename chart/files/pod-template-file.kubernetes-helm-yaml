@@ -20,6 +20,7 @@
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -61,6 +62,7 @@ spec:
 {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      securityContext: {{ $containerSecurityContext }}
       name: base
       resources:
 {{ toYaml .Values.workers.resources | indent 8 }}
