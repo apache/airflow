@@ -1067,53 +1067,53 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, done
     @pytest.mark.parametrize(
-        "trigger_rule,successes,skipped,failed,upstream_failed,done,"
+        "trigger_rule,successes,skipped,failed,upstream_failed,done,removed,"
         "flag_upstream_failed,expect_state,expect_completed",
         [
             #
             # Tests for all_success
             #
-            ['all_success', 5, 0, 0, 0, 0, True, None, True],
-            ['all_success', 2, 0, 0, 0, 0, True, None, False],
-            ['all_success', 2, 0, 1, 0, 0, True, State.UPSTREAM_FAILED, False],
-            ['all_success', 2, 1, 0, 0, 0, True, State.SKIPPED, False],
+            ['all_success', 5, 0, 0, 0, 0, 0, True, None, True],
+            ['all_success', 2, 0, 0, 0, 0, 0, True, None, False],
+            ['all_success', 2, 0, 1, 0, 0, 0, True, State.UPSTREAM_FAILED, False],
+            ['all_success', 2, 1, 0, 0, 0, 0, True, State.SKIPPED, False],
             #
             # Tests for one_success
             #
-            ['one_success', 5, 0, 0, 0, 5, True, None, True],
-            ['one_success', 2, 0, 0, 0, 2, True, None, True],
-            ['one_success', 2, 0, 1, 0, 3, True, None, True],
-            ['one_success', 2, 1, 0, 0, 3, True, None, True],
-            ['one_success', 0, 5, 0, 0, 5, True, State.SKIPPED, False],
-            ['one_success', 0, 4, 1, 0, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 3, 1, 1, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 4, 0, 1, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 0, 5, 0, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 0, 4, 1, 5, True, State.UPSTREAM_FAILED, False],
-            ['one_success', 0, 0, 0, 5, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 5, 0, 0, 0, 5, 0, True, None, True],
+            ['one_success', 2, 0, 0, 0, 2, 0, True, None, True],
+            ['one_success', 2, 0, 1, 0, 3, 0, True, None, True],
+            ['one_success', 2, 1, 0, 0, 3, 0, True, None, True],
+            ['one_success', 0, 5, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['one_success', 0, 4, 1, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 3, 1, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 4, 0, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 5, 0, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 4, 1, 5, 0, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 0, 5, 5, 0, True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
-            ['all_failed', 5, 0, 0, 0, 5, True, State.SKIPPED, False],
-            ['all_failed', 0, 0, 5, 0, 5, True, None, True],
-            ['all_failed', 2, 0, 0, 0, 2, True, State.SKIPPED, False],
-            ['all_failed', 2, 0, 1, 0, 3, True, State.SKIPPED, False],
-            ['all_failed', 2, 1, 0, 0, 3, True, State.SKIPPED, False],
+            ['all_failed', 5, 0, 0, 0, 5, 0, True, State.SKIPPED, False],
+            ['all_failed', 0, 0, 5, 0, 5, 0, True, None, True],
+            ['all_failed', 2, 0, 0, 0, 2, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 0, 1, 0, 3, 0, True, State.SKIPPED, False],
+            ['all_failed', 2, 1, 0, 0, 3, 0, True, State.SKIPPED, False],
             #
             # Tests for one_failed
             #
-            ['one_failed', 5, 0, 0, 0, 0, True, None, False],
-            ['one_failed', 2, 0, 0, 0, 0, True, None, False],
-            ['one_failed', 2, 0, 1, 0, 0, True, None, True],
-            ['one_failed', 2, 1, 0, 0, 3, True, None, False],
-            ['one_failed', 2, 3, 0, 0, 5, True, State.SKIPPED, False],
+            ['one_failed', 5, 0, 0, 0, 0, 0, True, None, False],
+            ['one_failed', 2, 0, 0, 0, 0, 0, True, None, False],
+            ['one_failed', 2, 0, 1, 0, 0, 0, True, None, True],
+            ['one_failed', 2, 1, 0, 0, 3, 0, True, None, False],
+            ['one_failed', 2, 3, 0, 0, 5, 0, True, State.SKIPPED, False],
             #
             # Tests for done
             #
-            ['all_done', 5, 0, 0, 0, 5, True, None, True],
-            ['all_done', 2, 0, 0, 0, 2, True, None, False],
-            ['all_done', 2, 0, 1, 0, 3, True, None, False],
-            ['all_done', 2, 1, 0, 0, 3, True, None, False],
+            ['all_done', 5, 0, 0, 0, 5, 0, True, None, True],
+            ['all_done', 2, 0, 0, 0, 2, 0, True, None, False],
+            ['all_done', 2, 0, 1, 0, 3, 0, True, None, False],
+            ['all_done', 2, 1, 0, 0, 3, 0, True, None, False],
         ],
     )
     def test_check_task_dependencies(
@@ -1122,6 +1122,7 @@ class TestTaskInstance:
         successes: int,
         skipped: int,
         failed: int,
+        removed: int,
         upstream_failed: int,
         done: int,
         flag_upstream_failed: bool,
@@ -1144,6 +1145,7 @@ class TestTaskInstance:
             successes=successes,
             skipped=skipped,
             failed=failed,
+            removed=removed,
             upstream_failed=upstream_failed,
             done=done,
             dep_context=DepContext(),
