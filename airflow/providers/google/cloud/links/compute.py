@@ -18,7 +18,7 @@
 """This module contains Google Compute Engine links."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -45,11 +45,11 @@ class ComputeInstanceDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         location_id: str,
         resource_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -71,10 +71,10 @@ class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         resource_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -95,11 +95,11 @@ class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         location_id: str,
         resource_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
