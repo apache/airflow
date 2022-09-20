@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-20T06:44:08Z
+# This constraints file was automatically generated on 2022-09-20T14:54:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -334,6 +334,7 @@ iniconfig==1.1.1
 ipdb==0.13.9
 ipython==8.5.0
 isodate==0.6.1
+isort==5.10.1
 itsdangerous==2.1.2
 jaraco.classes==3.2.2
 jedi==0.18.1
@@ -393,7 +394,7 @@ mysql-connector-python==8.0.30
 mysqlclient==2.1.1
 nbclient==0.6.8
 nbformat==5.5.0
-neo4j==5.0.0
+neo4j==5.0.1
 nest-asyncio==1.5.5
 networkx==2.8.6
 nodeenv==1.7.0
@@ -559,7 +560,7 @@ stack-data==0.5.0
 starkbank-ecdsa==2.0.3
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
-tableauserverclient==0.19.0
+tableauserverclient==0.22
 tabulate==0.8.10
 tblib==1.7.0
 tenacity==8.0.1
