@@ -481,6 +481,11 @@ workers:
   #  fsGroup: 0
   #  runAsGroup: 0
 
+  # Detailed default security context for worker deployments for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -535,6 +540,9 @@ workers:
     fixPermissions: false
     # Annotations to add to worker volumes
     annotations: {}
+    # Detailed default security context for persistence for container level
+    securityContexts:
+      container: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -546,6 +554,9 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    # Detailed default security context for kerberosSidecar for container level
+    securityContexts:
+      container: {}
 
   resources: {}
   #  limits:
@@ -618,9 +629,15 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    # Detailed default security context for logGroomerSidecar for container level
+    securityContexts:
+      container: {}
 
   waitForMigrations:
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -741,11 +758,17 @@ scheduler:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    # Detailed default security context for logGroomerSidecar for container level
+    securityContexts:
+      container: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -788,6 +811,11 @@ createUserJob:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for createUserJob for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -848,6 +876,11 @@ migrateDatabaseJob:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for migrateDatabaseJob for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1040,6 +1073,9 @@ webserver:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -1087,6 +1123,11 @@ triggerer:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for triggerer for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   resources: {}
   #  limits:
@@ -1138,6 +1179,9 @@ triggerer:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -1185,6 +1229,11 @@ dagProcessor:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for dagProcessor for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   resources: {}
   #  limits:
@@ -1278,6 +1327,11 @@ flower:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  # Detailed default security context for flower for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1500,6 +1554,10 @@ pgbouncer:
 
   uid: 65534
 
+  # Detailed default security context for pgbouncer for container level
+  securityContexts:
+    container: {}
+
   metricsExporterSidecar:
     resources: {}
     #  limits:
@@ -1509,6 +1567,10 @@ pgbouncer:
     #   cpu: 100m
     #   memory: 128Mi
     sslmode: "disable"
+
+    # Detailed default security context for metricsExporterSidecar for container level
+    securityContexts:
+      container: {}
 
 # Configuration for the redis provisioned by the chart
 redis:
@@ -1568,6 +1630,11 @@ redis:
   securityContext: {}
   #  runAsUser: 999
   #  runAsGroup: 0
+
+  # Detailed default security context for redis for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
 
   podAnnotations: {}
 # Auth secret for a private registry
@@ -1661,6 +1728,10 @@ cleanup:
   #  runAsUser: 50000
   #  runAsGroup: 0
   env: []
+
+  # Detailed default security context for cleanup for container level
+  securityContexts:
+    container: {}
 
 # Configuration for postgresql subchart
 # Not recommended for production

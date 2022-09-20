@@ -26,6 +26,7 @@
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.triggerer) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.triggerer) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -115,6 +116,7 @@ spec:
             {{- toYaml .Values.triggerer.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: {{ template "airflow_config_path" . }}
@@ -141,6 +143,7 @@ spec:
         - name: triggerer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.triggerer.command }}
           command: {{ tpl (toYaml .Values.triggerer.command) . | nindent 12 }}
           {{- end }}

@@ -740,9 +740,9 @@ fsGroup: {{ $.Values.gid }}
 Set the default value for pod securityContext
 If no value is passed for <node>.securityContexts.pod or <node>.securityContext, defaults to UID in the local node.
 
-    +------------------------+           +-----------------+            +-------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  >  | <node>.uid  |
-    +------------------------+           +-----------------+            +-------------+
+    +-----------------------------+      +------------------------+      +-------------+
+    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid  |
+    +-----------------------------+      +------------------------+      +-------------+
 
 The template can be called like so:
   include "localPodSecurityContext" (list . .Values.schedule)
@@ -764,9 +764,9 @@ Set the default value for workers chown for persistent storage
 If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
 The template looks for `runAsUser` and `fsGroup` specifically, any other parameter will be ignored.
 
-    +------------------------+           +-----------------+    +------------------------+           +-----------------+           +----------------------+
+    +-----------------------------+      +----------------------------------------------------+      +------------------+      +-------------------------+
     | <node>.securityContexts.pod |  ->  | securityContexts.pod | <node>.securityContexts.pod |  ->  | securityContexts |  ->  | Values.uid + Values.gid |
-    +------------------------+           +-----------------+    +------------------------+           +-----------------+           +----------------------+
+    +-----------------------------+      +----------------------------------------------------+      +------------------+      +-------------------------+
 
 Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContexts.pod,
 any extra values set to securityContexts or uid+gid will be ignored.
@@ -797,17 +797,17 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
 Set the default value for container securityContext
 If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
 
-    +------------------------+                +-----------------+                +-------------------------+
+    +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
     | <node>.securityContexts.container |  ->  | securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-    +------------------------+                +-----------------+                +-------------------------+
+    +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
 
 The template can be called like so:
-   include "airflowContainerSecurityContext" (list . .Values.statsd)
+   include "containerSecurityContext" (list . .Values.statsd)
 
 Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
 */}}
-{{- define "airflowContainerSecurityContext" -}}
+{{- define "containerSecurityContext" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContexts.container -}}
