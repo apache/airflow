@@ -28,8 +28,8 @@ main DAGs view page instead of a search filter.
 
 Two options are supported:
 
-* An HTTP link, e.g. to the owner's Slack channel
-* A `mailto <https://en.wikipedia.org/wiki/Mailto>`_ link which opens your default email client to send an email to the specified address
+* An HTTP link (e.g. ``https://www.example.com``) which opens the webpage in your default internet client
+* A `mailto <https://en.wikipedia.org/wiki/Mailto>`_ link (e.g. ``mailto:example@airflow.com``) which opens your default email client to send an email to the specified address
 
 In your DAG, set the ``owner_links`` argument specifying a dictionary of an owner (key) and its link (value).
 Next define a task using this owner, and the owner in the DAGs view will link to the specified address.
