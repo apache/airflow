@@ -272,7 +272,7 @@ class ComputeEngineHook(GoogleBaseHook):
             in the Instance Template.
             Full or partial URL and can be represented as examples below:
             1. "https://www.googleapis.com/compute/v1/projects/your-project-name/global/instanceTemplates/"
-            "your-instanceTemplate-name"
+"your-instanceTemplate-name"
             2. "projects/your-project-name/global/instanceTemplates/your-instanceTemplate-name"
             3. "global/instanceTemplates/your-instanceTemplate-name"
         :param request_id: Unique request_id that you might add to achieve
