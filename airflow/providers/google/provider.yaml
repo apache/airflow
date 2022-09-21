@@ -1017,6 +1017,9 @@ extra-links:
   - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
   - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
+  - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferListLink
+  - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferJobLink
+  - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferDetailsLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 
