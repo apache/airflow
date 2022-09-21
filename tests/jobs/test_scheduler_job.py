@@ -104,6 +104,12 @@ def dagbag():
     return DagBag(read_dags_from_db=True)
 
 
+@pytest.fixture
+def load_examples():
+    with conf_vars({('core', 'load_examples'): 'True'}):
+        yield
+
+
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
@@ -4014,7 +4020,7 @@ class TestSchedulerJob:
 
             self.scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_find_zombies(self):
+    def test_find_zombies(self, load_examples):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             session.query(LocalTaskJob).delete()
@@ -4072,7 +4078,7 @@ class TestSchedulerJob:
             session.query(TaskInstance).delete()
             session.query(LocalTaskJob).delete()
 
-    def test_zombie_message(self):
+    def test_zombie_message(self, load_examples):
         """
         Check that the zombie message comes out as expected
         """
