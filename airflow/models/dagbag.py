@@ -104,11 +104,14 @@ class DagBag(LoggingMixin):
 
         super().__init__()
 
-        if include_examples is NOTSET:
-            include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
-
-        if safe_mode is NOTSET:
-            safe_mode = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')
+        include_examples = (
+            include_examples
+            if isinstance(include_examples, bool)
+            else conf.getboolean('core', 'LOAD_EXAMPLES')
+        )
+        safe_mode = (
+            safe_mode if isinstance(safe_mode, bool) else conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')
+        )
 
         if store_serialized_dags:
             warnings.warn(
