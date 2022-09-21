@@ -225,8 +225,8 @@ class TestSQLCheckOperatorDbHook:
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='s3')
-        with pytest.raises(AirflowException, match=r'Unknown hook type "s3"'):
+        mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='airbyte')
+        with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
             self._operator._hook
 
     def test_sql_operator_hook_params_snowflake(self, mock_get_conn):
