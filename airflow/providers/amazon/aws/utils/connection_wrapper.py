@@ -128,9 +128,19 @@ class AwsConnectionWrapper(LoggingMixin):
         self.password = conn.password
         self.extra_config = deepcopy(conn.extra_dejson)
 
-        if self.conn_type != "aws":
+        if self.conn_type.lower() == "s3":
             warnings.warn(
-                f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}.",
+                f"{self.conn_repr} has connection type 's3', "
+                "which has been replaced by connection type 'aws'. "
+                "Please update your connection to have `conn_type='aws'`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        elif self.conn_type != "aws":
+            warnings.warn(
+                f"{self.conn_repr} expected connection type 'aws', got {self.conn_type!r}. "
+                "This connection might not work correctly. "
+                "Please use Amazon Web Services Connection type.",
                 UserWarning,
                 stacklevel=2,
             )
