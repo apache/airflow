@@ -328,7 +328,7 @@ class GCSHook(GoogleBaseHook):
                     self.log.error(
                         'Download attempt of object: %s from %s has failed. Attempt: %s, max %s.',
                         object_name,
-                        object_name,
+                        bucket_name,
                         num_file_attempts,
                         num_max_attempts,
                     )
