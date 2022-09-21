@@ -37,11 +37,11 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
     # id that provides access to the storage location.
     remote_logging = True
     remote_base_log_folder = s3://my-bucket/path/to/logs
-    remote_log_conn_id = MyS3Conn
+    remote_log_conn_id = my_s3_conn
     # Use server-side encryption for logs stored in S3
     encrypt_s3_logs = False
 
-In the above example, Airflow will try to use ``S3Hook('MyS3Conn')``.
+In the above example, Airflow will try to use ``S3Hook(aws_conn_id='my_s3_conn')``.
 
 You can also use `LocalStack <https://localstack.cloud/>`_ to emulate Amazon S3 locally.
 To configure it, you must additionally set the endpoint url to point to your local stack.
