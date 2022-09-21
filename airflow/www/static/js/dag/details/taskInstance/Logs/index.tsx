@@ -61,13 +61,12 @@ const getLinkIndexes = (tryNumber: number | undefined): Array<Array<number>> => 
   const externalIndexes: Array<number> = [];
 
   if (tryNumber) {
-    [...Array(tryNumber + 1 || 0)].forEach((_, index) => {
-      if (index === 0 && tryNumber < 2) return;
-      const isExternal = index !== 0 && showExternalLogRedirect;
-      if (isExternal) {
-        externalIndexes.push(index);
+    [...Array(tryNumber)].forEach((_, index) => {
+      const tryNum = index + 1;
+      if (showExternalLogRedirect) {
+        externalIndexes.push(tryNum);
       } else {
-        internalIndexes.push(index);
+        internalIndexes.push(tryNum);
       }
     });
   }
@@ -99,12 +98,13 @@ const Logs = ({
   tryNumber,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [selectedAttempt, setSelectedAttempt] = useState(1);
+  const [manuallySelectedAttempt, setSelectedAttempt] = useState<number | undefined>();
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
+  const selectedAttempt = manuallySelectedAttempt || tryNumber || 1;
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
@@ -144,8 +144,8 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (!internalIndexes.includes(selectedAttempt) && internalIndexes.length) {
-      setSelectedAttempt(internalIndexes[0]);
+    if (selectedAttempt > (tryNumber || 1)) {
+      setSelectedAttempt(undefined);
     }
 
     if (data && fileSourceFilters.length > 0
@@ -155,7 +155,7 @@ const Logs = ({
       )) {
       setFileSourceFilters([]);
     }
-  }, [data, internalIndexes, fileSourceFilters, fileSources, selectedAttempt]);
+  }, [data, fileSourceFilters, fileSources, selectedAttempt, tryNumber]);
 
   return (
     <>
