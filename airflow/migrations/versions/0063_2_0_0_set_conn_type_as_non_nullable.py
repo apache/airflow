@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Set ``conn_type`` as non-nullable
 
 Revision ID: 8f966b9c467a
@@ -23,6 +22,7 @@ Revises: 3c20cacc0044
 Create Date: 2020-06-08 22:36:34.534121
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

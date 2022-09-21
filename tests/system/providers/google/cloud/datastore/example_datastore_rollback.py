@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Airflow System Test DAG that verifies Datastore rollback operators.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from airflow import models
 from airflow.providers.google.cloud.operators.datastore import (
@@ -35,12 +35,12 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "datastore_rollback"
 
-TRANSACTION_OPTIONS: Dict[str, Any] = {"readWrite": {}}
+TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["datastore", "example"],

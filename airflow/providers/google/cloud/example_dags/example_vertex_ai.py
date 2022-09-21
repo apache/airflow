@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
-
 """
 Example Airflow DAG that demonstrates operators for the Google Vertex AI service in the Google
 Cloud Platform.
@@ -35,13 +31,13 @@ This DAG relies on the following OS environment variables:
 * MODEL_ARTIFACT_URI - The artifact_uri should be the path to a GCS directory containing saved model
   artifacts.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
 from uuid import uuid4
 
 from google.cloud import aiplatform
-from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
@@ -94,6 +90,10 @@ from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
     ListModelsOperator,
     UploadModelOperator,
 )
+
+# mypy ignore arg types (for templated fields)
+# type: ignore[arg-type]
+
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
@@ -196,7 +196,7 @@ MODEL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/models/{MODEL_ID}"
 JOB_DISPLAY_NAME = f"temp_create_batch_prediction_job_test_{uuid4()}"
 BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
 GCS_DESTINATION_PREFIX = "gs://test-vertex-ai-bucket-us/output"
-MODEL_PARAMETERS = json_format.ParseDict({}, Value())
+MODEL_PARAMETERS: dict | None = {}
 
 ENDPOINT_CONF = {
     "display_name": f"endpoint_test_{uuid4()}",
@@ -238,7 +238,6 @@ MODEL_OBJ = {
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as custom_jobs_dag:
@@ -328,7 +327,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_dataset",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dataset_dag:
@@ -431,7 +429,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_auto_ml",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as auto_ml_dag:
@@ -548,7 +545,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_batch_prediction_job",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as batch_prediction_job_dag:
@@ -588,7 +584,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_endpoint",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as endpoint_dag:
@@ -644,7 +639,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_hyperparameter_tuning_job",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as hyperparameter_tuning_job_dag:
@@ -717,7 +711,6 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_model_service",
-    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as model_service_dag:

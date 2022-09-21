@@ -15,21 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This is an example dag for using the WinRMOperator.
+"""
+from __future__ import annotations
+
+# --------------------------------------------------------------------------------
+# Load The Dependencies
+# --------------------------------------------------------------------------------
+import os
+from datetime import datetime, timedelta
+
+from airflow import DAG
+
 # --------------------------------------------------------------------------------
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
 
-# --------------------------------------------------------------------------------
-# Load The Dependencies
-# --------------------------------------------------------------------------------
-"""
-This is an example dag for using the WinRMOperator.
-"""
-import os
-from datetime import datetime, timedelta
-
-from airflow import DAG
 
 try:
     from airflow.operators.empty import EmptyOperator
@@ -44,7 +47,7 @@ DAG_ID = "POC_winrm_parallel"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='0 0 * * *',
+    schedule='0 0 * * *',
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],

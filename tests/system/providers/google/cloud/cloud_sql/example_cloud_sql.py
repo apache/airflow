@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
 creates, patches and deletes a database inside the instance, in Google Cloud.
@@ -26,12 +25,14 @@ https://airflow.apache.org/concepts.html#variables
 * INSTANCE_NAME - Name of the Cloud SQL instance.
 * DB_NAME - Name of the database inside a Cloud SQL instance.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
 from urllib.parse import urlsplit
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
@@ -141,7 +142,7 @@ db_patch_body = {"charset": "utf16", "collation": "utf16_general_ci"}
 
 with models.DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "cloud_sql"],
@@ -196,9 +197,11 @@ with models.DAG(
 
     # For export & import to work we need to add the Cloud SQL instance's Service Account
     # write access to the destination GCS bucket.
+    service_account_email = XComArg(sql_instance_create_task, key='service_account_email')
+
     # [START howto_operator_cloudsql_export_gcs_permissions]
     sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
-        entity=f"user-{sql_instance_create_task.output['service_account_email']}",
+        entity=f"user-{service_account_email}",
         role="WRITER",
         bucket=file_url_split[1],  # netloc (bucket)
         task_id='sql_gcp_add_bucket_permission_task',
@@ -215,7 +218,7 @@ with models.DAG(
     # read access to the target GCS object.
     # [START howto_operator_cloudsql_import_gcs_permissions]
     sql_gcp_add_object_permission_task = GCSObjectCreateAclEntryOperator(
-        entity=f"user-{sql_instance_create_task.output['service_account_email']}",
+        entity=f"user-{service_account_email}",
         role="READER",
         bucket=file_url_split[1],  # netloc (bucket)
         object_name=file_url_split[2][1:],  # path (strip first '/')

@@ -22,6 +22,7 @@ The first task calls an sql command, defined in the SQLite operator,
 which when triggered, is performed on the connected sqlite database.
 The second task is similar but instead calls the SQL command from an external file.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -35,7 +36,7 @@ DAG_ID = "example_sqlite"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval='@daily',
+    schedule='@daily',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,

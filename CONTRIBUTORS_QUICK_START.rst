@@ -218,13 +218,13 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ breeze setup-autocomplete
+  $ breeze setup autocomplete
 
 4. Initialize breeze environment with required python version and backend. This may take a while for first time.
 
 .. code-block:: bash
 
-  $ breeze --python 3.7 --backend postgres
+  $ breeze --python 3.8 --backend postgres
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -612,7 +612,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset --test-type All  tests
+   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -622,7 +622,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset --test-type Core
+    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -631,7 +631,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset --test-type All --integration mongo
+   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|

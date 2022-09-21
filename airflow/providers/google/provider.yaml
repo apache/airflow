@@ -29,6 +29,8 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.3.0
+  - 8.2.0
   - 8.1.0
   - 8.0.0
   - 7.0.0
@@ -52,7 +54,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql
+  - apache-airflow-providers-common-sql>=1.1.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
@@ -62,6 +64,9 @@ dependencies:
   # Introduced breaking changes across the board. Those libraries should be upgraded soon
   # TODO: Upgrade all Google libraries that are limited to <2.0.0
   - PyOpenSSL
+  - asgiref>=3.5.2
+  - gcloud-aio-bigquery>=6.1.2
+  - gcloud-aio-storage
   - google-ads>=15.1.1
   - google-api-core>=2.7.0,<3.0.0
   - google-api-python-client>=1.6.0,<2.0.0
@@ -73,6 +78,7 @@ dependencies:
   - google-cloud-bigtable>=1.0.0,<2.0.0
   - google-cloud-build>=3.0.0
   - google-cloud-container>=2.2.0,<3.0.0
+  - google-cloud-dataform>=0.2.0
   - google-cloud-datacatalog>=3.0.0
   - google-cloud-dataplex>=0.1.0
   - google-cloud-dataproc>=3.1.0
@@ -107,6 +113,9 @@ dependencies:
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
+  # Google bigtable client require protobuf <= 3.20.0. We can remove the limitation
+  # when this limitation is removed
+  - protobuf<=3.20.0
 
 integrations:
   - integration-name: Google Analytics360
@@ -155,6 +164,11 @@ integrations:
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
+  - integration-name: Google Cloud Dataform
+    external-doc-url: https://cloud.google.com/dataform/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataform.rst
     tags: [google]
   - integration-name: Google Cloud Data Loss Prevention (DLP)
     external-doc-url: https://cloud.google.com/dlp/
@@ -566,6 +580,9 @@ operators:
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
+  - integration-name: Google Cloud Dataform
+    python-modules:
+      - airflow.providers.google.cloud.operators.dataform
 
 sensors:
   - integration-name: Google BigQuery
@@ -616,6 +633,12 @@ sensors:
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.sensors.looker
+  - integration-name: Google Cloud Dataform
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataform
+  - integration-name: Google Cloud Tasks
+    python-modules:
+      - airflow.providers.google.cloud.sensors.tasks
 
 hooks:
   - integration-name: Google Ads
@@ -784,6 +807,9 @@ hooks:
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
+  - integration-name: Google Cloud Dataform
+    python-modules:
+      - airflow.providers.google.cloud.hooks.dataform
 
 transfers:
   - source-integration-name: Presto
@@ -794,7 +820,7 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/trino_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.trino_to_gcs
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.sql_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
@@ -873,7 +899,7 @@ transfers:
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
-  - source-integration-name: SQL
+  - source-integration-name: Common SQL
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.sql_to_sheets
@@ -929,6 +955,7 @@ extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+  - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
@@ -977,6 +1004,19 @@ extra-links:
   - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
+  - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
+  - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceListLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceDetailsLink
+  - airflow.providers.google.cloud.links.cloud_memorystore.RedisInstanceListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink
+  - airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink
+  - airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink
+  - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink
+  - airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 

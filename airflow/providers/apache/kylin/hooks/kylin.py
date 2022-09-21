@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from kylinpy import exceptions, kylinpy
 
@@ -36,8 +35,8 @@ class KylinHook(BaseHook):
     def __init__(
         self,
         kylin_conn_id: str = 'kylin_default',
-        project: Optional[str] = None,
-        dsn: Optional[str] = None,
+        project: str | None = None,
+        dsn: str | None = None,
     ):
         super().__init__()
         self.kylin_conn_id = kylin_conn_id

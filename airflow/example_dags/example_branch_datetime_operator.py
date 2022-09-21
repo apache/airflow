@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating the usage of DateTimeBranchOperator with datetime as well as time objects as
 targets.
 """
+from __future__ import annotations
+
 import pendulum
 
 from airflow import DAG
@@ -31,7 +32,7 @@ dag1 = DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-    schedule_interval="@daily",
+    schedule="@daily",
 )
 
 # [START howto_branch_datetime_operator]
@@ -47,7 +48,7 @@ cond1 = BranchDateTimeOperator(
     dag=dag1,
 )
 
-# Run empty_task_1 if cond1 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
+# Run empty_task_11 if cond1 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
 cond1 >> [empty_task_11, empty_task_21]
 # [END howto_branch_datetime_operator]
 
@@ -57,7 +58,7 @@ dag2 = DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-    schedule_interval="@daily",
+    schedule="@daily",
 )
 # [START howto_branch_datetime_operator_next_day]
 empty_task_12 = EmptyOperator(task_id='date_in_range', dag=dag2)
@@ -73,6 +74,31 @@ cond2 = BranchDateTimeOperator(
 )
 
 # Since target_lower happens after target_upper, target_upper will be moved to the following day
-# Run empty_task_1 if cond2 executes between 15:00:00, and 00:00:00 of the following day
+# Run empty_task_12 if cond2 executes between 15:00:00, and 00:00:00 of the following day
 cond2 >> [empty_task_12, empty_task_22]
 # [END howto_branch_datetime_operator_next_day]
+
+dag3 = DAG(
+    dag_id="example_branch_datetime_operator_3",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
+    schedule="@daily",
+)
+# [START howto_branch_datetime_operator_logical_date]
+empty_task_13 = EmptyOperator(task_id='date_in_range', dag=dag3)
+empty_task_23 = EmptyOperator(task_id='date_outside_range', dag=dag3)
+
+cond3 = BranchDateTimeOperator(
+    task_id='datetime_branch',
+    use_task_logical_date=True,
+    follow_task_ids_if_true=['date_in_range'],
+    follow_task_ids_if_false=['date_outside_range'],
+    target_upper=pendulum.datetime(2020, 10, 10, 15, 0, 0),
+    target_lower=pendulum.datetime(2020, 10, 10, 14, 0, 0),
+    dag=dag3,
+)
+
+# Run empty_task_13 if cond3 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
+cond3 >> [empty_task_13, empty_task_23]
+# [END howto_branch_datetime_operator_logical_date]

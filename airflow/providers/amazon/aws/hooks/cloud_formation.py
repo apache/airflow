@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS CloudFormation Hook"""
-import warnings
-from typing import Optional, Union
+from __future__ import annotations
 
 from boto3 import client, resource
 from botocore.exceptions import ClientError
@@ -40,7 +38,7 @@ class CloudFormationHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='cloudformation', *args, **kwargs)
 
-    def get_stack_status(self, stack_name: Union[client, resource]) -> Optional[dict]:
+    def get_stack_status(self, stack_name: client | resource) -> dict | None:
         """Get stack status from CloudFormation."""
         self.log.info('Poking for stack %s', stack_name)
 
@@ -64,7 +62,7 @@ class CloudFormationHook(AwsBaseHook):
             cloudformation_parameters['StackName'] = stack_name
         self.get_conn().create_stack(**cloudformation_parameters)
 
-    def delete_stack(self, stack_name: str, cloudformation_parameters: Optional[dict] = None) -> None:
+    def delete_stack(self, stack_name: str, cloudformation_parameters: dict | None = None) -> None:
         """
         Delete stack in CloudFormation.
 
@@ -75,19 +73,3 @@ class CloudFormationHook(AwsBaseHook):
         if 'StackName' not in cloudformation_parameters:
             cloudformation_parameters['StackName'] = stack_name
         self.get_conn().delete_stack(**cloudformation_parameters)
-
-
-class AWSCloudFormationHook(CloudFormationHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

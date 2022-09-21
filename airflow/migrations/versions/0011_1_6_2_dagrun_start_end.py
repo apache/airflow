@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Add ``start_date`` and ``end_date`` in ``dag_run`` table
 
 Revision ID: 4446e08588
@@ -23,6 +22,7 @@ Revises: 561833c1c74b
 Create Date: 2015-12-10 11:26:18.439223
 
 """
+from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op

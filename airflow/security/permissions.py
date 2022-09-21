@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 # Resource Constants
 RESOURCE_ACTION = "Permissions"
@@ -53,6 +54,7 @@ RESOURCE_USER_STATS_CHART = "User Stats Chart"
 RESOURCE_VARIABLE = "Variables"
 RESOURCE_WEBSITE = "Website"
 RESOURCE_XCOM = "XComs"
+RESOURCE_DATASET = "Datasets"
 
 
 # Action Constants

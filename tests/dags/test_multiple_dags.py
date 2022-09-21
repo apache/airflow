@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 
 from airflow.models import DAG
@@ -27,7 +29,7 @@ def create_dag(suffix):
     dag = DAG(
         dag_id=f'test_multiple_dags__{suffix}',
         default_args=args,
-        schedule_interval='0 0 * * *',
+        schedule='0 0 * * *',
         dagrun_timeout=datetime.timedelta(minutes=60),
     )
 

@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -40,6 +41,7 @@ class TestTaskSchema:
             "execution_timeout": None,
             "extra_links": [],
             "owner": "airflow",
+            "operator_name": "EmptyOperator",
             "params": {},
             "pool": "default_pool",
             "pool_slots": 1.0,
@@ -78,6 +80,7 @@ class TestTaskCollectionSchema:
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
+                    "operator_name": "EmptyOperator",
                     "owner": "airflow",
                     'params': {
                         'foo': {

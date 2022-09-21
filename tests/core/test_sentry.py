@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import importlib
@@ -72,7 +73,7 @@ class TestSentryHook:
     @pytest.fixture
     def task_instance(self, dag_maker):
         # Mock the Dag
-        with dag_maker(DAG_ID, schedule_interval=SCHEDULE_INTERVAL):
+        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
         dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)

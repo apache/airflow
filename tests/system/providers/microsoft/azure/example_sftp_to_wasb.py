@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -44,7 +46,7 @@ def delete_sftp_file():
 
 with DAG(
     DAG_ID,
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
 ) as dag:

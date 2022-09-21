@@ -15,15 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that creates and deletes Bigquery data transfer configurations.
 """
+from __future__ import annotations
+
 import os
 import time
 from datetime import datetime
+from typing import cast
 
 from airflow import models
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
     BigQueryDataTransferServiceStartTransferRunsOperator,
@@ -64,7 +67,6 @@ TRANSFER_CONFIG = {
 
 with models.DAG(
     "example_gcp_bigquery_dts",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
@@ -76,7 +78,7 @@ with models.DAG(
         task_id="gcp_bigquery_create_transfer",
     )
 
-    transfer_config_id = gcp_bigquery_create_transfer.output["transfer_config_id"]
+    transfer_config_id = cast(str, XComArg(gcp_bigquery_create_transfer, key="transfer_config_id"))
     # [END howto_bigquery_create_data_transfer]
 
     # [START howto_bigquery_start_transfer]
@@ -91,7 +93,7 @@ with models.DAG(
     gcp_run_sensor = BigQueryDataTransferServiceTransferRunSensor(
         task_id="gcp_run_sensor",
         transfer_config_id=transfer_config_id,
-        run_id=gcp_bigquery_start_transfer.output["run_id"],
+        run_id=cast(str, XComArg(gcp_bigquery_start_transfer, key="run_id")),
         expected_statuses={"SUCCEEDED"},
     )
     # [END howto_bigquery_dts_sensor]

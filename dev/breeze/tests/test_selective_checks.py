@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Dict, Tuple
+from __future__ import annotations
 
 import pytest
 
@@ -23,7 +22,7 @@ from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 
-def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
+def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
     for name, value in expected_outputs.items():
         assert f"::set-output name={name}::{value}" in output
 
@@ -241,8 +240,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
     ],
 )
 def test_expected_output_pull_request_main(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -334,10 +333,10 @@ def test_expected_output_pull_request_main(
     ],
 )
 def test_expected_output_full_tests_needed(
-    files: Tuple[str, ...],
-    pr_labels: Tuple[str, ...],
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
     default_branch: str,
-    expected_outputs: Dict[str, str],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -426,8 +425,8 @@ def test_expected_output_full_tests_needed(
     ],
 )
 def test_expected_output_pull_request_v2_3(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -496,8 +495,8 @@ def test_expected_output_pull_request_v2_3(
     ],
 )
 def test_expected_output_pull_request_target(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -564,10 +563,10 @@ def test_expected_output_pull_request_target(
     ],
 )
 def test_expected_output_push(
-    files: Tuple[str, ...],
-    pr_labels: Tuple[str, ...],
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
     default_branch: str,
-    expected_outputs: Dict[str, str],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -612,3 +611,54 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
         },
         str(sc),
     )
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("airflow/models/dag.py",),
+            {
+                "upgrade-to-newer-dependencies": "false",
+            },
+            id="Regular source changed",
+        ),
+        pytest.param(
+            ("setup.py",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Setup.py changed",
+        ),
+        pytest.param(
+            ("setup.cfg",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Setup.cfg changed",
+        ),
+        pytest.param(
+            ('airflow/providers/microsoft/azure/provider.yaml',),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Provider.yaml changed",
+        ),
+        pytest.param(
+            ('generated/provider_dependencies.json',),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            id="Generated provider_dependencies changed",
+        ),
+    ],
+)
+def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    sc = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(sc))

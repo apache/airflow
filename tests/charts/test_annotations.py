@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import pytest
 
@@ -337,6 +338,32 @@ class TestServiceAccountAnnotations:
             "templates/cleanup/cleanup-cronjob.yaml",
             {
                 "example": "cleanup",
+            },
+        ),
+        (
+            {
+                "redis": {
+                    "podAnnotations": {
+                        "example": "redis",
+                    },
+                },
+            },
+            "templates/redis/redis-statefulset.yaml",
+            {
+                "example": "redis",
+            },
+        ),
+        (
+            {
+                "statsd": {
+                    "podAnnotations": {
+                        "example": "statsd",
+                    },
+                },
+            },
+            "templates/statsd/statsd-deployment.yaml",
+            {
+                "example": "statsd",
             },
         ),
     ],

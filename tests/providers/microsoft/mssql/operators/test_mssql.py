@@ -15,19 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
-from airflow import PY38, AirflowException
-
-if not PY38:
-    from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
+from airflow import AirflowException
+from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 
 
 class TestMsSqlOperator:
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_get_hook_from_conn(self, get_connection):
         """
@@ -45,7 +42,6 @@ class TestMsSqlOperator:
         op = MsSqlOperator(task_id='test', sql='')
         assert op.get_hook() == mock_hook
 
-    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_get_hook_default(self, get_connection):
         """

@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -68,14 +70,14 @@ class FTPToS3Operator(BaseOperator):
         ftp_path: str,
         s3_bucket: str,
         s3_key: str,
-        ftp_filenames: Optional[Union[str, List[str]]] = None,
-        s3_filenames: Optional[Union[str, List[str]]] = None,
+        ftp_filenames: str | list[str] | None = None,
+        s3_filenames: str | list[str] | None = None,
         ftp_conn_id: str = 'ftp_default',
         aws_conn_id: str = 'aws_default',
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -90,8 +92,8 @@ class FTPToS3Operator(BaseOperator):
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
-        self.s3_hook: Optional[S3Hook] = None
-        self.ftp_hook: Optional[FTPHook] = None
+        self.s3_hook: S3Hook | None = None
+        self.ftp_hook: FTPHook | None = None
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
@@ -110,7 +112,7 @@ class FTPToS3Operator(BaseOperator):
             )
             self.log.info('File upload to %s', s3_file_key)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
         self.s3_hook = S3Hook(self.aws_conn_id)
 

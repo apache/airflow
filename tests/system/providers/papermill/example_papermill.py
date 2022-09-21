@@ -20,6 +20,8 @@ This DAG will use Papermill to run the notebook "hello_world", based on the exec
 it will create an output notebook "out-<date>". All fields, including the keys in the parameters, are
 templated.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 
@@ -34,7 +36,7 @@ DAG_ID = "example_papermill_operator"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval=SCHEDULE_INTERVAL,
+    schedule=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
     tags=['example'],

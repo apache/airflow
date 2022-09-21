@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -147,7 +148,6 @@ PIPELINE = {
 
 with models.DAG(
     "example_data_fusion",
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

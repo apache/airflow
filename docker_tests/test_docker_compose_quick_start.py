@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import contextlib
 import os
@@ -23,7 +24,6 @@ from pathlib import Path
 from pprint import pprint
 from shutil import copyfile
 from time import monotonic, sleep
-from typing import Dict
 from unittest import mock
 
 import requests
@@ -38,7 +38,7 @@ DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> Dict:
+def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
@@ -112,7 +112,9 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
 
 
 def test_trigger_dag_and_wait_for_result():
-    compose_file_path = SOURCE_ROOT / "docs" / "apache-airflow" / "start" / "docker-compose.yaml"
+    compose_file_path = (
+        SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
+    )
 
     with tempfile.TemporaryDirectory() as tmp_dir, tmp_chdir(tmp_dir), mock.patch.dict(
         'os.environ', AIRFLOW_IMAGE_NAME=docker_image

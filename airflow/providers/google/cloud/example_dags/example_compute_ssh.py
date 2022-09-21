@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -30,7 +31,6 @@ GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'target-instance')
 
 with models.DAG(
     'example_compute_ssh',
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

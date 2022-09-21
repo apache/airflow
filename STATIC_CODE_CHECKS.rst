@@ -155,7 +155,13 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                      | Check changelogs for duplicate entries                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-dag-init-decorator-arguments                     | Check DAG and @dag arguments                                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -173,7 +179,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-integrations-are-consistent                      | Check if integration list is consistent in various places        |         |
+| check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-merge-conflict                                   | Check that merge conflicts are not being committed               |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -213,6 +219,10 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                              | Run codespell to check for common misspellings in files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| compile-www-assets                                     | Compile www assets                                               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| compile-www-assets-dev                                 | Compile www assets in dev mode                                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | create-missing-init-py-files-tests                     | Create missing init.py files in tests                            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | debug-statements                                       | Detect accidentally committed debug statements                   |         |
@@ -249,9 +259,6 @@ require Breeze Docker image to be build locally.
 | lint-dockerfile                                        | Lint dockerfile                                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                        | Lint Helm Chart                                                  |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-javascript                                        | * ESLint against airflow/ui                                      | *       |
-|                                                        | * ESLint against current UI JavaScript files                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |
 |                                                        | * Lint NodePort Service with JSON Schema                         |         |
@@ -292,9 +299,13 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| ts-compile-and-lint-javascript                         | TS types generation and ESLint against current UI files          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-er-diagram                                      | Update ER diagram                                                | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-extras                                          | Update extras in documentation                                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -391,7 +402,7 @@ The static code checks can be launched using the Breeze environment.
 You run the static code checks via ``breeze static-check`` or commands.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
-option. Note that the ``all`` static check runs all configured static checks.
+option.
 
 Run the ``mypy`` check for the currently staged changes:
 
@@ -421,19 +432,19 @@ Run all checks for the currently staged files:
 
 .. code-block:: bash
 
-     breeze static-checks --type all
+     breeze static-checks
 
 Run all checks for all files:
 
 .. code-block:: bash
 
-    breeze static-checks --type all --all-files
+    breeze static-checks --all-files
 
 Run all checks for last commit :
 
 .. code-block:: bash
 
-     breeze static-checks --type all --last-commit
+     breeze static-checks --last-commit
 
 Debugging pre-commit check scripts requiring image
 --------------------------------------------------

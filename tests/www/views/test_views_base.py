@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import json
 
 import pytest
 
-from airflow import version
 from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -30,21 +31,19 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_index(admin_client):
-    with assert_queries_count(14):
+    with assert_queries_count(16):
         resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response('DAGs', resp)
 
 
-def test_doc_urls(admin_client):
-    resp = admin_client.get('/', follow_redirects=True)
-    if "dev" in version.version:
-        airflow_doc_site = (
-            "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
-        )
-    else:
-        airflow_doc_site = f'https://airflow.apache.org/docs/apache-airflow/{version.version}'
+def test_doc_urls(admin_client, monkeypatch):
+    # Mocking this way is tying the test closer to the implementation much more than I'd like. :shrug:
+    from airflow.www.views import AirflowBaseView
 
-    check_content_in_response(airflow_doc_site, resp)
+    monkeypatch.setitem(AirflowBaseView.extra_args, 'get_docs_url', lambda _: "!!DOCS_URL!!")
+    resp = admin_client.get('/', follow_redirects=True)
+
+    check_content_in_response('!!DOCS_URL!!', resp)
     check_content_in_response("/api/v1/ui", resp)
 
 

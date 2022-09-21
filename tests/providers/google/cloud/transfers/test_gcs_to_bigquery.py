@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -44,10 +45,13 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
 
         bq_hook.return_value.get_job.return_value.result.return_value = ('1',)
 
-        operator.execute(None)
+        result = operator.execute(None)
+
+        assert result == '1'
 
         bq_hook.return_value.run_query.assert_called_once_with(
             sql="SELECT MAX(id) FROM `test-project.dataset.table`",
+            location=None,
             use_legacy_sql=False,
         )
 

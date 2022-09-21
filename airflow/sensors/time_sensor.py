@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 
 from airflow.sensors.base import BaseSensorOperator
@@ -51,9 +53,11 @@ class TimeSensorAsync(BaseSensorOperator):
         super().__init__(**kwargs)
         self.target_time = target_time
 
-        self.target_datetime = timezone.coerce_datetime(
+        aware_time = timezone.coerce_datetime(
             datetime.datetime.combine(datetime.datetime.today(), self.target_time)
         )
+
+        self.target_datetime = timezone.convert_to_utc(aware_time)
 
     def execute(self, context: Context):
         self.defer(

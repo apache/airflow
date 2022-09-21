@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import unittest
@@ -53,7 +54,7 @@ class MetadataConnectionSecretTest(unittest.TestCase):
         connection = self._get_connection({})
 
         assert (
-            "postgresql://postgres:postgres@RELEASE-NAME-postgresql.default:5432/postgres?sslmode=disable"
+            "postgresql://postgres:postgres@release-name-postgresql.default:5432/postgres?sslmode=disable"
             == connection
         )
 
@@ -63,8 +64,8 @@ class MetadataConnectionSecretTest(unittest.TestCase):
 
         # host, port, dbname get overridden
         assert (
-            "postgresql://postgres:postgres@RELEASE-NAME-pgbouncer.default:6543"
-            "/RELEASE-NAME-metadata?sslmode=disable" == connection
+            "postgresql://postgres:postgres@release-name-pgbouncer.default:6543"
+            "/release-name-metadata?sslmode=disable" == connection
         )
 
     def test_should_set_pgbouncer_overrides_with_non_chart_database_when_enabled(self):
@@ -76,8 +77,8 @@ class MetadataConnectionSecretTest(unittest.TestCase):
 
         # host, port, dbname still get overridden even with an non-chart db
         assert (
-            "postgresql://someuser:somepass@RELEASE-NAME-pgbouncer.default:6543"
-            "/RELEASE-NAME-metadata?sslmode=disable" == connection
+            "postgresql://someuser:somepass@release-name-pgbouncer.default:6543"
+            "/release-name-metadata?sslmode=disable" == connection
         )
 
     def test_should_correctly_use_non_chart_database(self):

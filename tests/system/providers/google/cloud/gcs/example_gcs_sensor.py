@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage sensors.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -48,7 +49,7 @@ UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],

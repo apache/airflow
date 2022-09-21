@@ -24,6 +24,36 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Move all "old" SQL operators to common.sql providers (#25350)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding generic 'SqlToSlackOperator' (#24663)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Pattern parameter in S3ToSnowflakeOperator (#24571)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``S3ToSnowflakeOperator: escape single quote in s3_keys (#24607)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

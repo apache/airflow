@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.common.sql.sensors.sql import SqlSensor
@@ -42,7 +44,6 @@ class MetastorePartitionSensor(SqlSensor):
 
     template_fields: Sequence[str] = ('partition_name', 'table', 'schema')
     ui_color = '#8da7be'
-    poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
 
     def __init__(
         self,
@@ -66,7 +67,7 @@ class MetastorePartitionSensor(SqlSensor):
         # constructor below and apply_defaults will no longer throw an exception.
         super().__init__(**kwargs)
 
-    def poke(self, context: "Context") -> Any:
+    def poke(self, context: Context) -> Any:
         if self.first_poke:
             self.first_poke = False
             if '.' in self.table:

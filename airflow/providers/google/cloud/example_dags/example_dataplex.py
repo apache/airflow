@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that shows how to use Dataplex.
 """
+from __future__ import annotations
 
 import datetime
 import os
@@ -51,7 +51,8 @@ EXAMPLE_TASK_BODY = {
 # [END howto_dataplex_configuration]
 
 with models.DAG(
-    "example_dataplex", start_date=datetime.datetime(2021, 1, 1), schedule_interval="@once", catchup=False
+    "example_dataplex",
+    start_date=datetime.datetime(2021, 1, 1),
 ) as dag:
     # [START howto_dataplex_create_task_operator]
     create_dataplex_task = DataplexCreateTaskOperator(

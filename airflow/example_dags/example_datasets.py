@@ -21,23 +21,26 @@ Notes on usage:
 
 Turn on all the dags.
 
-DAG dag1 should run because it's on a schedule.
+DAG dataset_produces_1 should run because it's on a schedule.
 
-After dag1 runs, dag3 should be triggered immediately because its only
-dataset dependency is managed by dag1.
+After dataset_produces_1 runs, dataset_consumes_1 should be triggered immediately
+because its only dataset dependency is managed by dataset_produces_1.
 
-No other dags should be triggered.  Note that even though dag4 depends on
-the dataset in dag1, it will not be triggered until dag2 runs (and dag2 is
-left with no schedule so that we can trigger it manually).
+No other dags should be triggered.  Note that even though dataset_consumes_1_and_2 depends on
+the dataset in dataset_produces_1, it will not be triggered until dataset_produces_2 runs
+(and dataset_produces_2 is left with no schedule so that we can trigger it manually).
 
-Next, trigger dag2.  After dag2 finishes, dag4 should run.
+Next, trigger dataset_produces_2.  After dataset_produces_2 finishes,
+dataset_consumes_1_and_2 should run.
 
-Dags 5 and 6 should not run because they depend on datasets that never get updated.
-
+Dags dataset_consumes_1_never_scheduled and dataset_consumes_unknown_never_scheduled should not run because
+they depend on datasets that never get updated.
 """
-from datetime import datetime
+from __future__ import annotations
 
-from airflow.models import DAG, Dataset
+import pendulum
+
+from airflow import DAG, Dataset
 from airflow.operators.bash import BashOperator
 
 # [START dataset_def]
@@ -45,86 +48,79 @@ dag1_dataset = Dataset('s3://dag1/output_1.txt', extra={'hi': 'bye'})
 # [END dataset_def]
 dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
 
-dag1 = DAG(
-    dag_id='dag1',
+with DAG(
+    dag_id='dataset_produces_1',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_interval='@daily',
-    tags=['upstream'],
-)
-
-# [START task_outlet]
-BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sleep 5", dag=dag1)
-# [END task_outlet]
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule='@daily',
+    tags=['produces', 'dataset-scheduled'],
+) as dag1:
+    # [START task_outlet]
+    BashOperator(outlets=[dag1_dataset], task_id='producing_task_1', bash_command="sleep 5")
+    # [END task_outlet]
 
 with DAG(
-    dag_id='dag2',
+    dag_id='dataset_produces_2',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_interval=None,
-    tags=['upstream'],
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=None,
+    tags=['produces', 'dataset-scheduled'],
 ) as dag2:
-    BashOperator(
-        outlets=[dag2_dataset],
-        task_id='upstream_task_2',
-        bash_command="sleep 5",
-    )
+    BashOperator(outlets=[dag2_dataset], task_id='producing_task_2', bash_command="sleep 5")
 
 # [START dag_dep]
-dag3 = DAG(
-    dag_id='dag3',
-    catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[dag1_dataset],
-    tags=['downstream'],
-)
-# [END dag_dep]
-
-BashOperator(
-    outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
-    task_id='downstream_1',
-    bash_command="sleep 5",
-    dag=dag3,
-)
-
 with DAG(
-    dag_id='dag4',
+    dag_id='dataset_consumes_1',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[dag1_dataset, dag2_dataset],
-    tags=['downstream'],
-) as dag4:
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[dag1_dataset],
+    tags=['consumes', 'dataset-scheduled'],
+) as dag3:
+    # [END dag_dep]
     BashOperator(
-        outlets=[Dataset('s3://downstream_2_task/dataset_other_unknown.txt')],
-        task_id='downstream_2',
+        outlets=[Dataset('s3://consuming_1_task/dataset_other.txt')],
+        task_id='consuming_1',
         bash_command="sleep 5",
     )
 
 with DAG(
-    dag_id='dag5',
+    dag_id='dataset_consumes_1_and_2',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[dag1_dataset, dag2_dataset],
+    tags=['consumes', 'dataset-scheduled'],
+) as dag4:
+    BashOperator(
+        outlets=[Dataset('s3://consuming_2_task/dataset_other_unknown.txt')],
+        task_id='consuming_2',
+        bash_command="sleep 5",
+    )
+
+with DAG(
+    dag_id='dataset_consumes_1_never_scheduled',
+    catchup=False,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[
         dag1_dataset,
         Dataset('s3://this-dataset-doesnt-get-triggered'),
     ],
-    tags=['downstream'],
+    tags=['consumes', 'dataset-scheduled'],
 ) as dag5:
     BashOperator(
-        outlets=[Dataset('s3://downstream_2_task/dataset_other_unknown.txt')],
-        task_id='downstream_3',
+        outlets=[Dataset('s3://consuming_2_task/dataset_other_unknown.txt')],
+        task_id='consuming_3',
         bash_command="sleep 5",
     )
 
 with DAG(
-    dag_id='dag6',
+    dag_id='dataset_consumes_unknown_never_scheduled',
     catchup=False,
-    start_date=datetime(2020, 1, 1),
-    schedule_on=[
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=[
         Dataset('s3://unrelated/dataset3.txt'),
         Dataset('s3://unrelated/dataset_other_unknown.txt'),
     ],
-    tags=['unrelated'],
+    tags=['dataset-scheduled'],
 ) as dag6:
     BashOperator(
         task_id='unrelated_task',

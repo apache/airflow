@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence
+from typing import Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonVirtualenvOperator
-from airflow.utils.python_virtualenv import remove_task_decorator
+from airflow.utils.decorators import remove_task_decorator
 
 
 class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOperator):
@@ -43,6 +44,8 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
+
+    custom_operator_name: str = '@task.virtualenv'
 
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {
@@ -66,8 +69,8 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
 
 
 def virtualenv_task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: Optional[bool] = None,
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """Wraps a callable into an Airflow operator to run via a Python virtual environment.

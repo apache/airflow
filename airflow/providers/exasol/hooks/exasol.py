@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from contextlib import closing
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Mapping
 
 import pandas as pd
 import pyexasol
@@ -64,9 +65,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(
-        self, sql: Union[str, list], parameters: Optional[dict] = None, **kwargs
-    ) -> pd.DataFrame:
+    def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
         """
         Executes the sql and returns a pandas dataframe
 
@@ -80,8 +79,11 @@ class ExasolHook(DbApiHook):
             return df
 
     def get_records(
-        self, sql: Union[str, list], parameters: Optional[dict] = None
-    ) -> List[Union[dict, Tuple[Any, ...]]]:
+        self,
+        sql: str | list[str],
+        parameters: Iterable | Mapping | None = None,
+        **kwargs: dict,
+    ) -> list[dict | tuple[Any, ...]]:
         """
         Executes the sql and returns a set of records.
 
@@ -93,7 +95,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: Union[str, list], parameters: Optional[dict] = None) -> Optional[Any]:
+    def get_first(self, sql: str | list[str], parameters: dict | None = None) -> Any | None:
         """
         Executes the sql and returns the first resulting row.
 
@@ -109,8 +111,8 @@ class ExasolHook(DbApiHook):
         self,
         filename: str,
         query_or_table: str,
-        query_params: Optional[Dict] = None,
-        export_params: Optional[Dict] = None,
+        query_params: dict | None = None,
+        export_params: dict | None = None,
     ) -> None:
         """
         Exports data to a file.
@@ -133,8 +135,14 @@ class ExasolHook(DbApiHook):
         self.log.info("Data saved to %s", filename)
 
     def run(
-        self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler=None
-    ) -> Optional[list]:
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> Any | list[Any] | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -146,38 +154,44 @@ class ExasolHook(DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
+        :param return_last: Whether to return result for only last statement or for all after split
+        :return: return only result of the LAST SQL expression if handler was provided.
         """
+        scalar_return_last = isinstance(sql, str) and return_last
         if isinstance(sql, str):
-            sql = [sql]
+            if split_statements:
+                sql = self.split_sql_string(sql)
+            else:
+                sql = [self.strip_sql_string(sql)]
 
         if sql:
-            self.log.debug("Executing %d statements against Exasol DB", len(sql))
+            self.log.debug("Executing following statements against Exasol DB: %s", list(sql))
         else:
             raise ValueError("List of SQL statements is empty")
 
         with closing(self.get_conn()) as conn:
-            if self.supports_autocommit:
-                self.set_autocommit(conn, autocommit)
-
-            for query in sql:
-                self.log.info(query)
-                with closing(conn.execute(query, parameters)) as cur:
-                    results = []
-
+            self.set_autocommit(conn, autocommit)
+            results = []
+            for sql_statement in sql:
+                with closing(conn.execute(sql_statement, parameters)) as cur:
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
-                        cur = handler(cur)
+                        result = handler(cur)
+                        results.append(result)
 
-                    for row in cur:
-                        self.log.info("Statement execution info - %s", row)
-                        results.append(row)
+                    self.log.info("Rows affected: %s", cur.rowcount)
 
-                    self.log.info(cur.row_count)
-            # If autocommit was set to False for db that supports autocommit,
-            # or if db does not support autocommit, we do a manual commit.
+            # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
 
-        return results
+        if handler is None:
+            return None
+        elif scalar_return_last:
+            return results[-1]
+        else:
+            return results
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
         """

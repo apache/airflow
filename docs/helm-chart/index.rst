@@ -119,6 +119,9 @@ To uninstall/delete the ``airflow`` deployment:
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
+.. note::
+  Some kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``, for example, ``brokerUrlSecret`` or ``fernetKeySecret``.
+
 Installing the Chart with Argo CD or Flux
 -----------------------------------------
 

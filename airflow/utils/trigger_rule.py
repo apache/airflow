@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from enum import Enum
-from typing import Set
 
 
 class TriggerRule(str, Enum):
@@ -41,7 +42,7 @@ class TriggerRule(str, Enum):
         return trigger_rule in cls.all_triggers()
 
     @classmethod
-    def all_triggers(cls) -> Set[str]:
+    def all_triggers(cls) -> set[str]:
         """Returns all trigger rules."""
         return set(cls.__members__.values())
 

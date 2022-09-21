@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Apache Beam operators
 """
+from __future__ import annotations
 
 from airflow import models
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
@@ -36,7 +36,7 @@ from tests.system.providers.apache.beam.utils import (
 with models.DAG(
     "example_beam_native_python",
     start_date=START_DATE,
-    schedule_interval=None,  # Override to match your needs
+    schedule=None,  # Override to match your needs
     catchup=False,
     default_args=DEFAULT_ARGS,
     tags=['example'],

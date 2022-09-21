@@ -1,0 +1,7 @@
+.[cncf.kubernetes,postgres]
+pytest
+pytest-cov
+pytest-instafail
+pytest-timeouts
+pytest-xdist
+freezegun

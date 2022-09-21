@@ -16,17 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base task runner"""
+from __future__ import annotations
+
 import os
 import subprocess
 import threading
 
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
     # ignored to avoid flake complaining on Linux
     from pwd import getpwnam  # noqa
 
-from typing import Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -126,26 +128,29 @@ class BaseTaskRunner(LoggingMixin):
 
         self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
-
-        if IS_WINDOWS:
-            proc = subprocess.Popen(
-                full_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True,
-                close_fds=True,
-                env=os.environ.copy(),
-            )
-        else:
-            proc = subprocess.Popen(
-                full_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True,
-                close_fds=True,
-                env=os.environ.copy(),
-                preexec_fn=os.setsid,
-            )
+        with _airflow_parsing_context_manager(
+            dag_id=self._task_instance.dag_id,
+            task_id=self._task_instance.task_id,
+        ):
+            if IS_WINDOWS:
+                proc = subprocess.Popen(
+                    full_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                    close_fds=True,
+                    env=os.environ.copy(),
+                )
+            else:
+                proc = subprocess.Popen(
+                    full_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                    close_fds=True,
+                    env=os.environ.copy(),
+                    preexec_fn=os.setsid,
+                )
 
         # Start daemon thread to read subprocess logging output
         log_reader = threading.Thread(
@@ -160,7 +165,7 @@ class BaseTaskRunner(LoggingMixin):
         """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
-    def return_code(self, timeout: int = 0) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> int | None:
         """
         :return: The return code associated with running the task instance or
             None if the task is not yet done.

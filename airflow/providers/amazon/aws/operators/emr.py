@@ -15,18 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ast
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+import warnings
+from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+from airflow.compat.functools import cached_property
 
 
 class EmrAddStepsOperator(BaseOperator):
@@ -58,11 +62,11 @@ class EmrAddStepsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_flow_id: Optional[str] = None,
-        job_flow_name: Optional[str] = None,
-        cluster_states: Optional[List[str]] = None,
+        job_flow_id: str | None = None,
+        job_flow_name: str | None = None,
+        cluster_states: list[str] | None = None,
         aws_conn_id: str = 'aws_default',
-        steps: Optional[Union[List[dict], str]] = None,
+        steps: list[dict] | str | None = None,
         **kwargs,
     ):
         if not (job_flow_id is None) ^ (job_flow_name is None):
@@ -76,7 +80,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context: 'Context') -> List[str]:
+    def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
@@ -116,6 +120,62 @@ class EmrAddStepsOperator(BaseOperator):
             return response['StepIds']
 
 
+class EmrEksCreateClusterOperator(BaseOperator):
+    """
+    An operator that creates EMR on EKS virtual clusters.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrEksCreateClusterOperator`
+
+    :param virtual_cluster_name: The name of the EMR EKS virtual cluster to create.
+    :param eks_cluster_name: The EKS cluster used by the EMR virtual cluster.
+    :param eks_namespace: namespace used by the EKS cluster.
+    :param virtual_cluster_id: The EMR on EKS virtual cluster id.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param tags: The tags assigned to created cluster.
+        Defaults to None
+    """
+
+    template_fields: Sequence[str] = (
+        "virtual_cluster_name",
+        "eks_cluster_name",
+        "eks_namespace",
+    )
+    ui_color = "#f9c915"
+
+    def __init__(
+        self,
+        *,
+        virtual_cluster_name: str,
+        eks_cluster_name: str,
+        eks_namespace: str,
+        virtual_cluster_id: str = '',
+        aws_conn_id: str = "aws_default",
+        tags: dict | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.virtual_cluster_name = virtual_cluster_name
+        self.eks_cluster_name = eks_cluster_name
+        self.eks_namespace = eks_namespace
+        self.virtual_cluster_id = virtual_cluster_id
+        self.aws_conn_id = aws_conn_id
+        self.tags = tags
+
+    @cached_property
+    def hook(self) -> EmrContainerHook:
+        """Create and return an EmrContainerHook."""
+        return EmrContainerHook(self.aws_conn_id)
+
+    def execute(self, context: Context) -> str | None:
+        """Create EMR on EKS virtual Cluster"""
+        self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
+            self.virtual_cluster_name, self.eks_cluster_name, self.eks_namespace, self.tags
+        )
+        return self.virtual_cluster_id
+
+
 class EmrContainerOperator(BaseOperator):
     """
     An operator that submits jobs to EMR on EKS virtual clusters.
@@ -137,7 +197,8 @@ class EmrContainerOperator(BaseOperator):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param wait_for_completion: Whether or not to wait in the operator for the job to complete.
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
-    :param max_tries: Maximum number of times to wait for the job run to finish.
+    :param max_tries: Deprecated - use max_polling_attempts instead.
+    :param max_polling_attempts: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
     :param tags: The tags assigned to job runs.
         Defaults to None
@@ -160,13 +221,14 @@ class EmrContainerOperator(BaseOperator):
         execution_role_arn: str,
         release_label: str,
         job_driver: dict,
-        configuration_overrides: Optional[dict] = None,
-        client_request_token: Optional[str] = None,
+        configuration_overrides: dict | None = None,
+        client_request_token: str | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
         poll_interval: int = 30,
-        max_tries: Optional[int] = None,
-        tags: Optional[dict] = None,
+        max_tries: int | None = None,
+        tags: dict | None = None,
+        max_polling_attempts: int | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -180,9 +242,21 @@ class EmrContainerOperator(BaseOperator):
         self.client_request_token = client_request_token or str(uuid4())
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
-        self.max_tries = max_tries
+        self.max_polling_attempts = max_polling_attempts
         self.tags = tags
-        self.job_id: Optional[str] = None
+        self.job_id: str | None = None
+
+        if max_tries:
+            warnings.warn(
+                f"Parameter `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
+                "in a future release.  Please use method `max_polling_attempts` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if max_polling_attempts and max_polling_attempts != max_tries:
+                raise Exception("max_polling_attempts must be the same value as max_tries")
+            else:
+                self.max_polling_attempts = max_tries
 
     @cached_property
     def hook(self) -> EmrContainerHook:
@@ -192,7 +266,7 @@ class EmrContainerOperator(BaseOperator):
             virtual_cluster_id=self.virtual_cluster_id,
         )
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         """Run job on EMR Containers"""
         self.job_id = self.hook.submit_job(
             self.name,
@@ -204,7 +278,9 @@ class EmrContainerOperator(BaseOperator):
             self.tags,
         )
         if self.wait_for_completion:
-            query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
+            query_status = self.hook.poll_query_status(
+                self.job_id, self.max_polling_attempts, self.poll_interval
+            )
 
             if query_status in EmrContainerHook.FAILURE_STATES:
                 error_message = self.hook.get_job_failure_reason(self.job_id)
@@ -274,8 +350,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         *,
         aws_conn_id: str = 'aws_default',
         emr_conn_id: str = 'emr_default',
-        job_flow_overrides: Optional[Union[str, Dict[str, Any]]] = None,
-        region_name: Optional[str] = None,
+        job_flow_overrides: str | dict[str, Any] | None = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -286,7 +362,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides
         self.region_name = region_name
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         emr = EmrHook(
             aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
         )
@@ -294,9 +370,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.log.info(
             'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s', self.aws_conn_id, self.emr_conn_id
         )
-
         if isinstance(self.job_flow_overrides, str):
-            job_flow_overrides: Dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
+            job_flow_overrides: dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
             self.job_flow_overrides = job_flow_overrides
         else:
             job_flow_overrides = self.job_flow_overrides
@@ -344,7 +419,7 @@ class EmrModifyClusterOperator(BaseOperator):
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
-    def execute(self, context: 'Context') -> int:
+    def execute(self, context: Context) -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
         emr = emr_hook.get_conn()
 
@@ -393,7 +468,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
         emr = emr_hook.get_conn()
 
@@ -412,3 +487,259 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             raise AirflowException(f'JobFlow termination failed: {response}')
         else:
             self.log.info('JobFlow with id %s terminated', self.job_flow_id)
+
+
+class EmrServerlessCreateApplicationOperator(BaseOperator):
+    """
+    Operator to create Serverless EMR Application
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrServerlessCreateApplicationOperator`
+
+    :param release_label: The EMR release version associated with the application.
+    :param job_type: The type of application you want to start, such as Spark or Hive.
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param client_request_token: The client idempotency token of the application to create.
+      Its value must be unique for each request.
+    :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
+    :param aws_conn_id: AWS connection to use
+    """
+
+    def __init__(
+        self,
+        release_label: str,
+        job_type: str,
+        client_request_token: str = '',
+        config: dict | None = None,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = 'aws_default',
+        **kwargs,
+    ):
+        self.aws_conn_id = aws_conn_id
+        self.release_label = release_label
+        self.job_type = job_type
+        self.wait_for_completion = wait_for_completion
+        self.kwargs = kwargs
+        self.config = config or {}
+        super().__init__(**kwargs)
+
+        self.client_request_token = client_request_token or str(uuid4())
+
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook."""
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context: Context):
+        response = self.hook.conn.create_application(
+            clientToken=self.client_request_token,
+            releaseLabel=self.release_label,
+            type=self.job_type,
+            **self.config,
+        )
+        application_id = response['applicationId']
+
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise AirflowException(f'Application Creation failed: {response}')
+
+        self.log.info('EMR serverless application created: %s', application_id)
+
+        # This should be replaced with a boto waiter when available.
+        self.hook.waiter(
+            get_state_callable=self.hook.conn.get_application,
+            get_state_args={'applicationId': application_id},
+            parse_response=['application', 'state'],
+            desired_state={'CREATED'},
+            failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
+            object_type='application',
+            action='created',
+        )
+
+        self.log.info('Starting application %s', application_id)
+        self.hook.conn.start_application(applicationId=application_id)
+
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
+            self.hook.waiter(
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={'applicationId': application_id},
+                parse_response=['application', 'state'],
+                desired_state={'STARTED'},
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
+                object_type='application',
+                action='started',
+            )
+
+        return application_id
+
+
+class EmrServerlessStartJobOperator(BaseOperator):
+    """
+    Operator to start EMR Serverless job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrServerlessStartJobOperator`
+
+    :param application_id: ID of the EMR Serverless application to start.
+    :param execution_role_arn: ARN of role to perform action.
+    :param job_driver: Driver that the job runs on.
+    :param configuration_overrides: Configuration specifications to override existing configurations.
+    :param client_request_token: The client idempotency token of the application to create.
+      Its value must be unique for each request.
+    :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
+    :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
+    :param aws_conn_id: AWS connection to use
+    """
+
+    template_fields: Sequence[str] = (
+        'application_id',
+        'execution_role_arn',
+        'job_driver',
+        'configuration_overrides',
+    )
+
+    def __init__(
+        self,
+        application_id: str,
+        execution_role_arn: str,
+        job_driver: dict,
+        configuration_overrides: dict | None,
+        client_request_token: str = '',
+        config: dict | None = None,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = 'aws_default',
+        **kwargs,
+    ):
+        self.aws_conn_id = aws_conn_id
+        self.application_id = application_id
+        self.execution_role_arn = execution_role_arn
+        self.job_driver = job_driver
+        self.configuration_overrides = configuration_overrides
+        self.wait_for_completion = wait_for_completion
+        self.config = config or {}
+        super().__init__(**kwargs)
+
+        self.client_request_token = client_request_token or str(uuid4())
+
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook."""
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context: Context) -> dict:
+        self.log.info('Starting job on Application: %s', self.application_id)
+
+        app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
+        if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
+            self.hook.conn.start_application(applicationId=self.application_id)
+
+            self.hook.waiter(
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={'applicationId': self.application_id},
+                parse_response=['application', 'state'],
+                desired_state={'STARTED'},
+                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
+                object_type='application',
+                action='started',
+            )
+
+        response = self.hook.conn.start_job_run(
+            clientToken=self.client_request_token,
+            applicationId=self.application_id,
+            executionRoleArn=self.execution_role_arn,
+            jobDriver=self.job_driver,
+            configurationOverrides=self.configuration_overrides,
+            **self.config,
+        )
+
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise AirflowException(f'EMR serverless job failed to start: {response}')
+
+        self.log.info('EMR serverless job started: %s', response['jobRunId'])
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
+            self.hook.waiter(
+                get_state_callable=self.hook.conn.get_job_run,
+                get_state_args={
+                    'applicationId': self.application_id,
+                    'jobRunId': response['jobRunId'],
+                },
+                parse_response=['jobRun', 'state'],
+                desired_state=EmrServerlessHook.JOB_SUCCESS_STATES,
+                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
+                object_type='job',
+                action='run',
+            )
+        return response['jobRunId']
+
+
+class EmrServerlessDeleteApplicationOperator(BaseOperator):
+    """
+    Operator to delete EMR Serverless application
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrServerlessDeleteApplicationOperator`
+
+    :param application_id: ID of the EMR Serverless application to delete.
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param aws_conn_id: AWS connection to use
+    """
+
+    template_fields: Sequence[str] = ('application_id',)
+
+    def __init__(
+        self,
+        application_id: str,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = 'aws_default',
+        **kwargs,
+    ):
+        self.aws_conn_id = aws_conn_id
+        self.application_id = application_id
+        self.wait_for_completion = wait_for_completion
+        super().__init__(**kwargs)
+
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook."""
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context: Context) -> None:
+        self.log.info('Stopping application: %s', self.application_id)
+        self.hook.conn.stop_application(applicationId=self.application_id)
+
+        # This should be replaced with a boto waiter when available.
+        self.hook.waiter(
+            get_state_callable=self.hook.conn.get_application,
+            get_state_args={
+                'applicationId': self.application_id,
+            },
+            parse_response=['application', 'state'],
+            desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
+            failure_states=set(),
+            object_type='application',
+            action='stopped',
+        )
+
+        self.log.info('Deleting application: %s', self.application_id)
+        response = self.hook.conn.delete_application(applicationId=self.application_id)
+
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise AirflowException(f'Application deletion failed: {response}')
+
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
+            self.hook.waiter(
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={'applicationId': self.application_id},
+                parse_response=['application', 'state'],
+                desired_state={'TERMINATED'},
+                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
+                object_type='application',
+                action='deleted',
+            )
+
+        self.log.info('EMR serverless application deleted')

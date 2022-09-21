@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that execute the following tasks using
 Cloud DLP service in the Google Cloud:
@@ -23,6 +22,7 @@ Cloud DLP service in the Google Cloud:
 2) Using the created template to inspect content;
 3) Deleting the template from Google Cloud .
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -63,7 +63,6 @@ OBJECT_GCS_OUTPUT_URI = os.path.join(OUTPUT_BUCKET, "tmp", OUTPUT_FILENAME)
 
 with models.DAG(
     "example_gcp_dlp",
-    schedule_interval='@once',  # Override to match your needs
     start_date=START_DATE,
     catchup=False,
     tags=['example'],
@@ -113,7 +112,6 @@ UPDATE_CUSTOM_INFO_TYPE = {
 
 with models.DAG(
     "example_gcp_dlp_info_types",
-    schedule_interval='@once',
     start_date=START_DATE,
     catchup=False,
     tags=["example", "dlp", "info-types"],
@@ -157,7 +155,6 @@ TRIGGER_ID = "example_trigger"
 
 with models.DAG(
     "example_gcp_dlp_job",
-    schedule_interval='@once',
     start_date=START_DATE,
     catchup=False,
     tags=["example", "dlp_job"],
@@ -203,7 +200,6 @@ DEIDENTIFY_CONFIG = {
 
 with models.DAG(
     "example_gcp_dlp_deidentify_content",
-    schedule_interval='@once',
     start_date=START_DATE,
     catchup=False,
     tags=["example", "dlp", "deidentify"],

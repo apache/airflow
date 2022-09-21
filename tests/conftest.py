@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -193,10 +195,20 @@ def pytest_addoption(parser):
 
 
 def initial_db_init():
+    from flask import Flask
+
+    from airflow.configuration import conf
     from airflow.utils import db
+    from airflow.www.app import sync_appbuilder_roles
+    from airflow.www.extensions.init_appbuilder import init_appbuilder
 
     db.resetdb()
     db.bootstrap_dagbag()
+    # minimal app to add roles
+    flask_app = Flask(__name__)
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+    init_appbuilder(flask_app)
+    sync_appbuilder_roles(flask_app)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -508,11 +520,13 @@ def dag_maker(request):
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(self.session)
+            dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
             self.dag_model = self.session.query(DagModel).get(dag.dag_id)
 
             if self.want_serialized:
-                self.serialized_model = SerializedDagModel(dag)
+                self.serialized_model = SerializedDagModel(
+                    dag, processor_subdir=self.dag_model.processor_subdir
+                )
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
@@ -568,7 +582,13 @@ def dag_maker(request):
             )
 
         def __call__(
-            self, dag_id='test_dag', serialized=want_serialized, fileloc=None, session=None, **kwargs
+            self,
+            dag_id='test_dag',
+            serialized=want_serialized,
+            fileloc=None,
+            processor_subdir=None,
+            session=None,
+            **kwargs,
         ):
             from airflow import settings
             from airflow.models import DAG
@@ -596,11 +616,13 @@ def dag_maker(request):
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
+            self.processor_subdir = processor_subdir
 
             return self
 
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
+            from airflow.models.dataset import DatasetEvent
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
@@ -611,7 +633,7 @@ def dag_maker(request):
                     if not dag_ids:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
-                    self.session.flush()
+                    self.session.rollback()
 
                     self.session.query(SerializedDagModel).filter(
                         SerializedDagModel.dag_id.in_(dag_ids)
@@ -629,6 +651,9 @@ def dag_maker(request):
                         synchronize_session=False,
                     )
                     self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False,
+                    )
+                    self.session.query(DatasetEvent).filter(DatasetEvent.source_dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
                     self.session.commit()
@@ -734,6 +759,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.state = state
 
+        dag_maker.session.flush()
         return ti
 
     return maker

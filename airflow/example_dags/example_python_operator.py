@@ -15,13 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
 virtual environment.
 """
+from __future__ import annotations
+
 import logging
+import os
 import shutil
+import sys
+import tempfile
 import time
 from pprint import pprint
 
@@ -32,13 +36,18 @@ from airflow.decorators import task
 
 log = logging.getLogger(__name__)
 
+PYTHON = sys.executable
+
+BASE_DIR = tempfile.gettempdir()
+
 with DAG(
     dag_id='example_python_operator',
-    schedule_interval=None,
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example'],
 ) as dag:
+
     # [START howto_operator_python]
     @task(task_id="print_the_context")
     def print_context(ds=None, **kwargs):
@@ -49,6 +58,14 @@ with DAG(
 
     run_this = print_context()
     # [END howto_operator_python]
+
+    # [START howto_operator_python_render_sql]
+    @task(task_id="log_sql_query", templates_dict={"query": "sql/sample.sql"}, templates_exts=[".sql"])
+    def log_sql(**kwargs):
+        logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+
+    log_the_sql = log_sql()
+    # [END howto_operator_python_render_sql]
 
     # [START howto_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
@@ -61,7 +78,7 @@ with DAG(
 
         sleeping_task = my_sleeping_function(random_base=float(i) / 10)
 
-        run_this >> sleeping_task
+        run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
 
     if not shutil.which("virtualenv"):
@@ -86,10 +103,36 @@ with DAG(
             print(Back.GREEN + 'and with a green background')
             print(Style.DIM + 'and in dim text')
             print(Style.RESET_ALL)
-            for _ in range(10):
+            for _ in range(4):
                 print(Style.DIM + 'Please wait...', flush=True)
-                sleep(10)
+                sleep(1)
             print('Finished')
 
         virtualenv_task = callable_virtualenv()
         # [END howto_operator_python_venv]
+
+        sleeping_task >> virtualenv_task
+
+        # [START howto_operator_external_python]
+        @task.external_python(task_id="external_python", python=os.fspath(sys.executable))
+        def callable_external_python():
+            """
+            Example function that will be performed in a virtual environment.
+
+            Importing at the module level ensures that it will not attempt to import the
+            library before it is installed.
+            """
+            import sys
+            from time import sleep
+
+            print(f"Running task via {sys.executable}")
+            print("Sleeping")
+            for _ in range(4):
+                print('Please wait...', flush=True)
+                sleep(1)
+            print('Finished')
+
+        external_python_task = callable_external_python()
+        # [END howto_operator_external_python]
+
+        run_this >> external_python_task

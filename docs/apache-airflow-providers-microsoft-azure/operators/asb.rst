@@ -98,6 +98,113 @@ Below is an example of using this operator to execute an Azure Service Bus Delet
     :start-after: [START howto_operator_delete_service_bus_queue]
     :end-before: [END howto_operator_delete_service_bus_queue]
 
+Azure Service Bus Topic Operators
+-----------------------------------------
+Azure Service Bus Topic based Operators helps to interact with topic in service bus namespace
+and it helps to Create, Delete operation for topic.
+
+.. _howto/operator:AzureServiceBusTopicCreateOperator:
+
+Create Azure Service Bus Topic
+======================================
+
+To create Azure service bus topic with specific Parameter you can use
+:class:`~airflow.providers.microsoft.azure.operators.asb.AzureServiceBusTopicCreateOperator`.
+
+Below is an example of using this operator to execute an Azure Service Bus Create Topic.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_service_bus_topic]
+    :end-before: [END howto_operator_create_service_bus_topic]
+
+.. _howto/operator:AzureServiceBusTopicDeleteOperator:
+
+Delete Azure Service Bus Topic
+======================================
+
+To Delete the Azure service bus topic you can use
+:class:`~airflow.providers.microsoft.azure.operators.asb.AzureServiceBusTopicDeleteOperator`.
+
+Below is an example of using this operator to execute an Azure Service Bus Delete topic.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_delete_service_bus_topic]
+    :end-before: [END howto_operator_delete_service_bus_topic]
+
+Azure Service Bus Subscription Operators
+-----------------------------------------
+Azure Service Bus Subscription based Operators helps to interact topic Subscription in service bus namespace
+and it helps to Create, Delete operation for subscription under topic.
+
+.. _howto/operator:AzureServiceBusSubscriptionCreateOperator:
+
+Create Azure Service Bus Subscription
+======================================
+
+To create Azure service bus topic Subscription with specific Parameter you can use
+:class:`~airflow.providers.microsoft.azure.operators.asb.AzureServiceBusSubscriptionCreateOperator`.
+
+Below is an example of using this operator to execute an Azure Service Bus Create Subscription.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_service_bus_subscription]
+    :end-before: [END howto_operator_create_service_bus_subscription]
+
+.. _howto/operator:AzureServiceBusUpdateSubscriptionOperator:
+
+Update Azure Service Bus Subscription
+======================================
+
+To Update the Azure service bus topic Subscription which is already created, with specific Parameter you can use
+:class:`~airflow.providers.microsoft.azure.operators.asb.AzureServiceBusUpdateSubscriptionOperator`.
+
+Below is an example of using this operator to execute an Azure Service Bus Update Subscription.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_update_service_bus_subscription]
+    :end-before: [END howto_operator_update_service_bus_subscription]
+
+.. _howto/operator:ASBReceiveSubscriptionMessageOperator:
+
+Receive Azure Service Bus Subscription Message
+===============================================
+
+To Receive a Batch messages from a Service Bus Subscription under specific Topic, you can use
+:class:`~airflow.providers.microsoft.azure.operators.asb.ASBReceiveSubscriptionMessageOperator`.
+
+Below is an example of using this operator to execute an Azure Service Bus Receive Subscription Message.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_receive_message_service_bus_subscription]
+    :end-before: [END howto_operator_receive_message_service_bus_subscription]
+
+.. _howto/operator:AzureServiceBusSubscriptionDeleteOperator:
+
+Delete Azure Service Bus Subscription
+======================================
+
+To Delete the Azure service bus topic Subscription you can use
+:class:`~airflow.providers.microsoft.azure.operators.asb.AzureServiceBusSubscriptionDeleteOperator`.
+
+Below is an example of using this operator to execute an Azure Service Bus Delete Subscription under topic.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_delete_service_bus_subscription]
+    :end-before: [END howto_operator_delete_service_bus_subscription]
+
+
 
 Reference
 ---------

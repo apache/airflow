@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-import unittest
 from datetime import datetime
 
 from parameterized import parameterized
@@ -29,6 +29,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 TI = TaskInstance(
@@ -38,7 +39,7 @@ TI = TaskInstance(
 )
 
 
-class TestCallbackRequest(unittest.TestCase):
+class TestCallbackRequest:
     @parameterized.expand(
         [
             (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
@@ -46,6 +47,7 @@ class TestCallbackRequest(unittest.TestCase):
                 TaskCallbackRequest(
                     full_filepath="filepath",
                     simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
+                    processor_subdir='/test_dir',
                     is_failure_callback=True,
                 ),
                 TaskCallbackRequest,
@@ -55,16 +57,38 @@ class TestCallbackRequest(unittest.TestCase):
                     full_filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
+                    processor_subdir='/test_dir',
                     is_failure_callback=False,
                 ),
                 DagCallbackRequest,
             ),
-            (SlaCallbackRequest(full_filepath="filepath", dag_id="fake_dag"), SlaCallbackRequest),
+            (
+                SlaCallbackRequest(
+                    full_filepath="filepath",
+                    dag_id="fake_dag",
+                    processor_subdir='/test_dir',
+                ),
+                SlaCallbackRequest,
+            ),
         ]
     )
     def test_from_json(self, input, request_class):
         json_str = input.to_json()
-
         result = request_class.from_json(json_str=json_str)
+        assert result == input
 
-        self.assertEqual(result, input)
+    def test_taskcallback_to_json_with_start_date_and_end_date(self, session, create_task_instance):
+        ti = create_task_instance()
+        ti.start_date = timezone.utcnow()
+        ti.end_date = timezone.utcnow()
+        session.merge(ti)
+        session.flush()
+        input = TaskCallbackRequest(
+            full_filepath="filepath",
+            simple_task_instance=SimpleTaskInstance.from_ti(ti),
+            processor_subdir='/test_dir',
+            is_failure_callback=True,
+        )
+        json_str = input.to_json()
+        result = TaskCallbackRequest.from_json(json_str)
+        assert input == result

@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This is an example DAG which uses the LivyOperator.
 The tasks below trigger the computation of pi on the Spark instance
 using the Java and Python executables provided in the example library.
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -33,7 +33,7 @@ DAG_ID = "example_livy_operator"
 with DAG(
     dag_id=DAG_ID,
     default_args={'args': [10]},
-    schedule_interval='@daily',
+    schedule='@daily',
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

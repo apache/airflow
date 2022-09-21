@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG for Google Cloud Stackdriver service.
 """
+from __future__ import annotations
 
 import json
 import os
@@ -125,7 +125,7 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule_interval='@once',
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example', "stackdriver"],

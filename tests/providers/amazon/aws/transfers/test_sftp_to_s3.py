@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
@@ -52,7 +53,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
         hook.no_host_key_check = True
         dag = DAG(
             f'{TEST_DAG_ID}test_schedule_dag_once',
-            schedule_interval="@once",
+            schedule="@once",
             start_date=DEFAULT_DATE,
         )
 

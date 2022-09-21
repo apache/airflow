@@ -15,14 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import html
 import json
 import re
 import unittest.mock
 import urllib.parse
+from datetime import timedelta
 
 import pytest
-from freezegun import freeze_time
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -546,7 +548,6 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     'airflow.executors.executor_loader.ExecutorLoader.get_default_executor',
     return_value=_ForceHeartbeatCeleryExecutor(),
 )
-@freeze_time("2020-07-07 09:00:00")
 def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
     task_id = 'runme_0'
     session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
@@ -566,10 +567,12 @@ def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
     resp = admin_client.post('run', data=form, follow_redirects=True)
 
     assert resp.status_code == 200
-
-    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [
-        (timezone.utcnow(),)
-    ]
+    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
+    # Unlike real datetime, when FakeDatetime is used, it coerces to
+    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
+    assert timezone.utcnow() - session.query(TaskInstance.queued_dttm).filter(
+        TaskInstance.task_id == task_id
+    ).scalar() < timedelta(minutes=5)
 
 
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)
@@ -969,3 +972,24 @@ def test_task_fail_duration(app, admin_client, dag_maker, session):
         assert resp.status_code == 200
         assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
         assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
+
+
+def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):
+    """Test that the graph view doesn't fail on a recursion error."""
+    from airflow.utils.helpers import chain
+
+    with dag_maker('test_fails_with_recursion') as dag:
+
+        tasks = [
+            BashOperator(
+                task_id=f"task_{i}",
+                bash_command="echo test",
+            )
+            for i in range(1, 1000 + 1)
+        ]
+        chain(*tasks)
+    with unittest.mock.patch.object(app, 'dag_bag') as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        url = f'/dags/{dag.dag_id}/graph'
+        resp = admin_client.get(url, follow_redirects=True)
+        assert resp.status_code == 200

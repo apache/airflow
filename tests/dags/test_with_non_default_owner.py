@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 
@@ -23,7 +24,7 @@ from airflow.operators.empty import EmptyOperator
 
 with DAG(
     dag_id="test_with_non_default_owner",
-    schedule_interval="0 0 * * *",
+    schedule="0 0 * * *",
     start_date=datetime.datetime(2022, 1, 1),
     dagrun_timeout=datetime.timedelta(minutes=60),
     tags=["example"],

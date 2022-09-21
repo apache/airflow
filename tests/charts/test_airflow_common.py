@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import jmespath
 import pytest
@@ -93,7 +94,7 @@ class TestAirflowCommon:
         Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
         deployments.
         """
-        release_name = "TEST-BASIC"
+        release_name = "test-basic"
         k8s_objects = render_chart(
             name=release_name,
             values={

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import datetime
 import os
 import re
@@ -24,7 +25,6 @@ import threading
 import time
 import uuid
 from multiprocessing import Value
-from typing import List, Union
 from unittest import mock
 from unittest.mock import patch
 
@@ -154,6 +154,16 @@ class TestLocalTaskJob:
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()
 
+        # Now, set the ti.pid to None and test that no error
+        # is raised.
+        ti.pid = None
+        session.merge(ti)
+        session.commit()
+        assert ti.pid != job1.task_runner.process.pid
+        assert not ti.run_as_user
+        assert not job1.task_runner.run_as_user
+        job1.heartbeat_callback()
+
     @mock.patch('subprocess.check_call')
     @mock.patch('airflow.jobs.local_task_job.psutil')
     def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
@@ -195,6 +205,16 @@ class TestLocalTaskJob:
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException, match='PID of job runner does not match'):
             job1.heartbeat_callback()
+
+        # Here we set the ti.pid to None and test that no error is
+        # raised
+        ti.pid = None
+        session.merge(ti)
+        session.commit()
+        assert ti.run_as_user
+        assert job1.task_runner.run_as_user == ti.run_as_user
+        assert ti.pid != job1.task_runner.process.pid
+        job1.heartbeat_callback()
 
     @conf_vars({('core', 'default_impersonation'): 'testuser'})
     @mock.patch('subprocess.check_call')
@@ -238,6 +258,16 @@ class TestLocalTaskJob:
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException, match='PID of job runner does not match'):
             job1.heartbeat_callback()
+
+        # Now, set the ti.pid to None and test that no error
+        # is raised.
+        ti.pid = None
+        session.merge(ti)
+        session.commit()
+        assert job1.task_runner.run_as_user == 'testuser'
+        assert ti.run_as_user is None
+        assert ti.pid != job1.task_runner.process.pid
+        job1.heartbeat_callback()
 
     def test_heartbeat_failed_fast(self):
         """
@@ -765,7 +795,7 @@ def clean_db_helper():
 @pytest.mark.usefixtures("clean_db_helper")
 @mock.patch("airflow.jobs.local_task_job.get_task_runner")
 def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
-    codes: List[Union[int, None]] = 9 * [None] + [0]
+    codes: list[int | None] = 9 * [None] + [0]
     mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that starts, stops and sets the machine type of a Google Compute
 Engine instance.
@@ -28,6 +27,7 @@ This DAG relies on the following OS environment variables
 * GCE_SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
     See https://cloud.google.com/compute/docs/machine-types
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -52,7 +52,6 @@ GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get('GCE_SHORT_MACHINE_TYPE_NAME', 'n1-
 
 with models.DAG(
     'example_gcp_compute',
-    schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

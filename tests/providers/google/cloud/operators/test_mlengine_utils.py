@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import unittest
@@ -63,7 +64,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 'model_name': 'test_model',
                 'version_name': 'test_version',
             },
-            schedule_interval='@daily',
+            schedule='@daily',
         )
         self.metric_fn = lambda x: (0.1,)
         self.metric_fn_encoded = mlengine_operator_utils.base64.b64encode(
@@ -145,7 +146,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'project_id': 'test-project',
                     'region': 'us-east1',
                 },
-                schedule_interval='@daily',
+                schedule='@daily',
             )
             return dag
 

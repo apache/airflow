@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -50,7 +51,8 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True
         )
 
-        operator.execute(None)
+        context = mock.MagicMock()
+        operator.execute(context=context)
         mock_hook.return_value.create_topic.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -69,7 +71,8 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=False
         )
 
-        operator.execute(None)
+        context = mock.MagicMock()
+        operator.execute(context=context)
         mock_hook.return_value.create_topic.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -106,7 +109,8 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
-        response = operator.execute(None)
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -140,7 +144,8 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID,
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
-        response = operator.execute(None)
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -169,7 +174,8 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
-        response = operator.execute(None)
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -280,8 +286,8 @@ class TestPubSubPullOperator(unittest.TestCase):
         messages_callback_return_value = 'asdfg'
 
         def messages_callback(
-            pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],
+            pulled_messages: list[ReceivedMessage],
+            context: dict[str, Any],
         ):
             assert pulled_messages == generated_messages
 

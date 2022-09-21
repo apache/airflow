@@ -24,6 +24,40 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to AzureContainerInstanceHook (#25362)``
+* ``Add test_connection to Azure Batch hook (#25235)``
+* ``Bump typing-extensions and mypy for ParamSpec (#25088)``
+* ``Implement Azure Service Bus (Update and Receive) Subscription Operator (#25029)``
+* ``Set default wasb Azure http logging level to warning; fixes #16224 (#18896)``
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to AzureCosmosDBHook (#25018)``
+* ``Add test_connection method to AzureFileShareHook (#24843)``
+* ``Add test_connection method to Azure WasbHook (#24771)``
+* ``Implement Azure service bus subscription Operators (#24625)``
+* ``Implement Azure Service Bus Queue Operators (#24038)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 4.0.0
 .....
 

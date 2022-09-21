@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 
 from airflow.models import DAG
@@ -35,7 +37,7 @@ def test_logging_fn(**kwargs):
     print("Log from Print statement")
 
 
-dag = DAG(dag_id='test_logging_dag', schedule_interval=None, start_date=datetime(2016, 1, 1))
+dag = DAG(dag_id='test_logging_dag', schedule=None, start_date=datetime(2016, 1, 1))
 
 PythonOperator(
     task_id='test_task',

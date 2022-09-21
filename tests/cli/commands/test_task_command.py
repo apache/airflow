@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import io
 import json
@@ -24,8 +25,10 @@ import re
 import unittest
 from argparse import ArgumentParser
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 
+import pendulum
 import pytest
 from parameterized import parameterized
 
@@ -73,6 +76,7 @@ class TestCliTasks:
         clear_db_runs()
 
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dagbag.sync_to_db()
         cls.dag_run = cls.dag.create_dagrun(
             state=State.NONE, run_id=cls.run_id, run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE
         )
@@ -101,6 +105,21 @@ class TestCliTasks:
 
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @mock.patch('airflow.utils.timezone.utcnow')
+    def test_test_no_execution_date(self, mock_utcnow):
+        """Test the `airflow test` command"""
+        now = pendulum.now('UTC')
+        mock_utcnow.return_value = now
+        ds = now.strftime("%Y%m%d")
+        args = self.parser.parse_args(["tasks", "test", "example_python_operator", 'print_the_context'])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+
+        # Check that prints, and log messages, are shown
+        assert f"'example_python_operator__print_the_context__{ds}'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
@@ -254,9 +273,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -267,9 +286,9 @@ class TestCliTasks:
                     'test',
                     'example_passing_params_via_test_command',
                     'also_run_this',
+                    DEFAULT_DATE.isoformat(),
                     '--task-params',
                     '{"foo":"bar"}',
-                    DEFAULT_DATE.isoformat(),
                 ]
             )
         )
@@ -283,9 +302,9 @@ class TestCliTasks:
                         'test',
                         'example_passing_params_via_test_command',
                         'env_var_test_task',
+                        DEFAULT_DATE.isoformat(),
                         '--env-vars',
                         '{"foo":"bar"}',
-                        DEFAULT_DATE.isoformat(),
                     ]
                 )
             )
@@ -710,3 +729,32 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 assert captured.output == ["WARNING:foo.bar:not redirected"]
 
         settings.DONOT_MODIFY_HANDLERS = old_value
+
+
+def test_context_with_run():
+    dag_id = "test_parsing_context"
+    task_id = "task1"
+    run_id = "test_run"
+    dag_path = os.path.join(ROOT_FOLDER, "dags", "test_parsing_context.py")
+    reset(dag_id)
+    execution_date = timezone.datetime(2017, 1, 1)
+    execution_date_str = execution_date.isoformat()
+    task_args = ['tasks', 'run', dag_id, task_id, '--local', execution_date_str]
+    parser = cli_parser.get_parser()
+
+    DagBag().get_dag(dag_id).create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+        run_type=DagRunType.MANUAL,
+    )
+    with conf_vars({('core', 'dags_folder'): dag_path}):
+        task_command.task_run(parser.parse_args(task_args))
+
+    context_file = Path("/tmp/airflow_parsing_context")
+    text = context_file.read_text()
+    assert (
+        text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
+        "_AIRFLOW_PARSING_CONTEXT_TASK_ID=task1\n"
+    )

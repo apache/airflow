@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains an operator to move data from Hive to Samba."""
+from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
@@ -64,11 +64,11 @@ class HiveToSambaOperator(BaseOperator):
         self.destination_filepath = destination_filepath
         self.hql = hql.strip().rstrip(';')
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         with NamedTemporaryFile() as tmp_file:
             self.log.info("Fetching file from Hive")
             hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
-            hive.to_csv(hql=self.hql, csv_filepath=tmp_file.name, hive_conf=context_to_airflow_vars(context))
+            hive.to_csv(self.hql, csv_filepath=tmp_file.name, hive_conf=context_to_airflow_vars(context))
             self.log.info("Pushing to samba")
             samba = SambaHook(samba_conn_id=self.samba_conn_id)
             samba.push_from_local(self.destination_filepath, tmp_file.name)

@@ -16,20 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 """Provides lineage support functions"""
-import json
+from __future__ import annotations
+
+import itertools
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import attr
-import jinja2
-from cattr import structure, unstructure
 
 from airflow.configuration import conf
 from airflow.lineage.backend import LineageBackend
 from airflow.utils.module_loading import import_string
 
-ENV = jinja2.Environment()
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"
@@ -38,16 +40,7 @@ AUTO = "auto"
 log = logging.getLogger(__name__)
 
 
-@attr.s(auto_attribs=True)
-class Metadata:
-    """Class for serialized entities."""
-
-    type_name: str = attr.ib()
-    source: str = attr.ib()
-    data: Dict = attr.ib()
-
-
-def get_backend() -> Optional[LineageBackend]:
+def get_backend() -> LineageBackend | None:
     """Gets the lineage backend if defined in the configs"""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
@@ -63,33 +56,38 @@ def get_backend() -> Optional[LineageBackend]:
     return None
 
 
-def _get_instance(meta: Metadata):
-    """Instantiate an object from Metadata"""
-    cls = import_string(meta.type_name)
-    return structure(meta.data, cls)
+def _render_object(obj: Any, context: Context) -> dict:
+    return context['ti'].task.render_template(obj, context)
 
 
-def _render_object(obj: Any, context) -> Any:
-    """Renders a attr annotated object. Will set non serializable attributes to none"""
-    return structure(
-        json.loads(
-            ENV.from_string(json.dumps(unstructure(obj), default=lambda o: None))
-            .render(**context)
-            .encode('utf-8')
-        ),
-        type(obj),
-    )
+def _deserialize(serialized: dict):
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    # This is only use in the worker side, so it is okay to "blindly" import the specified class here.
+    cls = import_string(serialized['__type'])
+    return cls(**BaseSerialization.deserialize(serialized['__var']))
 
 
-def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
-    """Create Metadata from attr annotated object"""
-    if not attr.has(obj):
-        return None
+def _serialize(objs: list[Any], source: str):
+    """Serialize an attrs-decorated class to JSON"""
+    from airflow.serialization.serialized_objects import BaseSerialization
 
-    type_name = obj.__module__ + '.' + obj.__class__.__name__
-    data = unstructure(obj)
+    for obj in objs:
+        if not attr.has(obj):
+            continue
 
-    return Metadata(type_name, source, data)
+        type_name = obj.__module__ + '.' + obj.__class__.__name__
+        # Only include attributes which we can pass back to the classes constructor
+        data = attr.asdict(obj, recurse=True, filter=lambda a, v: a.init)
+
+        yield {
+            k: BaseSerialization.serialize(v)
+            for k, v in (
+                ('__type', type_name),
+                ('__source', source),
+                ('__var', data),
+            )
+        }
 
 
 T = TypeVar("T", bound=Callable)
@@ -104,18 +102,19 @@ def apply_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
+
         self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
         ret_val = func(self, context, *args, **kwargs)
 
-        outlets = [unstructure(_to_dataset(x, f"{self.dag_id}.{self.task_id}")) for x in self.outlets]
-        inlets = [unstructure(_to_dataset(x, None)) for x in self.inlets]
+        outlets = list(_serialize(self.outlets, f"{self.dag_id}.{self.task_id}"))
+        inlets = list(_serialize(self.inlets, None))
 
-        if self.outlets:
+        if outlets:
             self.xcom_push(
                 context, key=PIPELINE_OUTLETS, value=outlets, execution_date=context['ti'].execution_date
             )
 
-        if self.inlets:
+        if inlets:
             self.xcom_push(
                 context, key=PIPELINE_INLETS, value=inlets, execution_date=context['ti'].execution_date
             )
@@ -145,47 +144,41 @@ def prepare_lineage(func: T) -> T:
 
         self.log.debug("Preparing lineage inlets and outlets")
 
-        if isinstance(self._inlets, (str, AbstractOperator)) or attr.has(self._inlets):
-            self._inlets = [
-                self._inlets,
-            ]
+        if isinstance(self.inlets, (str, AbstractOperator)):
+            self.inlets = [self.inlets]
 
-        if self._inlets and isinstance(self._inlets, list):
+        if self.inlets and isinstance(self.inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
             task_ids = (
-                {o for o in self._inlets if isinstance(o, str)}
-                .union(op.task_id for op in self._inlets if isinstance(op, AbstractOperator))
+                {o for o in self.inlets if isinstance(o, str)}
+                .union(op.task_id for op in self.inlets if isinstance(op, AbstractOperator))
                 .intersection(self.get_flat_relative_ids(upstream=True))
             )
 
             # pick up unique direct upstream task_ids if AUTO is specified
-            if AUTO.upper() in self._inlets or AUTO.lower() in self._inlets:
+            if AUTO.upper() in self.inlets or AUTO.lower() in self.inlets:
                 task_ids = task_ids.union(task_ids.symmetric_difference(self.upstream_task_ids))
 
+            # Remove auto and task_ids
+            self.inlets = [i for i in self.inlets if not isinstance(i, str)]
             _inlets = self.xcom_pull(context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS)
 
             # re-instantiate the obtained inlets
-            _inlets = [
-                _get_instance(structure(item, Metadata)) for sublist in _inlets if sublist for item in sublist
-            ]
+            # xcom_pull returns a list of items for each given task_id
+            _inlets = [_deserialize(item) for item in itertools.chain.from_iterable(_inlets)]
 
             self.inlets.extend(_inlets)
-            self.inlets.extend(self._inlets)
 
-        elif self._inlets:
+        elif self.inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
 
-        if not isinstance(self._outlets, list):
-            self._outlets = [
-                self._outlets,
-            ]
-
-        self.outlets.extend(self._outlets)
+        if not isinstance(self.outlets, list):
+            self.outlets = [self.outlets]
 
         # render inlets and outlets
-        self.inlets = [_render_object(i, context) for i in self.inlets if attr.has(i)]
+        self.inlets = [_render_object(i, context) for i in self.inlets]
 
-        self.outlets = [_render_object(i, context) for i in self.outlets if attr.has(i)]
+        self.outlets = [_render_object(i, context) for i in self.outlets]
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
         return func(self, context, *args, **kwargs)

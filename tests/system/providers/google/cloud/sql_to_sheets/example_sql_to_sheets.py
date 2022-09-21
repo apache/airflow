@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 from datetime import datetime
 
@@ -30,7 +32,7 @@ NEW_SPREADSHEET_ID = os.environ.get("NEW_SPREADSHEET_ID", "123")
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule_interval='@once',  # Override to match your needs
+    schedule='@once',  # Override to match your needs
     catchup=False,
     tags=["example", "sql"],
 ) as dag:

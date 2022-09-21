@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
+from __future__ import annotations
+
 import json
 import math
 import time
@@ -22,7 +24,7 @@ import warnings
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Iterable, cast
 
 import pendulum
 import tenacity
@@ -76,7 +78,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     container_statuses = pod.status.container_statuses if pod and pod.status else None
     if not container_statuses:
         return False
-    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+    container_status = next((x for x in container_statuses if x.name == container_name), None)
     if not container_status:
         return False
     return container_status.state.running is not None
@@ -85,7 +87,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 def get_container_termination_message(pod: V1Pod, container_name: str):
     try:
         container_statuses = pod.status.container_statuses
-        container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+        container_status = next((x for x in container_statuses if x.name == container_name), None)
         return container_status.state.terminated.message if container_status else None
     except (AttributeError, TypeError):
         return None
@@ -96,7 +98,7 @@ class PodLoggingStatus:
     """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`"""
 
     running: bool
-    last_log_time: Optional[DateTime]
+    last_log_time: DateTime | None
 
 
 class PodManager(LoggingMixin):
@@ -109,7 +111,7 @@ class PodManager(LoggingMixin):
         self,
         kube_client: client.CoreV1Api = None,
         in_cluster: bool = True,
-        cluster_context: Optional[str] = None,
+        cluster_context: str | None = None,
     ):
         """
         Creates the launcher.
@@ -194,14 +196,14 @@ class PodManager(LoggingMixin):
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
     def fetch_container_logs(
-        self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
+        self, pod: V1Pod, container_name: str, *, follow=False, since_time: DateTime | None = None
     ) -> PodLoggingStatus:
         """
         Follows the logs of container and streams to airflow logging.
         Returns when container exits.
         """
 
-        def consume_logs(*, since_time: Optional[DateTime] = None, follow: bool = True) -> Optional[DateTime]:
+        def consume_logs(*, since_time: DateTime | None = None, follow: bool = True) -> DateTime | None:
             """
             Tries to follow container logs until container completes.
             For a long-running container, sometimes the log read may be interrupted
@@ -274,7 +276,7 @@ class PodManager(LoggingMixin):
             time.sleep(2)
         return remote_pod
 
-    def parse_log_line(self, line: str) -> Tuple[Optional[DateTime], str]:
+    def parse_log_line(self, line: str) -> tuple[DateTime | None, str]:
         """
         Parse K8s log line and returns the final state
 
@@ -309,9 +311,9 @@ class PodManager(LoggingMixin):
         self,
         pod: V1Pod,
         container_name: str,
-        tail_lines: Optional[int] = None,
+        tail_lines: int | None = None,
         timestamps: bool = False,
-        since_seconds: Optional[int] = None,
+        since_seconds: int | None = None,
         follow=True,
     ) -> Iterable[bytes]:
         """Reads log from the POD"""
@@ -337,7 +339,7 @@ class PodManager(LoggingMixin):
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod_events(self, pod: V1Pod) -> "CoreV1EventList":
+    def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(
@@ -353,6 +355,18 @@ class PodManager(LoggingMixin):
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+
+    def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
+        self.log.info("Checking if xcom sidecar container is started.")
+        warned = False
+        while True:
+            if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+                self.log.info("The xcom sidecar container is started.")
+                break
+            if not warned:
+                self.log.warning("The xcom sidecar container is not yet started.")
+                warned = True
+            time.sleep(1)
 
     def extract_xcom(self, pod: V1Pod) -> str:
         """Retrieves XCom value and kills xcom sidecar container"""
@@ -370,13 +384,16 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
+            result = self._exec_pod_command(
+                resp,
+                f'if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi',  # noqa
+            )
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         if result is None:
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
-    def _exec_pod_command(self, resp, command: str) -> Optional[str]:
+    def _exec_pod_command(self, resp, command: str) -> str | None:
         res = None
         if resp.is_open():
             self.log.info('Running command... %s\n', command)

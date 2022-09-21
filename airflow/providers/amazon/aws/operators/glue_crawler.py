@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
-from typing import TYPE_CHECKING
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -42,6 +43,7 @@ class GlueCrawlerOperator(BaseOperator):
     :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
     """
 
+    template_fields: Sequence[str] = ('config',)
     ui_color = '#ededed'
 
     def __init__(
@@ -63,7 +65,7 @@ class GlueCrawlerOperator(BaseOperator):
         """Create and return an GlueCrawlerHook."""
         return GlueCrawlerHook(self.aws_conn_id)
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Executes AWS Glue Crawler from Airflow
 
@@ -82,19 +84,3 @@ class GlueCrawlerOperator(BaseOperator):
             self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
 
         return crawler_name
-
-
-class AwsGlueCrawlerOperator(GlueCrawlerOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

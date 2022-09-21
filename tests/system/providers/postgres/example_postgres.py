@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import datetime
 import os
 
@@ -32,7 +34,7 @@ DAG_ID = "postgres_operator_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime.datetime(2020, 2, 2),
-    schedule_interval="@once",
+    schedule="@once",
     catchup=False,
 ) as dag:
     # [START postgres_operator_howto_guide_create_pet_table]

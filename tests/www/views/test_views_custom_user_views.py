@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 
@@ -24,7 +25,6 @@ from parameterized import parameterized
 from airflow import settings
 from airflow.security import permissions
 from airflow.www import app as application
-from airflow.www.views import CustomUserDBModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_role
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
@@ -34,22 +34,24 @@ class TestSecurity(unittest.TestCase):
     def setUpClass(cls):
         settings.configure_orm()
         cls.session = settings.Session
-        cls.app = application.create_app(testing=True)
-        cls.appbuilder = cls.app.appbuilder
-        cls.app.config['WTF_CSRF_ENABLED'] = False
-        cls.security_manager = cls.appbuilder.sm
-
-        cls.delete_roles()
 
     def setUp(self):
+        # We cannot reuse the app in tests (on class level) as in Flask 2.2 this causes
+        # an exception because app context teardown is removed and if even single request is run via app
+        # it cannot be re-intialized again by passing it as constructor to SQLA
+        # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder
+        self.app.config['WTF_CSRF_ENABLED'] = False
+        self.security_manager = self.appbuilder.sm
+        self.delete_roles()
         self.db = SQLA(self.app)
-        self.appbuilder.add_view(CustomUserDBModelView, "CustomUserDBModelView", category="ModelViews")
+
         self.client = self.app.test_client()  # type:ignore
 
-    @classmethod
-    def delete_roles(cls):
+    def delete_roles(self):
         for role_name in ['role_edit_one_dag']:
-            delete_role(cls.app, role_name)
+            delete_role(self.app, role_name)
 
     @parameterized.expand(
         [

@@ -44,19 +44,18 @@ Your DAGs will start executing once the scheduler is running successfully.
 .. note::
 
     The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG.
-    Subsequent DAG Runs are created by the scheduler process, based on your DAG's ``schedule_interval``,
-    sequentially.
+    Subsequent DAG Runs are created according to your DAG's :doc:`timetable </concepts/timetable>`.
 
 
-The scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule_interval`` set as ``@daily`` runs after the day
+For dags with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
 has ended. This technique makes sure that whatever data is required for that period is fully available before the DAG is executed.
 In the UI, it appears as if Airflow is running your tasks a day **late**
 
 .. note::
 
-    If you run a DAG on a ``schedule_interval`` of one day, the run with data interval starting on ``2019-11-21`` triggers after ``2019-11-21T23:59``.
+    If you run a DAG on a ``schedule`` of one day, the run with data interval starting on ``2019-11-21`` triggers after ``2019-11-21T23:59``.
 
-    **Let's Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the interval.
+    **Let's Repeat That**, the scheduler runs your job one ``schedule`` AFTER the start date, at the END of the interval.
 
     You should refer to :doc:`/dag-run` for details on scheduling a DAG.
 
@@ -73,9 +72,9 @@ Triggering DAG with Future Date
 -------------------------------
 
 If you want to use 'external trigger' to run future-dated data intervals, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
-This only has effect if your DAG has no ``schedule_interval``.
-If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated data intervals,
-the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the start of the data interval.
+This only has effect if your DAG is defined with ``schedule=None``.
+When set to ``False`` (the default value), if you manually trigger a run with future-dated data intervals,
+the scheduler will not execute it until its ``data_interval_start`` is in the past.
 
 .. _scheduler:ha:
 

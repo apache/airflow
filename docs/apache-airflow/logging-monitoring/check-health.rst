@@ -28,7 +28,7 @@ For example, when running on Kubernetes, use `a Liveness probes <https://kuberne
 with :ref:`CLI checks <check-health/cli-checks-for-scheduler>` on the scheduler deployment to restart it when it fails.
 For the webserver, you can configure the readiness probe (``readinessProbe`` property) using :ref:`check-health/http-endpoint`.
 
-For an example for a Docker Compose environment, see the ``docker-compose.yaml`` file available in the :doc:`/start/docker`.
+For an example for a Docker Compose environment, see the ``docker-compose.yaml`` file available in the :doc:`/howto/docker-compose/index`.
 
 .. _check-health/http-endpoint:
 

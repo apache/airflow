@@ -15,13 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
+
+
+BASE_LINK = "https://console.cloud.google.com"
 
 
 class BaseGoogleLink(BaseOperatorLink):
@@ -34,8 +39,8 @@ class BaseGoogleLink(BaseOperatorLink):
     def get_link(
         self,
         operator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        dttm: datetime | None = None,
+        ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if ti_key is not None:
             conf = XCom.get_value(key=self.key, ti_key=ti_key)
@@ -47,5 +52,8 @@ class BaseGoogleLink(BaseOperatorLink):
                 task_id=operator.task_id,
                 execution_date=dttm,
             )
-
-        return self.format_str.format(**conf) if conf else ""
+        if not conf:
+            return ""
+        if self.format_str.startswith(BASE_LINK):
+            return self.format_str.format(**conf)
+        return BASE_LINK + self.format_str.format(**conf)

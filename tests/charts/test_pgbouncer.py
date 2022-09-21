@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import base64
 import unittest
@@ -39,7 +40,7 @@ class PgbouncerTest(unittest.TestCase):
         )
 
         assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "RELEASE-NAME-pgbouncer" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-pgbouncer" == jmespath.search("metadata.name", docs[0])
         assert "pgbouncer" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     def test_should_create_pgbouncer_service(self):
@@ -49,7 +50,7 @@ class PgbouncerTest(unittest.TestCase):
         )
 
         assert "Service" == jmespath.search("kind", docs[0])
-        assert "RELEASE-NAME-pgbouncer" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-pgbouncer" == jmespath.search("metadata.name", docs[0])
         assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
         assert "9127" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
 
@@ -95,6 +96,24 @@ class PgbouncerTest(unittest.TestCase):
             "prometheus.io/port": "9127",
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
+
+    @parameterized.expand([(8, 10), (10, 8), (8, None), (None, 10), (None, None)])
+    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+        values = {
+            "pgbouncer": {
+                "enabled": True,
+            }
+        }
+        if revision_history_limit:
+            values['pgbouncer']['revisionHistoryLimit'] = revision_history_limit
+        if global_revision_history_limit:
+            values['revisionHistoryLimit'] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -142,7 +161,7 @@ class PgbouncerTest(unittest.TestCase):
 
     def test_no_existing_secret(self):
         docs = render_chart(
-            "TEST-PGBOUNCER-CONFIG",
+            "test-pgbouncer-config",
             values={
                 "pgbouncer": {"enabled": True},
             },
@@ -151,12 +170,12 @@ class PgbouncerTest(unittest.TestCase):
 
         assert {
             "name": "pgbouncer-config",
-            "secret": {"secretName": "TEST-PGBOUNCER-CONFIG-pgbouncer-config"},
+            "secret": {"secretName": "test-pgbouncer-config-pgbouncer-config"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
 
     def test_existing_secret(self):
         docs = render_chart(
-            "TEST-PGBOUNCER-CONFIG",
+            "test-pgbouncer-config",
             values={
                 "pgbouncer": {"enabled": True, "configSecretName": "pgbouncer-config-secret"},
             },
@@ -263,7 +282,7 @@ class PgbouncerTest(unittest.TestCase):
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
@@ -313,11 +332,11 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = self._get_pgbouncer_ini({"pgbouncer": {"enabled": True}})
 
         assert (
-            "RELEASE-NAME-metadata = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            "release-name-metadata = host=release-name-postgresql.default dbname=postgres port=5432"
             " pool_size=10" in ini
         )
         assert (
-            "RELEASE-NAME-result-backend = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            "release-name-result-backend = host=release-name-postgresql.default dbname=postgres port=5432"
             " pool_size=5" in ini
         )
 
@@ -346,11 +365,11 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = self._get_pgbouncer_ini(values)
 
         assert (
-            "RELEASE-NAME-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5"
+            "release-name-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5"
             in ini
         )
         assert (
-            "RELEASE-NAME-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3"
+            "release-name-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3"
             in ini
         )
 

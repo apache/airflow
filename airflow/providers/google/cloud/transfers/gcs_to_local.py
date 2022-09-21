@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -79,12 +80,12 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self,
         *,
         bucket: str,
-        object_name: Optional[str] = None,
-        filename: Optional[str] = None,
-        store_to_xcom_key: Optional[str] = None,
+        object_name: str | None = None,
+        filename: str | None = None,
+        store_to_xcom_key: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         file_encoding: str = 'utf-8',
         **kwargs,
     ) -> None:
@@ -111,7 +112,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.file_encoding = file_encoding
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Executing download: %s, %s, %s', self.bucket, self.object_name, self.filename)
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

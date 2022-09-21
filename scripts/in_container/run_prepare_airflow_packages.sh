@@ -55,15 +55,14 @@ function prepare_airflow_packages() {
         else
             if [[ ${AIRFLOW_VERSION} != *${VERSION_SUFFIX_FOR_PYPI} ]]; then
                 echo
-                echo "${COLOR_RED}The requested PyPI suffix ${VERSION_SUFFIX_FOR_PYPI} does not match the one in ${AIRFLOW_VERSION}. Exiting.${COLOR_RESET}"
+                echo "${COLOR_YELLOW}The requested PyPI suffix ${VERSION_SUFFIX_FOR_PYPI} does not match the one in ${AIRFLOW_VERSION}. Overriding it with one from ${VERSION_SUFFIX_FOR_PYPI}.${COLOR_RESET}"
                 echo
-                exit 1
             fi
         fi
     fi
 
     # Prepare airflow's wheel
-    PYTHONUNBUFFERED=1 python setup.py compile_assets "${tag_build[@]}" "${packages[@]}"
+    PYTHONUNBUFFERED=1 python setup.py "${tag_build[@]}" "${packages[@]}"
 
     # clean-up
     rm -rf -- *egg-info*

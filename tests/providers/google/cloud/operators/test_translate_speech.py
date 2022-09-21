@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -64,7 +65,8 @@ class TestCloudTranslateSpeech(unittest.TestCase):
             task_id='id',
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        return_value = op.execute(context=None)
+        context = mock.MagicMock()
+        return_value = op.execute(context=context)
 
         mock_speech_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

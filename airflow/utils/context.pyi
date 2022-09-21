@@ -33,6 +33,7 @@ from airflow.configuration import AirflowConfigParser
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import DatasetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import TypedDict
@@ -51,7 +52,7 @@ class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
 # NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
-class Context(TypedDict):
+class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG
@@ -61,7 +62,7 @@ class Context(TypedDict):
     ds: str
     ds_nodash: str
     execution_date: DateTime
-    exception: Union[Exception, str, None]
+    exception: Union[KeyboardInterrupt, Exception, str, None]
     inlets: list
     logical_date: DateTime
     macros: Any
@@ -86,6 +87,7 @@ class Context(TypedDict):
     ti: TaskInstance
     tomorrow_ds: str
     tomorrow_ds_nodash: str
+    triggering_dataset_events: Mapping[str, Collection[DatasetEvent]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

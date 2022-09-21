@@ -15,19 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-def fetch_all_handler(cursor):
-    """Handler for DbApiHook.run() to return results"""
-    return cursor.fetchall()
 
 
 class JdbcOperator(BaseOperator):
@@ -57,10 +54,11 @@ class JdbcOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: str | Iterable[str],
         jdbc_conn_id: str = 'jdbc_default',
         autocommit: bool = False,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable[[Any], Any] = fetch_all_handler,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,9 +66,13 @@ class JdbcOperator(BaseOperator):
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit
+        self.handler = handler
         self.hook = None
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context):
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        return hook.run(self.sql, self.autocommit, parameters=self.parameters, handler=fetch_all_handler)
+        if self.do_xcom_push:
+            return hook.run(self.sql, self.autocommit, parameters=self.parameters, handler=self.handler)
+        else:
+            return hook.run(self.sql, self.autocommit, parameters=self.parameters)

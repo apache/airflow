@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import mock
 
@@ -195,5 +196,5 @@ class TestSSHOperator:
             command=command,
         )
         self.exec_ssh_client_command.return_value = (1, b'', b'Error here')
-        with pytest.raises(AirflowException, match=f"error running cmd: {command}, error: Error here"):
+        with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
             task.execute(None)

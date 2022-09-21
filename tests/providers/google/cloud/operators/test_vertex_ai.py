@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, List
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -133,15 +133,15 @@ TEST_UPDATE_MASK = "test-update-mask"
 TEST_TRAINING_TARGET_COLUMN = "target"
 TEST_TRAINING_TIME_COLUMN = "time"
 TEST_TRAINING_TIME_SERIES_IDENTIFIER_COLUMN = "time_series_identifier"
-TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS: List[str] = []
-TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS: List[str] = []
+TEST_TRAINING_UNAVAILABLE_AT_FORECAST_COLUMNS: list[str] = []
+TEST_TRAINING_AVAILABLE_AT_FORECAST_COLUMNS: list[str] = []
 TEST_TRAINING_FORECAST_HORIZON = 10
 TEST_TRAINING_DATA_GRANULARITY_UNIT = "day"
 TEST_TRAINING_DATA_GRANULARITY_COUNT = 1
 
 TEST_MODEL_ID = "test_model_id"
 TEST_MODEL_NAME = f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id"
-TEST_MODEL_OBJ: Dict = {}
+TEST_MODEL_OBJ: dict = {}
 TEST_JOB_DISPLAY_NAME = "temp_create_batch_prediction_job_test"
 TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 
@@ -170,6 +170,7 @@ TEST_OUTPUT_CONFIG = {
 class TestVertexAICreateCustomContainerTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
+        mock_hook.return_value.create_custom_container_training_job.return_value = (None, 'training_id')
         op = CreateCustomContainerTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -250,6 +251,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
+        mock_hook.return_value.create_custom_python_package_training_job.return_value = (None, 'training_id')
         op = CreateCustomPythonPackageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -332,6 +334,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
 class TestVertexAICreateCustomTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
     def test_execute(self, mock_hook):
+        mock_hook.return_value.create_custom_training_job.return_value = (None, 'training_id')
         op = CreateCustomTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,

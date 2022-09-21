@@ -26,7 +26,7 @@
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
+  - [Prepare new release branches and cache - optional when first minor version is released](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
@@ -55,6 +55,7 @@
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
+  - [Update EndOfLife data](#update-endoflife-data)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -211,7 +212,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
-  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+  For major/minor version release, please follow  the instructions at
+  [Prepare new release branches and cache](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
+  to create the 'test' and 'stable' branches.
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
@@ -267,7 +270,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Make sure you have the latest CI image
 
     ```shell script
-    breeze build-image --python 3.7
+    breeze ci-image build --python 3.7
     ```
 
 - Tarball the repo
@@ -284,7 +287,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    breeze prepare-airflow-package --package-format both
+    breeze release-management prepare-airflow-package --package-format both
     pushd dist
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
     popd
@@ -326,7 +329,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
 
-## [\Optional\] Prepare new release branches and cache
+## Prepare new release branches and cache - optional when first minor version is released
 
 When you just released the `X.Y.0` version (first release of new minor version) you need to create release
 branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
@@ -351,6 +354,8 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 
 ### Update default branches
 
+#### In the legacy, bash breeze (to be removed when the bash breeze is entirely gone)
+
 In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
 
 ```bash
@@ -371,6 +376,22 @@ values for comparison and regexp):
 ```bash
     elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
+```
+
+#### In the new breeze
+
+In ``./dev/breeze/src/airflow_breeze/branch_defaults.py`` update branches to reflect the new branch:
+
+```python
+AIRFLOW_BRANCH = "main"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
+```
+
+should become this, where ``X-Y`` is your new branch version:
+
+```python
+AIRFLOW_BRANCH = "vX-Y-test"
+DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-X-Y"
 ```
 
 ### Commit the changes to the test branch
@@ -459,7 +480,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
+    breeze release-management prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -675,7 +696,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py -v {VERSION} -t airflow -p {PATH_TO_SVN}
+python check_files.py airflow -v {VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -993,10 +1014,10 @@ the older branches, you should set the "skip" field to true.
 for PYTHON in 3.7 3.8 3.9 3.10
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
-    breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
 docker pull apache/airflow:${VERSION}
-breeze verify-prod-image --image-name apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 
@@ -1020,7 +1041,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build --for-production
     ```
 
 - Now you can preview the documentation.
@@ -1152,7 +1173,7 @@ This includes:
 - For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
-- Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
+- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
 
 ## Update default Airflow version in the helm chart
@@ -1176,3 +1197,8 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
     ```
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
+
+## Update EndOfLife data
+
+- Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
+changelog link.

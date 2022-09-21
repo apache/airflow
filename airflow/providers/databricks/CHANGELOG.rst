@@ -24,6 +24,52 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Databricks: update user-agent string (#25578)``
+* ``More improvements in the Databricks operators (#25260)``
+* ``Improved telemetry for Databricks provider (#25115)``
+* ``Unify DbApiHook.run() method with the methods which override it (#23971)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: fix test_connection implementation (#25114)``
+* ``Do not convert boolean values to string in deep_string_coerce function (#25394)``
+* ``Correctly handle output of the failed tasks (#25427)``
+* ``Databricks: Fix provider for Airflow 2.2.x (#25674)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``updated documentation for databricks operator (#24599)``
+   * ``Prepare docs for new providers release (August 2022) (#25618)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added databricks_conn_id as templated field (#24945)``
+* ``Add 'test_connection' method to Databricks hook (#24617)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+   * ``Remove "bad characters" from our codebase (#24841)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

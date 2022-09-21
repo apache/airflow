@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 import unittest
 from base64 import b64decode
 from subprocess import CalledProcessError
-from typing import Optional
 
 import jmespath
 import pytest
@@ -26,7 +27,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
-RELEASE_NAME_REDIS = "TEST-REDIS"
+RELEASE_NAME_REDIS = "test-redis"
 
 REDIS_OBJECTS = {
     "NETWORK_POLICY": ("NetworkPolicy", f"{RELEASE_NAME_REDIS}-redis-policy"),
@@ -66,7 +67,7 @@ class RedisTest(unittest.TestCase):
         return env["valueFrom"]["secretKeyRef"]["name"]
 
     def assert_password_and_broker_url_secrets(
-        self, k8s_obj_by_key, expected_password_match: Optional[str], expected_broker_url_match: Optional[str]
+        self, k8s_obj_by_key, expected_password_match: str | None, expected_broker_url_match: str | None
     ):
         if expected_password_match is not None:
             redis_password_in_password_secret = self.get_redis_password_in_password_secret(k8s_obj_by_key)
@@ -135,7 +136,7 @@ class RedisTest(unittest.TestCase):
             k8s_obj_by_key,
             expected_password_match="test-redis-password",
             expected_broker_url_match=re.escape(
-                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@TEST-REDIS-redis:6379/0"
+                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@test-redis-redis:6379/0"
             ),
         )
 

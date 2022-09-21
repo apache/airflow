@@ -17,6 +17,8 @@
 """
 Useful tools for various Paths used inside Airflow Sources.
 """
+from __future__ import annotations
+
 import hashlib
 import os
 import subprocess
@@ -24,22 +26,16 @@ import sys
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.reinstall import (
-    ask_to_reinstall_breeze,
-    warn_dependencies_changed,
-    warn_different_location,
-    warn_non_editable,
-)
+from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
 
 AIRFLOW_CFG_FILE = "setup.cfg"
 
 
-def search_upwards_for_airflow_sources_root(start_from: Path) -> Optional[Path]:
+def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
     root = Path(start_from.root)
     d = start_from
     while d != root:
@@ -66,9 +62,13 @@ def skip_upgrade_check():
     return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
+def skip_group_output():
+    return in_autocomplete() or in_help() or os.environ.get('SKIP_GROUP_OUTPUT') is not None
+
+
 def get_package_setup_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files from the source of installation of Breeze.
+    Retrieves hash of setup files from the source of installation of Breeze.
 
     This is used in order to determine if we need to upgrade Breeze, because some
     setup files changed. Blake2b algorithm will not be flagged by security checkers
@@ -117,7 +117,7 @@ def get_installation_sources_config_metadata_hash() -> str:
 
 def get_used_sources_setup_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files from the currently used sources.
+    Retrieves hash of setup files from the currently used sources.
     """
     return get_sources_setup_metadata_hash(get_used_airflow_sources())
 
@@ -132,7 +132,7 @@ def set_forced_answer_for_upgrade_check():
         set_forced_answer("quit")
 
 
-def print_warning_if_setup_changed() -> bool:
+def reinstall_if_setup_changed() -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
@@ -149,13 +149,13 @@ def print_warning_if_setup_changed() -> bool:
             breeze_sources = installation_sources / "dev" / "breeze"
             warn_dependencies_changed()
             set_forced_answer_for_upgrade_check()
-            ask_to_reinstall_breeze(breeze_sources)
+            reinstall_breeze(breeze_sources)
             set_forced_answer(None)
         return True
     return False
 
 
-def print_warning_if_different_sources(airflow_sources: Path) -> bool:
+def reinstall_if_different_sources(airflow_sources: Path) -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :param airflow_sources: source for airflow code that we are operating on
@@ -163,13 +163,12 @@ def print_warning_if_different_sources(airflow_sources: Path) -> bool:
     """
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources and airflow_sources != installation_airflow_sources:
-        warn_different_location(installation_airflow_sources, airflow_sources)
-        ask_to_reinstall_breeze(airflow_sources / "dev" / "breeze")
+        reinstall_breeze(airflow_sources / "dev" / "breeze")
         return True
     return False
 
 
-def get_installation_airflow_sources() -> Optional[Path]:
+def get_installation_airflow_sources() -> Path | None:
     """
     Retrieves the Root of the Airflow Sources where Breeze was installed from.
     :return: the Path for Airflow sources.
@@ -230,8 +229,8 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     airflow_sources = get_used_airflow_sources()
     if not skip_upgrade_check():
         # only print warning and sleep if not producing complete results
-        print_warning_if_different_sources(airflow_sources)
-        print_warning_if_setup_changed()
+        reinstall_if_different_sources(airflow_sources)
+        reinstall_if_setup_changed()
     os.chdir(str(airflow_sources))
     return airflow_sources
 
@@ -275,7 +274,7 @@ def create_volume_if_missing(volume_name: str):
             )
 
 
-def create_static_check_volumes():
+def create_mypy_volume_if_needed():
     create_volume_if_missing("mypy-cache-volume")
 
 
@@ -296,4 +295,3 @@ def create_directories_and_files() -> None:
     (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
     (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
     (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
-    create_static_check_volumes()

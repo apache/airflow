@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer. This DAG relies on
 the following OS environment variables
@@ -33,6 +32,7 @@ Otherwise, DAG will fail.
   Look at documentation of :class:`~airflow.operators.sensors.BaseSensorOperator` for more information
 
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
@@ -106,7 +106,6 @@ aws_to_gcs_transfer_body = {
 
 with models.DAG(
     'example_gcp_transfer_aws',
-    schedule_interval=None,  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

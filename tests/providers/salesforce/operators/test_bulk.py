@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 
@@ -31,6 +33,13 @@ class TestSalesforceBulkOperator:
         """
         Test execute missing operation
         """
+        with pytest.raises(AirflowException):
+            SalesforceBulkOperator(
+                task_id='no_missing_operation_arg',
+                object_name='Account',
+                payload=[],
+            )
+
         with pytest.raises(ValueError):
             SalesforceBulkOperator(
                 task_id='missing_operation',
@@ -43,10 +52,18 @@ class TestSalesforceBulkOperator:
         """
         Test execute missing object_name
         """
+        with pytest.raises(AirflowException):
+            SalesforceBulkOperator(
+                task_id='no_object_name_arg',
+                operation='insert',
+                payload=[],
+            )
+
         with pytest.raises(ValueError):
             SalesforceBulkOperator(
                 task_id='missing_object_name',
                 operation='insert',
+                object_name="",
                 payload=[],
             )
 

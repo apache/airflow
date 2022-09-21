@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import requests
 from requests import HTTPError
@@ -42,7 +43,7 @@ class TabularHook(BaseHook):
     hook_name = "Tabular"
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema", "port"],
@@ -62,13 +63,13 @@ class TabularHook(BaseHook):
         super().__init__()
         self.conn_id = tabular_conn_id
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         """Test the Tabular connection."""
         try:
             self.get_conn()
             return True, "Successfully fetched token from Tabular"
         except HTTPError as e:
-            return False, f"HTTP Error: {e}"
+            return False, f"HTTP Error: {e}: {e.response.text}"
         except Exception as e:
             return False, str(e)
 
@@ -79,10 +80,9 @@ class TabularHook(BaseHook):
         base_url = base_url.rstrip('/')
         client_id = conn.login
         client_secret = conn.password
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        data = {"client_id": client_id, "client_secret": client_secret}
+        data = {"client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials"}
 
-        response = requests.post(f"{base_url}/{TOKENS_ENDPOINT}", data=data, headers=headers)
+        response = requests.post(f"{base_url}/{TOKENS_ENDPOINT}", data=data)
         response.raise_for_status()
 
         return response.json()["access_token"]

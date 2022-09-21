@@ -18,6 +18,14 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set grant type of the Tabular hook (#25099)``
+
 1.0.0
 .....
 

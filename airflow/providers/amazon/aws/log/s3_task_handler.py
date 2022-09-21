@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import pathlib
-from typing import Optional
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -32,7 +34,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from S3 remote storage.
     """
 
-    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: str | None = None):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
@@ -43,20 +45,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     @cached_property
     def hook(self):
         """Returns S3Hook."""
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
-        try:
-            from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-            return S3Hook(remote_conn_id, transfer_config_args={"use_threads": False})
-        except Exception as e:
-            self.log.exception(
-                'Could not create an S3Hook with connection id "%s". '
-                'Please make sure that apache-airflow[aws] is installed and '
-                'the S3 connection exists. Exception : "%s"',
-                remote_conn_id,
-                e,
-            )
-            return None
+        return S3Hook(
+            aws_conn_id=conf.get('logging', 'REMOTE_LOG_CONN_ID'), transfer_config_args={"use_threads": False}
+        )
 
     def set_context(self, ti):
         super().set_context(ti)
@@ -129,7 +120,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             return log, {'end_of_log': True}
         else:
             log += '*** Falling back to local log\n'
-            local_log, metadata = super()._read(ti, try_number)
+            local_log, metadata = super()._read(ti, try_number, metadata)
             return log + local_log, metadata
 
     def s3_log_exists(self, remote_log_location: str) -> bool:

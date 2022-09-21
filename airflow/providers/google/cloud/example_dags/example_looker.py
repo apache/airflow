@@ -19,6 +19,7 @@
 Example Airflow DAG that show how to use various Looker
 operators to submit PDT materialization job and manage it.
 """
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -28,7 +29,6 @@ from airflow.providers.google.cloud.sensors.looker import LookerCheckPdtBuildSen
 
 with models.DAG(
     dag_id='example_gcp_looker',
-    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

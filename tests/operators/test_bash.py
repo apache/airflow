@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import signal
@@ -62,7 +63,7 @@ class TestBashOperator:
         dag = DAG(
             dag_id='bash_op_test',
             default_args={'owner': 'airflow', 'retries': 100, 'start_date': DEFAULT_DATE},
-            schedule_interval='@daily',
+            schedule='@daily',
             dagrun_timeout=timedelta(minutes=60),
         )
 

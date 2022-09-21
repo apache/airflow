@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields"""
+from __future__ import annotations
+
 import os
-from typing import Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, and_, not_, text, tuple_
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, and_, not_, text, tuple_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Session, relationship
 
@@ -46,6 +47,14 @@ class RenderedTaskInstanceFields(Base):
     k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     __table_args__ = (
+        PrimaryKeyConstraint(
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            name='rendered_task_instance_fields_pkey',
+            mssql_clustered=True,
+        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -111,7 +120,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> Optional[dict]:
+    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields
         table.
@@ -139,7 +148,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> Optional[dict]:
+    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
         Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
         table.

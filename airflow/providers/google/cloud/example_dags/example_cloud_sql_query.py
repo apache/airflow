@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Example Airflow DAG that performs query in a Cloud SQL instance.
 
@@ -36,6 +35,8 @@ This DAG relies on the following OS environment variables
 * GCSQL_MYSQL_PUBLIC_IP - Public IP of the mysql database
 * GCSQL_MYSQL_PUBLIC_PORT - Port of the mysql database
 """
+from __future__ import annotations
+
 import os
 import subprocess
 from datetime import datetime
@@ -270,7 +271,6 @@ tasks = []
 
 with models.DAG(
     dag_id='example_gcp_sql_query',
-    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],

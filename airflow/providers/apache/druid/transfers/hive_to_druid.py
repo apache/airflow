@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains operator to move data from Hive to Druid."""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
@@ -74,18 +74,18 @@ class HiveToDruidOperator(BaseOperator):
         sql: str,
         druid_datasource: str,
         ts_dim: str,
-        metric_spec: Optional[List[Any]] = None,
+        metric_spec: list[Any] | None = None,
         hive_cli_conn_id: str = 'hive_cli_default',
         druid_ingest_conn_id: str = 'druid_ingest_default',
         metastore_conn_id: str = 'metastore_default',
-        hadoop_dependency_coordinates: Optional[List[str]] = None,
-        intervals: Optional[List[Any]] = None,
+        hadoop_dependency_coordinates: list[str] | None = None,
+        intervals: list[Any] | None = None,
         num_shards: float = -1,
         target_partition_size: int = -1,
         query_granularity: str = "NONE",
         segment_granularity: str = "DAY",
-        hive_tblproperties: Optional[Dict[Any, Any]] = None,
-        job_properties: Optional[Dict[Any, Any]] = None,
+        hive_tblproperties: dict[Any, Any] | None = None,
+        job_properties: dict[Any, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -105,7 +105,7 @@ class HiveToDruidOperator(BaseOperator):
         self.hive_tblproperties = hive_tblproperties or {}
         self.job_properties = job_properties
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
@@ -152,7 +152,7 @@ class HiveToDruidOperator(BaseOperator):
             hql = f"DROP TABLE IF EXISTS {hive_table}"
             hive.run_cli(hql)
 
-    def construct_ingest_query(self, static_path: str, columns: List[str]) -> Dict[str, Any]:
+    def construct_ingest_query(self, static_path: str, columns: list[str]) -> dict[str, Any]:
         """
         Builds an ingest query for an HDFS TSV load.
 
@@ -176,7 +176,7 @@ class HiveToDruidOperator(BaseOperator):
         # or a metric, as the dimension columns
         dimensions = [c for c in columns if c not in metric_names and c != self.ts_dim]
 
-        ingest_query_dict: Dict[str, Any] = {
+        ingest_query_dict: dict[str, Any] = {
             "type": "index_hadoop",
             "spec": {
                 "dataSchema": {
