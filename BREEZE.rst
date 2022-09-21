@@ -1717,10 +1717,12 @@ When you are in the CI container, the following directories are used:
   /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
   /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
       airflow.db - sqlite database in case sqlite is used;
-      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
       logs - logs from Airflow executions;
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
+  /files - files mounted from "files" folder in your sources. You can edit them in the host as well
+      dags - this is the folder where Airflow DAGs are read from
+      airflow-breeze-config - this is where you can keep your own customization configuration of breeze
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
@@ -1734,10 +1736,11 @@ When you are in the production container, the following directories are used:
   /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
   /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
       airflow.db - sqlite database in case sqlite is used;
-      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
       logs - logs from Airflow executions;
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
+  /files - files mounted from "files" folder in your sources. You can edit them in the host as well
+      dags - this is the folder where Airflow DAGs are read from
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
@@ -1777,6 +1780,11 @@ configure and run Docker. They will not be removed between Docker runs.
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
 the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
 from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
+
+The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
+customize your breeze instance. Those files will be kept across checking out a code from different
+branches and stopping/starting breeze so you can keep your configuration there and use it continuously while
+you switch to different source code versions.
 
 Port Forwarding
 ---------------
