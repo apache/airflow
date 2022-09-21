@@ -319,8 +319,6 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-setup-cfg-file                                  | Update setup.cfg file with all licenses                          |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                  | Sort alphabetically and uniquify spelling_wordlist.txt           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-supported-versions                              | Updates supported versions in documentation                      |         |
