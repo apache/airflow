@@ -3588,11 +3588,15 @@ class Airflow(AirflowBaseView):
                         func.max(DatasetEvent.timestamp).desc(),
                         DatasetModel.uri.asc(),
                     )
+                    if session.bind.dialect.name == "postgresql":
+                        order_by = (order_by[0].nulls_last(), *order_by[1:])
                 else:
                     order_by = (
                         func.max(DatasetEvent.timestamp).asc(),
                         DatasetModel.uri.desc(),
                     )
+                    if session.bind.dialect.name == "postgresql":
+                        order_by = (order_by[0].nulls_first(), *order_by[1:])
 
             total_entries = session.query(func.count(DatasetModel.id)).scalar()
 

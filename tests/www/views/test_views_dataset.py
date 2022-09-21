@@ -98,8 +98,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         [
             ("uri", [1, 2, 3, 4]),
             ("-uri", [4, 3, 2, 1]),
-            ("last_dataset_update", [3, 2, 4, 1]),
-            ("-last_dataset_update", [1, 4, 2, 3]),
+            ("last_dataset_update", [4, 1, 3, 2]),
+            ("-last_dataset_update", [2, 3, 1, 4]),
         ],
     )
     def test_order_by(self, admin_client, session, order_by, ordered_dataset_ids):
