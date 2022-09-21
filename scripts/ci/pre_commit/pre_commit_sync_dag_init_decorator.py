@@ -42,8 +42,10 @@ def _find_dag_deco(mod: ast.Module) -> ast.FunctionDef:
     return next(n for n in ast.iter_child_nodes(mod) if isinstance(n, ast.FunctionDef) and n.name == "dag")
 
 
+import ast
+
 # The new unparse() output is much more readable; fallback to dump() otherwise.
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 8) and hasattr(ast, 'unparse'):
     _reveal = ast.unparse  # type: ignore[attr-defined]
 else:
     _reveal = ast.dump
