@@ -91,6 +91,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         "cluster_type",
         "node_type",
         "number_of_nodes",
+        "vpc_security_group_ids",
     )
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
@@ -264,6 +265,11 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         The default connection id is ``aws_default``
     """
 
+    template_fields: Sequence[str] = (
+        "cluster_identifier",
+        "snapshot_identifier",
+    )
+
     def __init__(
         self,
         *,
@@ -302,7 +308,6 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         if self.wait_for_completion:
             self.redshift_hook.get_conn().get_waiter("snapshot_available").wait(
                 ClusterIdentifier=self.cluster_identifier,
-                SnapshotIdentifier=self.snapshot_identifier,
                 WaiterConfig={
                     "Delay": self.poll_interval,
                     "MaxAttempts": self.max_attempt,
@@ -326,6 +331,11 @@ class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
         The default connection id is ``aws_default``
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check snapshot state
     """
+
+    template_fields: Sequence[str] = (
+        "cluster_identifier",
+        "snapshot_identifier",
+    )
 
     def __init__(
         self,
@@ -395,9 +405,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
             self.log.info("Starting Redshift cluster %s", self.cluster_identifier)
             redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
         else:
-            self.log.warning(
-                "Unable to resume cluster since cluster is currently in status: %s", cluster_state
-            )
+            raise Exception(f'Unable to resume cluster - cluster state is {cluster_state}')
 
 
 class RedshiftPauseClusterOperator(BaseOperator):
@@ -434,9 +442,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
             self.log.info("Pausing Redshift cluster %s", self.cluster_identifier)
             redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
         else:
-            self.log.warning(
-                "Unable to pause cluster since cluster is currently in status: %s", cluster_state
-            )
+            raise Exception(f'Unable to pause cluster - cluster state is {cluster_state}')
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
@@ -480,23 +486,15 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        self.delete_cluster()
-
-        if self.wait_for_completion:
-            cluster_status: str = self.check_status()
-            while cluster_status != "cluster_not_found":
-                self.log.info(
-                    "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
-                )
-                time.sleep(self.poll_interval)
-                cluster_status = self.check_status()
-
-    def delete_cluster(self) -> None:
         self.redshift_hook.delete_cluster(
             cluster_identifier=self.cluster_identifier,
             skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
             final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
         )
 
-    def check_status(self) -> str:
-        return self.redshift_hook.cluster_status(self.cluster_identifier)
+        if self.wait_for_completion:
+            waiter = self.redshift_hook.get_conn().get_waiter('cluster_deleted')
+            waiter.wait(
+                ClusterIdentifier=self.cluster_identifier,
+                WaiterConfig={'Delay': self.poll_interval, 'MaxAttempts': 30},
+            )

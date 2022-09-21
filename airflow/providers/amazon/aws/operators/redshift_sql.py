@@ -44,7 +44,10 @@ class RedshiftSQLOperator(BaseOperator):
         (default value: False)
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = (
+        'sql',
+        'redshift_conn_id',
+    )
     template_ext: Sequence[str] = ('.sql',)
     # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
     template_fields_renderers = {
