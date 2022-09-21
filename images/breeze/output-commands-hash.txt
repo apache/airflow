@@ -49,7 +49,7 @@ setup:version:d11da4c17a23179830079b646160149c
 setup:24ade12c026b09f4a6473a646f9e5830
 shell:4de9c18e581853f332767beddb95b425
 start-airflow:eef91445684e015f83d91d02f4f03ccc
-static-checks:8a6e0063ea6ba215a11fcc12aebbd37a
+static-checks:6bf06066680e36de71ccff5f7ba0dec2
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:docker-compose-tests:3e07be65e30219930d3c62a593dd8c6a
 testing:helm-tests:403231f0a94b261f9c7aae8aea03ec50
