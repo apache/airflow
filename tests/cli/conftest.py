@@ -24,6 +24,7 @@ import pytest
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.executors import celery_executor, celery_kubernetes_executor
+from tests.test_utils.config import conf_vars
 
 # Create custom executors here because conftest is imported first
 custom_executor_module = type(sys)('custom_executor')
@@ -34,6 +35,12 @@ custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
     'CustomCeleryKubernetesExecutor', (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
 )
 sys.modules['custom_executor'] = custom_executor_module
+
+
+@pytest.fixture(autouse=True)
+def load_examples():
+    with conf_vars({('core', 'load_examples'): 'True'}):
+        yield
 
 
 @pytest.fixture(scope="session")
