@@ -1678,9 +1678,8 @@ my_postgres_conn:
 
         with dag:
             check_task()
-        with NamedTemporaryFile(suffix=".yaml") as tmp:
-            with open(tmp.name, 'w') as f:
-                f.write(test_connections_string)
+        with NamedTemporaryFile(mode='w', suffix=".yaml") as tmp:
+            tmp.write(test_connections_string)
             dag.test(conn_file_path=tmp.name)
 
     def _make_test_subdag(self, session):
