@@ -438,6 +438,34 @@ Also you can use deferrable mode in this operator
     :start-after: [START howto_operator_bigquery_interval_check_async]
     :end-before: [END howto_operator_bigquery_interval_check_async]
 
+.. _howto/operator:BigQueryColumnCheckOperator:
+
+Check columns with predefined tests
+"""""""""""""""""""""""""""""""""""
+
+To check that columns pass user-configurable tests you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryColumnCheckOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_column_check]
+    :end-before: [END howto_operator_bigquery_column_check]
+
+.. _howto/operator:BigQueryTableCheckOperator:
+
+Check table level data quality
+""""""""""""""""""""""""""""""
+
+To check that tables pass user-defined tests you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryTableCheckOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_table_check]
+    :end-before: [END howto_operator_bigquery_table_check]
+
 Sensors
 ^^^^^^^
 
