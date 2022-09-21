@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import sys
 
 import rich
 from rich.console import Console
@@ -30,7 +31,7 @@ DEFAULT_COLUMNS = 129
 
 
 def generating_command_images() -> bool:
-    return 'RECORD_BREEZE_TITLE' in os.environ
+    return 'RECORD_BREEZE_TITLE' in os.environ or "regenerate-command-images" in sys.argv
 
 
 def enable_recording_of_help_output(path: str, title: str | None, width: str | None):
