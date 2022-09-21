@@ -32,25 +32,47 @@ YOUTUBE_VIDEO_PARTS depends on the fields you pass via YOUTUBE_VIDEO_FIELDS. See
 https://developers.google.com/youtube/v3/docs/videos/list#parameters for more information.
 YOUTUBE_CONN_ID is optional for public videos. It does only need to authenticate when there are private videos
 on a YouTube channel you want to retrieve.
+
+Authentication:
+In order for the DAG to run, the GoogleApiToS3Operator needs to authenticate to Google Cloud APIs.
+Further information about authenticating can be found:
+https://cloud.google.com/docs/authentication/getting-started
+https://cloud.google.com/docs/authentication/provide-credentials-adc
+
+https://airflow.apache.org/docs/apache-airflow-providers-google/stable/connections/gcp.html
+
+The required scope for this DAG is https://www.googleapis.com/auth/youtube.readonly.
+This can be set via the environment variable AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT.
 """
 from __future__ import annotations
 
 from datetime import datetime
-from os import getenv
+
+import boto3
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-YOUTUBE_CHANNEL_ID = getenv(
-    "YOUTUBE_CHANNEL_ID", "UCSXwxpWZQ7XZ1WL3wqevChA"
-)  # Youtube channel "Apache Airflow"
-YOUTUBE_VIDEO_PUBLISHED_AFTER = getenv("YOUTUBE_VIDEO_PUBLISHED_AFTER", "2019-09-25T00:00:00Z")
-YOUTUBE_VIDEO_PUBLISHED_BEFORE = getenv("YOUTUBE_VIDEO_PUBLISHED_BEFORE", "2019-10-18T00:00:00Z")
-S3_BUCKET_NAME = getenv("S3_DESTINATION_KEY", "s3://bucket-test")
-YOUTUBE_VIDEO_PARTS = getenv("YOUTUBE_VIDEO_PARTS", "snippet")
-YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(description,publishedAt,tags,title))")
+DAG_ID = 'example_google_api_youtube_to_s3'
+
+YOUTUBE_CHANNEL_ID = 'UCSXwxpWZQ7XZ1WL3wqevChA'
+YOUTUBE_VIDEO_PUBLISHED_AFTER = '2019-09-25T00:00:00Z'
+YOUTUBE_VIDEO_PUBLISHED_BEFORE = '2019-10-18T00:00:00Z'
+YOUTUBE_VIDEO_PARTS = 'snippet'
+YOUTUBE_VIDEO_FIELDS = 'items(id,snippet(description,publishedAt,tags,title))'
+
+sys_test_context_task = SystemTestContextBuilder().build()
+
+
+@task(task_id='wait_for_s3_bucket')
+def wait_for_bucket(s3_bucket_name):
+    waiter = boto3.client('s3').get_waiter('bucket_exists')
+    waiter.wait(Bucket=s3_bucket_name)
 
 
 @task(task_id='transform_video_ids')
@@ -66,13 +88,23 @@ def transform_video_ids(**kwargs):
 
 
 with DAG(
-    dag_id="example_google_api_youtube_to_s3",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    dag_id=DAG_ID,
+    schedule='@once',
+    start_date=datetime(2021, 1, 1),  # Override to match your needs
     tags=['example'],
+    catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
+
+    s3_bucket_name = f'{env_id}-bucket'
+
+    create_s3_bucket = S3CreateBucketOperator(task_id='create-s3-bucket', bucket_name=s3_bucket_name)
+
+    wait_for_bucket_creation = wait_for_bucket(s3_bucket_name=s3_bucket_name)
+
     # [START howto_transfer_google_api_youtube_search_to_s3]
-    task_video_ids_to_s3 = GoogleApiToS3Operator(
+    video_ids_to_s3 = GoogleApiToS3Operator(
         task_id='video_ids_to_s3',
         google_api_service_name='youtube',
         google_api_service_version='v3',
@@ -87,15 +119,15 @@ with DAG(
             'fields': 'items/id/videoId',
         },
         google_api_response_via_xcom='video_ids_response',
-        s3_destination_key=f'{S3_BUCKET_NAME}/youtube_search.json',
+        s3_destination_key=f'https://s3.us-west-2.amazonaws.com/{s3_bucket_name}/youtube_search',
         s3_overwrite=True,
     )
     # [END howto_transfer_google_api_youtube_search_to_s3]
 
-    task_transform_video_ids = transform_video_ids()
+    transform_video_ids_task = transform_video_ids()
 
     # [START howto_transfer_google_api_youtube_list_to_s3]
-    task_video_data_to_s3 = GoogleApiToS3Operator(
+    video_data_to_s3 = GoogleApiToS3Operator(
         task_id='video_data_to_s3',
         google_api_service_name='youtube',
         google_api_service_version='v3',
@@ -106,9 +138,37 @@ with DAG(
             'fields': YOUTUBE_VIDEO_FIELDS,
         },
         google_api_endpoint_params_via_xcom='video_ids',
-        s3_destination_key=f'{S3_BUCKET_NAME}/youtube_videos.json',
+        s3_destination_key=f'https://s3.us-west-2.amazonaws.com/{s3_bucket_name}/youtube_videos',
         s3_overwrite=True,
     )
     # [END howto_transfer_google_api_youtube_list_to_s3]
 
-    chain(task_video_ids_to_s3, task_transform_video_ids, task_video_data_to_s3)
+    delete_s3_bucket = S3DeleteBucketOperator(
+        task_id='delete_s3_bucket',
+        bucket_name=s3_bucket_name,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    chain(
+        # TEST SETUP
+        test_context,
+        create_s3_bucket,
+        wait_for_bucket_creation,
+        # TEST BODY
+        video_ids_to_s3,
+        transform_video_ids_task,
+        video_data_to_s3,
+        # TEST TEARDOWN
+        delete_s3_bucket,
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

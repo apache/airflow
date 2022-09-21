@@ -62,7 +62,7 @@ class TestGoogleApiToS3(unittest.TestCase):
             'google_api_pagination': False,
             'google_api_num_retries': 0,
             'aws_conn_id': 's3_test',
-            's3_destination_key': 'test/google_api_to_s3_test.csv',
+            's3_destination_key': 's3://test/google_api_to_s3_test.csv',
             's3_overwrite': True,
             'task_id': 'task_id',
             'dag': None,
@@ -85,7 +85,8 @@ class TestGoogleApiToS3(unittest.TestCase):
         mock_json_dumps.assert_called_once_with(mock_google_api_hook_query.return_value)
         mock_s3_hook_load_string.assert_called_once_with(
             string_data=mock_json_dumps.return_value,
-            key=self.kwargs['s3_destination_key'],
+            bucket_name='test',
+            key='google_api_to_s3_test.csv',
             replace=self.kwargs['s3_overwrite'],
         )
         context['task_instance'].xcom_pull.assert_not_called()
@@ -114,7 +115,8 @@ class TestGoogleApiToS3(unittest.TestCase):
         mock_json_dumps.assert_called_once_with(mock_google_api_hook_query.return_value)
         mock_s3_hook_load_string.assert_called_once_with(
             string_data=mock_json_dumps.return_value,
-            key=self.kwargs['s3_destination_key'],
+            bucket_name='test',
+            key='google_api_to_s3_test.csv',
             replace=self.kwargs['s3_overwrite'],
         )
         context['task_instance'].xcom_pull.assert_called_once_with(
@@ -154,7 +156,8 @@ class TestGoogleApiToS3(unittest.TestCase):
         mock_json_dumps.assert_called_once_with(mock_google_api_hook_query.return_value)
         mock_s3_hook_load_string.assert_called_once_with(
             string_data=mock_json_dumps.return_value,
-            key=self.kwargs['s3_destination_key'],
+            bucket_name='test',
+            key='google_api_to_s3_test.csv',
             replace=self.kwargs['s3_overwrite'],
         )
         context['task_instance'].xcom_pull.assert_called_once_with(
