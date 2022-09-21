@@ -2,7 +2,7 @@
 # Please do not solve it but run `breeze setup regenerate-command-images`.
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:7322af669ed8bab9cc53ff82372d7b6d
-build-docs:3d71001c1a6ddc7980390c1469c14e93
+build-docs:8cef0a5daecad7a20ecb467f60b3d2e0
 ci:find-newer-dependencies:00000f7afb289e36e8c573fcc654df44
 ci:fix-ownership:84902165a54467564fbdd3598fa273e2
 ci:free-space:bb8e7ac63d12ab3ede272a898de2f527
@@ -43,10 +43,10 @@ release-management:verify-provider-packages:797e60067fc4611112527de808b5c1c1
 release-management:b633b97e7912daa45259555f3b407e63
 setup:autocomplete:9787fd9ac963e3c29e54ac53ec2b9565
 setup:config:92653afc11889e1b78e3a2e38f41107f
-setup:regenerate-command-images:861bb8703c071508f342b79fd9a2c01a
+setup:regenerate-command-images:fc77933836f06172f323a79967a8f604
 setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:d11da4c17a23179830079b646160149c
-setup:09e876968e669155b4aae7423a19e7b2
+setup:05693af3b17c412ca98b0d5cc4209ec7
 shell:4de9c18e581853f332767beddb95b425
 start-airflow:eef91445684e015f83d91d02f4f03ccc
 static-checks:8a6e0063ea6ba215a11fcc12aebbd37a
