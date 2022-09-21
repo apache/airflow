@@ -94,8 +94,8 @@ class ComputeEngineHook(GoogleBaseHook):
     def insert_instance_template(
         self,
         body: dict,
-        project_id: str,
         request_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -144,8 +144,8 @@ class ComputeEngineHook(GoogleBaseHook):
     def delete_instance_template(
         self,
         resource_id: str,
-        project_id: str,
         request_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -196,7 +196,7 @@ class ComputeEngineHook(GoogleBaseHook):
     def get_instance_template(
         self,
         resource_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -243,7 +243,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         body: dict,
         zone: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         source_instance_template: str | None = None,
         retry: Retry | None = None,
@@ -272,7 +272,7 @@ class ComputeEngineHook(GoogleBaseHook):
             in the Instance Template.
             Full or partial URL and can be represented as examples below:
             1. "https://www.googleapis.com/compute/v1/projects/your-project-name/global/instanceTemplates/"
-               "your-instanceTemplate-name"
+            "your-instanceTemplate-name"
             2. "projects/your-project-name/global/instanceTemplates/your-instanceTemplate-name"
             3. "global/instanceTemplates/your-instanceTemplate-name"
         :param request_id: Unique request_id that you might add to achieve
@@ -319,7 +319,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         resource_id: str,
         zone: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -370,7 +370,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         resource_id: str,
         zone: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | None = None,
         timeout: float | None = None,
@@ -509,7 +509,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         body: dict,
         zone: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | None = None,
         timeout: float | None = None,
@@ -565,7 +565,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         resource_id: str,
         zone: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | None = None,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -616,7 +616,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         resource_id: str,
         zone: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | None = None,
         timeout: float | None = None,
