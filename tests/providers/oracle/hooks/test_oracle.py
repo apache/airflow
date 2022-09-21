@@ -144,6 +144,21 @@ class TestOracleHookConn(unittest.TestCase):
         self.connection.extra = json.dumps({'service_name': 'service_name'})
         assert self.db_hook.get_conn().current_schema == self.connection.schema
 
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    def test_set_thick_mode(self, mock_init_client):
+        thick_mode_test = {
+            'thick_mode': True,
+            'thick_mode_lib_dir': '/opt/oracle/instantclient',
+            'thick_mode_config_dir': '/opt/oracle/config',
+        }
+        self.connection.extra = json.dumps(thick_mode_test)
+        self.db_hook.__init__()
+        assert mock_init_client.call_count == 1
+        args, kwargs = mock_init_client.call_args
+        assert args == ()
+        assert kwargs['lib_dir'] == thick_mode_test['thick_mode_lib_dir']
+        assert kwargs['config_dir'] == thick_mode_test['thick_mode_config_dir']
+
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHook(unittest.TestCase):
@@ -157,6 +172,7 @@ class TestOracleHook(unittest.TestCase):
 
         class UnitTestOracleHook(OracleHook):
             conn_name_attr = 'test_conn_id'
+            oracle_conn_id = None
 
             def get_conn(self):
                 return conn

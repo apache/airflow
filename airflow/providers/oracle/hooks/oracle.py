@@ -28,6 +28,7 @@ try:
 except ImportError:
     numpy = None  # type: ignore
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
@@ -56,6 +57,29 @@ class OracleHook(DbApiHook):
     hook_name = 'Oracle'
 
     supports_autocommit = True
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if self.oracle_conn_id is not None:
+            conn = self.get_connection(self.oracle_conn_id)
+            if conn.extra is not None:
+                extra_options = conn.extra_dejson
+
+                # Check if thick_mode should be enabled in python-oracledb
+                thick_mode = extra_options.get('thick_mode', False)
+                if not isinstance(thick_mode, bool):
+                    raise AirflowException(f'thick_mode should be a boolean but type was {type(thick_mode)}')
+                if thick_mode:
+                    thick_mode_lib_dir = extra_options.get('thick_mode_lib_dir')
+                    thick_mode_config_dir = extra_options.get('thick_mode_config_dir')
+                    oracledb.init_oracle_client(lib_dir=thick_mode_lib_dir, config_dir=thick_mode_config_dir)
+
+                # Check if python-oracledb Defaults attributes should be set
+                # Values default to the initial values used by python-oracledb
+                fetch_decimals = extra_options.get('fetch_decimals', False)
+                oracledb.defaults.fetch_decimals = fetch_decimals
+                fetch_lobs = extra_options.get('fetch_lobs', True)
+                oracledb.defaults.fetch_lobs = fetch_lobs
 
     def get_conn(self) -> oracledb.Connection:
         """

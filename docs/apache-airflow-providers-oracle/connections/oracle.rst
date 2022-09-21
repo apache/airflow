@@ -58,6 +58,15 @@ Extra (optional)
       configuration parameter.
     * ``dsn``. Specify a Data Source Name (and ignore Host).
     * ``sid`` or ``service_name``. Use to form DSN instead of Schema.
+    * ``thick_mode`` (bool) - Specify whether to use python-oracledb in thick mode. Defaults to False.
+      If set to True, you must have the Oracle Client libraries installed.
+      See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html>` for more info.
+    * ``thick_mode_lib_dir`` (str) - Path to use to find the Oracle Client libraries when using thick mode.
+      If not specified, defaults to the standard way of locating the Oracle Client library on the OS.
+      See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#setting-the-oracle-client-library-directory>` for more info.
+    * ``thick_mode_config_dir`` (str) - Path to use to find the Oracle Client library configuration files when using thick mode.
+      If not specified, defaults to the standard way of locating the Oracle Client library configuration files on the OS.
+      See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#optional-oracle-net-configuration-files>` for more info.
 
     Connect using `dsn`, Host and `sid`, Host and `service_name`, or only Host `(OracleHook.getconn Documentation) <https://airflow.apache.org/docs/apache-airflow-providers-oracle/stable/_modules/airflow/providers/oracle/hooks/oracle.html#OracleHook.get_conn>`_.
 
