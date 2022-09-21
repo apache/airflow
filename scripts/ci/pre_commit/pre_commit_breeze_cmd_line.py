@@ -81,7 +81,6 @@ def is_regeneration_needed() -> bool:
 
 def run_image_regeneration_in_breeze() -> int:
     sys.path.insert(0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src"))
-    from airflow_breeze.commands.setup_commands import regenerate_help_images_for_all_commands
     from airflow_breeze.utils.run_utils import run_command
 
     result = run_command(['breeze', 'version'], check=False, capture_output=True)
@@ -98,9 +97,8 @@ def run_image_regeneration_in_breeze() -> int:
             check=True,
             capture_output=True,
         )
-    return regenerate_help_images_for_all_commands(
-        commands=(), check_only=False, force=False, verbose=VERBOSE, dry_run=DRY_RUN
-    )
+    result = run_command(['breeze', 'setup', 'regenerate-command-images'], check=False)
+    return result.returncode
 
 
 if __name__ == '__main__':
