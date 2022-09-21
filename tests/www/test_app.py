@@ -240,3 +240,13 @@ class TestFlaskCli:
 
         output = capsys.readouterr()
         assert "/login/" in output.out
+
+
+def test_app_can_json_serialize_k8s_pod():
+    # This is mostly testing that we have correctly configured the JSON provider to use. Testing the k8s pos
+    # is a side-effect of that.
+    k8s = pytest.importorskip('kubernetes.client.models')
+
+    pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
+    app = application.cached_app(testing=True)
+    assert app.json.dumps(pod) == '{"spec": {"containers": [{"name": "base"}]}}'

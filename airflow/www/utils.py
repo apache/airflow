@@ -24,7 +24,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import sqlalchemy as sqla
-from flask import Response, request, url_for
+from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
@@ -47,7 +47,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -320,13 +319,6 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
 def epoch(dttm):
     """Returns an epoch-type date (tuple with no timezone)"""
     return (int(time.mktime(dttm.timetuple())) * 1000,)
-
-
-def json_response(obj):
-    """Returns a json response from a json serializable python object"""
-    return Response(
-        response=json.dumps(obj, indent=4, cls=AirflowJsonEncoder), status=200, mimetype="application/json"
-    )
 
 
 def make_cache_key(*args, **kwargs):
