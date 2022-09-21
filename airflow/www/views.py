@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, distinct, func, inspect, union_all
+from sqlalchemy import Date, and_, desc, distinct, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -3584,43 +3584,15 @@ class Airflow(AirflowBaseView):
                     order_by = (DatasetModel.uri.asc(),)
             elif lstripped_orderby == "last_dataset_update":
                 if order_by[0] == "-":
-                    # Datasets without updates are probably more interesting than datasets with updates, so we
-                    # push the nulls to the top
-                    if session.bind.dialect.name == 'mysql':
-                        order_by = (
-                            func.max(DatasetEvent.timestamp).isnot(None),
-                            func.max(DatasetEvent.timestamp).desc(),
-                            DatasetModel.uri.asc(),
-                        )
-                    elif session.bind.dialect.name == 'mssql':
-                        order_by = (
-                            case((func.max(DatasetEvent.timestamp) == None, 1), else_=0).desc(),  # noqa: E711
-                            func.max(DatasetEvent.timestamp).desc(),
-                            DatasetModel.uri.asc(),
-                        )
-                    else:
-                        order_by = (
-                            func.max(DatasetEvent.timestamp).desc().nulls_first(),
-                            DatasetModel.uri.asc(),
-                        )
+                    order_by = (
+                        func.max(DatasetEvent.timestamp).desc(),
+                        DatasetModel.uri.asc(),
+                    )
                 else:
-                    if session.bind.dialect.name == 'mysql':
-                        order_by = (
-                            func.max(DatasetEvent.timestamp).is_(None),
-                            func.max(DatasetEvent.timestamp).asc(),
-                            DatasetModel.uri.desc(),
-                        )
-                    elif session.bind.dialect.name == 'mssql':
-                        order_by = (
-                            case((func.max(DatasetEvent.timestamp) == None, 1), else_=0).asc(),  # noqa: E711
-                            func.max(DatasetEvent.timestamp).asc(),
-                            DatasetModel.uri.desc(),
-                        )
-                    else:
-                        order_by = (
-                            func.max(DatasetEvent.timestamp).asc().nulls_last(),
-                            DatasetModel.uri.desc(),
-                        )
+                    order_by = (
+                        func.max(DatasetEvent.timestamp).asc(),
+                        DatasetModel.uri.desc(),
+                    )
 
             total_entries = session.query(func.count(DatasetModel.id)).scalar()
 
