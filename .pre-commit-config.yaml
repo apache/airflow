@@ -356,12 +356,6 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-setup-cfg-file
-        name: Update setup.cfg file with all licenses
-        entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.py
-        language: python
-        files: ^setup\.cfg$
-        pass_filenames: false
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
