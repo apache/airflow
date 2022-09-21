@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -26,12 +25,13 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteDbInstanceOperator,
 )
 from airflow.providers.amazon.aws.sensors.rds import RdsDbSensor
-from tests.system.providers.amazon.aws.utils import set_env_id
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-ENV_ID = set_env_id()
+sys_test_context_task = SystemTestContextBuilder().build()
+
 DAG_ID = "example_rds_instance"
 
-RDS_DB_IDENTIFIER = f'{ENV_ID}-database'
 RDS_USERNAME = 'database_username'
 # NEVER store your production password in plaintext in a DAG like this.
 # Use Airflow Secrets or a secret manager for this in production.
@@ -39,15 +39,18 @@ RDS_PASSWORD = 'database_password'
 
 with DAG(
     dag_id=DAG_ID,
-    schedule=None,
+    schedule='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    rds_db_identifier = f'{test_context[ENV_ID_KEY]}-database'
+
     # [START howto_operator_rds_create_db_instance]
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id='create_db_instance',
-        db_instance_identifier=RDS_DB_IDENTIFIER,
+        db_instance_identifier=rds_db_identifier,
         db_instance_class="db.t4g.micro",
         engine="postgres",
         rds_kwargs={
@@ -61,21 +64,36 @@ with DAG(
     # [START howto_sensor_rds_instance]
     db_instance_available = RdsDbSensor(
         task_id="db_instance_available",
-        db_identifier=RDS_DB_IDENTIFIER,
+        db_identifier=rds_db_identifier,
     )
     # [END howto_sensor_rds_instance]
 
     # [START howto_operator_rds_delete_db_instance]
     delete_db_instance = RdsDeleteDbInstanceOperator(
         task_id='delete_db_instance',
-        db_instance_identifier=RDS_DB_IDENTIFIER,
+        db_instance_identifier=rds_db_identifier,
         rds_kwargs={
             "SkipFinalSnapshot": True,
         },
     )
     # [END howto_operator_rds_delete_db_instance]
+    delete_db_instance.trigger_rule = TriggerRule.ALL_DONE
 
-    chain(create_db_instance, db_instance_available, delete_db_instance)
+    chain(
+        # TEST SETUP
+        test_context,
+        # TEST BODY
+        create_db_instance,
+        db_instance_available,
+        delete_db_instance,
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
 
 from tests.system.utils import get_test_run  # noqa: E402
 
