@@ -483,6 +483,63 @@ TEST_PENDING_RERUN_APPLICATION = {
     },
 }
 
+TEST_SIDECAR_DRIVER_APPLICATION = {
+    "apiVersion": "sparkoperator.k8s.io/v1beta2",
+    "kind": "SparkApplication",
+    "metadata": {
+        "creationTimestamp": "2020-02-27T08:03:02Z",
+        "generation": 4,
+        "name": "spark-pi",
+        "namespace": "default",
+        "resourceVersion": "552073",
+        "selfLink": "/apis/sparkoperator.k8s.io/v1beta2/namespaces/default/sparkapplications/spark-pi",
+        "uid": "0c93527d-4dd9-4006-b40a-1672872e8d6f",
+    },
+    "spec": {
+        "arguments": ["100000"],
+        "driver": {
+            "coreLimit": "1200m",
+            "cores": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+            "serviceAccount": "default",
+            "sidecars": {
+                "name": "sidecar-container",
+                "image": "busybox",
+                "command": "[\"sh\",\"-c\",\"for i in {2..10}; do echo \"output: $i\"; done\"]"
+            }
+        },
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
+        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
+        "imagePullPolicy": "Always",
+        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
+        "mainClass": "org.apache.spark.examples.SparkPi",
+        "mode": "cluster",
+        "monitoring": {
+            "exposeDriverMetrics": True,
+            "exposeExecutorMetrics": True,
+            "prometheus": {
+                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
+                "port": 8090,
+            },
+        },
+        "restartPolicy": {"type": "Never"},
+        "sparkVersion": "2.4.4",
+        "type": "Scala",
+    },
+    "status": {
+        "applicationState": {"state": "PENDING_RERUN"},
+        "driverInfo": {},
+        "lastSubmissionAttemptTime": None,
+        "terminationTime": None,
+    },
+}
+
 TEST_POD_LOGS = [b"LOG LINE 1\n", b"LOG LINE 2"]
 TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 
@@ -773,3 +830,27 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
         sensor.poke(None)
         warn_log_call.assert_called_once()
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_SIDECAR_DRIVER_APPLICATION,
+    )
+    @patch("logging.Logger.info")
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
+        return_value=TEST_POD_LOGS,
+    )
+    def test_sidecar_driver_logging_completed(
+        self, mock_log_call, info_log_call
+    ):
+        sensor = SparkKubernetesSensor(
+            application_name="spark_pi",
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
+        )
+        sensor.poke(None)
+        mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default")
+        log_info_call = info_log_call.mock_calls[2]
+        log_value = log_info_call[1][0]
+        assert log_value == TEST_POD_LOG_RESULT
