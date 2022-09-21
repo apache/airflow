@@ -212,6 +212,8 @@ pip-wheel-metadata
 .pypirc
 
 /.docs-venv
+# Dags
+/dags
 
 # Dev files
 /dev/packages.txt

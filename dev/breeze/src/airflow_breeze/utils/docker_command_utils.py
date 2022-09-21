@@ -87,6 +87,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("airflow", "/opt/airflow/airflow"),
     ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
+    ("dags", "/root/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),

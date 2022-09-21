@@ -76,6 +76,9 @@ services:
         source: ../../../dags
         target: /opt/airflow/dags
       - type: bind
+        source: ../../../dags
+        target: /root/airflow/dags
+      - type: bind
         source: ../../../dev
         target: /opt/airflow/dev
       - type: bind
