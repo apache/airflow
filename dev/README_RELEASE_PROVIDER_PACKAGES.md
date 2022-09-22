@@ -196,14 +196,11 @@ popd
 
 ```shell script
 # First clone the repo if you do not have it
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-
-# update the repo in case you have it already
-cd airflow-dev
-svn update
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Create a new folder for the release.
-cd providers
+cd asf-dist/dev/providers
 
 # Remove previously released providers
 rm -rf *
@@ -730,15 +727,26 @@ again, and gives a clearer history in the svn commit logs.
 We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
-```shell script
+```bash
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
-cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
-export SOURCE_DIR=$(pwd)
+# Go the folder where you have checked out the release repo
+cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# or clone it if it's not done yet
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+# Update to latest version
+svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
+
+SOURCE_DIR="${PWD}/dev/airflow/providers"
+
+# Create providers folder if it does not exist
+# All latest releases are kept in this one folder without version sub-folder
+cd asf-dist/release/airflow
+mkdir -pv providers
+cd providers
 
 # If some packages have been excluded, remove them now
 # Check the packages
@@ -746,24 +754,10 @@ ls *<provider>*
 # Remove them
 svn rm *<provider>*
 
-# Go the folder where you have checked out the release repo
-cd "<ROOT_OF_YOUR_RELEASE_REPO>"
-# or clone it if it's not done yet
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
-cd airflow-release
-
-# Update to latest version
-svn update
-
-# Create providers folder if it does not exist
-# All latest releases are kept in this one folder without version sub-folder
-mkdir -pv providers
-cd providers
-
 # Copy your providers with the target name to dist directory and to SVN
-rm ${AIRFLOW_REPO_ROOT}/dist/*
+rm "${AIRFLOW_REPO_ROOT}"/dist/*
 
-for file in ${SOURCE_DIR}/*
+for file in "${SOURCE_DIR}"/*
 do
  base_file=$(basename ${file})
  cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
