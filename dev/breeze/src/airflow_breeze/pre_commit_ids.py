@@ -107,7 +107,6 @@ PRE_COMMIT_LIST = [
     'update-local-yml-file',
     'update-migration-references',
     'update-providers-dependencies',
-    'update-setup-cfg-file',
     'update-spelling-wordlist-to-be-sorted',
     'update-supported-versions',
     'update-vendored-in-k8s-json-schema',

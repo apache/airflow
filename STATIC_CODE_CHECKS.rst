@@ -301,7 +301,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | ts-compile-and-lint-javascript                         | TS types generation and ESLint against current UI files          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   | *       |
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -318,8 +318,6 @@ require Breeze Docker image to be build locally.
 | update-migration-references                            | Update migration ref doc                                         | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-setup-cfg-file                                  | Update setup.cfg file with all licenses                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                  | Sort alphabetically and uniquify spelling_wordlist.txt           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

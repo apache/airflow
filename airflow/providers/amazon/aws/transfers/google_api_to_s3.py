@@ -58,6 +58,10 @@ class GoogleApiToS3Operator(BaseOperator):
 
     :param google_api_endpoint_params: The params to control the corresponding endpoint result.
     :param s3_destination_key: The url where to put the data retrieved from the endpoint in S3.
+
+        .. note See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+            for valid url formats.
+
     :param google_api_response_via_xcom: Can be set to expose the google api response to xcom.
     :param google_api_endpoint_params_via_xcom: If set to a value this value will be used as a key
         for pulling from xcom and updating the google api endpoint params.
@@ -166,7 +170,10 @@ class GoogleApiToS3Operator(BaseOperator):
     def _load_data_to_s3(self, data: dict) -> None:
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         s3_hook.load_string(
-            string_data=json.dumps(data), key=self.s3_destination_key, replace=self.s3_overwrite
+            string_data=json.dumps(data),
+            bucket_name=S3Hook.parse_s3_url(self.s3_destination_key)[0],
+            key=S3Hook.parse_s3_url(self.s3_destination_key)[1],
+            replace=self.s3_overwrite,
         )
 
     def _update_google_api_endpoint_params_via_xcom(self, task_instance: TaskInstance) -> None:

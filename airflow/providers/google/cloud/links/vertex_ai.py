@@ -23,15 +23,12 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-BASE_LINK = "https://console.cloud.google.com"
-VERTEX_AI_BASE_LINK = BASE_LINK + "/vertex-ai"
+VERTEX_AI_BASE_LINK = "/vertex-ai"
 VERTEX_AI_MODEL_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/models/{model_id}/deploy?project={project_id}"
 )
 VERTEX_AI_MODEL_LIST_LINK = VERTEX_AI_BASE_LINK + "/models?project={project_id}"
-VERTEX_AI_MODEL_EXPORT_LINK = (
-    BASE_LINK + "/storage/browser/{bucket_name}/model-{model_id}?project={project_id}"
-)
+VERTEX_AI_MODEL_EXPORT_LINK = "/storage/browser/{bucket_name}/model-{model_id}?project={project_id}"
 VERTEX_AI_TRAINING_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/training/{training_id}/cpu?project={project_id}"
 )

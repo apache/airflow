@@ -53,6 +53,8 @@ class BaseSQLToGCSOperator(BaseOperator):
         file size of the splits. Check https://cloud.google.com/storage/quotas
         to see the maximum allowed file size for a single object.
     :param export_format: Desired format of files to be exported. (json, csv or parquet)
+    :param stringify_dict: Whether to dump Dictionary type objects
+        (such as JSON columns) as a string. Applies only to JSON export format.
     :param field_delimiter: The delimiter to be used for CSV files.
     :param null_marker: The null marker to be used for CSV files.
     :param gzip: Option to compress file for upload (does not apply to schemas).
@@ -99,6 +101,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         schema_filename: str | None = None,
         approx_max_file_size_bytes: int = 1900000000,
         export_format: str = 'json',
+        stringify_dict: bool = False,
         field_delimiter: str = ',',
         null_marker: str | None = None,
         gzip: bool = False,
@@ -121,6 +124,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.schema_filename = schema_filename
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.export_format = export_format.lower()
+        self.stringify_dict = stringify_dict
         self.field_delimiter = field_delimiter
         self.null_marker = null_marker
         self.gzip = gzip
@@ -243,7 +247,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
-                row = self.convert_types(schema, col_type_dict, row, stringify_dict=False)
+                row = self.convert_types(schema, col_type_dict, row, stringify_dict=self.stringify_dict)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(

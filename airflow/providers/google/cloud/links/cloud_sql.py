@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-CLOUD_SQL_BASE_LINK = "https://console.cloud.google.com/sql"
+CLOUD_SQL_BASE_LINK = "/sql"
 CLOUD_SQL_INSTANCE_LINK = CLOUD_SQL_BASE_LINK + "/instances/{instance}/overview?project={project_id}"
 CLOUD_SQL_INSTANCE_DATABASE_LINK = (
     CLOUD_SQL_BASE_LINK + "/instances/{instance}/databases?project={project_id}"

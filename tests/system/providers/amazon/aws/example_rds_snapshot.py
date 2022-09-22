@@ -112,6 +112,7 @@ with DAG(
         task_id='delete_snapshot_copy',
         db_type='instance',
         db_snapshot_identifier=rds_snapshot_copy_name,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_db_instance = RdsDeleteDbInstanceOperator(

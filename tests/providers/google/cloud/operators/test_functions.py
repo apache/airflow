@@ -91,7 +91,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id=GCP_PROJECT_ID, location=GCP_LOCATION, body=deepcopy(VALID_BODY), task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -113,7 +113,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id=GCP_PROJECT_ID, location=GCP_LOCATION, body=deepcopy(VALID_BODY), task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -137,7 +137,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         operator = CloudFunctionDeployFunctionOperator(
             location="test_region", body=deepcopy(VALID_BODY), task_id="id"
         )
-        operator.execute(None)
+        operator.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -176,7 +176,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id", location="test_region", body=body, task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -203,7 +203,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id", location="test_region", body=body, task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -229,7 +229,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id", location="test_region", body=body, task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -244,7 +244,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id", location="test_region", body=body, validate_body=False, task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -421,7 +421,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             op = CloudFunctionDeployFunctionOperator(
                 location="test_region", body=body, task_id="id", zip_path=zip_path
             )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
         )
@@ -548,7 +548,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             body=body,
             task_id="id",
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -570,7 +570,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id", location="test_region", body=body, task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -600,7 +600,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
     def test_delete_execute(self, mock_hook):
         mock_hook.return_value.delete_function.return_value = self._DELETE_FUNCTION_EXPECTED
         op = CloudFunctionDeleteFunctionOperator(name=self._FUNCTION_NAME, task_id="id")
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -616,7 +616,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
         op = CloudFunctionDeleteFunctionOperator(
             name="projects/project_name/locations/project_location/functions/function_name", task_id="id"
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -647,7 +647,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
         mock_hook.return_value.delete_function.side_effect = mock.Mock(
             side_effect=HttpError(resp=MOCK_RESP_404, content=b'not found')
         )
-        op.execute(None)
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -666,7 +666,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
         )
 
         with pytest.raises(HttpError):
-            op.execute(None)
+            op.execute(context=mock.MagicMock())
 
         mock_hook.assert_called_once_with(
             api_version='v1',
@@ -701,7 +701,9 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        op.execute(context=context)
+
         mock_gcf_hook.assert_called_once_with(
             api_version=api_version,
             gcp_conn_id=gcp_conn_id,
@@ -712,4 +714,12 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
             function_id=function_id, input_data=payload, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
         )
 
-        mock_xcom.assert_called_once_with(context=None, key='execution_id', value=exec_id)
+        mock_xcom.assert_called_with(
+            context,
+            key="cloud_functions_details",
+            value={
+                'location': GCP_LOCATION,
+                'function_name': function_id,
+                'project_id': GCP_PROJECT_ID,
+            },
+        )

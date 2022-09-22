@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.base import BaseGoogleLink
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-STACKDRIVER_BASE_LINK = "https://pantheon.corp.google.com/monitoring/alerting"
+STACKDRIVER_BASE_LINK = "/monitoring/alerting"
 STACKDRIVER_NOTIFICATIONS_LINK = STACKDRIVER_BASE_LINK + "/notifications?project={project_id}"
 STACKDRIVER_POLICIES_LINK = STACKDRIVER_BASE_LINK + "/policies?project={project_id}"
 
