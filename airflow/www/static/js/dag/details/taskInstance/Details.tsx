@@ -24,7 +24,8 @@ import {
   Table,
   Tbody,
   Tr,
-  Td, Heading, Thead,
+  Td,
+  Heading,
 } from '@chakra-ui/react';
 
 import { finalStatesMap } from 'src/utils';
@@ -118,7 +119,10 @@ const Details = ({ instance, group, dagId }: Props) => {
           {state === 'deferred' && (
             <>
               <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-                <Thead><Heading size="sm">Triggerer info</Heading></Thead>
+                <Td>
+                  <Heading size="sm">Triggerer info</Heading>
+                </Td>
+                <Td />
               </Tr>
               <Tr>
                 <Td>Trigger class</Td>
@@ -138,8 +142,14 @@ const Details = ({ instance, group, dagId }: Props) => {
               </Tr>
             </>
           )}
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-            <Thead><Heading size="sm">Task Instance Details</Heading></Thead>
+          <Tr
+            borderBottomWidth={2}
+            borderBottomColor="gray.300"
+          >
+            <Td>
+              <Heading size="sm">Task Instance Details</Heading>
+            </Td>
+            <Td />
           </Tr>
           <Tr>
             <Td>
