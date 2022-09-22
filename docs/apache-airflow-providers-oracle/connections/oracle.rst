@@ -42,13 +42,6 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Oracle
     connection. The following parameters are supported:
 
-    * ``encoding`` - The encoding to use for regular database strings. If not specified,
-      the environment variable ``NLS_LANG`` is used. If the environment variable ``NLS_LANG``
-      is not set, ``ASCII`` is used.
-    * ``nencoding`` - The encoding to use for national character set database strings.
-      If not specified, the environment variable ``NLS_NCHAR`` is used. If the environment
-      variable ``NLS_NCHAR`` is not used, the environment variable ``NLS_LANG`` is used instead,
-      and if the environment variable ``NLS_LANG`` is not set, ``ASCII`` is used.
     * ``threaded`` - Whether or not Oracle should wrap accesses to connections with a mutex.
       Default value is False.
     * ``events`` - Whether or not to initialize Oracle in events mode.
@@ -58,6 +51,8 @@ Extra (optional)
       configuration parameter.
     * ``dsn``. Specify a Data Source Name (and ignore Host).
     * ``sid`` or ``service_name``. Use to form DSN instead of Schema.
+    * ``module`` (str) - This write-only attribute sets the module column in the v$session table.
+      The maximum length for this string is 48 and if you exceed this length you will get ORA-24960.
     * ``thick_mode`` (bool) - Specify whether to use python-oracledb in thick mode. Defaults to False.
       If set to True, you must have the Oracle Client libraries installed.
       See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html>` for more info.
@@ -71,6 +66,7 @@ Extra (optional)
       See `defaults.fetch_decimals<https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>` for more info.
     * ``fetch_lobs`` (bool) - Specify whether to fetch strings/bytes for CLOBs or BLOBs instead of locators.  Defaults to True.
       See `defaults.fetch_lobs<https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>` for more info.
+
 
     Connect using `dsn`, Host and `sid`, Host and `service_name`, or only Host `(OracleHook.getconn Documentation) <https://airflow.apache.org/docs/apache-airflow-providers-oracle/stable/_modules/airflow/providers/oracle/hooks/oracle.html#OracleHook.get_conn>`_.
 
@@ -106,8 +102,6 @@ Extra (optional)
     .. code-block:: json
 
        {
-          "encoding": "UTF-8",
-          "nencoding": "UTF-8",
           "threaded": false,
           "events": false,
           "mode": "sysdba",

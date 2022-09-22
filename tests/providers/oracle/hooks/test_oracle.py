@@ -27,6 +27,8 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
+from airflow.utils import db
+from airflow.utils.session import create_session
 
 try:
     import oracledb
@@ -36,14 +38,30 @@ except ImportError:
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHookConn(unittest.TestCase):
+    CONN_ORACLE_WITH_NO_EXTRA = 'oracle_with_no_extra'
+
+    @classmethod
+    def tearDownClass(self) -> None:
+        with create_session() as session:
+            conns_to_reset = [self.CONN_ORACLE_WITH_NO_EXTRA]
+            connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
+            connections.delete(synchronize_session=False)
+            session.commit()
+
     def setUp(self):
         super().setUp()
-
         self.connection = Connection(
-            login='login', password='password', host='host', schema='schema', port=1521
+            conn_id=self.CONN_ORACLE_WITH_NO_EXTRA,
+            conn_type='oracle',
+            login='login',
+            password='password',
+            host='host',
+            schema='schema',
+            port=1521,
         )
+        db.merge_conn(self.connection)
 
-        self.db_hook = OracleHook()
+        self.db_hook = OracleHook(oracle_conn_id=self.CONN_ORACLE_WITH_NO_EXTRA)
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
@@ -60,6 +78,7 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_host_alternative_port(self, mock_connect):
         self.connection.port = 1522
+        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -72,6 +91,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_sid(self, mock_connect):
         dsn_sid = {'dsn': 'ignored', 'sid': 'sid'}
         self.connection.extra = json.dumps(dsn_sid)
+        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -82,6 +102,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_service_name(self, mock_connect):
         dsn_service_name = {'dsn': 'ignored', 'service_name': 'service_name'}
         self.connection.extra = json.dumps(dsn_service_name)
+        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -103,6 +124,7 @@ class TestOracleHookConn(unittest.TestCase):
         first = True
         for mod in mode:
             self.connection.extra = json.dumps({'mode': mod})
+            self.db_hook.__init__()
             self.db_hook.get_conn()
             if first:
                 assert mock_connect.call_count == 1
@@ -114,6 +136,7 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_events(self, mock_connect):
         self.connection.extra = json.dumps({'events': True})
+        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -130,6 +153,7 @@ class TestOracleHookConn(unittest.TestCase):
         first = True
         for pur in purity:
             self.connection.extra = json.dumps({'purity': pur})
+            self.db_hook.__init__()
             self.db_hook.get_conn()
             if first:
                 assert mock_connect.call_count == 1
@@ -142,6 +166,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({'service_name': 'service_name'})
+        self.db_hook.__init__()
         assert self.db_hook.get_conn().current_schema == self.connection.schema
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
