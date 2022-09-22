@@ -24,6 +24,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
 
 CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
@@ -50,7 +51,8 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_endpoint_config')
-    def test_integer_fields(self, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_integer_fields(self, serialize, mock_model, mock_client):
         mock_model.return_value = {
             'EndpointConfigArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
@@ -62,7 +64,8 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_endpoint_config')
-    def test_execute(self, mock_model, mock_client):
+    @mock.patch.object(sagemaker, 'serialize', return_value="")
+    def test_execute(self, serialize, mock_model, mock_client):
         mock_model.return_value = {
             'EndpointConfigArn': 'test_arn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
