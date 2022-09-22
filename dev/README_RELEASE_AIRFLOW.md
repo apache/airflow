@@ -314,12 +314,12 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     # First clone the repo
-    svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-    cd airflow-dev
-    # Or move into it if you already have it cloned
+
+    [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+    svn update --set-depth=infinity asf-dist/dev/airflow
+    cd asf-dist/dev/airflow
 
     # Create new folder for the release
-    svn update
     svn mkdir ${VERSION}
 
     # Move the artifacts to svn folder & commit
@@ -896,19 +896,13 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 ```shell script
 # GO to Airflow Sources first
 cd <YOUR_AIRFLOW_REPO_ROOT>
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
-# GO to Checked out DEV repo. Should be checked out before via:
-# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
-cd <YOUR_AIFLOW_DEV_SVN>
-svn update
-export AIRFLOW_DEV_SVN=$(pwd)
-
-# GO to Checked out RELEASE repo. Should be checked out before via:
-# svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
-cd <YOUR_AIFLOW_RELEASE_SVN>
-svn update
-export AIRFLOW_RELEASE_SVN=$(pwd)
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/{release,dev}/airflow
+AIRFLOW_DEV_SVN="${PWD}/asf-dist/dev/airflow"
+cd asf-dist/release/airflow
 
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
