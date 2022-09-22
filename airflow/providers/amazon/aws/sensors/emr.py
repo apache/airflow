@@ -129,11 +129,6 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """
 
-    INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
-    FAILURE_STATES = {'FAILED', 'CANCELLING', 'CANCELLED'}
-    SUCCESS_STATES = {'SUCCESS'}
-    TERMINAL_STATES = SUCCESS_STATES.union(FAILURE_STATES)
-
     template_fields: Sequence[str] = (
         'application_id',
         'job_run_id',
@@ -144,7 +139,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         *,
         application_id: str,
         job_run_id: str,
-        target_states: set | frozenset = frozenset(SUCCESS_STATES),
+        target_states: set | frozenset = frozenset(EmrServerlessHook.JOB_SUCCESS_STATES),
         aws_conn_id: str = 'aws_default',
         **kwargs: Any,
     ) -> None:
@@ -159,7 +154,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
         state = response['jobRun']['state']
 
-        if state in self.FAILURE_STATES:
+        if state in EmrServerlessHook.JOB_FAILURE_STATES:
             failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
             raise AirflowException(failure_message)
 
@@ -198,15 +193,11 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ('application_id',)
 
-    INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
-    FAILURE_STATES = {'STOPPED', 'TERMINATED'}
-    SUCCESS_STATES = {'CREATED', 'STARTED'}
-
     def __init__(
         self,
         *,
         application_id: str,
-        target_states: set | frozenset = frozenset(SUCCESS_STATES),
+        target_states: set | frozenset = frozenset(EmrServerlessHook.APPLICATION_SUCCESS_STATES),
         aws_conn_id: str = 'aws_default',
         **kwargs: Any,
     ) -> None:
@@ -220,7 +211,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
         state = response['application']['state']
 
-        if state in self.FAILURE_STATES:
+        if state in EmrServerlessHook.APPLICATION_FAILURE_STATES:
             failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
             raise AirflowException(failure_message)
 

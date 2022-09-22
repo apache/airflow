@@ -59,6 +59,7 @@ class TriggerRuleDep(BaseTIDep):
             counter.get(State.SKIPPED, 0),
             counter.get(State.FAILED, 0),
             counter.get(State.UPSTREAM_FAILED, 0),
+            counter.get(State.REMOVED, 0),
             sum(counter.values()),
         )
 
@@ -73,7 +74,7 @@ class TriggerRuleDep(BaseTIDep):
             yield self._passing_status(reason="The task had a always trigger rule set.")
             return
         # see if the task name is in the task upstream for our task
-        successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
+        successes, skipped, failed, upstream_failed, removed, done = self._get_states_count_upstream_ti(
             task=ti.task, finished_tis=dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
         )
 
@@ -83,6 +84,7 @@ class TriggerRuleDep(BaseTIDep):
             skipped=skipped,
             failed=failed,
             upstream_failed=upstream_failed,
+            removed=removed,
             done=done,
             flag_upstream_failed=dep_context.flag_upstream_failed,
             dep_context=dep_context,
@@ -122,6 +124,7 @@ class TriggerRuleDep(BaseTIDep):
         skipped,
         failed,
         upstream_failed,
+        removed,
         done,
         flag_upstream_failed,
         dep_context: DepContext,
@@ -152,6 +155,7 @@ class TriggerRuleDep(BaseTIDep):
             "successes": successes,
             "skipped": skipped,
             "failed": failed,
+            "removed": removed,
             "upstream_failed": upstream_failed,
             "done": done,
         }
@@ -162,6 +166,9 @@ class TriggerRuleDep(BaseTIDep):
                     changed = ti.set_state(State.UPSTREAM_FAILED, session)
                 elif skipped:
                     changed = ti.set_state(State.SKIPPED, session)
+                elif removed and successes and ti.map_index > -1:
+                    if ti.map_index >= successes:
+                        changed = ti.set_state(State.REMOVED, session)
             elif trigger_rule == TR.ALL_FAILED:
                 if successes or skipped:
                     changed = ti.set_state(State.SKIPPED, session)
@@ -189,6 +196,7 @@ class TriggerRuleDep(BaseTIDep):
             elif trigger_rule == TR.ALL_SKIPPED:
                 if successes or failed:
                     changed = ti.set_state(State.SKIPPED, session)
+
         if changed:
             dep_context.have_changed_ti_states = True
 
@@ -212,6 +220,8 @@ class TriggerRuleDep(BaseTIDep):
                 )
         elif trigger_rule == TR.ALL_SUCCESS:
             num_failures = upstream - successes
+            if ti.map_index > -1:
+                num_failures -= removed
             if num_failures > 0:
                 yield self._failing_status(
                     reason=(
@@ -223,6 +233,8 @@ class TriggerRuleDep(BaseTIDep):
                 )
         elif trigger_rule == TR.ALL_FAILED:
             num_successes = upstream - failed - upstream_failed
+            if ti.map_index > -1:
+                num_successes -= removed
             if num_successes > 0:
                 yield self._failing_status(
                     reason=(
@@ -244,6 +256,8 @@ class TriggerRuleDep(BaseTIDep):
                 )
         elif trigger_rule == TR.NONE_FAILED:
             num_failures = upstream - successes - skipped
+            if ti.map_index > -1:
+                num_failures -= removed
             if num_failures > 0:
                 yield self._failing_status(
                     reason=(
@@ -255,6 +269,8 @@ class TriggerRuleDep(BaseTIDep):
                 )
         elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
             num_failures = upstream - successes - skipped
+            if ti.map_index > -1:
+                num_failures -= removed
             if num_failures > 0:
                 yield self._failing_status(
                     reason=(

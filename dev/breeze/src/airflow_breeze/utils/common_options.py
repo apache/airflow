@@ -38,7 +38,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     SINGLE_PLATFORMS,
-    get_available_packages,
+    get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -440,7 +440,7 @@ argument_packages = click.argument(
     "packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_packages(short_version=True)),
+    type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
 option_timezone = click.option(
     "--timezone",

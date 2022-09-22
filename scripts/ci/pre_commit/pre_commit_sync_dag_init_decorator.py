@@ -43,7 +43,7 @@ def _find_dag_deco(mod: ast.Module) -> ast.FunctionDef:
 
 
 # The new unparse() output is much more readable; fallback to dump() otherwise.
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 9):
     _reveal = ast.unparse  # type: ignore[attr-defined]
 else:
     _reveal = ast.dump
