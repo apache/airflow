@@ -375,9 +375,9 @@ with DAG(
     delete_task = DmsDeleteTaskOperator(
         task_id='delete_task',
         replication_task_arn=task_arn,
-        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_dms_delete_task]
+    delete_task.trigger_rule = TriggerRule.ALL_DONE
 
     delete_assets = delete_dms_assets(
         replication_instance_arn=create_assets['replication_instance_arn'],

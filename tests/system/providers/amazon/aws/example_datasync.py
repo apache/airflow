@@ -146,9 +146,11 @@ with models.DAG(
     execute_task_by_arn = DataSyncOperator(
         task_id='execute_task_by_arn',
         task_arn=created_task_arn,
-        wait_for_completion=False,
     )
     # [END howto_operator_datasync_specific_task]
+
+    # DataSyncOperator waits by default, setting as False to test the Sensor below.
+    execute_task_by_arn.wait_for_completion = False
 
     # [START howto_operator_datasync_search_task]
     # Search and execute a task
@@ -160,9 +162,11 @@ with models.DAG(
         task_execution_kwargs={
             'Includes': [{'FilterType': 'SIMPLE_PATTERN', 'Value': '/test/subdir'}],
         },
-        wait_for_completion=False,
     )
     # [END howto_operator_datasync_search_task]
+
+    # DataSyncOperator waits by default, setting as False to test the Sensor below.
+    execute_task_by_locations.wait_for_completion = False
 
     # [START howto_operator_datasync_create_task]
     # Create a task (the task does not exist)
@@ -186,9 +190,11 @@ with models.DAG(
             },
         },
         delete_task_after_execution=False,
-        wait_for_completion=False,
     )
     # [END howto_operator_datasync_create_task]
+
+    # DataSyncOperator waits by default, setting as False to test the Sensor below.
+    create_and_execute_task.wait_for_completion = False
 
     locations_task = list_locations(s3_bucket_source, s3_bucket_destination)
     delete_locations_task = delete_locations(locations_task)

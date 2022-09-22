@@ -176,10 +176,11 @@ with DAG(
         task_id='create_ingestion',
         data_set_id=dataset_id,
         ingestion_id=ingestion_id,
-        # Waits by default, setting as False to demonstrate the Sensor below.
-        wait_for_completion=False,
     )
     # [END howto_operator_quicksight_create_ingestion]
+
+    # QuickSightCreateIngestionOperator waits by default, setting as False to test the Sensor below.
+    create_ingestion.wait_for_completion = False
 
     # If this sensor appears to freeze with a "QUEUED" status, see note above.
     # [START howto_sensor_quicksight]

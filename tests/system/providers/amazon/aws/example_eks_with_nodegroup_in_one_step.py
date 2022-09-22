@@ -94,11 +94,11 @@ with DAG(
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
     delete_nodegroup_and_cluster = EksDeleteClusterOperator(
         task_id='delete_nodegroup_and_cluster',
-        trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         force_delete_compute=True,
     )
     # [END howto_operator_eks_force_delete_cluster]
+    delete_nodegroup_and_cluster.trigger_rule = TriggerRule.ALL_DONE
 
     await_delete_cluster = EksClusterStateSensor(
         task_id='await_delete_cluster',

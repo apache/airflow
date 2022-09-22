@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -115,10 +114,11 @@ with DAG(
         s3_prefix='rds-test',
         iam_role_arn=test_context[ROLE_ARN_KEY],
         kms_key_id=test_context[KMS_KEY_ID_KEY],
-        # Waits by default, set False to test the CancelExportTaskOperator below
-        wait_for_completion=False,
     )
     # [END howto_operator_rds_start_export_task]
+
+    # RdsStartExportTaskOperator waits by default, setting as False to test the Sensor below.
+    start_export.wait_for_completion = False
 
     # [START howto_operator_rds_cancel_export]
     cancel_export = RdsCancelExportTaskOperator(

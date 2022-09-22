@@ -203,10 +203,11 @@ with DAG(
         job_queue=batch_job_queue_name,
         job_definition=batch_job_definition_name,
         overrides=JOB_OVERRIDES,
-        # Set this flag to False, so we can test the sensor below
-        wait_for_completion=False,
     )
     # [END howto_operator_batch]
+
+    # BatchOperator waits by default, setting as False to test the Sensor below.
+    submit_batch_job.wait_for_completion = False
 
     # [START howto_sensor_batch]
     wait_for_batch_job = BatchSensor(
