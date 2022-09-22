@@ -225,6 +225,8 @@ classpath
 classpaths
 cleartext
 cli
+Clickhouse
+clickhouse
 clientId
 Cloudant
 cloudant
