@@ -86,9 +86,13 @@ class PrStat:
     def num_comments(self):
         """counts reviewer comments"""
         num_comments = 0
+        num_protm = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
+            if 'protm' in comment.body:
+                num_protm += 1
             num_comments += 1
+        self.protm_score = num_protm
         return num_comments
 
     @cached_property
