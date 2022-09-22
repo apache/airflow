@@ -2035,7 +2035,7 @@ dag_cli_commands: list[CLICommand] = [
         subcommands=[
             _remove_dag_id_opt(sp)
             for sp in DAGS_COMMANDS
-            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']
+            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause', 'test']
         ],
     ),
     GroupCommand(
