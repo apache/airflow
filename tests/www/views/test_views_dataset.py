@@ -138,26 +138,84 @@ class TestGetDatasets(TestDatasetEndpoint):
     @pytest.mark.need_serialized_dag
     def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
         with monkeypatch.context() as m:
-            datasets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
+            datasets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
 
-            with dag_maker(dag_id='downstream', schedule=datasets, serialized=True, session=session):
-                EmptyOperator(task_id='task1')
-
+            # DAG that produces dataset #1
             with dag_maker(dag_id='upstream', schedule=None, serialized=True, session=session):
                 EmptyOperator(task_id='task1', outlets=[datasets[0]])
+
+            # DAG that is consumes only datasets #1 and #2
+            with dag_maker(dag_id='downstream', schedule=datasets[:2], serialized=True, session=session):
+                EmptyOperator(task_id='task1')
+
+            # Independent DAG that produces dataset #3
+            with dag_maker(dag_id='independent_producer', serialized=True, session=session):
+                EmptyOperator(task_id='task1', outlets=[datasets[2]])
+
+            # Independent DAG that consumes dataset #4
+            with dag_maker(
+                dag_id='independent_consumer',
+                schedule=[datasets[3]],
+                serialized=True,
+                session=session,
+            ):
+                EmptyOperator(task_id='task1')
+
+            # Independent DAG that is produces and consumes the same dataset, #5
+            with dag_maker(
+                dag_id='independent_producer_self_consumer',
+                schedule=[datasets[4]],
+                serialized=True,
+                session=session,
+            ):
+                EmptyOperator(task_id='task1', outlets=[datasets[4]])
 
             m.setattr(app, 'dag_bag', dag_maker.dagbag)
 
             ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
             ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
+            ds3_id = session.query(DatasetModel.id).filter_by(uri=datasets[2].uri).scalar()
+            ds4_id = session.query(DatasetModel.id).filter_by(uri=datasets[3].uri).scalar()
+            ds5_id = session.query(DatasetModel.id).filter_by(uri=datasets[4].uri).scalar()
 
+            # dataset 1 events
             session.add_all(
                 [
                     DatasetEvent(
                         dataset_id=ds1_id,
-                        timestamp=pendulum.DateTime(2022, 8, 1, tzinfo=UTC),
+                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(3)
+                ]
+            )
+            # dataset 3 events
+            session.add_all(
+                [
+                    DatasetEvent(
+                        dataset_id=ds3_id,
+                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                    )
+                    for i in range(3)
+                ]
+            )
+            # dataset 4 events
+            session.add_all(
+                [
+                    DatasetEvent(
+                        dataset_id=ds4_id,
+                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                    )
+                    for i in range(4)
+                ]
+            )
+            # dataset 5 events
+            session.add_all(
+                [
+                    DatasetEvent(
+                        dataset_id=ds5_id,
+                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                    )
+                    for i in range(5)
                 ]
             )
             session.commit()
@@ -171,7 +229,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                 {
                     "id": ds1_id,
                     "uri": "s3://bucket/key/1",
-                    "last_dataset_update": "2022-08-01T00:00:00+00:00",
+                    "last_dataset_update": "2022-08-01T02:00:00+00:00",
                     "total_updates": 3,
                     "producing_task_count": 1,
                     "consuming_dag_count": 1,
@@ -184,8 +242,32 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "producing_task_count": 0,
                     "consuming_dag_count": 1,
                 },
+                {
+                    "id": ds3_id,
+                    "uri": "s3://bucket/key/3",
+                    "last_dataset_update": "2022-08-01T02:00:00+00:00",
+                    "total_updates": 3,
+                    "producing_task_count": 1,
+                    "consuming_dag_count": 0,
+                },
+                {
+                    "id": ds4_id,
+                    "uri": "s3://bucket/key/4",
+                    "last_dataset_update": "2022-08-01T03:00:00+00:00",
+                    "total_updates": 4,
+                    "producing_task_count": 0,
+                    "consuming_dag_count": 1,
+                },
+                {
+                    "id": ds5_id,
+                    "uri": "s3://bucket/key/5",
+                    "last_dataset_update": "2022-08-01T04:00:00+00:00",
+                    "total_updates": 5,
+                    "producing_task_count": 1,
+                    "consuming_dag_count": 1,
+                },
             ],
-            "total_entries": 2,
+            "total_entries": 5,
         }
 
 
