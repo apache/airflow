@@ -71,11 +71,13 @@ class PrStat:
         self.len_issue_comments = 0
         self.num_issue_comments = 0
         self.num_issue_reactions = 0
+        self.protm_score = 0
 
     @property
     def label_score(self) -> float:
         """assigns label score"""
-        for label in self.pull_request.labels:
+        labels = self.pull_request.labels
+        for label in labels:
             if "provider" in label.name:
                 return PrStat.PROVIDER_SCORE
         return PrStat.REGULAR_SCORE
@@ -83,20 +85,24 @@ class PrStat:
     @cached_property
     def num_comments(self):
         """counts reviewer comments"""
-        comments = 0
+        num_comments = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
-            comments += 1
-        return comments
+            num_comments += 1
+        return num_comments
 
     @cached_property
     def num_conv_comments(self) -> int:
         """counts conversational comments"""
-        conv_comments = 0
+        num_conv_comments = 0
+        num_protm = 0
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
-            conv_comments += 1
-        return conv_comments
+            if 'protm' in conv_comment.body:
+                num_protm += 1
+            num_conv_comments += 1
+        self.protm_score = num_protm
+        return num_conv_comments
 
     @cached_property
     def num_reactions(self) -> int:
@@ -121,11 +127,11 @@ class PrStat:
     @cached_property
     def num_reviews(self) -> int:
         """counts reviews"""
-        reviews = 0
+        num_reviews = 0
         for review in self.pull_request.get_reviews():
             self._users.add(review.user.login)
-            reviews += 1
-        return reviews
+            num_reviews += 1
+        return num_reviews
 
     @cached_property
     def issues(self):
@@ -155,14 +161,14 @@ class PrStat:
     @cached_property
     def issue_comments(self) -> int:
         """counts issue comments and calculates comment length"""
-        issues = self.issues
-        if issues:
+        if self.issue_nums:
             repo = self.g.get_repo("apache/airflow")
             issue_comments = 0
             len_issue_comments = 0
-            for num in issues:
+            for num in self.issue_nums:
                 issue = repo.get_issue(number=num)
-                for issue_comment in issue.get_comments():
+                issues = issue.get_comments()
+                for issue_comment in issues:
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
@@ -267,9 +273,13 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
+        if self.protm_score > 0:
+            interaction_score = self.interaction_score * 10
+        else:
+            interaction_score = self.interaction_score
         return round(
             1.0
-            * self.interaction_score
+            * interaction_score
             * self.label_score
             * self.length_score
             * self.change_score
@@ -285,6 +295,8 @@ class PrStat:
         )
 
     def verboseStr(self) -> str:
+        if self.protm_score > 0:
+            print('[red]*** Tagged with "protm" ***[/]')
         return (
             f'-- Created at [bright_blue]{self.pull_request.created_at}[/], '
             f'merged at [bright_blue]{self.pull_request.merged_at}[/]\n'
@@ -402,3 +414,4 @@ def main(
 
 if __name__ == "__main__":
     main()
+
