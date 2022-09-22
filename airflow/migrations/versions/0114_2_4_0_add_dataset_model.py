@@ -114,7 +114,6 @@ def _create_dataset_dag_run_queue_table():
         'dataset_dag_run_queue',
         sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
         sa.Column('target_dag_id', StringID(), primary_key=True, nullable=False),
-        sa.Column('event_timestamp', TIMESTAMP, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
             ('dataset_id',),

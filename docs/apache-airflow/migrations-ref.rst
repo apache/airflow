@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``ee8d93fcc81e`` (head)         | ``ecb43d2a1842``  | ``2.5.0``         | Add updated_at column to DagRun and TaskInstance             |
+| ``2b72b0fd20ef`` (head)         | ``ee8d93fcc81e``  | ``2.5.0``         | Add event timestamp to DDRQ                                  |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``ee8d93fcc81e``                | ``ecb43d2a1842``  | ``2.5.0``         | Add updated_at column to DagRun and TaskInstance             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``ecb43d2a1842``                | ``1486deb605b4``  | ``2.4.0``         | Add processor_subdir column to DagModel, SerializedDagModel  |
 |                                 |                   |                   | and CallbackRequest tables.                                  |
