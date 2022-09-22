@@ -225,6 +225,20 @@ class TestSlackWebhookHook:
         assert "url" in conn_params
         assert conn_params["url"] == TEST_WEBHOOK_URL
 
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.mask_secret")
+    @pytest.mark.parametrize("conn_id", ["conn_token_in_host_1", "conn_token_in_host_2"])
+    def test_construct_webhook_url_deprecated_full_url_in_host(self, mock_mask_secret, conn_id):
+        """Test deprecated option with full URL in host/schema and empty password."""
+        hook = SlackWebhookHook(slack_webhook_conn_id=conn_id)
+        warning_message = (
+            r"Found Slack Webhook Token URL in Connection .* `host` and `password` field is empty\."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            conn_params = hook._get_conn_params()
+        mock_mask_secret.assert_called_once_with(mock.ANY)
+        assert "url" in conn_params
+        assert conn_params["url"] == TEST_WEBHOOK_URL
+
     @pytest.mark.parametrize(
         "conn_id", ["conn_custom_endpoint_1", "conn_custom_endpoint_2", "conn_custom_endpoint_3"]
     )

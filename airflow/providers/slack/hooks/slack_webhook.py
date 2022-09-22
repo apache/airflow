@@ -259,6 +259,13 @@ class SlackWebhookHook(BaseHook):
                         "Cannot get token: No valid Slack token nor valid Connection ID supplied."
                     )
                 mask_secret(parsed_token)
+                warnings.warn(
+                    f"Found Slack Webhook Token URL in Connection {conn.conn_id!r} `host` "
+                    "and `password` field is empty. This behaviour deprecated "
+                    "and could expose you token in the UI and will be removed in a future releases.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             url = (base_url.rstrip("/") + "/" + webhook_token.lstrip("/")).rstrip("/")
 
         conn_params["url"] = url
