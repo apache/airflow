@@ -564,7 +564,7 @@ def run_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Run a task instance."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = run_task_instance_form.load(body)
     except ValidationError as err:
@@ -581,7 +581,7 @@ def run_task_instance(
         raise BadRequest(detail=error_message)
 
     error_message = f"Dag ID {dag_id} not found"
-    dag = current_app.dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound(error_message)
 
