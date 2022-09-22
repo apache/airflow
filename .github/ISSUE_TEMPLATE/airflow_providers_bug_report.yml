@@ -42,6 +42,7 @@ body:
         - asana
         - atlassian-jira
         - celery
+        - clickhouse
         - cloudant
         - cncf-kubernetes
         - common-sql
