@@ -211,10 +211,7 @@ class FileTaskHandler(logging.Handler):
         else:
             import httpx
 
-            url = urljoin(
-                f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
-                log_relative_path,
-            )
+            url = self._get_log_retrieval_url(ti, log_relative_path)
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
             try:
@@ -265,6 +262,14 @@ class FileTaskHandler(logging.Handler):
             log = log[previous_chars:]  # Cut off previously passed log test as new tail
 
         return log, {'end_of_log': end_of_log, 'log_pos': log_pos}
+
+    @staticmethod
+    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
+        url = urljoin(
+            f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
+            log_relative_path,
+        )
+        return url
 
     def read(self, task_instance, try_number=None, metadata=None):
         """

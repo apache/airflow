@@ -251,3 +251,16 @@ class TestFilenameRendering:
         fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
+
+
+class TestLogUrl:
+    def test_log_retrieval_valid(self, create_task_instance):
+        log_url_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        log_url_ti.hostname = 'hostname'
+        url = FileTaskHandler._get_log_retrieval_url(log_url_ti, 'DYNAMIC_PATH')
+        assert url == "http://hostname:8793/log/DYNAMIC_PATH"
