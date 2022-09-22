@@ -506,8 +506,8 @@ TEST_SIDECAR_DRIVER_APPLICATION = {
             "sidecars": {
                 "name": "sidecar-container",
                 "image": "busybox",
-                "command": "[\"sh\",\"-c\",\"for i in {2..10}; do echo \"output: $i\"; done\"]"
-            }
+                "command": "[\"sh\",\"-c\",\"for i in {2..10}; do echo \"output: $i\"; done\"]",
+            },
         },
         "executor": {
             "cores": 1,
@@ -783,7 +783,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
         with pytest.raises(AirflowException):
             sensor.poke(None)
-        mock_log_call.assert_called_once_with("spark-pi-driver", namespace="default")
+        mock_log_call.assert_called_once_with("spark-pi-driver", namespace="default",
+                                              container='spark-kubernetes-driver')
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
 
     @patch(
@@ -805,7 +806,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
             task_id="test_task_id",
         )
         sensor.poke(None)
-        mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default")
+        mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default",
+                                              container='spark-kubernetes-driver')
         log_info_call = info_log_call.mock_calls[2]
         log_value = log_info_call[1][0]
         assert log_value == TEST_POD_LOG_RESULT
@@ -841,7 +843,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         return_value=TEST_POD_LOGS,
     )
     def test_sidecar_driver_logging_completed(
-        self, mock_log_call, info_log_call
+        self, mock_log_call, info_log_call, mock_get_namespaced_crd, mock_kube_conn
     ):
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",

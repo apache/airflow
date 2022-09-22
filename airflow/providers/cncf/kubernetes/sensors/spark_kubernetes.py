@@ -87,7 +87,9 @@ class SparkKubernetesSensor(BaseSensorOperator):
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace, container=self.container_name):
+            for line in self.hook.get_pod_logs(
+                driver_pod_name, namespace=namespace, container=self.container_name
+            ):
                 log += line.decode()
             log_method(log)
         except client.rest.ApiException as e:
