@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add event timestamp to DDRQ
+"""Add updated_at column to DagRun and TaskInstance
 
-Revision ID: 2b72b0fd20ef
-Revises: ee8d93fcc81e
-Create Date: 2022-09-21 21:28:23.896961
+Revision ID: ee8d93fcc81e
+Revises: ecb43d2a1842
+Create Date: 2022-09-08 19:08:37.623121
 
 """
 
@@ -32,18 +32,26 @@ from alembic import op
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
-revision = '2b72b0fd20ef'
-down_revision = 'ee8d93fcc81e'
+revision = 'ee8d93fcc81e'
+down_revision = '2b72b0fd20ef'
 branch_labels = None
 depends_on = None
 airflow_version = '2.5.0'
 
 
 def upgrade():
-    """Apply Add event timestamp to DDRQ"""
-    op.add_column('dataset_dag_run_queue', sa.Column('event_timestamp', TIMESTAMP, nullable=False))
+    """Apply add updated_at column to DagRun and TaskInstance"""
+    with op.batch_alter_table('task_instance') as batch_op:
+        batch_op.add_column(sa.Column('updated_at', TIMESTAMP, default=sa.func.now))
+
+    with op.batch_alter_table('dag_run') as batch_op:
+        batch_op.add_column(sa.Column('updated_at', TIMESTAMP, default=sa.func.now))
 
 
 def downgrade():
-    """Unapply Add event timestamp to DDRQ"""
-    op.drop_column('dataset_dag_run_queue', 'event_timestamp')
+    """Unapply add updated_at column to DagRun and TaskInstance"""
+    with op.batch_alter_table('task_instance') as batch_op:
+        batch_op.drop_column('updated_at')
+
+    with op.batch_alter_table('dag_run') as batch_op:
+        batch_op.drop_column('updated_at')
