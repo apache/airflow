@@ -235,20 +235,6 @@ class TestSlackWebhookHook:
         assert "url" in conn_params
         assert conn_params["url"] == TEST_CUSTOM_WEBHOOK_URL
 
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.mask_secret")
-    def test_construct_webhook_url_token_in_deprecated_extra(self, mock_mask_secret):
-        """Test obtain webhook_token from deprecated extra attribute."""
-        hook = SlackWebhookHook(slack_webhook_conn_id="conn_deprecated_extra")
-        warning_message = (
-            r"Found 'webhook_token' in Connection .* Extra, this option is "
-            r"deprecated and will be removed in a future releases\. Please use 'password' field\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            conn_params = hook._get_conn_params()
-        mock_mask_secret.assert_called_once_with(TEST_TOKEN)
-        assert "url" in conn_params
-        assert conn_params["url"] == TEST_WEBHOOK_URL
-
     @pytest.mark.parametrize(
         "conn_id",
         [
