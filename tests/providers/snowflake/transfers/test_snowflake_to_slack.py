@@ -46,6 +46,7 @@ class TestSnowflakeToSlackOperator:
 
     @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
     def test_hooks_and_rendering(self, mock_slack_hook_class):
+        slack_webhook_hook = mock_slack_hook_class.return_value
         operator_args = {
             'snowflake_conn_id': 'snowflake_connection',
             'sql': "sql {{ ds }}",
@@ -71,10 +72,14 @@ class TestSnowflakeToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            message='message: 2017-01-01, 1234',
+            slack_webhook_conn_id='slack_default',
             webhook_token='test_token',
+        )
+
+        # Test that the `SlackWebhookHook.send` method gets run once
+        slack_webhook_hook.send.assert_called_once_with(
+            text='message: 2017-01-01, 1234',
             channel=None,
-            http_conn_id='slack_default',
         )
 
     def test_hook_params_building(self):

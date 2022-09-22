@@ -49,7 +49,7 @@ class SlackHook(BaseHook):
 
     .. warning::
         This hook intend to use `Slack API` connection
-        and might not work correctly with `Slack Webhook` and `HTTP` connections.
+        and might not work correctly with `Slack Incoming Webhook` and `HTTP` connections.
 
     Takes both Slack API token directly and connection that has Slack API token. If both are
     supplied, Slack API token will be used. Also exposes the rest of slack.WebClient args.
@@ -74,8 +74,8 @@ class SlackHook(BaseHook):
         and receive a response from Slack. If not set than default WebClient value will use.
     :param base_url: A string representing the Slack API base URL.
         If not set than default WebClient BASE_URL will use (``https://www.slack.com/api/``).
-    :param proxy: Proxy to make the Slack Incoming Webhook call.
-    :param retry_handlers: List of handlers to customize retry logic in WebClient.
+    :param proxy: Proxy to make the Slack API call.
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``.
     :param token: (deprecated) Slack API Token.
     """
 

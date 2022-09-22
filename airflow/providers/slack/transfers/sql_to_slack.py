@@ -129,14 +129,11 @@ class SqlToSlackOperator(BaseOperator):
 
         slack_hook = self._get_slack_hook()
         self.log.info('Sending slack message: %s', self.slack_message)
-        slack_hook.execute()
+        slack_hook.send(text=self.slack_message, channel=self.slack_channel)
 
     def _get_slack_hook(self) -> SlackWebhookHook:
         return SlackWebhookHook(
-            http_conn_id=self.slack_conn_id,
-            message=self.slack_message,
-            channel=self.slack_channel,
-            webhook_token=self.slack_webhook_token,
+            slack_webhook_conn_id=self.slack_conn_id, webhook_token=self.slack_webhook_token
         )
 
     def render_template_fields(self, context, jinja_env=None) -> None:

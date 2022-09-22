@@ -21,7 +21,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 from airflow.utils import timezone
@@ -64,14 +64,15 @@ class TestSqlToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            http_conn_id='slack_connection',
-            message=f'message: 2017-01-01, {test_df}',
-            channel='#test',
+            slack_webhook_conn_id='slack_connection',
             webhook_token=None,
         )
 
-        # Test that the Slack hook's execute method gets run once
-        slack_webhook_hook.execute.assert_called_once()
+        # Test that the `SlackWebhookHook.send` method gets run once
+        slack_webhook_hook.send.assert_called_once_with(
+            text=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+        )
 
     @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
     def test_rendering_and_message_execution_with_slack_hook(self, mock_slack_hook_class):
@@ -98,14 +99,15 @@ class TestSqlToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            http_conn_id='slack_connection',
-            message=f'message: 2017-01-01, {test_df}',
-            channel='#test',
+            slack_webhook_conn_id='slack_connection',
             webhook_token='test_token',
         )
 
-        # Test that the Slack hook's execute method gets run once
-        slack_webhook_hook.execute.assert_called_once()
+        # Test that the `SlackWebhookHook.send` method gets run once
+        slack_webhook_hook.send.assert_called_once_with(
+            text=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+        )
 
     def test_non_existing_slack_parameters_provided_exception_thrown(self):
         operator_args = {
@@ -141,14 +143,15 @@ class TestSqlToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            http_conn_id='slack_connection',
-            message=f'message: 2017-01-01, {test_df}',
-            channel='#test',
+            slack_webhook_conn_id='slack_connection',
             webhook_token=None,
         )
 
-        # Test that the Slack hook's execute method gets run once
-        slack_webhook_hook.execute.assert_called_once()
+        # Test that the `SlackWebhookHook.send` method gets run once
+        slack_webhook_hook.send.assert_called_once_with(
+            text=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+        )
 
     @mock.patch('airflow.providers.common.sql.operators.sql.BaseHook.get_connection')
     def test_hook_params_building(self, mock_get_conn):
