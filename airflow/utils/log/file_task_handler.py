@@ -264,7 +264,7 @@ class FileTaskHandler(logging.Handler):
         return log, {'end_of_log': end_of_log, 'log_pos': log_pos}
 
     @staticmethod
-    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str):
+    def _get_log_retrieval_url(ti: TaskInstance, log_relative_path: str) -> str:
         url = urljoin(
             f"http://{ti.hostname}:{conf.get('logging', 'WORKER_LOG_SERVER_PORT')}/log/",
             log_relative_path,
