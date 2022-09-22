@@ -1542,15 +1542,23 @@ def get_custom_secret_backend() -> BaseSecretsBackend | None:
     """Get Secret Backend if defined in airflow.cfg"""
     secrets_backend_cls = conf.getimport(section='secrets', key='backend')
 
-    if secrets_backend_cls:
-        try:
-            backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
-            alternative_secrets_config_dict = json.loads(backends)
-        except JSONDecodeError:
-            alternative_secrets_config_dict = {}
+    if not secrets_backend_cls:
+        return None
 
-        return secrets_backend_cls(**alternative_secrets_config_dict)
-    return None
+    try:
+        backend_kwargs = conf.getjson(section='secrets', key='backend_kwargs')
+        if not backend_kwargs:
+            backend_kwargs = {}
+        elif not isinstance(backend_kwargs, dict):
+            raise ValueError("not a dict")
+    except AirflowConfigException:
+        log.warning("Failed to parse [secrets] backend_kwargs as JSON, defaulting to no kwargs.")
+        backend_kwargs = {}
+    except ValueError:
+        log.warning("Failed to parse [secrets] backend_kwargs into a dict, defaulting to no kwargs.")
+        backend_kwargs = {}
+
+    return secrets_backend_cls(**backend_kwargs)
 
 
 def initialize_secrets_backends() -> list[BaseSecretsBackend]:
