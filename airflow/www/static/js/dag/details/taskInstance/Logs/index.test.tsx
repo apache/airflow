@@ -85,7 +85,7 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
   });
 
@@ -146,7 +146,7 @@ describe('Test Logs Component.', () => {
       fullContent: false,
       mapIndex: 1,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
   });
 
@@ -172,18 +172,18 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
-    const attemptButton2 = getByTestId('log-attempt-select-button-2');
+    const attemptButton1 = getByTestId('log-attempt-select-button-1');
 
-    fireEvent.click(attemptButton2);
+    fireEvent.click(attemptButton1);
 
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 2,
+      taskTryNumber: 1,
     });
   });
 
@@ -203,7 +203,7 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: false,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
     const fullContentCheckbox = getByTestId('full-content-checkbox');
 
@@ -214,7 +214,7 @@ describe('Test Logs Component.', () => {
       dagRunId: 'dummyDagRunId',
       fullContent: true,
       taskId: 'dummyTaskId',
-      taskTryNumber: 1,
+      taskTryNumber: 2,
     });
   });
 });
