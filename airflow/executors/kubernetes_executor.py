@@ -29,8 +29,10 @@ import logging
 import multiprocessing
 import time
 from datetime import timedelta
+from logging import Logger
 from queue import Empty, Queue
-from typing import Any, Dict, Optional, Sequence, Tuple
+from threading import Thread
+from typing import Any, Dict, Optional, Sequence, Tuple, Callable
 
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
@@ -60,6 +62,50 @@ KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
 
 # pod_id, namespace, state, annotations, resource_version
 KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
+
+
+def multi_threads_queue_process(
+    queue_size: int,
+    queue_type: str,
+    process_method: Callable,
+    max_threads: int,
+    log: Logger,
+    batch_size: Optional[int] = None,
+) -> None:
+    """
+    Helper method to enable multi-threads for processing queues used with kubernetes executor
+    :param queue_size: the size of the queue getting processed
+    :param queue_type: the type of the queue
+    :param process_method: the real method processing the queue
+    :param max_threads: the max num of threads to be used
+    :param log: log
+    :param batch_size: the max num of items we want to process in this round.
+                       If it's not set, the current queue size will be used.
+    """
+    if queue_size == 0:
+        log.info(f'There is no item to process in the {queue_type} queue.')
+        return
+
+    start_time = time.time()
+    log.info(f'Start processing {queue_type} queue with at most {max_threads} threads.')
+
+    batch_size = min(batch_size or queue_size, queue_size)
+    max_threads = min(max_threads, queue_size)
+
+    threads = []
+    quotient, remainder = divmod(batch_size, max_threads)
+    for i in range(max_threads):
+        sub_batch_size = quotient + 1 if i < remainder else quotient
+        t = Thread(target=process_method, args=[sub_batch_size])
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()
+
+    process_time = int(time.time() - start_time)
+    log.info(
+        f'Finished processing {queue_type} queue with {batch_size} tasks within {process_time} sec.'
+    )
 
 
 class ResourceVersion:
@@ -367,7 +413,17 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watcher()
-        while True:
+
+        multi_threads_queue_process(
+            queue_size=self.watcher_queue.qsize(),
+            queue_type='watcher',
+            process_method=self.process_watcher_queue,
+            max_threads=self.kube_config.watcher_queue_sync_parallelism,
+            log=self.log,
+        )
+
+    def process_watcher_queue(self, sub_batch_size: int) -> None:
+        for _ in range(sub_batch_size):
             try:
                 task = self.watcher_queue.get_nowait()
                 try:
@@ -593,8 +649,31 @@ class KubernetesExecutor(BaseExecutor):
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.kube_scheduler.sync()
 
-        last_resource_version = None
-        while True:
+        """processing result queue"""
+        multi_threads_queue_process(
+            queue_size=self.result_queue.qsize(),
+            queue_type='result',
+            process_method=self.process_result_queue,
+            max_threads=self.kube_config.result_queue_sync_parallelism,
+            log=self.log,
+        )
+
+        """process task queue"""
+        multi_threads_queue_process(
+            queue_size=self.task_queue.qsize(),
+            queue_type='task',
+            process_method=self.process_task_queue,
+            max_threads=self.kube_config.task_queue_sync_parallelism,
+            batch_size=self.kube_config.worker_pods_creation_batch_size,
+            log=self.log,
+        )
+
+        # Run any pending timed events
+        next_event = self.event_scheduler.run(blocking=False)
+        self.log.debug("Next timed event is in %f", next_event)
+
+    def process_result_queue(self, sub_batch_size):
+        for _ in range(sub_batch_size):
             try:
                 results = self.result_queue.get_nowait()
                 try:
@@ -616,10 +695,8 @@ class KubernetesExecutor(BaseExecutor):
             except Empty:
                 break
 
-        resource_instance = ResourceVersion()
-        resource_instance.resource_version = last_resource_version or resource_instance.resource_version
-
-        for _ in range(self.kube_config.worker_pods_creation_batch_size):
+    def process_task_queue(self, sub_batch_size):
+        for _ in range(sub_batch_size):
             try:
                 task = self.task_queue.get_nowait()
                 try:
@@ -650,10 +727,6 @@ class KubernetesExecutor(BaseExecutor):
                     self.task_queue.task_done()
             except Empty:
                 break
-
-        # Run any pending timed events
-        next_event = self.event_scheduler.run(blocking=False)
-        self.log.debug("Next timed event is in %f", next_event)
 
     def _check_worker_pods_pending_timeout(self):
         """Check if any pending worker pods have timed out"""

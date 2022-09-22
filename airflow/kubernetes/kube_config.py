@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import multiprocessing
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.settings import AIRFLOW_HOME
@@ -77,6 +79,25 @@ class KubeConfig:
         self.kube_client_request_args = conf.getjson(
             self.kubernetes_section, "kube_client_request_args", fallback={}
         )
+
+        half_of_cpu_cores = int(multiprocessing.cpu_count() / 2)
+        # the parallelism number will be used when processing watcher queue.
+        self.watcher_queue_sync_parallelism = max(
+            conf.getint(self.kubernetes_section, 'watcher_queue_sync_parallelism', fallback=1),
+            half_of_cpu_cores,
+        )
+
+        # the parallelism number will be used when processing result queue.
+        self.result_queue_sync_parallelism = max(
+            conf.getint(self.kubernetes_section, 'result_queue_sync_parallelism', fallback=1),
+            half_of_cpu_cores,
+        )
+
+        # the parallelism number will be used when processing task queue.
+        self.task_queue_sync_parallelism = max(
+            conf.getint(self.kubernetes_section, 'task_queue_sync_parallelism', fallback=1), half_of_cpu_cores
+        )
+
         if not isinstance(self.kube_client_request_args, dict):
             raise AirflowConfigException(
                 f"[{self.kubernetes_section}] 'kube_client_request_args' expected a JSON dict, got "
