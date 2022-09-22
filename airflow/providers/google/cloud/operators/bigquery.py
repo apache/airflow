@@ -449,7 +449,7 @@ class BigQueryGetDataOperator(BaseOperator):
         )
 
         if not self.selected_fields:
-            schema: Dict[str, list] = hook.get_schema(
+            schema: dict[str, list] = hook.get_schema(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
