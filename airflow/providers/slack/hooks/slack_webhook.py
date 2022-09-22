@@ -173,6 +173,13 @@ class SlackWebhookHook(BaseHook):
                     # Slack WebHook Post Request not expected `message` as field,
                     # so we also set "text" attribute which will check by SlackWebhookHook._resolve_argument
                     self.text = getattr(self, deprecated_attr)
+                elif deprecated_attr == "link_names":
+                    warnings.warn(
+                        "`link_names` has no affect, if you want to mention user see: "
+                        "https://api.slack.com/reference/surfaces/formatting#mentioning-users",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
         if deprecated_class_attrs:
             warnings.warn(
@@ -325,13 +332,6 @@ class SlackWebhookHook(BaseHook):
         if not isinstance(body, dict):
             raise TypeError(f"Body expected dictionary, got {type(body).__name__}.")
 
-        if "link_names" in body:
-            warnings.warn(
-                "`link_names` has no affect, if you want to mention user see: "
-                "https://api.slack.com/reference/surfaces/formatting#mentioning-users",
-                UserWarning,
-                stacklevel=2,
-            )
         if any(legacy_attr in body for legacy_attr in ("channel", "username", "icon_emoji", "icon_url")):
             warnings.warn(
                 "You cannot override the default channel (chosen by the user who installed your app), "
@@ -385,8 +385,6 @@ class SlackWebhookHook(BaseHook):
             "unfurl_media": unfurl_media,
             # Legacy Integration Parameters
             **{lip: self._resolve_argument(lip, kwargs.pop(lip, None)) for lip in LEGACY_INTEGRATION_PARAMS},
-            # Unused Parameters
-            "link_names": self._resolve_argument("link_names", kwargs.pop("link_names", None)),
         }
         if kwargs:
             warnings.warn(

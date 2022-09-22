@@ -464,19 +464,6 @@ class TestSlackWebhookHook:
             hook.send_dict(body=legacy_slack_integration_body)
         mock_webhook_client_send_dict.assert_called_once_with(legacy_slack_integration_body, headers=None)
 
-    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
-    def test_hook_send_dict_ignored_attributes(self, mock_webhook_client_cls):
-        """Test `SlackWebhookHook.send_dict` warn users about ignored attributes."""
-        mock_webhook_client = mock_webhook_client_cls.return_value
-        mock_webhook_client_send_dict = mock_webhook_client.send_dict
-        mock_webhook_client_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
-
-        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
-        warning_message = r"`link_names` has no affect, if you want to mention user see: .*"
-        with pytest.warns(UserWarning, match=warning_message):
-            hook.send_dict(body={"link_names": "test-value"})
-        mock_webhook_client_send_dict.assert_called_once_with({"link_names": "test-value"}, headers=None)
-
     @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
     @pytest.mark.parametrize(
         "send_params",
@@ -503,7 +490,6 @@ class TestSlackWebhookHook:
             "username",
             "icon_emoji",
             "icon_url",
-            "link_names",
         ],
     )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook.send_dict")
@@ -534,6 +520,41 @@ class TestSlackWebhookHook:
         with pytest.warns(DeprecationWarning, match=warning_message):
             hook.execute()
         mock_hook_send_dict.assert_called_once_with(body=expected_body, headers=None)
+
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    def test_hook_ignored_attributes(self, mock_webhook_client_cls, recwarn):
+        """Test hook constructor warn users about ignored attributes."""
+        mock_webhook_client = mock_webhook_client_cls.return_value
+        mock_webhook_client_send_dict = mock_webhook_client.send_dict
+        mock_webhook_client_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
+
+        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, link_names="test-value")
+        assert len(recwarn) == 2
+        assert str(recwarn.pop(UserWarning).message).startswith(
+            "`link_names` has no affect, if you want to mention user see:"
+        )
+        assert str(recwarn.pop(DeprecationWarning).message).startswith(
+            "Provide 'link_names' as hook argument(s) is deprecated and will be removed in a future releases."
+        )
+        hook.send()
+        mock_webhook_client_send_dict.assert_called_once_with({}, headers=None)
+
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
+    def test_hook_send_unexpected_arguments(self, mock_webhook_client_cls, recwarn):
+        """Test `SlackWebhookHook.send` unexpected attributes."""
+        mock_webhook_client = mock_webhook_client_cls.return_value
+        mock_webhook_client_send_dict = mock_webhook_client.send_dict
+        mock_webhook_client_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
+
+        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
+        warning_message = (
+            r"Found unexpected keyword-argument\(s\) 'link_names', 'as_user' "
+            r"in `send` method\. This argument\(s\) have no effect\."
+        )
+        with pytest.warns(UserWarning, match=warning_message):
+            hook.send(link_names="foo-bar", as_user="root", text="Awesome!")
+
+        mock_webhook_client_send_dict.assert_called_once_with({"text": "Awesome!"}, headers=None)
 
     @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
     @pytest.mark.parametrize("unfurl_links", [None, False, True])
