@@ -160,6 +160,7 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -1059,10 +1060,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Test Offline SQL generation"
         run: ./scripts/ci/testing/run_offline_sql_test.sh
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1130,10 +1132,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Test downgrade"
         run: ./scripts/ci/testing/run_downgrade_test.sh
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1201,10 +1204,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Test downgrade"
         run: ./scripts/ci/testing/run_downgrade_test.sh
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1270,10 +1274,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Test downgrade"
         run: ./scripts/ci/testing/run_downgrade_test.sh
       - name: "Tests: ${{needs.build-info.outputs.test-types}}"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: breeze testing tests --run-in-parallel
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v3
         if: failure()
@@ -1309,7 +1314,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
-      TEST_TYPES: "Quarantined"
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1345,9 +1349,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Tests: Quarantined"
-        run: ./scripts/ci/testing/ci_run_quarantined_tests.sh
+        run: breeze testing tests --run-in-parallel || true
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pull-request-labels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          TEST_TYPES: "Quarantined"
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
       - name: "Upload Quarantine test results"
         uses: actions/upload-artifact@v3
         if: always()

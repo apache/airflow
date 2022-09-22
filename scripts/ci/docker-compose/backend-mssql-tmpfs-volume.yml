@@ -16,3 +16,16 @@
 # under the License.
 ---
 version: "3.7"
+services:
+  # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+  # O_DIRECT parameter for direct writing to the filesystem
+  # https://github.com/microsoft/mssql-docker/issues/13
+  # so we need to mount an external volume for its db location
+  # the external db must allow for parallel testing so external volume is mapped
+  # to the data volume
+  mssql:
+    volumes:
+      - ${MSSQL_DATA_VOLUME}:/var/opt/mssql
+  mssqlsetup:
+    volumes:
+      - ${MSSQL_DATA_VOLUME}:/var/opt/mssql
