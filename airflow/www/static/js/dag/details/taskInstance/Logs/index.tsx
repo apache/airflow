@@ -98,19 +98,21 @@ const Logs = ({
   tryNumber,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [manuallySelectedAttempt, setSelectedAttempt] = useState<number | undefined>();
+  const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
-  const selectedAttempt = manuallySelectedAttempt || tryNumber || 1;
+
+  //
+  const taskTryNumber = selectedTryNumber || tryNumber || 1;
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
     mapIndex,
-    taskTryNumber: selectedAttempt,
+    taskTryNumber,
     fullContent: shouldRequestFullContent,
   });
 
@@ -144,8 +146,8 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (selectedAttempt > (tryNumber || 1)) {
-      setSelectedAttempt(undefined);
+    if (taskTryNumber > (tryNumber || 1)) {
+      setSelectedTryNumber(undefined);
     }
 
     if (data && fileSourceFilters.length > 0
@@ -155,7 +157,7 @@ const Logs = ({
       )) {
       setFileSourceFilters([]);
     }
-  }, [data, fileSourceFilters, fileSources, selectedAttempt, tryNumber]);
+  }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
 
   return (
     <>
@@ -167,9 +169,9 @@ const Logs = ({
               {internalIndexes.map((index) => (
                 <Button
                   key={index}
-                  variant={selectedAttempt === index ? 'solid' : 'ghost'}
+                  variant={taskTryNumber === index ? 'solid' : 'ghost'}
                   colorScheme="blue"
-                  onClick={() => setSelectedAttempt(index)}
+                  onClick={() => setSelectedTryNumber(index)}
                   data-testid={`log-attempt-select-button-${index}`}
                 >
                   {index}
