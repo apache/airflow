@@ -1604,6 +1604,85 @@ class TestDag:
         dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
+    def test_dag_test_basic(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator
+        def check_task():
+            # we call a mock object to ensure that this task actually ran.
+            mock_object()
+
+        with dag:
+            check_task()
+
+        dag.test()
+        mock_object.assert_called_once()
+
+    def test_dag_test_with_dependencies(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator
+        def check_task():
+            return "output of first task"
+
+        @task_decorator
+        def check_task_2(my_input):
+            # we call a mock object to ensure that this task actually ran.
+            mock_object(my_input)
+
+        with dag:
+            check_task_2(check_task())
+
+        dag.test()
+        mock_object.assert_called_with("output of first task")
+
+    def test_dag_test_with_task_mapping(self):
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+        mock_object = mock.MagicMock()
+
+        @task_decorator()
+        def get_index(current_val, ti=None):
+            return ti.map_index
+
+        @task_decorator
+        def check_task(my_input):
+            # we call a mock object with the combined map to ensure all expected indexes are called
+            mock_object(list(my_input))
+
+        with dag:
+            mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
+            check_task(mapped_task)
+
+        dag.test()
+        mock_object.assert_called_with([0, 1, 2, 3, 4])
+
+    def test_dag_connection_file(self):
+        test_connections_string = """
+---
+my_postgres_conn:
+  - conn_id: my_postgres_conn
+    conn_type: postgres
+        """
+        dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            from airflow.configuration import secrets_backend_list
+            from airflow.secrets.local_filesystem import LocalFilesystemBackend
+
+            assert isinstance(secrets_backend_list[0], LocalFilesystemBackend)
+            local_secrets: LocalFilesystemBackend = secrets_backend_list[0]
+            assert local_secrets.get_connection("my_postgres_conn").conn_id == "my_postgres_conn"
+
+        with dag:
+            check_task()
+        with NamedTemporaryFile(suffix=".yaml") as tmp:
+            with open(tmp.name, 'w') as f:
+                f.write(test_connections_string)
+            dag.test(conn_file_path=tmp.name)
+
     def _make_test_subdag(self, session):
         dag_id = 'test_subdag'
         self._clean_up(dag_id)
