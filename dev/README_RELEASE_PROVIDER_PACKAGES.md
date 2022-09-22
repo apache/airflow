@@ -730,7 +730,8 @@ We also need to archive older releases before copying the new ones
 ```bash
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
 # Go the folder where you have checked out the release repo
 cd "<ROOT_OF_YOUR_RELEASE_REPO>"

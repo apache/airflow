@@ -896,7 +896,8 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 ```shell script
 # GO to Airflow Sources first
 cd <YOUR_AIRFLOW_REPO_ROOT>
-export AIRFLOW_REPO_ROOT=$(pwd)
+export AIRFLOW_REPO_ROOT="$(pwd)"
+cd ..
 
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/{release,dev}/airflow
