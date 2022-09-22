@@ -96,7 +96,6 @@ class OracleHook(DbApiHook):
         events: bool = False,
         mode: int = oracledb.AUTH_MODE_DEFAULT,
         purity: int = oracledb.PURITY_DEFAULT,
-        threaded: bool = True,
         thick_mode: bool = False,
         thick_mode_lib_dir: str | None = None,
         thick_mode_config_dir: str | None = None,
@@ -120,7 +119,6 @@ class OracleHook(DbApiHook):
         self.events = events
         self.mode = mode
         self.purity = purity
-        self.threaded = threaded
         self.thick_mode = thick_mode
         self.thick_mode_lib_dir = thick_mode_lib_dir
         self.thick_mode_config_dir = thick_mode_config_dir
@@ -155,9 +153,6 @@ class OracleHook(DbApiHook):
 
                 events = extra_options.get('events')
                 self.events = events if events is not None else self.events
-
-                threaded = extra_options.get('threaded')
-                self.threaded = threaded if threaded is not None else self.threaded
 
                 mode = extra_options.get('mode', '').lower()
                 if mode == 'sysdba':
@@ -209,7 +204,6 @@ class OracleHook(DbApiHook):
         self.conn_config['events'] = self.events
         self.conn_config['mode'] = self.mode
         self.conn_config['purity'] = self.purity
-        self.conn_config['threaded'] = self.threaded
 
         if self.host and self.sid and not self.service_name:
             self.conn_config['dsn'] = oracledb.makedsn(self.host, self.port, self.sid)

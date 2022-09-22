@@ -42,8 +42,6 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Oracle
     connection. The following parameters are supported:
 
-    * ``threaded`` - Whether or not Oracle should wrap accesses to connections with a mutex.
-      Default value is False.
     * ``events`` - Whether or not to initialize Oracle in events mode.
     * ``mode`` - one of ``sysdba``, ``sysasm``, ``sysoper``, ``sysbkp``, ``sysdgd``, ``syskmt`` or ``sysrac``
       which are defined at the module level, Default mode is connecting.
@@ -102,7 +100,6 @@ Extra (optional)
     .. code-block:: json
 
        {
-          "threaded": false,
           "events": false,
           "mode": "sysdba",
           "purity": "new"
