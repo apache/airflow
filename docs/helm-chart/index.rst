@@ -133,4 +133,4 @@ will not start as the migrations will not be run:
    createUserJob.useHelmHooks: false
    migrateDatabaseJob.useHelmHooks: false
 
-This also applies if you install the chart using `--wait` in your `helm install` command.
+This also applies if you install the chart using ``--wait`` in your ``helm install`` command.
