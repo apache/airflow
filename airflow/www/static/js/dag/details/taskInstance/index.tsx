@@ -190,14 +190,14 @@ const TaskInstance = ({
           {/* Mapped Task Instances Tab */}
           {
             isMappedTaskSummary && (
-            <TabPanel>
-              <MappedInstances
-                dagId={dagId}
-                runId={runId}
-                taskId={taskId}
-                onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
-              />
-            </TabPanel>
+              <TabPanel>
+                <MappedInstances
+                  dagId={dagId}
+                  runId={runId}
+                  taskId={taskId}
+                  onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
+                />
+              </TabPanel>
             )
           }
         </TabPanels>

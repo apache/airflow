@@ -25,7 +25,7 @@ import {
   Tbody,
   Tr,
   Td,
-  Heading,
+  Divider,
 } from '@chakra-ui/react';
 
 import { finalStatesMap } from 'src/utils';
@@ -34,8 +34,8 @@ import { SimpleStatus } from 'src/dag/StatusBox';
 import Time from 'src/components/Time';
 import { ClipboardText } from 'src/components/Clipboard';
 import type { Task, TaskInstance, TaskState } from 'src/types';
+import useTaskInstance from 'src/api/useTaskInstance';
 import DatasetUpdateEvents from './DatasetUpdateEvents';
-import useTaskInstance from '../../../api/useTaskInstance';
 
 interface Props {
   instance: TaskInstance;
@@ -57,15 +57,20 @@ const Details = ({ instance, group, dagId }: Props) => {
     mapIndex,
   } = instance;
 
-  const { data: apiTI } = useTaskInstance({
-    dagId, dagRunId: runId, taskId, mapIndex, enabled: true,
-  });
   const {
     isMapped,
     tooltip,
     operator,
     hasOutletDatasets,
   } = group;
+
+  const { data: apiTI } = useTaskInstance({
+    dagId,
+    dagRunId: runId,
+    taskId,
+    mapIndex,
+    enabled: !isGroup && !isMapped,
+  });
 
   const numMap = finalStatesMap();
   let numMapped = 0;
@@ -109,21 +114,12 @@ const Details = ({ instance, group, dagId }: Props) => {
   const isOverall = (isMapped || isGroup) && 'Overall ';
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
-      <Table variant="striped">
-        <Tbody>
-          {tooltip && (
-            <Tr>
-              <Td colSpan={2}>{tooltip}</Td>
-            </Tr>
-          )}
-          {state === 'deferred' && (
-            <>
-              <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-                <Td>
-                  <Heading size="sm">Triggerer info</Heading>
-                </Td>
-                <Td />
-              </Tr>
+      {state === 'deferred' && (
+        <>
+          <Text as="strong">Triggerer info</Text>
+          <Divider my={2} />
+          <Table variant="striped" mb={3}>
+            <Tbody>
               <Tr>
                 <Td>Trigger class</Td>
                 <Td>{`${apiTI?.trigger?.classpath}`}</Td>
@@ -140,17 +136,20 @@ const Details = ({ instance, group, dagId }: Props) => {
                 <Td>Latest triggerer heartbeat</Td>
                 <Td>{`${apiTI?.triggererJob?.latestHeartbeat}`}</Td>
               </Tr>
-            </>
+            </Tbody>
+          </Table>
+        </>
+      )}
+
+      <Text as="strong">Task Instance Details</Text>
+      <Divider my={2} />
+      <Table variant="striped">
+        <Tbody>
+          {tooltip && (
+            <Tr>
+              <Td colSpan={2}>{tooltip}</Td>
+            </Tr>
           )}
-          <Tr
-            borderBottomWidth={2}
-            borderBottomColor="gray.300"
-          >
-            <Td>
-              <Heading size="sm">Task Instance Details</Heading>
-            </Td>
-            <Td />
-          </Tr>
           <Tr>
             <Td>
               {isOverall}
@@ -173,16 +172,20 @@ const Details = ({ instance, group, dagId }: Props) => {
               </Td>
             </Tr>
           )}
-          {summary.length > 0 && (
-            summary
-          )}
+          {summary.length > 0 && summary}
           <Tr>
             <Td>{taskIdTitle}</Td>
-            <Td><ClipboardText value={taskId} /></Td>
+            <Td>
+              <ClipboardText value={taskId} />
+            </Td>
           </Tr>
           <Tr>
             <Td>Run ID</Td>
-            <Td><Text whiteSpace="nowrap"><ClipboardText value={runId} /></Text></Td>
+            <Td>
+              <Text whiteSpace="nowrap">
+                <ClipboardText value={runId} />
+              </Text>
+            </Td>
           </Tr>
           {mapIndex !== undefined && (
             <Tr>
@@ -206,13 +209,17 @@ const Details = ({ instance, group, dagId }: Props) => {
           {startDate && (
             <Tr>
               <Td>Started</Td>
-              <Td><Time dateTime={startDate} /></Td>
+              <Td>
+                <Time dateTime={startDate} />
+              </Td>
             </Tr>
           )}
           {endDate && isStateFinal && (
             <Tr>
               <Td>Ended</Td>
-              <Td><Time dateTime={endDate} /></Td>
+              <Td>
+                <Time dateTime={endDate} />
+              </Td>
             </Tr>
           )}
         </Tbody>
