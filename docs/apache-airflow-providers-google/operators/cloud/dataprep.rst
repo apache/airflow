@@ -103,7 +103,7 @@ Example usage:
     :end-before: [END how_to_dataprep_get_job_group_operator]
 
 Copy Flow
-^^^^^^^^^^^^^
+^^^^^^^^^
 
 Operator task is to copy the flow.
 
@@ -116,10 +116,10 @@ Example usage:
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_copy_flow_operator]
-    :end-before: [END how_to_dataprep_get_job_group_operator]
+    :end-before: [END how_to_dataprep_copy_flow_operator]
 
 Run Flow
-^^^^^^^^^^^^^
+^^^^^^^^
 
 Operator task is to run the flow.
 A flow is a container for wrangling logic which contains
@@ -137,7 +137,7 @@ Example usage:
     :end-before: [END how_to_dataprep_dataprep_run_flow_operator]
 
 Delete flow
-^^^^^^^^^^^^^
+^^^^^^^^^^^
 
 Operator task is to delete the flow.
 A flow is a container for wrangling logic which contains
@@ -156,7 +156,7 @@ Example usage:
 
 
 Check if Job Group is finished
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sensor task is to tell the system when started job group is finished
 no matter successfully or not.

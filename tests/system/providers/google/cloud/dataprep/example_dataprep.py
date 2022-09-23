@@ -112,6 +112,7 @@ with models.DAG(
         embed="",
         include_deleted=False,
     )
+    # [END how_to_dataprep_get_job_group_operator]
 
     # [START how_to_dataprep_get_jobs_for_job_group_operator]
     get_jobs_for_job_group_task = DataprepGetJobsForJobGroupOperator(
