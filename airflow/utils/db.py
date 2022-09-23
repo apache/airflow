@@ -33,7 +33,6 @@ from sqlalchemy.orm.session import Session
 
 import airflow
 from airflow import settings
-from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
@@ -1642,7 +1641,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if has_table(connection, version):
+    if inspect(connection).has_table(version.name):
         version.drop(connection)
 
 
