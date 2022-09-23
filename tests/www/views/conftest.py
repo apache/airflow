@@ -58,6 +58,7 @@ def app(examples_dag_bag):
             "init_jinja_globals",
             "init_plugins",
             "init_airflow_session_interface",
+            "init_check_user_active",
         ]
     )
     def factory():

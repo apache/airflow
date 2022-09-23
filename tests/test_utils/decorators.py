@@ -45,6 +45,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_xframe_protection",
             "init_airflow_session_interface",
             "init_appbuilder",
+            "init_check_user_active",
         ]
 
         @functools.wraps(f)

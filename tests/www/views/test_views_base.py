@@ -30,9 +30,18 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 
-def test_index(admin_client):
+def test_index_redirect(admin_client):
+    resp = admin_client.get('/')
+    assert resp.status_code == 302
+    assert '/home' in resp.headers.get("Location")
+
+    resp = admin_client.get('/', follow_redirects=True)
+    check_content_in_response('DAGs', resp)
+
+
+def test_homepage_query_count(admin_client):
     with assert_queries_count(16):
-        resp = admin_client.get('/', follow_redirects=True)
+        resp = admin_client.get('/home')
     check_content_in_response('DAGs', resp)
 
 

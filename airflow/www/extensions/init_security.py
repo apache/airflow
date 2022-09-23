@@ -19,6 +19,9 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 
+from flask import g, redirect, url_for
+from flask_login import logout_user
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 
@@ -60,3 +63,11 @@ def init_api_experimental_auth(app):
         except ImportError as err:
             log.critical("Cannot import %s for API authentication due to: %s", backend, err)
             raise AirflowException(err)
+
+
+def init_check_user_active(app):
+    @app.before_request
+    def check_user_active():
+        if g.user is not None and not g.user.is_anonymous and not g.user.is_active:
+            logout_user()
+            return redirect(url_for(app.appbuilder.sm.auth_view.endpoint + ".login"))
