@@ -314,7 +314,6 @@ If we want to just release some providers you can release them in this way:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs --clean-build --for-production \
-  --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
