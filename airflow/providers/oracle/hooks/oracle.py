@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
-from typing import Any
 
 import oracledb
 
@@ -29,7 +28,6 @@ try:
 except ImportError:
     numpy = None  # type: ignore
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
@@ -50,8 +48,63 @@ class OracleHook(DbApiHook):
 
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         used for Oracle credentials.
+    :param thick_mode: Specify whether to use python-oracledb in thick mode. Defaults to False.
+        If set to True, you must have the Oracle Client libraries installed.
+        See `oracledb docs<https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html>`
+        for more info.
+    :param thick_mode_lib_dir: Path to use to find the Oracle Client libraries when using thick mode.
+        If not specified, defaults to the standard way of locating the Oracle Client library on the OS.
+        See `oracledb docs
+        <https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#setting-the-oracle-client-library-directory>`
+        for more info.
+    :param thick_mode_config_dir: Path to use to find the Oracle Client library
+        configuration files when using thick mode.
+        If not specified, defaults to the standard way of locating the Oracle Client
+        library configuration files on the OS.
+        See `oracledb docs
+        <https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#optional-oracle-net-configuration-files>`
+        for more info.
+    :param fetch_decimals: Specify whether numbers should be fetched as ``decimal.Decimal`` values.
+        Defaults to False.
+        See `defaults.fetch_decimals
+        <https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>`
+        for more info.
+    :param fetch_lobs: Specify whether to fetch strings/bytes for CLOBs or BLOBs instead of locators.
+        Defaults to True.
+        See `defaults.fetch_lobs
+        <https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>`
+        for more info.
+    """
 
-    Optional parameters for using a custom DSN connection
+    conn_name_attr = 'oracle_conn_id'
+    default_conn_name = 'oracle_default'
+    conn_type = 'oracle'
+    hook_name = 'Oracle'
+
+    supports_autocommit = True
+
+    def __init__(
+        self,
+        *args,
+        thick_mode: bool | None = None,
+        thick_mode_lib_dir: str | None = None,
+        thick_mode_config_dir: str | None = None,
+        fetch_decimals: bool | None = None,
+        fetch_lobs: bool | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.thick_mode = thick_mode
+        self.thick_mode_lib_dir = thick_mode_lib_dir
+        self.thick_mode_config_dir = thick_mode_config_dir
+        self.fetch_decimals = fetch_decimals
+        self.fetch_lobs = fetch_lobs
+
+    def get_conn(self) -> oracledb.Connection:
+        """
+        Returns a oracle connection object
+        Optional parameters for using a custom DSN connection
         (instead of using a server alias from tnsnames.ora)
         The dsn (data source name) is the TNS entry
         (from the Oracle names server or tnsnames.ora file)
@@ -72,173 +125,103 @@ class OracleHook(DbApiHook):
 
         see more param detail in `oracledb.connect
         <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_
-    """
 
-    conn_name_attr = 'oracle_conn_id'
-    default_conn_name = 'oracle_default'
-    conn_type = 'oracle'
-    hook_name = 'Oracle'
 
-    supports_autocommit = True
+        """
+        conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
+        conn_config = {'user': conn.login, 'password': conn.password}
+        sid = conn.extra_dejson.get('sid')
+        mod = conn.extra_dejson.get('module')
+        schema = conn.schema
 
-    def __init__(
-        self,
-        oracle_conn_id: str | None = 'oracle_default',
-        host: str | None = None,
-        schema: str | None = None,
-        login: str | None = None,
-        password: str | None = None,
-        sid: str | None = None,
-        mod: str | None = None,
-        service_name: str | None = None,
-        port: int = 1521,
-        dsn: str | None = None,
-        events: bool = False,
-        mode: int = oracledb.AUTH_MODE_DEFAULT,
-        purity: int = oracledb.PURITY_DEFAULT,
-        thick_mode: bool = False,
-        thick_mode_lib_dir: str | None = None,
-        thick_mode_config_dir: str | None = None,
-        fetch_decimals: bool = False,
-        fetch_lobs: bool = True,
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
+        # Enable oracledb thick mode if thick_mode is set to True, defaults to False
+        # Parameters take precedence over connection config extra
+        # Defaults to False (use thin mode) if not provided in params or connection config extra
+        if self.thick_mode is None:
+            self.thick_mode = conn.extra_dejson.get('thick_mode', False)
+        if self.thick_mode:
+            if self.thick_mode_lib_dir is None:
+                self.thick_mode_lib_dir = conn.extra_dejson.get('thick_mode_lib_dir')
+            if self.thick_mode_config_dir is None:
+                self.thick_mode_config_dir = conn.extra_dejson.get('thick_mode_config_dir')
+            oracledb.init_oracle_client(
+                lib_dir=self.thick_mode_lib_dir, config_dir=self.thick_mode_config_dir
+            )
 
-        self.oracle_conn_id = oracle_conn_id
-        self.host = host
-        self.schema = schema
-        self.login = login
-        self.password = password
-        self.sid = sid
-        self.mod = mod
-        self.service_name = service_name
-        self.port = port
-        self.dsn = dsn
-        self.events = events
-        self.mode = mode
-        self.purity = purity
-        self.thick_mode = thick_mode
-        self.thick_mode_lib_dir = thick_mode_lib_dir
-        self.thick_mode_config_dir = thick_mode_config_dir
-        self.fetch_decimals = fetch_decimals
-        self.fetch_lobs = fetch_lobs
+        # Set oracledb Defaults Attributes
+        # Default to the initial values
+        # if not provided in params or connection config extra
+        # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
+        if self.fetch_decimals is None:
+            self.fetch_decimals = conn.extra_dejson.get('fetch_decimals', False)
+        oracledb.defaults.fetch_decimals = self.fetch_decimals
 
-        self.conn_config: dict[str, Any] = {}
+        if self.fetch_lobs is None:
+            self.fetch_lobs = conn.extra_dejson.get('fetch_lobs', True)
+        oracledb.defaults.fetch_lobs = self.fetch_lobs
 
-        # Use connection to override defaults
-        if self.oracle_conn_id is not None:
-            conn = self.get_connection(self.oracle_conn_id)
-            self.host = conn.host if conn.host else self.host
-            self.login = conn.login if conn.login else self.login
-            self.password = conn.password if conn.password else self.password
-            self.port = conn.port if conn.port else self.port
-            self.schema = conn.schema if conn.schema else self.schema
-
-            if conn.extra is not None:
-                extra_options = conn.extra_dejson
-
-                sid = extra_options.get('sid')
-                self.sid = sid if sid else self.sid
-
-                mod = extra_options.get('mod')
-                self.mod = mod if mod else self.mod
-
-                service_name = extra_options.get('service_name')
-                self.service_name = service_name if service_name else self.service_name
-
-                dsn = extra_options.get('dsn')
-                self.dsn = dsn if dsn else self.dsn
-
-                events = extra_options.get('events')
-                self.events = events if events is not None else self.events
-
-                mode = extra_options.get('mode', '').lower()
-                if mode == 'sysdba':
-                    self.mode = oracledb.AUTH_MODE_SYSDBA
-                elif mode == 'sysasm':
-                    self.mode = oracledb.AUTH_MODE_SYSASM
-                elif mode == 'sysoper':
-                    self.mode = oracledb.AUTH_MODE_SYSOPER
-                elif mode == 'sysbkp':
-                    self.mode = oracledb.AUTH_MODE_SYSBKP
-                elif mode == 'sysdgd':
-                    self.mode = oracledb.AUTH_MODE_SYSDGD
-                elif mode == 'syskmt':
-                    self.mode = oracledb.AUTH_MODE_SYSKMT
-                elif mode == 'sysrac':
-                    self.mode = oracledb.AUTH_MODE_SYSRAC
-
-                purity = extra_options.get('purity', '').lower()
-                if purity == 'new':
-                    self.purity = oracledb.PURITY_NEW
-                elif purity == 'self':
-                    self.purity = oracledb.PURITY_SELF
-                elif purity == 'default':
-                    self.purity = oracledb.PURITY_DEFAULT
-
-                # Check if thick_mode should be enabled in python-oracledb
-                thick_mode = extra_options.get('thick_mode')
-                self.thick_mode = thick_mode if thick_mode is not None else self.thick_mode
-                if not isinstance(self.thick_mode, bool):
-                    raise AirflowException(
-                        f'thick_mode should be a boolean but type was {type(self.thick_mode)}'
-                    )
-                if self.thick_mode:
-                    thick_mode_lib_dir = extra_options.get('thick_mode_lib_dir')
-                    thick_mode_config_dir = extra_options.get('thick_mode_config_dir')
-                    oracledb.init_oracle_client(lib_dir=thick_mode_lib_dir, config_dir=thick_mode_config_dir)
-
-                # Check if python-oracledb Defaults attributes should be set
-                # Values default to the initial values used by python-oracledb
-                fetch_decimals = extra_options.get('fetch_decimals')
-                self.fetch_decimals = fetch_decimals if fetch_decimals is not None else self.fetch_decimals
-                oracledb.defaults.fetch_decimals = self.fetch_decimals
-                fetch_lobs = extra_options.get('fetch_lobs')
-                self.fetch_lobs = fetch_lobs if fetch_lobs is not None else self.fetch_lobs
-                oracledb.defaults.fetch_lobs = self.fetch_lobs
-
-        self.conn_config['user'] = self.login
-        self.conn_config['password'] = self.password
-        self.conn_config['events'] = self.events
-        self.conn_config['mode'] = self.mode
-        self.conn_config['purity'] = self.purity
-
-        if self.host and self.sid and not self.service_name:
-            self.conn_config['dsn'] = oracledb.makedsn(self.host, self.port, self.sid)
-        elif self.host and self.service_name and not self.sid:
-            self.conn_config['dsn'] = oracledb.makedsn(self.host, self.port, service_name=self.service_name)
+        # Set up DSN
+        service_name = conn.extra_dejson.get('service_name')
+        port = conn.port if conn.port else 1521
+        if conn.host and sid and not service_name:
+            conn_config['dsn'] = oracledb.makedsn(conn.host, port, sid)
+        elif conn.host and service_name and not sid:
+            conn_config['dsn'] = oracledb.makedsn(conn.host, port, service_name=service_name)
         else:
-            if self.dsn is None:
-                dsn = str(self.host) if self.host is not None else ''
-                if self.port is not None:
-                    dsn += ":" + str(self.port)
-                if self.service_name:
-                    dsn += "/" + str(service_name)
-                elif self.schema:
+            dsn = conn.extra_dejson.get('dsn')
+            if dsn is None:
+                dsn = conn.host
+                if conn.port is not None:
+                    dsn += ":" + str(conn.port)
+                if service_name:
+                    dsn += "/" + service_name
+                elif conn.schema:
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
                         Please use conn.extra.service_name instead.""",
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                    dsn += "/" + self.schema
-                self.dsn = dsn if dsn else self.dsn
-            self.conn_config['dsn'] = self.dsn
+                    dsn += "/" + conn.schema
+            conn_config['dsn'] = dsn
 
-    def get_conn(self) -> oracledb.Connection:
-        """Returns a oracle connection object"""
-        conn = oracledb.connect(**self.conn_config)
-        if self.mod is not None:
-            conn.module = self.mod
+        if 'events' in conn.extra_dejson:
+            conn_config['events'] = conn.extra_dejson.get('events')
+
+        mode = conn.extra_dejson.get('mode', '').lower()
+        if mode == 'sysdba':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSDBA
+        elif mode == 'sysasm':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSASM
+        elif mode == 'sysoper':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSOPER
+        elif mode == 'sysbkp':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSBKP
+        elif mode == 'sysdgd':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSDGD
+        elif mode == 'syskmt':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSKMT
+        elif mode == 'sysrac':
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSRAC
+
+        purity = conn.extra_dejson.get('purity', '').lower()
+        if purity == 'new':
+            conn_config['purity'] = oracledb.PURITY_NEW
+        elif purity == 'self':
+            conn_config['purity'] = oracledb.PURITY_SELF
+        elif purity == 'default':
+            conn_config['purity'] = oracledb.PURITY_DEFAULT
+
+        conn = oracledb.connect(**conn_config)
+        if mod is not None:
+            conn.module = mod
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
         # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
-        if self.schema and self.service_name:
-            conn.current_schema = self.schema
+        if schema and service_name:
+            conn.current_schema = schema
 
         return conn
 

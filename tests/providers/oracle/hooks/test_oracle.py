@@ -27,8 +27,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils import db
-from airflow.utils.session import create_session
 
 try:
     import oracledb
@@ -38,30 +36,14 @@ except ImportError:
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHookConn(unittest.TestCase):
-    CONN_ORACLE_WITH_NO_EXTRA = 'oracle_with_no_extra'
-
-    @classmethod
-    def tearDownClass(self) -> None:
-        with create_session() as session:
-            conns_to_reset = [self.CONN_ORACLE_WITH_NO_EXTRA]
-            connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
-            connections.delete(synchronize_session=False)
-            session.commit()
-
     def setUp(self):
         super().setUp()
-        self.connection = Connection(
-            conn_id=self.CONN_ORACLE_WITH_NO_EXTRA,
-            conn_type='oracle',
-            login='login',
-            password='password',
-            host='host',
-            schema='schema',
-            port=1521,
-        )
-        db.merge_conn(self.connection)
 
-        self.db_hook = OracleHook(oracle_conn_id=self.CONN_ORACLE_WITH_NO_EXTRA)
+        self.connection = Connection(
+            login='login', password='password', host='host', schema='schema', port=1521
+        )
+
+        self.db_hook = OracleHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
@@ -78,7 +60,6 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_host_alternative_port(self, mock_connect):
         self.connection.port = 1522
-        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -91,7 +72,6 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_sid(self, mock_connect):
         dsn_sid = {'dsn': 'ignored', 'sid': 'sid'}
         self.connection.extra = json.dumps(dsn_sid)
-        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -102,7 +82,6 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_service_name(self, mock_connect):
         dsn_service_name = {'dsn': 'ignored', 'service_name': 'service_name'}
         self.connection.extra = json.dumps(dsn_service_name)
-        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -124,7 +103,6 @@ class TestOracleHookConn(unittest.TestCase):
         first = True
         for mod in mode:
             self.connection.extra = json.dumps({'mode': mod})
-            self.db_hook.__init__()
             self.db_hook.get_conn()
             if first:
                 assert mock_connect.call_count == 1
@@ -136,7 +114,6 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_events(self, mock_connect):
         self.connection.extra = json.dumps({'events': True})
-        self.db_hook.__init__()
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -153,7 +130,6 @@ class TestOracleHookConn(unittest.TestCase):
         first = True
         for pur in purity:
             self.connection.extra = json.dumps({'purity': pur})
-            self.db_hook.__init__()
             self.db_hook.get_conn()
             if first:
                 assert mock_connect.call_count == 1
@@ -166,23 +142,105 @@ class TestOracleHookConn(unittest.TestCase):
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({'service_name': 'service_name'})
-        self.db_hook.__init__()
         assert self.db_hook.get_conn().current_schema == self.connection.schema
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
-    def test_set_thick_mode(self, mock_init_client):
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_thick_mode_extra(self, mock_connect, mock_init_client):
         thick_mode_test = {
             'thick_mode': True,
             'thick_mode_lib_dir': '/opt/oracle/instantclient',
             'thick_mode_config_dir': '/opt/oracle/config',
         }
         self.connection.extra = json.dumps(thick_mode_test)
-        self.db_hook.__init__()
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
         assert mock_init_client.call_count == 1
         args, kwargs = mock_init_client.call_args
         assert args == ()
         assert kwargs['lib_dir'] == thick_mode_test['thick_mode_lib_dir']
         assert kwargs['config_dir'] == thick_mode_test['thick_mode_config_dir']
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_thick_mode_params(self, mock_connect, mock_init_client):
+        # Verify params overrides connection config extra
+        thick_mode_test = {
+            'thick_mode': False,
+            'thick_mode_lib_dir': '/opt/oracle/instantclient',
+            'thick_mode_config_dir': '/opt/oracle/config',
+        }
+        self.connection.extra = json.dumps(thick_mode_test)
+        db_hook = OracleHook(thick_mode=True, thick_mode_lib_dir='/test', thick_mode_config_dir='/test_conf')
+        db_hook.get_connection = mock.Mock()
+        db_hook.get_connection.return_value = self.connection
+        db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+        args, kwargs = mock_init_client.call_args
+        assert args == ()
+        assert kwargs['lib_dir'] == '/test'
+        assert kwargs['config_dir'] == '/test_conf'
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_thick_mode_defaults_to_false(self, mock_connect, mock_init_client):
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 0
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_thick_mode_dirs_defaults(self, mock_connect, mock_init_client):
+        thick_mode_test = {'thick_mode': True}
+        self.connection.extra = json.dumps(thick_mode_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+        args, kwargs = mock_init_client.call_args
+        assert args == ()
+        assert kwargs['lib_dir'] is None
+        assert kwargs['config_dir'] is None
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_oracledb_defaults_attributes_default_values(self, mock_connect):
+        # Check that oracledb defaults are what we expect
+        assert oracledb.defaults.fetch_decimals is False
+        assert oracledb.defaults.fetch_lobs is True
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        # Check that OracleHook.get_conn() properly defaults values
+        assert self.db_hook.fetch_decimals is False
+        assert self.db_hook.fetch_lobs is True
+        # Check that oracledb defaults are still correct
+        assert oracledb.defaults.fetch_decimals is False
+        assert oracledb.defaults.fetch_lobs is True
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_oracledb_defaults_attributes_extra(self, mock_connect):
+        defaults_test = {'fetch_decimals': True, 'fetch_lobs': False}
+        self.connection.extra = json.dumps(defaults_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert self.db_hook.fetch_decimals == defaults_test['fetch_decimals']
+        assert self.db_hook.fetch_lobs == defaults_test['fetch_lobs']
+        assert oracledb.defaults.fetch_decimals == defaults_test['fetch_decimals']
+        assert oracledb.defaults.fetch_lobs == defaults_test['fetch_lobs']
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_oracledb_defaults_attributes_params(self, mock_connect):
+        # Verify params overrides connection config extra
+        defaults_test = {'fetch_decimals': False, 'fetch_lobs': True}
+        self.connection.extra = json.dumps(defaults_test)
+        db_hook = OracleHook(fetch_decimals=True, fetch_lobs=False)
+        db_hook.get_connection = mock.Mock()
+        db_hook.get_connection.return_value = self.connection
+        db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert db_hook.fetch_decimals is True
+        assert db_hook.fetch_lobs is False
+        assert oracledb.defaults.fetch_decimals is True
+        assert oracledb.defaults.fetch_lobs is False
 
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
@@ -197,7 +255,6 @@ class TestOracleHook(unittest.TestCase):
 
         class UnitTestOracleHook(OracleHook):
             conn_name_attr = 'test_conn_id'
-            oracle_conn_id = None
 
             def get_conn(self):
                 return conn
