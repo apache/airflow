@@ -63,7 +63,7 @@ with DAG(
     create_s3_bucket = S3CreateBucketOperator(task_id='create-s3-bucket', bucket_name=s3_bucket_name)
     # [START howto_transfer_local_to_s3]
     create_local_to_s3_job = LocalFilesystemToS3Operator(
-        task_id="create_local_to_s3_job",
+        task_id='create_local_to_s3_job',
         filename=TEMP_FILE_PATH,
         dest_key=s3_key,
         dest_bucket=s3_bucket_name,

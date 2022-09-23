@@ -237,7 +237,11 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Sagemaker endpoint config creation failed: {response}')
         else:
-            return {'EndpointConfig': self.hook.describe_endpoint_config(self.config['EndpointConfigName'])}
+            return {
+                'EndpointConfig': serialize(
+                    self.hook.describe_endpoint_config(self.config['EndpointConfigName'])
+                )
+            }
 
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):

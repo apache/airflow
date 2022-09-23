@@ -33,8 +33,7 @@ from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, BackfillUnfinished, RemovedInAirflow3Warning
-from airflow.executors.debug_executor import DebugExecutor
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
@@ -449,7 +448,7 @@ def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
 
 @provide_session
 @cli_utils.action_cli
-def dag_test(args, session=None):
+def dag_test(args, dag=None, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     run_conf = None
     if args.conf:
@@ -458,22 +457,8 @@ def dag_test(args, session=None):
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
-    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=execution_date, end_date=execution_date, dag_run_state=False)
-    try:
-        dag.run(
-            executor=DebugExecutor(),
-            start_date=execution_date,
-            end_date=execution_date,
-            conf=run_conf,
-            # Always run the DAG at least once even if no logical runs are
-            # available. This does not make a lot of sense, but Airflow has
-            # been doing this prior to 2.2 so we keep compatibility.
-            run_at_least_once=True,
-        )
-    except BackfillUnfinished as e:
-        print(str(e))
-
+    dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun
