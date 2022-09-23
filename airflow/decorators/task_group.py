@@ -15,40 +15,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
+"""Implements the ``@task_group`` function decorator.
+
+When the decorated function is called, a task group will be created to represent
+a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
+
 from __future__ import annotations
 
 import functools
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, overload
 
 import attr
 
+from airflow.models.taskmixin import DAGNode
+from airflow.typing_compat import ParamSpec
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
-    from airflow.models.mappedoperator import OperatorExpandArgument
+    from airflow.models.expandinput import OperatorExpandArgument, OperatorExpandKwargsArgument
 
-F = TypeVar("F", bound=Callable)
-R = TypeVar("R")
+FParams = ParamSpec("FParams")
+FReturn = TypeVar("FReturn", None, DAGNode)
 
 task_group_sig = signature(TaskGroup.__init__)
 
 
 @attr.define
-class TaskGroupDecorator(Generic[R]):
-    """:meta private:"""
-
-    function: Callable[..., R | None] = attr.ib(validator=attr.validators.is_callable())
+class _TaskGroupFactory(Generic[FParams, FReturn]):
+    function: Callable[FParams, FReturn] = attr.ib(validator=attr.validators.is_callable())
     kwargs: dict[str, Any] = attr.ib(factory=dict)
-    """kwargs for the TaskGroup"""
 
     @function.validator
-    def _validate_function(self, _, f):
+    def _validate_function(self, _, f: Callable[FParams, FReturn]):
         if 'self' in signature(f).parameters:
             raise TypeError('@task_group does not support methods')
 
@@ -57,13 +59,18 @@ class TaskGroupDecorator(Generic[R]):
         task_group_sig.bind_partial(**kwargs)
 
     def __attrs_post_init__(self):
-        self.kwargs.setdefault('group_id', self.function.__name__)
+        if not self.kwargs.get("group_id"):
+            self.kwargs["group_id"] = self.function.__name__
 
-    def _make_task_group(self, **kwargs) -> TaskGroup:
-        return TaskGroup(**kwargs)
+    def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> DAGNode:
+        """Instantiate the task group.
 
-    def __call__(self, *args, **kwargs) -> R | TaskGroup:
         with self._make_task_group(add_suffix_on_collision=True, **self.kwargs) as task_group:
+        This uses the wrapped function to create a task group. Depending on the
+        return type of the wrapped function, this either returns the last task
+        in the group, or the group itself, to support task chaining.
+        """
+        with TaskGroup(add_suffix_on_collision=True, **self.kwargs) as task_group:
             if self.function.__doc__ and not task_group.tooltip:
                 task_group.tooltip = self.function.__doc__
 
@@ -85,31 +92,17 @@ class TaskGroupDecorator(Generic[R]):
         #   start >> tg >> end
         return task_group
 
-    def override(self, **kwargs: Any) -> TaskGroupDecorator[R]:
+    def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
+    def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
+        raise NotImplementedError("TODO: Implement me")
 
-class Group(Generic[F]):
-    """Declaration of a @task_group-decorated callable for type-checking.
+    def expand(self, **kwargs: OperatorExpandArgument) -> TaskGroup:
+        raise NotImplementedError("TODO: Implement me")
 
-    An instance of this type inherits the call signature of the decorated
-    function wrapped in it (not *exactly* since it actually turns the function
-    into an XComArg-compatible, but there's no way to express that right now),
-    and provides two additional methods for task-mapping.
-
-    This type is implemented by ``TaskGroupDecorator`` at runtime.
-    """
-
-    __call__: F
-
-    function: F
-
-    # Return value should match F's return type, but that's impossible to declare.
-    def expand(self, **kwargs: OperatorExpandArgument) -> Any:
-        ...
-
-    def partial(self, **kwargs: Any) -> Group[F]:
-        ...
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> TaskGroup:
+        raise NotImplementedError("TODO: Implement me")
 
 
 # This covers the @task_group() case. Annotations are copied from the TaskGroup
@@ -130,19 +123,18 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
-) -> Callable[[F], Group[F]]:
+) -> Callable[FParams, _TaskGroupFactory[FParams, FReturn]]:
     ...
 
 
 # This covers the @task_group case (no parentheses).
 @overload
-def task_group(python_callable: F) -> Group[F]:
+def task_group(python_callable: Callable[FParams, FReturn]) -> _TaskGroupFactory[FParams, FReturn]:
     ...
 
 
 def task_group(python_callable=None, **tg_kwargs):
-    """
-    Python TaskGroup decorator.
+    """Python TaskGroup decorator.
 
     This wraps a function into an Airflow TaskGroup. When used as the
     ``@task_group()`` form, all arguments are forwarded to the underlying
@@ -151,6 +143,6 @@ def task_group(python_callable=None, **tg_kwargs):
     :param python_callable: Function to decorate.
     :param tg_kwargs: Keyword arguments for the TaskGroup object.
     """
-    if callable(python_callable):
-        return TaskGroupDecorator(function=python_callable, kwargs=tg_kwargs)
-    return cast(Callable[[F], F], functools.partial(TaskGroupDecorator, kwargs=tg_kwargs))
+    if callable(python_callable) and not tg_kwargs:
+        return _TaskGroupFactory(function=python_callable, kwargs=tg_kwargs)
+    return functools.partial(_TaskGroupFactory, kwargs=tg_kwargs)

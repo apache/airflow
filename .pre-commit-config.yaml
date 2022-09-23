@@ -465,12 +465,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_base_operator_partial_arguments.py
         pass_filenames: false
         files: ^airflow/models/(?:base|mapped)operator\.py$
-      - id: check-dag-init-decorator-arguments
-        name: Check DAG and @dag arguments
+      - id: check-init-decorator-arguments
+        name: Check model __init__ and decorator arguments are in sync
         language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_sync_dag_init_decorator.py
+        entry: ./scripts/ci/pre_commit/pre_commit_sync_init_decorator.py
         pass_filenames: false
-        files: ^airflow/models/dag\.py$
+        files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group.py$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator[Link] core imports
