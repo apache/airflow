@@ -1415,6 +1415,30 @@ class TestBackfillJob:
 
         ti_status.to_run.clear()
 
+        # test for scheduled
+        ti.set_state(State.SCHEDULED)
+        # Deferred tasks are put into scheduled by the triggerer
+        # Check that they are put into to_run
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status, session=session)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 1
+
+        ti_status.to_run.clear()
+        # test for deferred
+        # if a task is deferred and it's not yet time for the triggerer
+        # to reschedule it, we should leave it in ti_status.running
+        ti.set_state(State.DEFERRED)
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status, session=session)
+        assert len(ti_status.running) == 1
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 0
         session.close()
 
     def test_dag_dagrun_infos_between(self, dag_maker):
