@@ -571,12 +571,12 @@
                         "repository": {
                             "description": "The StatsD image repository.",
                             "type": "string",
-                            "default": "apache/airflow"
+                            "default": "quay.io/prometheus/statsd-exporter"
                         },
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
+                            "default": "v0.22.8"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
