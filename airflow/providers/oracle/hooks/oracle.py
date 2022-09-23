@@ -42,6 +42,26 @@ def _map_param(value):
     return value
 
 
+def _get_bool(val):
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        val = val.lower().strip()
+        if val == 'true':
+            return True
+        if val == 'false':
+            return False
+    return None
+
+
+def _get_first_bool(*vals):
+    for val in vals:
+        converted = _get_bool(val)
+        if isinstance(converted, bool):
+            return converted
+    return None
+
+
 class OracleHook(DbApiHook):
     """
     Interact with Oracle SQL.
@@ -65,12 +85,10 @@ class OracleHook(DbApiHook):
         <https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html#optional-oracle-net-configuration-files>`
         for more info.
     :param fetch_decimals: Specify whether numbers should be fetched as ``decimal.Decimal`` values.
-        Defaults to False.
         See `defaults.fetch_decimals
         <https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>`
         for more info.
     :param fetch_lobs: Specify whether to fetch strings/bytes for CLOBs or BLOBs instead of locators.
-        Defaults to True.
         See `defaults.fetch_lobs
         <https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html#defaults.fetch_decimals>`
         for more info.
@@ -134,14 +152,11 @@ class OracleHook(DbApiHook):
         mod = conn.extra_dejson.get('module')
         schema = conn.schema
 
-        # Enable oracledb thick mode if thick_mode is set to True, defaults to False
+        # Enable oracledb thick mode if thick_mode is set to True
         # Parameters take precedence over connection config extra
-        # Defaults to False (use thin mode) if not provided in params or connection config extra
-        if self.thick_mode is None:
-            self.thick_mode = conn.extra_dejson.get('thick_mode', False)
-            if not isinstance(self.thick_mode, bool):
-                raise TypeError(f'thick_mode expected bool, got {type(self.thick_mode).__name__}')
-        if self.thick_mode:
+        # Defaults to use thin mode if not provided in params or connection config extra
+        thick_mode = _get_first_bool(self.thick_mode, conn.extra_dejson.get('thick_mode'))
+        if thick_mode is True:
             if self.thick_mode_lib_dir is None:
                 self.thick_mode_lib_dir = conn.extra_dejson.get('thick_mode_lib_dir')
                 if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
@@ -160,21 +175,15 @@ class OracleHook(DbApiHook):
                 lib_dir=self.thick_mode_lib_dir, config_dir=self.thick_mode_config_dir
             )
 
-        # Set oracledb Defaults Attributes
-        # Default to the initial values
-        # if not provided in params or connection config extra
+        # Set oracledb Defaults Attributes if provided
         # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
-        if self.fetch_decimals is None:
-            self.fetch_decimals = conn.extra_dejson.get('fetch_decimals', False)
-            if not isinstance(self.fetch_decimals, bool):
-                raise TypeError(f'fetch_decimals expected bool, got {type(self.fetch_decimals).__name__}')
-        oracledb.defaults.fetch_decimals = self.fetch_decimals
+        fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get('fetch_decimals'))
+        if isinstance(fetch_decimals, bool):
+            oracledb.defaults.fetch_decimals = fetch_decimals
 
-        if self.fetch_lobs is None:
-            self.fetch_lobs = conn.extra_dejson.get('fetch_lobs', True)
-            if not isinstance(self.fetch_lobs, bool):
-                raise TypeError(f'fetch_lobs expected bool, got {type(self.fetch_lobs).__name__}')
-        oracledb.defaults.fetch_lobs = self.fetch_lobs
+        fetch_lobs = _get_first_bool(self.fetch_lobs, conn.extra_dejson.get('fetch_lobs'))
+        if isinstance(fetch_lobs, bool):
+            oracledb.defaults.fetch_lobs = fetch_lobs
 
         # Set up DSN
         service_name = conn.extra_dejson.get('service_name')

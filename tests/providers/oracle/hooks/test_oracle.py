@@ -163,6 +163,15 @@ class TestOracleHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_thick_mode_extra_str(self, mock_connect, mock_init_client):
+        thick_mode_test = {'thick_mode': 'True'}
+        self.connection.extra = json.dumps(thick_mode_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert mock_init_client.call_count == 1
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.init_oracle_client')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_set_thick_mode_params(self, mock_connect, mock_init_client):
         # Verify params overrides connection config extra
         thick_mode_test = {
@@ -204,17 +213,13 @@ class TestOracleHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_oracledb_defaults_attributes_default_values(self, mock_connect):
-        # Check that oracledb defaults are what we expect
-        assert oracledb.defaults.fetch_decimals is False
-        assert oracledb.defaults.fetch_lobs is True
+        default_fetch_decimals = oracledb.defaults.fetch_decimals
+        default_fetch_lobs = oracledb.defaults.fetch_lobs
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        # Check that OracleHook.get_conn() properly defaults values
-        assert self.db_hook.fetch_decimals is False
-        assert self.db_hook.fetch_lobs is True
-        # Check that oracledb defaults are still correct
-        assert oracledb.defaults.fetch_decimals is False
-        assert oracledb.defaults.fetch_lobs is True
+        # Check that OracleHook.get_conn() doesn't try to set defaults if not provided
+        assert oracledb.defaults.fetch_decimals == default_fetch_decimals
+        assert oracledb.defaults.fetch_lobs == default_fetch_lobs
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_set_oracledb_defaults_attributes_extra(self, mock_connect):
@@ -222,10 +227,17 @@ class TestOracleHookConn(unittest.TestCase):
         self.connection.extra = json.dumps(defaults_test)
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert self.db_hook.fetch_decimals == defaults_test['fetch_decimals']
-        assert self.db_hook.fetch_lobs == defaults_test['fetch_lobs']
         assert oracledb.defaults.fetch_decimals == defaults_test['fetch_decimals']
         assert oracledb.defaults.fetch_lobs == defaults_test['fetch_lobs']
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
+    def test_set_oracledb_defaults_attributes_extra_str(self, mock_connect):
+        defaults_test = {'fetch_decimals': 'True', 'fetch_lobs': 'False'}
+        self.connection.extra = json.dumps(defaults_test)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        assert oracledb.defaults.fetch_decimals is True
+        assert oracledb.defaults.fetch_lobs is False
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_set_oracledb_defaults_attributes_params(self, mock_connect):
@@ -237,16 +249,8 @@ class TestOracleHookConn(unittest.TestCase):
         db_hook.get_connection.return_value = self.connection
         db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert db_hook.fetch_decimals is True
-        assert db_hook.fetch_lobs is False
         assert oracledb.defaults.fetch_decimals is True
         assert oracledb.defaults.fetch_lobs is False
-
-    def test_type_checking_thick_mode(self):
-        with pytest.raises(TypeError, match=r"thick_mode expected bool, got.*"):
-            thick_mode_test = {'thick_mode': 'bad'}
-            self.connection.extra = json.dumps(thick_mode_test)
-            self.db_hook.get_conn()
 
     def test_type_checking_thick_mode_lib_dir(self):
         with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
@@ -258,18 +262,6 @@ class TestOracleHookConn(unittest.TestCase):
         with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
             thick_mode_config_dir_test = {'thick_mode': True, 'thick_mode_config_dir': 1}
             self.connection.extra = json.dumps(thick_mode_config_dir_test)
-            self.db_hook.get_conn()
-
-    def test_type_checking_fetch_decimals(self):
-        with pytest.raises(TypeError, match=r"fetch_decimals expected bool, got.*"):
-            fetch_decimals_test = {'fetch_decimals': 'bad'}
-            self.connection.extra = json.dumps(fetch_decimals_test)
-            self.db_hook.get_conn()
-
-    def test_type_checking_fetch_lobs(self):
-        with pytest.raises(TypeError, match=r"fetch_lobs expected bool, got.*"):
-            fetch_lobs_test = {'fetch_lobs': 'bad'}
-            self.connection.extra = json.dumps(fetch_lobs_test)
             self.db_hook.get_conn()
 
 
