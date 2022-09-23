@@ -656,6 +656,7 @@ def _create_db_from_orm(session):
     def _create_flask_session_tbl():
         flask_app = Flask(__name__)
         flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+        flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         db = SQLAlchemy(flask_app)
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table='session', key_prefix='')
         db.create_all()
