@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 
-from airflow.compat.sqlalchemy import inspect
 from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
