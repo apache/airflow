@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -32,16 +31,20 @@ if TYPE_CHECKING:
 class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
-    @provide_session
     def get_connection(self, conn_id, session=None) -> Connection | None:
         from airflow.models.connection import Connection
+        from airflow.settings import Session
+
+        session = Session()
 
         conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-        session.expunge_all()
+        session.expunge(conn)
         return conn
 
-    @provide_session
     def get_connections(self, conn_id, session=None) -> list[Connection]:
+        from airflow.settings import Session
+
+        session = Session()
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
@@ -53,7 +56,6 @@ class MetastoreBackend(BaseSecretsBackend):
             return [conn]
         return []
 
-    @provide_session
     def get_variable(self, key: str, session=None):
         """
         Get Airflow Variable from Metadata DB
@@ -62,9 +64,12 @@ class MetastoreBackend(BaseSecretsBackend):
         :return: Variable Value
         """
         from airflow.models.variable import Variable
+        from airflow.settings import Session
+
+        session = Session()
 
         var_value = session.query(Variable).filter(Variable.key == key).first()
-        session.expunge_all()
+        session.expunge(var_value)
         if var_value:
             return var_value.val
         return None
