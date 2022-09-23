@@ -84,12 +84,12 @@ class PrStat:
 
     @cached_property
     def num_comments(self):
-        """counts reviewer comments"""
+        """counts reviewer comments & checks for #protm tag"""
         num_comments = 0
         num_protm = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
-            if 'protm' in comment.body:
+            if (('#protm' in comment.body) or ('protm' in comment.body)):
                 num_protm += 1
             num_comments += 1
         self.protm_score = num_protm
@@ -97,12 +97,12 @@ class PrStat:
 
     @cached_property
     def num_conv_comments(self) -> int:
-        """counts conversational comments"""
+        """counts conversational comments & checks for #protm tag"""
         num_conv_comments = 0
         num_protm = 0
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
-            if 'protm' in conv_comment.body:
+            if (('#protm' in conv_comment.body) or ('protm' in conv_comment.body)):
                 num_protm += 1
             num_conv_comments += 1
         self.protm_score = num_protm
@@ -278,7 +278,7 @@ class PrStat:
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
         if self.protm_score > 0:
-            interaction_score = self.interaction_score * 10
+            interaction_score = self.interaction_score * 2
         else:
             interaction_score = self.interaction_score
         return round(
@@ -300,7 +300,7 @@ class PrStat:
 
     def verboseStr(self) -> str:
         if self.protm_score > 0:
-            print('[red]*** Tagged with "protm" ***[/]')
+            console.print("********************* Tagged with '#protm' *********************", style="magenta")
         return (
             f'-- Created at [bright_blue]{self.pull_request.created_at}[/], '
             f'merged at [bright_blue]{self.pull_request.merged_at}[/]\n'
