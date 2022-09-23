@@ -707,7 +707,7 @@ class Airflow(AirflowBaseView):
                 else:
                     dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
 
-            dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
+            dagtags = session.query(func.distinct(DagTag.name)).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
                 for name, in dagtags
