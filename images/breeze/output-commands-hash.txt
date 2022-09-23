@@ -2,7 +2,7 @@
 # Please do not solve it but run `breeze setup regenerate-command-images`.
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:7322af669ed8bab9cc53ff82372d7b6d
-build-docs:3d71001c1a6ddc7980390c1469c14e93
+build-docs:e49dcbf792c2b6f6c24e108fd4ca9fc2
 ci:find-newer-dependencies:00000f7afb289e36e8c573fcc654df44
 ci:fix-ownership:84902165a54467564fbdd3598fa273e2
 ci:free-space:bb8e7ac63d12ab3ede272a898de2f527
@@ -49,7 +49,7 @@ setup:version:d11da4c17a23179830079b646160149c
 setup:09e876968e669155b4aae7423a19e7b2
 shell:4de9c18e581853f332767beddb95b425
 start-airflow:eef91445684e015f83d91d02f4f03ccc
-static-checks:8a6e0063ea6ba215a11fcc12aebbd37a
+static-checks:425cd78507278494e345fb7648260c24
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 testing:docker-compose-tests:3e07be65e30219930d3c62a593dd8c6a
 testing:helm-tests:403231f0a94b261f9c7aae8aea03ec50

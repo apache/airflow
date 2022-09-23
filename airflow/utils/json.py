@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date, datetime
 from decimal import Decimal
 
-from flask.json import JSONEncoder
+from flask.json.provider import JSONProvider
 
 from airflow.utils.timezone import convert_to_utc, is_naive
 
@@ -40,7 +41,7 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-class AirflowJsonEncoder(JSONEncoder):
+class AirflowJsonEncoder(json.JSONEncoder):
     """Custom Airflow json encoder implementation."""
 
     def __init__(self, *args, **kwargs):
@@ -107,3 +108,18 @@ class AirflowJsonEncoder(JSONEncoder):
                 return {}
 
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
+
+
+class AirflowJsonProvider(JSONProvider):
+    """JSON Provider for Flask app to use AirflowJsonEncoder."""
+
+    ensure_ascii: bool = True
+    sort_keys: bool = True
+
+    def dumps(self, obj, **kwargs):
+        kwargs.setdefault('ensure_ascii', self.ensure_ascii)
+        kwargs.setdefault('sort_keys', self.sort_keys)
+        return json.dumps(obj, **kwargs, cls=AirflowJsonEncoder)
+
+    def loads(self, s: str | bytes, **kwargs):
+        return json.loads(s, **kwargs)

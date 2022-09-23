@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from sqlalchemy import Table
-from sqlalchemy.engine import Connection
-
-try:
-    from sqlalchemy import inspect
-except AttributeError:
-    from sqlalchemy.engine.reflection import Inspector
-
-    inspect = Inspector.from_engine
-
-__all__ = ["has_table", "inspect"]
-
-
-def has_table(conn: Connection, table: Table):
-    try:
-        return inspect(conn).has_table(table)
-    except AttributeError:
-        return table.exists(conn)

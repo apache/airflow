@@ -32,14 +32,18 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
-from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
-from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
+from airflow.www.extensions.init_security import (
+    init_api_experimental_auth,
+    init_check_user_active,
+    init_xframe_protection,
+)
 from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import (
     init_api_connexion,
@@ -109,7 +113,8 @@ def create_app(config=None, testing=False):
         flask_app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     # Configure the JSON encoder used by `|tojson` filter from Flask
-    flask_app.json_provider_class = AirflowJsonEncoder
+    flask_app.json_provider_class = AirflowJsonProvider
+    flask_app.json = AirflowJsonProvider(flask_app)
 
     csrf.init_app(flask_app)
 
@@ -151,6 +156,7 @@ def create_app(config=None, testing=False):
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
+        init_check_user_active(flask_app)
     return flask_app
 
 
