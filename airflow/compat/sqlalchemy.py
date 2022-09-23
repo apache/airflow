@@ -31,6 +31,6 @@ __all__ = ["has_table", "inspect"]
 
 def has_table(conn: Connection, table: Table):
     try:
-        return inspect(conn).has_table(table)
+        return inspect(conn).has_table(table.name)
     except AttributeError:
         return table.exists(conn)
