@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import json
 import os
 import tempfile
 import unittest
@@ -618,34 +617,23 @@ class TestCliDags(unittest.TestCase):
             is None
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_dag_test(self, mock_get_dag, mock_executor):
+    def test_dag_test(self, mock_get_dag):
         cli_args = self.parser.parse_args(['dags', 'test', 'example_bash_operator', DEFAULT_DATE.isoformat()])
         dag_command.dag_test(cli_args)
 
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
-                mock.call().clear(
-                    start_date=cli_args.execution_date,
-                    end_date=cli_args.execution_date,
-                    dag_run_state=False,
-                ),
-                mock.call().run(
-                    executor=mock_executor.return_value,
-                    start_date=cli_args.execution_date,
-                    end_date=cli_args.execution_date,
-                    conf=None,
-                    run_at_least_once=True,
+                mock.call().test(
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
                 ),
             ]
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")
-    def test_dag_test_no_execution_date(self, mock_utcnow, mock_get_dag, mock_executor):
+    def test_dag_test_no_execution_date(self, mock_utcnow, mock_get_dag):
         now = pendulum.now()
         mock_utcnow.return_value = now
         cli_args = self.parser.parse_args(['dags', 'test', 'example_bash_operator'])
@@ -657,24 +645,12 @@ class TestCliDags(unittest.TestCase):
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
-                mock.call().clear(
-                    start_date=now,
-                    end_date=now,
-                    dag_run_state=False,
-                ),
-                mock.call().run(
-                    executor=mock_executor.return_value,
-                    start_date=now,
-                    end_date=now,
-                    conf=None,
-                    run_at_least_once=True,
-                ),
+                mock.call().test(execution_date=mock.ANY, run_conf=None, session=mock.ANY),
             ]
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_dag_test_conf(self, mock_get_dag, mock_executor):
+    def test_dag_test_conf(self, mock_get_dag):
         cli_args = self.parser.parse_args(
             [
                 'dags',
@@ -690,25 +666,17 @@ class TestCliDags(unittest.TestCase):
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
-                mock.call().clear(
-                    start_date=cli_args.execution_date,
-                    end_date=cli_args.execution_date,
-                    dag_run_state=False,
-                ),
-                mock.call().run(
-                    executor=mock_executor.return_value,
-                    start_date=cli_args.execution_date,
-                    end_date=cli_args.execution_date,
-                    conf=json.loads(cli_args.conf),
-                    run_at_least_once=True,
+                mock.call().test(
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf={"dag_run_conf_param": "param_value"},
+                    session=mock.ANY,
                 ),
             ]
         )
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
-    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_dag_test_show_dag(self, mock_get_dag, mock_executor, mock_render_dag):
+    def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag):
         cli_args = self.parser.parse_args(
             ['dags', 'test', 'example_bash_operator', DEFAULT_DATE.isoformat(), '--show-dagrun']
         )
@@ -720,17 +688,8 @@ class TestCliDags(unittest.TestCase):
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id='example_bash_operator'),
-                mock.call().clear(
-                    start_date=cli_args.execution_date,
-                    end_date=cli_args.execution_date,
-                    dag_run_state=False,
-                ),
-                mock.call().run(
-                    executor=mock_executor.return_value,
-                    start_date=cli_args.execution_date,
-                    end_date=cli_args.execution_date,
-                    conf=None,
-                    run_at_least_once=True,
+                mock.call().test(
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
                 ),
             ]
         )
