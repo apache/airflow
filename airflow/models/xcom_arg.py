@@ -422,9 +422,6 @@ class _ZipResult(Sequence):
     def __init__(self, values: Sequence[Sequence | dict], *, fillvalue: Any = NOTSET) -> None:
         self.values = values
         self.fillvalue = fillvalue
-        # use the generator here, rather than in __len__ to improve efficiency
-        lengths = (len(v) for v in self.values)
-        self.length = min(lengths) if isinstance(self.fillvalue, ArgNotSet) else max(lengths)
 
     @staticmethod
     def _get_or_fill(container: Sequence | dict, index: Any, fillvalue: Any) -> Any:
@@ -439,7 +436,10 @@ class _ZipResult(Sequence):
         return tuple(self._get_or_fill(value, index, self.fillvalue) for value in self.values)
 
     def __len__(self) -> int:
-        return self.length
+        lengths = (len(v) for v in self.values)
+        if isinstance(self.fillvalue, ArgNotSet):
+            return min(lengths)
+        return max(lengths)
 
 
 class ZipXComArg(XComArg):
