@@ -217,6 +217,12 @@ class BackfillJob(BaseJob):
                 tis_to_be_scheduled.append(ti)
                 ti_status.running.pop(reduced_key)
                 ti_status.to_run[ti.key] = ti
+            # special case: Deferrable task can go from DEFERRED to SCHEDULED;
+            # when that happens, we need to put it back as in UP_FOR_RESCHEDULE
+            elif ti.state == TaskInstanceState.SCHEDULED:
+                self.log.debug("Task instance %s is resumed from deferred state", ti)
+                ti_status.running.pop(ti.key)
+                ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances
         if tis_to_be_scheduled:
