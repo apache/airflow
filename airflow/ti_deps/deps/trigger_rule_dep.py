@@ -182,6 +182,9 @@ class TriggerRuleDep(BaseTIDep):
             elif trigger_rule == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
                     changed = ti.set_state(State.SKIPPED, session)
+            elif trigger_rule == TR.ONE_DONE:
+                if upstream_done and not (failed or successes):
+                    changed = ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
                     changed = ti.set_state(State.UPSTREAM_FAILED, session)
@@ -215,6 +218,16 @@ class TriggerRuleDep(BaseTIDep):
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires one upstream task failure, "
                         f"but none were found. upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
+                    )
+                )
+        elif trigger_rule == TR.ONE_DONE:
+            if successes + failed <= 0:
+                yield self._failing_status(
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}'"
+                        "requires at least one upstream task failure or success"
+                        f"but none were failed or success. upstream_tasks_state={upstream_tasks_state}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
