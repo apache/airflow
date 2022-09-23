@@ -139,11 +139,23 @@ class OracleHook(DbApiHook):
         # Defaults to False (use thin mode) if not provided in params or connection config extra
         if self.thick_mode is None:
             self.thick_mode = conn.extra_dejson.get('thick_mode', False)
+            if not isinstance(self.thick_mode, bool):
+                raise TypeError(f'thick_mode expected bool, got {type(self.thick_mode).__name__}')
         if self.thick_mode:
             if self.thick_mode_lib_dir is None:
                 self.thick_mode_lib_dir = conn.extra_dejson.get('thick_mode_lib_dir')
+                if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
+                    raise TypeError(
+                        f'thick_mode_lib_dir expected str or None, '
+                        f'got {type(self.thick_mode_lib_dir).__name__}'
+                    )
             if self.thick_mode_config_dir is None:
                 self.thick_mode_config_dir = conn.extra_dejson.get('thick_mode_config_dir')
+                if not isinstance(self.thick_mode_config_dir, (str, type(None))):
+                    raise TypeError(
+                        f'thick_mode_config_dir expected str or None, '
+                        f'got {type(self.thick_mode_config_dir).__name__}'
+                    )
             oracledb.init_oracle_client(
                 lib_dir=self.thick_mode_lib_dir, config_dir=self.thick_mode_config_dir
             )
@@ -154,10 +166,14 @@ class OracleHook(DbApiHook):
         # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
         if self.fetch_decimals is None:
             self.fetch_decimals = conn.extra_dejson.get('fetch_decimals', False)
+            if not isinstance(self.fetch_decimals, bool):
+                raise TypeError(f'fetch_decimals expected bool, got {type(self.fetch_decimals).__name__}')
         oracledb.defaults.fetch_decimals = self.fetch_decimals
 
         if self.fetch_lobs is None:
             self.fetch_lobs = conn.extra_dejson.get('fetch_lobs', True)
+            if not isinstance(self.fetch_lobs, bool):
+                raise TypeError(f'fetch_lobs expected bool, got {type(self.fetch_lobs).__name__}')
         oracledb.defaults.fetch_lobs = self.fetch_lobs
 
         # Set up DSN

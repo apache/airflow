@@ -242,6 +242,36 @@ class TestOracleHookConn(unittest.TestCase):
         assert oracledb.defaults.fetch_decimals is True
         assert oracledb.defaults.fetch_lobs is False
 
+    def test_type_checking_thick_mode(self):
+        with pytest.raises(TypeError, match=r"thick_mode expected bool, got.*"):
+            thick_mode_test = {'thick_mode': 'bad'}
+            self.connection.extra = json.dumps(thick_mode_test)
+            self.db_hook.get_conn()
+
+    def test_type_checking_thick_mode_lib_dir(self):
+        with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
+            thick_mode_lib_dir_test = {'thick_mode': True, 'thick_mode_lib_dir': 1}
+            self.connection.extra = json.dumps(thick_mode_lib_dir_test)
+            self.db_hook.get_conn()
+
+    def test_type_checking_thick_mode_config_dir(self):
+        with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
+            thick_mode_config_dir_test = {'thick_mode': True, 'thick_mode_config_dir': 1}
+            self.connection.extra = json.dumps(thick_mode_config_dir_test)
+            self.db_hook.get_conn()
+
+    def test_type_checking_fetch_decimals(self):
+        with pytest.raises(TypeError, match=r"fetch_decimals expected bool, got.*"):
+            fetch_decimals_test = {'fetch_decimals': 'bad'}
+            self.connection.extra = json.dumps(fetch_decimals_test)
+            self.db_hook.get_conn()
+
+    def test_type_checking_fetch_lobs(self):
+        with pytest.raises(TypeError, match=r"fetch_lobs expected bool, got.*"):
+            fetch_lobs_test = {'fetch_lobs': 'bad'}
+            self.connection.extra = json.dumps(fetch_lobs_test)
+            self.db_hook.get_conn()
+
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHook(unittest.TestCase):
