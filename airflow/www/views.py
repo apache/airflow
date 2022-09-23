@@ -71,7 +71,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, distinct, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, distinct, func, inspect, tuple_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -3606,9 +3606,34 @@ class Airflow(AirflowBaseView):
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.count(DatasetEvent.id).label("total_updates"),
-                    func.count(distinct(TaskOutletDatasetReference.dataset_id)).label("producing_task_count"),
-                    func.count(distinct(DagScheduleDatasetReference.dataset_id)).label("consuming_dag_count"),
+                    func.count(distinct(DatasetEvent.id)).label("total_updates"),
+                    func.count(
+                        distinct(
+                            case(
+                                (
+                                    TaskOutletDatasetReference.dataset_id.is_not(None),
+                                    tuple_(
+                                        TaskOutletDatasetReference.dataset_id,
+                                        TaskOutletDatasetReference.dag_id,
+                                        TaskOutletDatasetReference.task_id,
+                                    ),
+                                )
+                            )
+                        )
+                    ).label("producing_task_count"),
+                    func.count(
+                        distinct(
+                            case(
+                                (
+                                    DagScheduleDatasetReference.dataset_id.is_not(None),
+                                    tuple_(
+                                        DagScheduleDatasetReference.dataset_id,
+                                        DagScheduleDatasetReference.dag_id,
+                                    ),
+                                )
+                            )
+                        )
+                    ).label("consuming_dag_count"),
                 )
                 .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
                 .outerjoin(

@@ -148,13 +148,24 @@ class TestGetDatasets(TestDatasetEndpoint):
             with dag_maker(dag_id='downstream', schedule=datasets[:2], serialized=True, session=session):
                 EmptyOperator(task_id='task1')
 
-            # Independent DAG that produces dataset #3
-            with dag_maker(dag_id='independent_producer', serialized=True, session=session):
+            # We create multiple dataset-producing and dataset-consuming DAGs because the query requires
+            # COUNT(DISTINCT ...) for total_updates, or else it returns a multiple of the correct number due
+            # to the outer joins with DagScheduleDatasetReference and TaskOutletDatasetReference
+            # Two independent DAGs that produce dataset #3
+            with dag_maker(dag_id='independent_producer_1', serialized=True, session=session):
                 EmptyOperator(task_id='task1', outlets=[datasets[2]])
-
-            # Independent DAG that consumes dataset #4
+            with dag_maker(dag_id='independent_producer_2', serialized=True, session=session):
+                EmptyOperator(task_id='task1', outlets=[datasets[2]])
+            # Two independent DAGs that consume dataset #4
             with dag_maker(
-                dag_id='independent_consumer',
+                dag_id='independent_consumer_1',
+                schedule=[datasets[3]],
+                serialized=True,
+                session=session,
+            ):
+                EmptyOperator(task_id='task1')
+            with dag_maker(
+                dag_id='independent_consumer_2',
                 schedule=[datasets[3]],
                 serialized=True,
                 session=session,
@@ -247,7 +258,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "uri": "s3://bucket/key/3",
                     "last_dataset_update": "2022-08-01T02:00:00+00:00",
                     "total_updates": 3,
-                    "producing_task_count": 1,
+                    "producing_task_count": 2,
                     "consuming_dag_count": 0,
                 },
                 {
@@ -256,7 +267,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "last_dataset_update": "2022-08-01T03:00:00+00:00",
                     "total_updates": 4,
                     "producing_task_count": 0,
-                    "consuming_dag_count": 1,
+                    "consuming_dag_count": 2,
                 },
                 {
                     "id": ds5_id,
