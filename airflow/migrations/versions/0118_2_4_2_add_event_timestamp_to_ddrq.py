@@ -46,4 +46,5 @@ def upgrade():
 
 def downgrade():
     """Unapply Add event timestamp to DDRQ"""
-    op.drop_column('dataset_dag_run_queue', 'event_timestamp')
+    with op.batch_alter_table('dataset_dag_run_queue', schema=None) as batch_op:
+        batch_op.drop_column('event_timestamp')
