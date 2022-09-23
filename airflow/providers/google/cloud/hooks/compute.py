@@ -259,7 +259,7 @@ class ComputeEngineHook(GoogleBaseHook):
             in 'zone' parameter.
             Full or partial URL and can be represented as examples below:
             1. "machine_type": "projects/your-project-name/zones/your-zone/machineTypes/your-machine-type"
-            2. "disk_type": "projects/your-project-name/zones/your-zone/diskTypes/your-disk-type"
+            2. "source_image": "projects/your-project-name/zones/your-zone/diskTypes/your-disk-type"
             3. "subnetwork": "projects/your-project-name/regions/your-region/subnetworks/your-subnetwork"
         :param zone: Google Cloud zone where the Instance exists
         :param project_id: Google Cloud project ID where the Compute Engine Instance Template exists.

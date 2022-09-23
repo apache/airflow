@@ -427,6 +427,7 @@ DirectRunner
 dirs
 discoverability
 discoverable
+diskTypes
 displayName
 distcp
 distro
@@ -865,6 +866,7 @@ Lowin
 lshift
 lxml
 Lyft
+machineTypes
 macOS
 macosx
 mailto
@@ -1379,6 +1381,7 @@ submodules
 subnet
 subnets
 subnetwork
+subnetworks
 subpackage
 Subpackages
 subpackages
