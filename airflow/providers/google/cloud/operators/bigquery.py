@@ -883,7 +883,7 @@ class BigQueryGetDataOperator(BaseOperator):
         query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
         return query
 
-    def execute(self, context: Context) -> list:
+    def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -948,6 +948,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
         self.log.info("Total extracted rows: %s", len(event["records"]))
         return event["records"]
+
 
 class BigQueryExecuteQueryOperator(BaseOperator):
     """
