@@ -54,3 +54,55 @@ class GlacierCreateJobOperator(BaseOperator):
     def execute(self, context: Context):
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         return hook.retrieve_inventory(vault_name=self.vault_name)
+
+
+class GlacierUploadArchiveOperator(BaseOperator):
+    """
+    This operation adds an archive to a vault
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlacierUploadArchiveOperator`
+
+    :param account_id: The AWS account ID of the account that owns the vault.
+        You can either specify an AWS account ID or optionally a single `- ` (hyphen),
+        in which case Amazon S3 Glacier uses the AWS account ID associated with
+        the credentials used to sign the request
+    :param vault_name: The name of the vault
+    :param archive: A bytes or seekable file-like object. The data to upload.
+    :param description: The description of the archive you are uploading
+    :param checksum: The SHA256 tree hash of the data being uploaded.
+        This parameter is automatically populated if it is not provided
+    :param aws_conn_id: The reference to the AWS connection details
+    """
+
+    template_fields: Sequence[str] = ("vault_name",)
+
+    def __init__(
+        self,
+        *,
+        vault_name: str,
+        archive: object,
+        checksum: str | None = None,
+        description: str | None = None,
+        account_id: str = "_",
+        aws_conn_id="aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.aws_conn_id = aws_conn_id
+        self.account_id = account_id
+        self.vault_name = vault_name
+        self.archive = archive
+        self.checksum = checksum
+        self.description = description
+
+    def execute(self, context: Context):
+        hook = GlacierHook(aws_conn_id=self.aws_conn_id)
+        hook.get_conn().upload_archive(
+            accountId=self.account_id,
+            vaultName=self.vault_name,
+            archiveDescription=self.description,
+            body=self.archive,
+            checksum=self.checksum,
+        )
