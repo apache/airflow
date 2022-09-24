@@ -29,6 +29,5 @@ do
 done
 
 ./docs/publish_docs.py \
-    --package-filter apache-airflow-providers \
     "${provider_filters[@]}"
 cd "${AIRFLOW_SITE_DIRECTORY}"
