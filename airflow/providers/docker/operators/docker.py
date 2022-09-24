@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 from docker import APIClient, tls  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
 from docker.errors import APIError  # type: ignore[attr-defined]
-from docker.types import DeviceRequest, Mount, LogConfig  # type: ignore[attr-defined]
+from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
