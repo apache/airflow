@@ -89,7 +89,7 @@ class PrStat:
         num_protm = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
-            if (('#protm' in comment.body) or ('protm' in comment.body)):
+            if (('protm' in comment.body) or ('PROTM' in comment.body) or ('PRotM' in comment.body)):
                 num_protm += 1
             num_comments += 1
         self.protm_score = num_protm
@@ -102,7 +102,7 @@ class PrStat:
         num_protm = 0
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
-            if (('#protm' in conv_comment.body) or ('protm' in conv_comment.body)):
+            if (('protm' in conv_comment.body) or ('PROTM' in conv_comment.body) or ('PRotM' in conv_comment.body)):
                 num_protm += 1
             num_conv_comments += 1
         self.protm_score = num_protm
