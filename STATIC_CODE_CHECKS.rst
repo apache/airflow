@@ -157,8 +157,6 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-core-deprecation-classes                         | Verify using of dedicated Airflow deprecation classes in core    |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-dag-init-decorator-arguments                     | Check DAG and @dag arguments                                     |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name        | Check @task decorator implements custom_operator_name            |         |
@@ -178,6 +176,8 @@ require Breeze Docker image to be build locally.
 | check-hooks-apply                                      | Check if all hooks apply to the repository                       |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-init-decorator-arguments                         | Check model __init__ and decorator arguments are in sync         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+

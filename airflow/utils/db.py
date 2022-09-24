@@ -33,7 +33,6 @@ from sqlalchemy.orm.session import Session
 
 import airflow
 from airflow import settings
-from airflow.compat.sqlalchemy import has_table
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
@@ -656,6 +655,7 @@ def _create_db_from_orm(session):
     def _create_flask_session_tbl():
         flask_app = Flask(__name__)
         flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
+        flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         db = SQLAlchemy(flask_app)
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table='session', key_prefix='')
         db.create_all()
@@ -1641,7 +1641,7 @@ def drop_airflow_models(connection):
 
     migration_ctx = MigrationContext.configure(connection)
     version = migration_ctx._version
-    if has_table(connection, version):
+    if inspect(connection).has_table(version.name):
         version.drop(connection)
 
 
