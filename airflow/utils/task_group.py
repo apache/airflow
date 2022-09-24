@@ -35,6 +35,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
@@ -472,6 +473,21 @@ class TaskGroup(DAGNode):
             if isinstance(group, MappedTaskGroup):
                 yield group
             group = group.task_group
+
+    def get_task_dict(self) -> dict[str, AbstractOperator]:
+        """Returns a flat dictionary of task_id: AbstractOperator"""
+        task_map = {}
+
+        def build_map(dag_node):
+            if not isinstance(dag_node, TaskGroup):
+                task_map[dag_node.task_id] = dag_node
+                return
+
+            for child in dag_node.children.values():
+                build_map(child)
+
+        build_map(self)
+        return task_map
 
 
 class MappedTaskGroup(TaskGroup):

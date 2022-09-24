@@ -2028,11 +2028,12 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def clear(self):
-        """Clears the Dag."""
+        """Clears the dag tasks."""
         dag_id = request.form.get("dag_id")
         task_id = request.form.get("task_id")
         origin = get_safe_url(request.form.get("origin"))
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        group_id = request.form.get("group_id")
 
         if "map_index" not in request.form:
             map_indexes: list[int] | None = None
@@ -2049,17 +2050,31 @@ class Airflow(AirflowBaseView):
         recursive = request.form.get("recursive") == "true"
         only_failed = request.form.get("only_failed") == "true"
 
-        task_ids: list[str | tuple[str, int]]
-        if map_indexes is None:
-            task_ids = [task_id]
+        task_ids: list[str | tuple[str, int]] = []
+        if group_id is not None:
+            task_group_dict = dag.task_group.get_task_group_dict()
+            task_group = task_group_dict.get(group_id)
+            if task_group is None:
+                return redirect_or_json(
+                    origin, msg=f"TaskGroup {group_id} could not be found", status="error", status_code=500
+                )
+            tasks = task_group.get_task_dict()
+            task_ids = list(tasks.keys())
+            dag = dag.partial_subset(
+                task_ids_or_regex=task_ids,
+                include_downstream=downstream,
+                include_upstream=upstream,
+            )
         else:
-            task_ids = [(task_id, map_index) for map_index in map_indexes]
-
-        dag = dag.partial_subset(
-            task_ids_or_regex=[task_id],
-            include_downstream=downstream,
-            include_upstream=upstream,
-        )
+            if map_indexes is None:
+                task_ids = [task_id]
+            else:
+                task_ids = [(task_id, map_index) for map_index in map_indexes]
+            dag = dag.partial_subset(
+                task_ids_or_regex=[task_id],
+                include_downstream=downstream,
+                include_upstream=upstream,
+            )
 
         if len(dag.task_dict) > 1:
             # If we had upstream/downstream etc then also include those!
