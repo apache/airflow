@@ -28,6 +28,7 @@ class TriggerRule(str, Enum):
     ALL_DONE = 'all_done'
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
+    ONE_DONE = 'one_done'
     NONE_FAILED = 'none_failed'
     NONE_FAILED_OR_SKIPPED = 'none_failed_or_skipped'
     NONE_SKIPPED = 'none_skipped'

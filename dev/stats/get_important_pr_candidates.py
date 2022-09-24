@@ -89,7 +89,8 @@ class PrStat:
         num_protm = 0
         for comment in self.pull_request.get_comments():
             self._users.add(comment.user.login)
-            if (('protm' in comment.body) or ('PROTM' in comment.body) or ('PRotM' in comment.body)):
+            lowercase_body = comment.body.lower()
+            if 'protm' in lowercase_body:
                 num_protm += 1
             num_comments += 1
         self.protm_score = num_protm
@@ -102,7 +103,8 @@ class PrStat:
         num_protm = 0
         for conv_comment in self.pull_request.get_issue_comments():
             self._users.add(conv_comment.user.login)
-            if (('protm' in conv_comment.body) or ('PROTM' in conv_comment.body) or ('PRotM' in conv_comment.body)):
+            lowercase_body = conv_comment.body.lower()
+            if 'protm' in lowercase_body:
                 num_protm += 1
             num_conv_comments += 1
         self.protm_score = num_protm
@@ -277,8 +279,10 @@ class PrStat:
         # If the body contains over 2000 characters, the PR should matter 40% more.
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
+        # For each #protm tag found in PR comment, the score will be multipled by 2.
+        #
         if self.protm_score > 0:
-            interaction_score = self.interaction_score * 2
+            interaction_score = self.interaction_score * (2 * self.protm_score)
         else:
             interaction_score = self.interaction_score
         return round(
@@ -292,11 +296,19 @@ class PrStat:
         )
 
     def __str__(self) -> str:
-        return (
-            f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-            f"\"{self.pull_request.title}\". "
-            f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-        )
+        if self.protm_score > 0:
+            return (
+                '[magenta]##Tagged PR## [/]'
+                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+                f"\"{self.pull_request.title}\". "
+                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+            ) 
+        else:
+            return (
+                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+                f"\"{self.pull_request.title}\". "
+                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+            )
 
     def verboseStr(self) -> str:
         if self.protm_score > 0:
