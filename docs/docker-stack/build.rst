@@ -27,7 +27,9 @@ Quick start scenarios of image extending
 ----------------------------------------
 
 The most common scenarios where you want to build your own image are adding a new ``apt`` package,
-adding a new ``PyPI`` dependency and embedding DAGs into the image.
+adding a new ``PyPI`` dependency (either individually or via requirements.txt) and embedding DAGs
+into the image.
+
 Example Dockerfiles for those scenarios are below, and you can read further
 for more complex cases which might involve either extending or customizing the image. You will find
 more information about more complex scenarios below, but if your goal is to quickly extend the Airflow
@@ -46,8 +48,8 @@ switch to the ``root`` user when running the ``apt`` commands, but do not forget
     :end-before: [END Dockerfile]
 
 
-Adding a new ``PyPI`` package
-.............................
+Adding new ``PyPI`` packages individually
+.........................................
 
 The following example adds ``lxml`` python package from PyPI to the image. When adding packages via
 ``pip`` you need to use the ``airflow`` user rather than ``root``. Attempts to install ``pip`` packages
@@ -57,6 +59,19 @@ as ``root`` will fail with an appropriate error message.
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+Adding packages from requirements.txt
+.....................................
+
+The following example adds few python packages from ``requirements.txt`` from PyPI to the image.
+Note that similarly when adding individual packages, you need to use the ``airflow`` user rather than
+``root``. Attempts to install ``pip`` packages as ``root`` will fail with an appropriate error message.
+
+.. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 
 Embedding DAGs
 ..............
@@ -362,6 +377,19 @@ The following example adds ``lxml`` python package from PyPI to the image.
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+Example of adding packages from requirements.txt
+................................................
+
+The following example adds few python packages from ``requirements.txt`` from PyPI to the image.
+Note that similarly when adding individual packages, you need to use the ``airflow`` user rather than
+``root``. Attempts to install ``pip`` packages as ``root`` will fail with an appropriate error message.
+
+.. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 
 Example when writable directory is needed
 .........................................
