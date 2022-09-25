@@ -48,7 +48,7 @@ class AirflowDateTimePickerWidget:
         template = self.data_template
 
         return Markup(
-            template % {"text": html_params(type="text", value=field.data, required=False, **kwargs)}
+            template % {"text": html_params(type="text", value=field.data, required=True, **kwargs)}
         )
 
 

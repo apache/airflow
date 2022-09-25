@@ -568,19 +568,28 @@ class UtcAwareFilterMixin:
         return super().apply(query, value)
 
 
-class NoneAwareFilterMixin:
-    """Mixin for filter for None value."""
+class FilterIsNull(BaseFilter):
+    """Is null filter."""
+
+    name = lazy_gettext("Is Null")
+    arg_name = "emp"
 
     def apply(self, query, value):
-        return super().apply(query, None if isinstance(value, str) and not value.strip() else value)
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field == value)
 
 
-class FilterEqualToNone(NoneAwareFilterMixin, fab_sqlafilters.FilterEqual):
-    """None value Equal filter."""
+class FilterIsNotNull(BaseFilter):
+    """Is not null filter."""
 
+    name = lazy_gettext("Is not Null")
+    arg_name = "nemp"
 
-class FilterNotEqualToNone(NoneAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
-    """None value Not Equal filter."""
+    def apply(self, query, value):
+        query, field = get_field_setup_query(query, self.model, self.column_name)
+        value = set_value_to_type(self.datamodel, self.column_name, None)
+        return query.filter(field != value)
 
 
 class FilterGreaterOrEqual(BaseFilter):
@@ -670,11 +679,10 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         super().__init__(datamodel)
 
         for (method, filters) in self.conversion_table:
-            for i in range(len(filters)):
-                if fab_sqlafilters.FilterEqual == filters[i]:
-                    filters[i] = FilterEqualToNone
-                elif fab_sqlafilters.FilterNotEqual == filters[i]:
-                    filters[i] = FilterNotEqualToNone
+            if FilterIsNull not in filters:
+                filters.append(FilterIsNull)
+            if FilterIsNotNull not in filters:
+                filters.append(FilterIsNotNull)
 
 
 class CustomSQLAInterface(SQLAInterface):
