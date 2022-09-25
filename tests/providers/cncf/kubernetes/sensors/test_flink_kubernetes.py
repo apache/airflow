@@ -22,6 +22,7 @@ import unittest
 from unittest.mock import patch
 
 import pytest
+from kubernetes.client import V1ObjectMeta, V1Pod, V1PodList
 from kubernetes.client.rest import ApiException
 
 from airflow import DAG
@@ -30,434 +31,833 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.flink_kubernetes import FlinkKubernetesSensor
 from airflow.utils import db, timezone
 
-TEST_COMPLETED_APPLICATION = {'apiVersion': 'flink.apache.org/v1beta1', 'kind': 'FlinkDeployment',
-                              'metadata': {'creationTimestamp': '2022-09-05T22:50:56Z',
-                                           'finalizers': ['flinkdeployments.flink.apache.org/finalizer'],
-                                           'generation': 2, 'name': 'bbasic-example',
-                                           'namespace': 'default', 'resourceVersion': '1731',
-                                           'uid': '16b2bb10-78f4-42c3-b473-b406897ba613'},
-                              'spec': {'flinkConfiguration': {'taskmanager.numberOfTaskSlots': '2'},
-                                       'flinkVersion': 'v1_15', 'image': 'flink:1.15', 'job': {'args': [],
-                                                                                               'jarURI': 'local:///opt/flink/examples/streaming/StateMachineExample.jar',
-                                                                                               'parallelism': 2,
-                                                                                               'state': 'running',
-                                                                                               'upgradeMode': 'stateless'},
-                                       'jobManager': {'replicas': 1,
-                                                      'resource': {'cpu': 1, 'memory': '2048m'}},
-                                       'serviceAccount': 'flink',
-                                       'taskManager': {'resource': {'cpu': 1, 'memory': '2048m'}}},
-                              'status': {
-                                  'clusterInfo': {'flink-revision': 'f494be6 @ 2022-06-20T14:40:28+02:00',
-                                                  'flink-version': '1.15.1'}, 'error': '',
-                                  'jobManagerDeploymentStatus': 'READY',
-                                  'jobStatus': {'jobId': '09998da01d09daa6fd55f6d682be0fce',
-                                                'jobName': 'State machine job',
-                                                'savepointInfo': {'lastPeriodicSavepointTimestamp': 0,
-                                                                  'savepointHistory': [], 'triggerId': '',
-                                                                  'triggerTimestamp': 0,
-                                                                  'triggerType': 'UNKNOWN'},
-                                                'startTime': '1662418314487', 'state': 'RUNNING',
-                                                'updateTime': '1662418325994'}, 'reconciliationStatus': {
-                                      'lastReconciledSpec': '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":null,"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',
-                                      'lastStableSpec': '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":null,"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',
-                                      'reconciliationTimestamp': 1662418259910, 'state': 'DEPLOYED'},
-                                  'taskManager': {'labelSelector': 'component=taskmanager,app=bbasic-example',
-                                                  'replicas': 1}}}
-
-TEST_FAILED_APPLICATION = {
+TEST_NO_STATE_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
     "kind": "FlinkDeployment",
     "metadata": {
-        "creationTimestamp": "2020-02-26T11:59:30Z",
+        "creationTimestamp": "2022-09-25T16:47:16Z",
         "generation": 1,
-        "name": "spark-pi",
+        "managedFields": [
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:spec": {
+                        ".": {},
+                        "f:flinkConfiguration": {
+                            ".": {},
+                            "f:taskmanager.numberOfTaskSlots": {},
+                        },
+                        "f:flinkVersion": {},
+                        "f:image": {},
+                        "f:ingress": {".": {}, "f:template": {}},
+                        "f:job": {
+                            ".": {},
+                            "f:jarURI": {},
+                            "f:parallelism": {},
+                            "f:state": {},
+                            "f:upgradeMode": {},
+                        },
+                        "f:jobManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                        "f:logConfiguration": {
+                            ".": {},
+                            "f:log4j-console.properties": {},
+                        },
+                        "f:serviceAccount": {},
+                        "f:taskManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                    }
+                },
+                "manager": "OpenAPI-Generator",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:16Z",
+            }
+        ],
+        "name": "flink-stream-example",
         "namespace": "default",
-        "resourceVersion": "531657",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "f507ee3a-4461-45ef-86d8-ff42e4211e7d",
+        "resourceVersion": "140016",
+        "uid": "925eb6a0-f336-40e9-a08e-880481c73729",
     },
     "spec": {
-        "arguments": ["100000"],
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
+        "flinkConfiguration": {"taskmanager.numberOfTaskSlots": "2"},
+        "flinkVersion": "v1_15",
+        "image": "flink:1.15",
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "job": {
+            "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+            "parallelism": 2,
+            "state": "running",
+            "upgradeMode": "stateless",
         },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi123",
-        "mode": "cluster",
-        "monitoring": {
-            "exposeDriverMetrics": True,
-            "exposeExecutorMetrics": True,
-            "prometheus": {
-                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
-                "port": 8090,
+        "jobManager": {"resource": {"cpu": 1, "memory": "2048m"}},
+        "logConfiguration": {"log4j-console.properties": "rootLogger.level = DEBUG"},
+        "serviceAccount": "flink",
+        "taskManager": {"resource": {"cpu": 1, "memory": "2048m"}},
+    },
+}
+
+TEST_DEPLOYING_CLUSTER = {
+    "apiVersion": "flink.apache.org/v1beta1",
+    "kind": "FlinkDeployment",
+    "metadata": {
+        "creationTimestamp": "2022-09-25T16:47:16Z",
+        "finalizers": ["flinkdeployments.flink.apache.org/finalizer"],
+        "generation": 2,
+        "managedFields": [
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:spec": {
+                        ".": {},
+                        "f:flinkConfiguration": {
+                            ".": {},
+                            "f:taskmanager.numberOfTaskSlots": {},
+                        },
+                        "f:flinkVersion": {},
+                        "f:image": {},
+                        "f:ingress": {".": {}, "f:template": {}},
+                        "f:job": {
+                            ".": {},
+                            "f:jarURI": {},
+                            "f:parallelism": {},
+                            "f:state": {},
+                            "f:upgradeMode": {},
+                        },
+                        "f:jobManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                        "f:logConfiguration": {
+                            ".": {},
+                            "f:log4j-console.properties": {},
+                        },
+                        "f:serviceAccount": {},
+                        "f:taskManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                    }
+                },
+                "manager": "OpenAPI-Generator",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:16Z",
             },
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:finalizers": {
+                            ".": {},
+                            'v:"flinkdeployments.flink.apache.org/finalizer"': {},
+                        }
+                    },
+                    "f:spec": {
+                        "f:job": {"f:args": {}},
+                        "f:jobManager": {"f:replicas": {}},
+                    },
+                    "f:status": {
+                        ".": {},
+                        "f:clusterInfo": {},
+                        "f:error": {},
+                        "f:jobManagerDeploymentStatus": {},
+                        "f:jobStatus": {
+                            ".": {},
+                            "f:savepointInfo": {
+                                ".": {},
+                                "f:lastPeriodicSavepointTimestamp": {},
+                                "f:savepointHistory": {},
+                                "f:triggerId": {},
+                                "f:triggerTimestamp": {},
+                                "f:triggerType": {},
+                            },
+                            "f:state": {},
+                        },
+                        "f:reconciliationStatus": {
+                            ".": {},
+                            "f:lastReconciledSpec": {},
+                            "f:reconciliationTimestamp": {},
+                            "f:state": {},
+                        },
+                        "f:taskManager": {
+                            ".": {},
+                            "f:labelSelector": {},
+                            "f:replicas": {},
+                        },
+                    },
+                },
+                "manager": "okhttp",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:16Z",
+            },
+        ],
+        "name": "flink-stream-example",
+        "namespace": "default",
+        "resourceVersion": "140043",
+        "uid": "925eb6a0-f336-40e9-a08e-880481c73729",
+    },
+    "spec": {
+        "flinkConfiguration": {"taskmanager.numberOfTaskSlots": "2"},
+        "flinkVersion": "v1_15",
+        "image": "flink:1.15",
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "job": {
+            "args": [],
+            "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+            "parallelism": 2,
+            "state": "running",
+            "upgradeMode": "stateless",
         },
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
+        "jobManager": {"replicas": 1, "resource": {"cpu": 1, "memory": "2048m"}},
+        "logConfiguration": {"log4j-console.properties": "rootLogger.level = DEBUG"},
+        "serviceAccount": "flink",
+        "taskManager": {"resource": {"cpu": 1, "memory": "2048m"}},
     },
     "status": {
-        "applicationState": {
-            "errorMessage": "driver pod failed with ExitCode: 101, Reason: Error",
-            "state": "FAILED",
+        "clusterInfo": {},
+        "error": "",
+        "jobManagerDeploymentStatus": "DEPLOYING",
+        "jobStatus": {
+            "savepointInfo": {
+                "lastPeriodicSavepointTimestamp": 0,
+                "savepointHistory": [],
+                "triggerId": "",
+                "triggerTimestamp": 0,
+                "triggerType": "UNKNOWN",
+            },
+            "state": "RECONCILING",
         },
-        "driverInfo": {
-            "podName": "spark-pi-driver",
-            "webUIAddress": "10.108.18.168:4040",
-            "webUIPort": 4040,
-            "webUIServiceName": "spark-pi-ui-svc",
+        "reconciliationStatus": {
+            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":{"log4j-console.properties":"rootLogger.level = DEBUG"}},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',  # noqa: E501
+            "reconciliationTimestamp": 1664124436834,
+            "state": "DEPLOYED",
         },
-        "executionAttempts": 1,
-        "lastSubmissionAttemptTime": "2020-02-26T11:59:38Z",
-        "FlinkDeploymentId": "spark-5fb7445d988f434cbe1e86166a0c038a",
-        "submissionAttempts": 1,
-        "submissionID": "26654a75-5bf6-4618-b191-0340280d2d3d",
-        "terminationTime": "2020-02-26T11:59:49Z",
+        "taskManager": {
+            "labelSelector": "component=taskmanager,app=flink-stream-example",
+            "replicas": 1,
+        },
     },
 }
 
-TEST_UNKNOWN_APPLICATION = {
+TEST_DEPLOYED_NOT_READY_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
     "kind": "FlinkDeployment",
     "metadata": {
-        "creationTimestamp": "2020-02-24T07:34:22Z",
-        "generation": 1,
-        "labels": {"spark_flow_name": "spark-pi"},
-        "name": "spark-pi-2020-02-24-1",
+        "creationTimestamp": "2022-09-25T16:47:16Z",
+        "finalizers": ["flinkdeployments.flink.apache.org/finalizer"],
+        "generation": 2,
+        "managedFields": [
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:spec": {
+                        ".": {},
+                        "f:flinkConfiguration": {
+                            ".": {},
+                            "f:taskmanager.numberOfTaskSlots": {},
+                        },
+                        "f:flinkVersion": {},
+                        "f:image": {},
+                        "f:ingress": {".": {}, "f:template": {}},
+                        "f:job": {
+                            ".": {},
+                            "f:jarURI": {},
+                            "f:parallelism": {},
+                            "f:state": {},
+                            "f:upgradeMode": {},
+                        },
+                        "f:jobManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                        "f:logConfiguration": {
+                            ".": {},
+                            "f:log4j-console.properties": {},
+                        },
+                        "f:serviceAccount": {},
+                        "f:taskManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                    }
+                },
+                "manager": "OpenAPI-Generator",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:16Z",
+            },
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:finalizers": {
+                            ".": {},
+                            'v:"flinkdeployments.flink.apache.org/finalizer"': {},
+                        }
+                    },
+                    "f:spec": {
+                        "f:job": {"f:args": {}},
+                        "f:jobManager": {"f:replicas": {}},
+                    },
+                    "f:status": {
+                        ".": {},
+                        "f:clusterInfo": {},
+                        "f:error": {},
+                        "f:jobManagerDeploymentStatus": {},
+                        "f:jobStatus": {
+                            ".": {},
+                            "f:savepointInfo": {
+                                ".": {},
+                                "f:lastPeriodicSavepointTimestamp": {},
+                                "f:savepointHistory": {},
+                                "f:triggerId": {},
+                                "f:triggerTimestamp": {},
+                                "f:triggerType": {},
+                            },
+                            "f:state": {},
+                        },
+                        "f:reconciliationStatus": {
+                            ".": {},
+                            "f:lastReconciledSpec": {},
+                            "f:reconciliationTimestamp": {},
+                            "f:state": {},
+                        },
+                        "f:taskManager": {
+                            ".": {},
+                            "f:labelSelector": {},
+                            "f:replicas": {},
+                        },
+                    },
+                },
+                "manager": "okhttp",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:16Z",
+            },
+        ],
+        "name": "flink-stream-example",
         "namespace": "default",
-        "resourceVersion": "455577",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "9f825516-6e1a-4af1-8967-b05661e8fb08",
+        "resourceVersion": "140061",
+        "uid": "925eb6a0-f336-40e9-a08e-880481c73729",
     },
     "spec": {
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"spark_flow_name": "spark-pi", "version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
-            "volumeMounts": [{"mountPath": "/tmp", "name": "test-volume"}],
+        "flinkConfiguration": {"taskmanager.numberOfTaskSlots": "2"},
+        "flinkVersion": "v1_15",
+        "image": "flink:1.15",
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "job": {
+            "args": [],
+            "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+            "parallelism": 2,
+            "state": "running",
+            "upgradeMode": "stateless",
         },
-        "executor": {
-            "cores": 1,
-            "instances": 3,
-            "labels": {"spark_flow_name": "spark-pi", "version": "2.4.4"},
-            "memory": "512m",
-            "volumeMounts": [{"mountPath": "/tmp", "name": "test-volume"}],
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.4",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
-        "volumes": [{"hostPath": {"path": "/tmp", "type": "Directory"}, "name": "test-volume"}],
+        "jobManager": {"replicas": 1, "resource": {"cpu": 1, "memory": "2048m"}},
+        "logConfiguration": {"log4j-console.properties": "rootLogger.level = DEBUG"},
+        "serviceAccount": "flink",
+        "taskManager": {"resource": {"cpu": 1, "memory": "2048m"}},
     },
     "status": {
-        "applicationState": {"state": "UNKNOWN"},
-        "driverInfo": {
-            "podName": "spark-pi-2020-02-24-1-driver",
-            "webUIAddress": "10.97.130.44:4040",
-            "webUIPort": 4040,
-            "webUIServiceName": "spark-pi-2020-02-24-1-ui-svc",
-        },
-        "executionAttempts": 1,
-        "executorState": {
-            "spark-pi-2020-02-24-1-1582529666227-exec-1": "FAILED",
-            "spark-pi-2020-02-24-1-1582529666227-exec-2": "FAILED",
-            "spark-pi-2020-02-24-1-1582529666227-exec-3": "FAILED",
-        },
-        "lastSubmissionAttemptTime": "2020-02-24T07:34:30Z",
-        "FlinkDeploymentId": "spark-7bb432c422ca46f3854838c419460fec",
-        "submissionAttempts": 1,
-        "submissionID": "1a1f9c5e-6bdd-4824-806f-40a814c1cf43",
-        "terminationTime": "2020-02-24T07:35:01Z",
-    },
-}
-TEST_NOT_PROCESSED_APPLICATION = {
-    "apiVersion": "flink.apache.org/v1beta1",
-    "kind": "FlinkDeployment",
-    "metadata": {
-        "creationTimestamp": "2020-02-26T09:14:48Z",
-        "generation": 1,
-        "name": "spark-pi",
-        "namespace": "default",
-        "resourceVersion": "525235",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "58da0778-fa72-4e90-8ddc-18b5e658f93d",
-    },
-    "spec": {
-        "arguments": ["100000"],
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
-        },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "monitoring": {
-            "exposeDriverMetrics": True,
-            "exposeExecutorMetrics": True,
-            "prometheus": {
-                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
-                "port": 8090,
+        "clusterInfo": {},
+        "error": "",
+        "jobManagerDeploymentStatus": "DEPLOYED_NOT_READY",
+        "jobStatus": {
+            "savepointInfo": {
+                "lastPeriodicSavepointTimestamp": 0,
+                "savepointHistory": [],
+                "triggerId": "",
+                "triggerTimestamp": 0,
+                "triggerType": "UNKNOWN",
             },
+            "state": "RECONCILING",
         },
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
+        "reconciliationStatus": {
+            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":{"log4j-console.properties":"rootLogger.level = DEBUG"}},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',  # noqa: E501
+            "reconciliationTimestamp": 1664124436834,
+            "state": "DEPLOYED",
+        },
+        "taskManager": {
+            "labelSelector": "component=taskmanager,app=flink-stream-example",
+            "replicas": 1,
+        },
     },
 }
 
-TEST_RUNNING_APPLICATION = {
+TEST_ERROR_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
     "kind": "FlinkDeployment",
     "metadata": {
-        "creationTimestamp": "2020-02-26T09:11:25Z",
-        "generation": 1,
-        "name": "spark-pi",
+        "creationTimestamp": "2022-09-25T16:40:30Z",
+        "finalizers": ["flinkdeployments.flink.apache.org/finalizer"],
+        "generation": 2,
+        "managedFields": [
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:spec": {
+                        ".": {},
+                        "f:flinkConfiguration": {
+                            ".": {},
+                            "f:high-availability": {},
+                            "f:high-availability.storageDir": {},
+                            "f:state.checkpoints.dir": {},
+                            "f:state.savepoints.dir": {},
+                            "f:taskmanager.numberOfTaskSlots": {},
+                        },
+                        "f:flinkVersion": {},
+                        "f:image": {},
+                        "f:ingress": {".": {}, "f:template": {}},
+                        "f:job": {
+                            ".": {},
+                            "f:jarURI": {},
+                            "f:parallelism": {},
+                            "f:savepointTriggerNonce": {},
+                            "f:state": {},
+                            "f:upgradeMode": {},
+                        },
+                        "f:jobManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                        "f:serviceAccount": {},
+                        "f:taskManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                    }
+                },
+                "manager": "OpenAPI-Generator",
+                "operation": "Update",
+                "time": "2022-09-25T16:40:30Z",
+            },
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:finalizers": {
+                            ".": {},
+                            'v:"flinkdeployments.flink.apache.org/finalizer"': {},
+                        }
+                    },
+                    "f:spec": {
+                        "f:job": {"f:args": {}},
+                        "f:jobManager": {"f:replicas": {}},
+                    },
+                    "f:status": {
+                        ".": {},
+                        "f:clusterInfo": {},
+                        "f:error": {},
+                        "f:jobManagerDeploymentStatus": {},
+                        "f:jobStatus": {
+                            ".": {},
+                            "f:savepointInfo": {
+                                ".": {},
+                                "f:lastPeriodicSavepointTimestamp": {},
+                                "f:savepointHistory": {},
+                                "f:triggerId": {},
+                                "f:triggerTimestamp": {},
+                                "f:triggerType": {},
+                            },
+                            "f:state": {},
+                        },
+                        "f:reconciliationStatus": {
+                            ".": {},
+                            "f:lastReconciledSpec": {},
+                            "f:reconciliationTimestamp": {},
+                            "f:state": {},
+                        },
+                        "f:taskManager": {
+                            ".": {},
+                            "f:labelSelector": {},
+                            "f:replicas": {},
+                        },
+                    },
+                },
+                "manager": "okhttp",
+                "operation": "Update",
+                "time": "2022-09-25T16:40:30Z",
+            },
+        ],
+        "name": "flink-stream-example",
         "namespace": "default",
-        "resourceVersion": "525001",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "95ff1418-eeb5-454c-b59e-9e021aa3a239",
+        "resourceVersion": "139635",
+        "uid": "4b18c5c0-38a4-4a7a-8c8f-036e47774c12",
     },
     "spec": {
-        "arguments": ["100000"],
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
+        "flinkConfiguration": {
+            "high-availability": "org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory",
+            "high-availability.storageDir": "file:///flink-data/ha",
+            "state.checkpoints.dir": "file:///flink-data/checkpoints",
+            "state.savepoints.dir": "file:///flink-data/savepoints",
+            "taskmanager.numberOfTaskSlots": "2",
         },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
+        "flinkVersion": "v1_15",
+        "image": "flink:1.15",
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "job": {
+            "args": [],
+            "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+            "parallelism": 2,
+            "savepointTriggerNonce": 0,
+            "state": "running",
+            "upgradeMode": "stateless",
         },
-        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "monitoring": {
-            "exposeDriverMetrics": True,
-            "exposeExecutorMetrics": True,
-            "prometheus": {
-                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
-                "port": 8090,
-            },
-        },
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
+        "jobManager": {"replicas": 1, "resource": {"cpu": 1, "memory": "2048m"}},
+        "serviceAccount": "flink",
+        "taskManager": {"resource": {"cpu": 1, "memory": "2048m"}},
     },
     "status": {
-        "applicationState": {"state": "RUNNING"},
-        "driverInfo": {
-            "podName": "spark-pi-driver",
-            "webUIAddress": "10.106.36.53:4040",
-            "webUIPort": 4040,
-            "webUIServiceName": "spark-pi-ui-svc",
+        "clusterInfo": {},
+        "error": "back-off 20s restarting failed container=flink-main-container"
+        " pod=flink-stream-example-c6c65d85b-ffbs7_default(ff52c4fd-88b6-468f-9914-c2a22c11b7a9)",
+        "jobManagerDeploymentStatus": "ERROR",
+        "jobStatus": {
+            "savepointInfo": {
+                "lastPeriodicSavepointTimestamp": 0,
+                "savepointHistory": [],
+                "triggerId": "",
+                "triggerTimestamp": 0,
+                "triggerType": "UNKNOWN",
+            },
+            "state": "RECONCILING",
         },
-        "executionAttempts": 1,
-        "executorState": {"spark-pi-1582708290692-exec-1": "RUNNING"},
-        "lastSubmissionAttemptTime": "2020-02-26T09:11:35Z",
-        "FlinkDeploymentId": "spark-a47a002df46448f1a8395d7dd79ba448",
-        "submissionAttempts": 1,
-        "submissionID": "d4f5a768-b9d1-4a79-92b0-54779124d997",
-        "terminationTime": None,
+        "reconciliationStatus": {
+            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":0,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"high-availability":"org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory","high-availability.storageDir":"file:///flink-data/ha","state.checkpoints.dir":"file:///flink-data/checkpoints","state.savepoints.dir":"file:///flink-data/savepoints","taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',  # noqa: E501
+            "reconciliationTimestamp": 1664124030853,
+            "state": "DEPLOYED",
+        },
+        "taskManager": {
+            "labelSelector": "component=taskmanager,app=flink-stream-example",
+            "replicas": 1,
+        },
     },
 }
 
-TEST_SUBMITTED_APPLICATION = {
+TEST_READY_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
     "kind": "FlinkDeployment",
     "metadata": {
-        "creationTimestamp": "2020-02-26T09:16:53Z",
-        "generation": 1,
-        "name": "spark-pi",
+        "creationTimestamp": "2022-09-25T16:47:16Z",
+        "finalizers": ["flinkdeployments.flink.apache.org/finalizer"],
+        "generation": 2,
+        "managedFields": [
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:spec": {
+                        ".": {},
+                        "f:flinkConfiguration": {
+                            ".": {},
+                            "f:taskmanager.numberOfTaskSlots": {},
+                        },
+                        "f:flinkVersion": {},
+                        "f:image": {},
+                        "f:ingress": {".": {}, "f:template": {}},
+                        "f:job": {
+                            ".": {},
+                            "f:jarURI": {},
+                            "f:parallelism": {},
+                            "f:state": {},
+                            "f:upgradeMode": {},
+                        },
+                        "f:jobManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                        "f:logConfiguration": {
+                            ".": {},
+                            "f:log4j-console.properties": {},
+                        },
+                        "f:serviceAccount": {},
+                        "f:taskManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                    }
+                },
+                "manager": "OpenAPI-Generator",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:16Z",
+            },
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:finalizers": {
+                            ".": {},
+                            'v:"flinkdeployments.flink.apache.org/finalizer"': {},
+                        }
+                    },
+                    "f:spec": {
+                        "f:job": {"f:args": {}},
+                        "f:jobManager": {"f:replicas": {}},
+                    },
+                    "f:status": {
+                        ".": {},
+                        "f:clusterInfo": {
+                            ".": {},
+                            "f:flink-revision": {},
+                            "f:flink-version": {},
+                        },
+                        "f:error": {},
+                        "f:jobManagerDeploymentStatus": {},
+                        "f:jobStatus": {
+                            ".": {},
+                            "f:jobId": {},
+                            "f:jobName": {},
+                            "f:savepointInfo": {
+                                ".": {},
+                                "f:lastPeriodicSavepointTimestamp": {},
+                                "f:savepointHistory": {},
+                                "f:triggerId": {},
+                                "f:triggerTimestamp": {},
+                                "f:triggerType": {},
+                            },
+                            "f:startTime": {},
+                            "f:state": {},
+                            "f:updateTime": {},
+                        },
+                        "f:reconciliationStatus": {
+                            ".": {},
+                            "f:lastReconciledSpec": {},
+                            "f:reconciliationTimestamp": {},
+                            "f:state": {},
+                        },
+                        "f:taskManager": {
+                            ".": {},
+                            "f:labelSelector": {},
+                            "f:replicas": {},
+                        },
+                    },
+                },
+                "manager": "okhttp",
+                "operation": "Update",
+                "time": "2022-09-25T16:47:34Z",
+            },
+        ],
+        "name": "flink-stream-example",
         "namespace": "default",
-        "resourceVersion": "525536",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "424a682b-6e5c-40d5-8a41-164253500b58",
+        "resourceVersion": "140076",
+        "uid": "925eb6a0-f336-40e9-a08e-880481c73729",
     },
     "spec": {
-        "arguments": ["100000"],
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
+        "flinkConfiguration": {"taskmanager.numberOfTaskSlots": "2"},
+        "flinkVersion": "v1_15",
+        "image": "flink:1.15",
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "job": {
+            "args": [],
+            "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+            "parallelism": 2,
+            "state": "running",
+            "upgradeMode": "stateless",
         },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "monitoring": {
-            "exposeDriverMetrics": True,
-            "exposeExecutorMetrics": True,
-            "prometheus": {
-                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
-                "port": 8090,
-            },
-        },
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
+        "jobManager": {"replicas": 1, "resource": {"cpu": 1, "memory": "2048m"}},
+        "logConfiguration": {"log4j-console.properties": "rootLogger.level = DEBUG"},
+        "serviceAccount": "flink",
+        "taskManager": {"resource": {"cpu": 1, "memory": "2048m"}},
     },
     "status": {
-        "applicationState": {"state": "SUBMITTED"},
-        "driverInfo": {
-            "podName": "spark-pi-driver",
-            "webUIAddress": "10.108.175.17:4040",
-            "webUIPort": 4040,
-            "webUIServiceName": "spark-pi-ui-svc",
+        "clusterInfo": {
+            "flink-revision": "f494be6 @ 2022-06-20T14:40:28 02:00",
+            "flink-version": "1.15.1",
         },
-        "executionAttempts": 1,
-        "lastSubmissionAttemptTime": "2020-02-26T09:17:03Z",
-        "FlinkDeploymentId": "spark-ae1a522d200246a99470743e880c5650",
-        "submissionAttempts": 1,
-        "submissionID": "f8b70b0b-3c81-403f-8c6d-e7f6c3653409",
-        "terminationTime": None,
+        "error": "",
+        "jobManagerDeploymentStatus": "READY",
+        "jobStatus": {
+            "jobId": "5d6feb14e05a3b00cbc55c2c8331fb7f",
+            "jobName": "State machine job",
+            "savepointInfo": {
+                "lastPeriodicSavepointTimestamp": 0,
+                "savepointHistory": [],
+                "triggerId": "",
+                "triggerTimestamp": 0,
+                "triggerType": "UNKNOWN",
+            },
+            "startTime": "1664124442817",
+            "state": "CREATED",
+            "updateTime": "1664124454261",
+        },
+        "reconciliationStatus": {
+            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":null,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":{"log4j-console.properties":"rootLogger.level = DEBUG"}},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',  # noqa: E501
+            "reconciliationTimestamp": 1664124436834,
+            "state": "DEPLOYED",
+        },
+        "taskManager": {
+            "labelSelector": "component=taskmanager,app=flink-stream-example",
+            "replicas": 1,
+        },
     },
 }
 
-TEST_NEW_APPLICATION = {
+TEST_MISSING_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
     "kind": "FlinkDeployment",
     "metadata": {
-        "creationTimestamp": "2020-02-26T09:16:53Z",
-        "generation": 1,
-        "name": "spark-pi",
+        "creationTimestamp": "2022-09-25T18:49:59Z",
+        "finalizers": ["flinkdeployments.flink.apache.org/finalizer"],
+        "generation": 2,
+        "managedFields": [
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:spec": {
+                        ".": {},
+                        "f:flinkConfiguration": {
+                            ".": {},
+                            "f:taskmanager.numberOfTaskSlots": {},
+                        },
+                        "f:flinkVersion": {},
+                        "f:image": {},
+                        "f:ingress": {".": {}, "f:template": {}},
+                        "f:job": {
+                            ".": {},
+                            "f:jarURI": {},
+                            "f:parallelism": {},
+                            "f:state": {},
+                            "f:upgradeMode": {},
+                        },
+                        "f:jobManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                        "f:logConfiguration": {
+                            ".": {},
+                            "f:log4j-console.properties": {},
+                        },
+                        "f:serviceAccount": {},
+                        "f:taskManager": {
+                            ".": {},
+                            "f:resource": {".": {}, "f:cpu": {}, "f:memory": {}},
+                        },
+                    }
+                },
+                "manager": "OpenAPI-Generator",
+                "operation": "Update",
+                "time": "2022-09-25T18:49:59Z",
+            },
+            {
+                "apiVersion": "flink.apache.org/v1beta1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:finalizers": {
+                            ".": {},
+                            'v:"flinkdeployments.flink.apache.org/finalizer"': {},
+                        }
+                    },
+                    "f:spec": {
+                        "f:job": {"f:args": {}},
+                        "f:jobManager": {"f:replicas": {}},
+                    },
+                    "f:status": {
+                        ".": {},
+                        "f:clusterInfo": {},
+                        "f:error": {},
+                        "f:jobManagerDeploymentStatus": {},
+                        "f:jobStatus": {
+                            ".": {},
+                            "f:savepointInfo": {
+                                ".": {},
+                                "f:lastPeriodicSavepointTimestamp": {},
+                                "f:savepointHistory": {},
+                                "f:triggerId": {},
+                                "f:triggerTimestamp": {},
+                                "f:triggerType": {},
+                            },
+                        },
+                        "f:reconciliationStatus": {
+                            ".": {},
+                            "f:lastReconciledSpec": {},
+                            "f:reconciliationTimestamp": {},
+                            "f:state": {},
+                        },
+                        "f:taskManager": {
+                            ".": {},
+                            "f:labelSelector": {},
+                            "f:replicas": {},
+                        },
+                    },
+                },
+                "manager": "okhttp",
+                "operation": "Update",
+                "time": "2022-09-25T18:50:00Z",
+            },
+        ],
+        "name": "flink-sm-ex1",
         "namespace": "default",
-        "resourceVersion": "525536",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "424a682b-6e5c-40d5-8a41-164253500b58",
+        "resourceVersion": "145575",
+        "uid": "6ccd47cf-c763-496e-b02e-28146b628646",
     },
     "spec": {
-        "arguments": ["100000"],
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
+        "flinkConfiguration": {"taskmanager.numberOfTaskSlots": "2"},
+        "flinkVersion": "v1_15",
+        "image": "flink:1.15",
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "job": {
+            "args": [],
+            "jarURI": "local:///opt/flink/examples/streaming/TopSpeedWindowing.jar",
+            "parallelism": 4,
+            "state": "running",
+            "upgradeMode": "stateless",
         },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "monitoring": {
-            "exposeDriverMetrics": True,
-            "exposeExecutorMetrics": True,
-            "prometheus": {
-                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
-                "port": 8090,
-            },
-        },
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
-    },
-    "status": {"applicationState": {"state": ""}},
-}
-
-TEST_PENDING_RERUN_APPLICATION = {
-    "apiVersion": "flink.apache.org/v1beta1",
-    "kind": "FlinkDeployment",
-    "metadata": {
-        "creationTimestamp": "2020-02-27T08:03:02Z",
-        "generation": 4,
-        "name": "spark-pi",
-        "namespace": "default",
-        "resourceVersion": "552073",
-        "selfLink": "/apis/flink.apache.org/v1beta1/namespaces/default/flinkdeployments/spark-pi",
-        "uid": "0c93527d-4dd9-4006-b40a-1672872e8d6f",
-    },
-    "spec": {
-        "arguments": ["100000"],
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-            "serviceAccount": "default",
-        },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.4"},
-            "memory": "512m",
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "monitoring": {
-            "exposeDriverMetrics": True,
-            "exposeExecutorMetrics": True,
-            "prometheus": {
-                "jmxExporterJar": "/prometheus/jmx_prometheus_javaagent-0.11.0.jar",
-                "port": 8090,
-            },
-        },
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.4",
-        "type": "Scala",
+        "jobManager": {"replicas": 1, "resource": {"cpu": 1, "memory": "2048m"}},
+        "logConfiguration": {"log4j-console.properties": "rootLogger.level = DEBUG\n"},
+        "serviceAccount": "flink",
+        "taskManager": {"resource": {"cpu": 1, "memory": "2048m"}},
     },
     "status": {
-        "applicationState": {"state": "PENDING_RERUN"},
-        "driverInfo": {},
-        "lastSubmissionAttemptTime": None,
-        "terminationTime": None,
+        "clusterInfo": {},
+        "error": "",
+        "jobManagerDeploymentStatus": "MISSING",
+        "jobStatus": {
+            "savepointInfo": {
+                "lastPeriodicSavepointTimestamp": 0,
+                "savepointHistory": [],
+                "triggerId": "",
+                "triggerTimestamp": 0,
+                "triggerType": "UNKNOWN",
+            }
+        },
+        "reconciliationStatus": {
+            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/TopSpeedWindowing.jar","parallelism":4,"entryClass":null,"args":[],"state":"suspended","savepointTriggerNonce":null,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":{"log4j-console.properties":"rootLogger.level = DEBUG\\n"}},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',  # noqa: E501
+            "reconciliationTimestamp": 1664131800071,
+            "state": "UPGRADING",
+        },
+        "taskManager": {"labelSelector": "", "replicas": 0},
     },
 }
 
-TEST_POD_LOGS = [b"LOG LINE 1\n", b"LOG LINE 2"]
-TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
+TEST_POD_LOGS = [
+    b"2022-09-25 19:01:47,027 INFO  KubernetesTaskExecutorRunner [] - ---------\n",
+    b"Successful registration at resource manager akka.tcp://flink@basic-example.default:6\n",
+    b"Receive slot request 80a7ef3e8cc1a2c09b4e3b2fbd70b28d for job 363eed78e59\n",
+    b"Checkpoint storage is set to 'jobmanager'\n",
+    b"Flat Map -> Sink: Print to Std. Out (2/2)#0 (e7492dc4a) switched to RUNNING.",
+]
+TEST_POD_LOG_RESULT = (
+    "2022-09-25 19:01:47,027 INFO  KubernetesTaskExecutorRunner [] - ---------\n"
+    "Successful registration at resource manager akka.tcp://flink@basic-example.default:6\n"
+    "Receive slot request 80a7ef3e8cc1a2c09b4e3b2fbd70b28d for job 363eed78e59\n"
+    "Checkpoint storage is set to 'jobmanager'\n"
+    "Flat Map -> Sink: Print to Std. Out (2/2)#0 (e7492dc4a) switched to RUNNING."
+)
+
+TASK_MANAGER_POD = V1Pod(
+    api_version='V1', metadata=V1ObjectMeta(namespace='default', name='basic-example-taskmanager-1-1')
+)
+TASK_MANAGER_POD_LIST = V1PodList(api_version='v1', items=[TASK_MANAGER_POD], kind='PodList')
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
@@ -483,16 +883,17 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_COMPLETED_APPLICATION,
+        return_value=TEST_READY_CLUSTER,
     )
-    def test_completed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag,
-                                       task_id="test_task_id")
+    def test_cluster_ready_state(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
+        )
         assert sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="default",
             plural="flinkdeployments",
             version="v1beta1",
@@ -500,16 +901,18 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_FAILED_APPLICATION,
+        return_value=TEST_ERROR_CLUSTER,
     )
-    def test_failed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
+    def test_cluster_error_state(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
+        )
         with pytest.raises(AirflowException):
             sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="default",
             plural="flinkdeployments",
             version="v1beta1",
@@ -517,31 +920,19 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_NOT_PROCESSED_APPLICATION,
-    )
-    def test_not_processed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
-        assert not sensor.poke(None)
-        mock_kubernetes_hook.assert_called_once_with()
-        mock_get_namespaced_crd.assert_called_once_with(
-            group="flink.apache.org",
-            name="bbasic-example",
-            namespace="default",
-            plural="flinkdeployments",
-            version="v1beta1",
-        )
-
-    @patch(
-        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_NEW_APPLICATION,
+        return_value=TEST_NO_STATE_CLUSTER,
     )
     def test_new_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
+        )
+
         assert not sensor.poke(None)
+
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="default",
             plural="flinkdeployments",
             version="v1beta1",
@@ -549,15 +940,17 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_RUNNING_APPLICATION,
+        return_value=TEST_DEPLOYED_NOT_READY_CLUSTER,
     )
-    def test_running_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
+    def test_deployed_not_ready_cluster(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
+        )
         assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="default",
             plural="flinkdeployments",
             version="v1beta1",
@@ -565,15 +958,17 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_SUBMITTED_APPLICATION,
+        return_value=TEST_DEPLOYING_CLUSTER,
     )
-    def test_submitted_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
+    def test_deploying_cluster(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
+        )
         assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="default",
             plural="flinkdeployments",
             version="v1beta1",
@@ -581,32 +976,18 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_PENDING_RERUN_APPLICATION,
+        return_value=TEST_MISSING_CLUSTER,
     )
-    def test_pending_rerun_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
-        assert not sensor.poke(None)
-        mock_kubernetes_hook.assert_called_once_with()
-        mock_get_namespaced_crd.assert_called_once_with(
-            group="flink.apache.org",
-            name="bbasic-example",
-            namespace="default",
-            plural="flinkdeployments",
-            version="v1beta1",
+    def test_missing_cluster(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
         )
-
-    @patch(
-        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_UNKNOWN_APPLICATION,
-    )
-    def test_unknown_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = FlinkKubernetesSensor(application_name="bbasic-example", dag=self.dag, task_id="test_task_id")
         with pytest.raises(AirflowException):
             sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="default",
             plural="flinkdeployments",
             version="v1beta1",
@@ -614,11 +995,11 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_COMPLETED_APPLICATION,
+        return_value=TEST_READY_CLUSTER,
     )
     def test_namespace_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = FlinkKubernetesSensor(
-            application_name="bbasic-example",
+            application_name="flink-stream-example",
             dag=self.dag,
             kubernetes_conn_id="kubernetes_with_namespace",
             namespace="sensor_namespace",
@@ -628,7 +1009,7 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="sensor_namespace",
             plural="flinkdeployments",
             version="v1beta1",
@@ -636,13 +1017,13 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_COMPLETED_APPLICATION,
+        return_value=TEST_READY_CLUSTER,
     )
     def test_api_group_and_version_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        api_group = 'sparkoperator.example.com'
-        api_version = 'v1alpha1'
+        api_group = 'flink.apache.org'
+        api_version = 'v1beta1'
         sensor = FlinkKubernetesSensor(
-            application_name="bbasic-example",
+            application_name="flink-stream-example",
             dag=self.dag,
             kubernetes_conn_id="kubernetes_with_namespace",
             task_id="test_task_id",
@@ -653,7 +1034,7 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group=api_group,
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="mock_namespace",
             plural="flinkdeployments",
             version=api_version,
@@ -661,11 +1042,11 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_COMPLETED_APPLICATION,
+        return_value=TEST_READY_CLUSTER,
     )
     def test_namespace_from_connection(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = FlinkKubernetesSensor(
-            application_name="bbasic-example",
+            application_name="flink-stream-example",
             dag=self.dag,
             kubernetes_conn_id="kubernetes_with_namespace",
             task_id="test_task_id",
@@ -674,7 +1055,7 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
-            name="bbasic-example",
+            name="flink-stream-example",
             namespace="mock_namespace",
             plural="flinkdeployments",
             version="v1beta1",
@@ -682,68 +1063,129 @@ class TestFlinkKubernetesSensor(unittest.TestCase):
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_FAILED_APPLICATION,
+        return_value=TEST_ERROR_CLUSTER,
     )
     @patch("logging.Logger.error")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         return_value=TEST_POD_LOGS,
     )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
     def test_driver_logging_failure(
-        self, mock_log_call, error_log_call, mock_get_namespaced_crd, mock_kube_conn
+        self, mock_namespaced_pod_list, mock_pod_logs, error_log_call, mock_namespaced_crd, mock_kube_conn
     ):
         sensor = FlinkKubernetesSensor(
-            application_name="bbasic-example",
+            application_name="flink-stream-example",
             attach_log=True,
             dag=self.dag,
             task_id="test_task_id",
         )
         with pytest.raises(AirflowException):
             sensor.poke(None)
-        mock_log_call.assert_called_once_with("spark-pi-driver", namespace="default")
+        mock_namespaced_pod_list.assert_called_once_with(
+            namespace='default', watch=False, label_selector='component=taskmanager,app=flink-stream-example'
+        )
+        mock_pod_logs.assert_called_once_with('basic-example-taskmanager-1-1', namespace='default')
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
+        mock_namespaced_crd.assert_called_once_with(
+            group='flink.apache.org',
+            version='v1beta1',
+            namespace='default',
+            plural='flinkdeployments',
+            name='flink-stream-example',
+        )
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_COMPLETED_APPLICATION,
+        return_value=TEST_READY_CLUSTER,
     )
     @patch("logging.Logger.info")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         return_value=TEST_POD_LOGS,
     )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
     def test_driver_logging_completed(
-        self, mock_log_call, info_log_call, mock_get_namespaced_crd, mock_kube_conn
+        self, mock_namespaced_pod_list, mock_pod_logs, info_log_call, mock_namespaced_crd, mock_kube_conn
     ):
         sensor = FlinkKubernetesSensor(
-            application_name="bbasic-example",
+            application_name="flink-stream-example",
             attach_log=True,
             dag=self.dag,
             task_id="test_task_id",
         )
         sensor.poke(None)
-        mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default")
-        log_info_call = info_log_call.mock_calls[2]
+
+        mock_namespaced_pod_list.assert_called_once_with(
+            namespace='default', watch=False, label_selector='component=taskmanager,app=flink-stream-example'
+        )
+        mock_pod_logs.assert_called_once_with('basic-example-taskmanager-1-1', namespace='default')
+        log_info_call = info_log_call.mock_calls[4]
         log_value = log_info_call[1][0]
+
         assert log_value == TEST_POD_LOG_RESULT
+
+        mock_namespaced_crd.assert_called_once_with(
+            group='flink.apache.org',
+            version='v1beta1',
+            namespace='default',
+            plural='flinkdeployments',
+            name='flink-stream-example',
+        )
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_COMPLETED_APPLICATION,
+        return_value=TEST_READY_CLUSTER,
     )
     @patch("logging.Logger.warning")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         side_effect=ApiException("Test api exception"),
     )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
     def test_driver_logging_error(
-        self, mock_log_call, warn_log_call, mock_get_namespaced_crd, mock_kube_conn
+        self, mock_namespaced_pod_list, mock_pod_logs, warn_log_call, mock_namespaced_crd, mock_kube_conn
     ):
         sensor = FlinkKubernetesSensor(
-            application_name="bbasic-example",
+            application_name="flink-stream-example",
             attach_log=True,
             dag=self.dag,
             task_id="test_task_id",
         )
         sensor.poke(None)
+        warn_log_call.assert_called_once()
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_ERROR_CLUSTER,
+    )
+    @patch("logging.Logger.warning")
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
+        side_effect=ApiException("Test api exception"),
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
+    def test_driver_logging_error_missing_state(
+        self, mock_namespaced_pod_list, mock_pod_logs, warn_log_call, mock_namespaced_crd, mock_kube_conn
+    ):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example",
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
+        )
+        with pytest.raises(AirflowException):
+            sensor.poke(None)
         warn_log_call.assert_called_once()

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from functools import cached_property
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from kubernetes.client import CoreV1Api
@@ -66,7 +65,7 @@ class FlinkKubernetesOperator(BaseOperator):
         in_cluster: Optional[bool] = None,
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
-        plural: Optional[str] = "flinkdeployments",
+        plural: str = "flinkdeployments",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -123,19 +122,18 @@ class FlinkKubernetesOperator(BaseOperator):
         return self.hook.core_v1_client
 
     def execute(self, context: 'Context'):
-        # self.hook.custom_object_client()
         # self.hook.core_v1_client.CustomObjectsApi(api_client=self.api_client)
 
         self.log.info(
-            f"Creating flinkApplication with Context: {self.cluster_context} and op_context: {context}"
+            "Creating flinkApplication with Context: %s and op_context: %s", self.cluster_context, context
         )
 
-        self.log.info(f"All pods: {self.client.list_namespace()}")
+        self.log.info("All pods: %s", self.client.list_namespace())
         self.hook.custom_object_client.list_cluster_custom_object(
             group=self.api_group, version=self.api_version, plural=self.plural
         )
-        self.log.info(f"body=self.application_file: {self.application_file}")
-        self.log.info(f"All pods: {self.client.list_pod_for_all_namespaces()}")
+        self.log.info("body=self.application_file: %s", self.application_file)
+        self.log.info("All pods: %s", self.client.list_pod_for_all_namespaces())
         response = self.hook.create_custom_object(
             group=self.api_group,
             version=self.api_version,

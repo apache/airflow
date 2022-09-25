@@ -328,9 +328,9 @@ class KubernetesHook(BaseHook):
                 plural=plural,
                 name=app_name,
             )
-            self.log.warning(f"Deleted CustomApplication with the same name: {app_name}")
+            self.log.warning("Deleted CustomApplication with the same name: %s", app_name)
         except client.rest.ApiException:
-            self.log.info(f"CustomApp {app_name} not found.")
+            self.log.info("K8s CustomApp %s not found.", app_name)
 
         try:
             response = api.create_namespaced_custom_object(
@@ -415,6 +415,29 @@ class KubernetesHook(BaseHook):
             container=container,
             _preload_content=False,
             namespace=namespace if namespace else self.get_namespace(),
+        )
+
+    def get_namespaced_pod_list(
+        self,
+        label_selector: Optional[str] = "",
+        namespace: Optional[str] = None,
+        watch: bool = False,
+        **kwargs,
+    ):
+        """
+        Retrieves a list of Kind pod which belong default kubernetes namespace
+        :param label_selector: A selector to restrict the list of returned objects by their labels.
+            Defaults to everything. Example: "component=taskmanager,app=basic-example"
+        :param namespace: kubernetes namespace
+        :param watch: Watch for changes to the described resources
+            and return them as a stream of add, update, and remove notifications.
+        """
+        return self.core_v1_client.list_namespaced_pod(
+            namespace=namespace if namespace else self.get_namespace(),
+            watch=watch,
+            label_selector=label_selector,
+            _preload_content=False,
+            **kwargs,
         )
 
 

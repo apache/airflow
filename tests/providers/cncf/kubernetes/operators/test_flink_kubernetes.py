@@ -27,135 +27,155 @@ from airflow.providers.cncf.kubernetes.operators.flink_kubernetes import FlinkKu
 from airflow.utils import db, timezone
 
 TEST_VALID_APPLICATION_YAML = """
-apiVersion: "flink.apache.org/v1beta1"
-kind: SparkApplication
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
 metadata:
-  name: spark-pi
+  name: flink-sm-ex
   namespace: default
 spec:
-  type: Scala
-  mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.4.5"
-  imagePullPolicy: Always
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar"
-  sparkVersion: "2.4.5"
-  restartPolicy:
-    type: Never
-  volumes:
-    - name: "test-volume"
-      hostPath:
-        path: "/tmp"
-        type: Directory
-  driver:
-    cores: 1
-    coreLimit: "1200m"
-    memory: "512m"
-    labels:
-      version: 2.4.5
-    serviceAccount: spark
-    volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
-  executor:
-    cores: 1
-    instances: 1
-    memory: "512m"
-    labels:
-      version: 2.4.5
-    volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
+  image: flink:1.15
+  flinkVersion: v1_15
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+    state.savepoints.dir: file:///flink-data/savepoints
+    state.checkpoints.dir: file:///flink-data/checkpoints
+    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.storageDir: file:///flink-data/ha
+  ingress:
+    template: "{{name}}.{{namespace}}.flink.k8s.io"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+    podTemplate:
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: task-manager-pod-template
+      spec:
+        initContainers:
+          # Sample sidecar container
+          - name: busybox
+            image: busybox:latest
+            command: [ 'sh','-c','echo hello from task manager' ]
+  job:
+    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+    parallelism: 2
+    upgradeMode: stateless
+    state: running
+    savepointTriggerNonce: 0
 """
+
 TEST_VALID_APPLICATION_JSON = """
 {
-   "apiVersion":"flink.apache.org/v1beta1",
-   "kind":"SparkApplication",
-   "metadata":{
-      "name":"spark-pi",
-      "namespace":"default"
-   },
-   "spec":{
-      "type":"Scala",
-      "mode":"cluster",
-      "image":"gcr.io/spark-operator/spark:v2.4.5",
-      "imagePullPolicy":"Always",
-      "mainClass":"org.apache.spark.examples.SparkPi",
-      "mainApplicationFile":"local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
-      "sparkVersion":"2.4.5",
-      "restartPolicy":{
-         "type":"Never"
-      },
-      "volumes":[
-         {
-            "name":"test-volume",
-            "hostPath":{
-               "path":"/tmp",
-               "type":"Directory"
-            }
-         }
-      ],
-      "driver":{
-         "cores":1,
-         "coreLimit":"1200m",
-         "memory":"512m",
-         "labels":{
-            "version":"2.4.5"
-         },
-         "serviceAccount":"spark",
-         "volumeMounts":[
-            {
-               "name":"test-volume",
-               "mountPath":"/tmp"
-            }
-         ]
-      },
-      "executor":{
-         "cores":1,
-         "instances":1,
-         "memory":"512m",
-         "labels":{
-            "version":"2.4.5"
-         },
-         "volumeMounts":[
-            {
-               "name":"test-volume",
-               "mountPath":"/tmp"
-            }
-         ]
+  "apiVersion": "flink.apache.org/v1beta1",
+  "kind": "FlinkDeployment",
+  "metadata": {
+    "name": "flink-sm-ex",
+    "namespace": "default"
+  },
+  "spec": {
+    "image": "flink:1.15",
+    "flinkVersion": "v1_15",
+    "flinkConfiguration": {
+      "taskmanager.numberOfTaskSlots": "2",
+      "state.savepoints.dir": "file:///flink-data/savepoints",
+      "state.checkpoints.dir": "file:///flink-data/checkpoints",
+      "high-availability": "org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory",
+      "high-availability.storageDir": "file:///flink-data/ha"
+    },
+    "ingress": {
+      "template": "{{name}}.{{namespace}}.flink.k8s.io"
+    },
+    "serviceAccount": "flink",
+    "jobManager": {
+      "resource": {
+        "memory": "2048m",
+        "cpu": 1
       }
-   }
+    },
+    "taskManager": {
+      "resource": {
+        "memory": "2048m",
+        "cpu": 1
+      },
+      "podTemplate": {
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "metadata": {
+          "name": "task-manager-pod-template"
+        },
+        "spec": {
+          "initContainers": [
+            {
+              "name": "busybox",
+              "image": "busybox:latest",
+              "command": [
+                "sh",
+                "-c",
+                "echo hello from task manager"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "job": {
+      "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+      "parallelism": 2,
+      "upgradeMode": "stateless",
+      "state": "running",
+      "savepointTriggerNonce": 0
+    }
+  }
 }
 """
 TEST_APPLICATION_DICT = {
-    'apiVersion': 'flink.apache.org/v1beta1',
-    'kind': 'SparkApplication',
-    'metadata': {'name': 'spark-pi', 'namespace': 'default'},
-    'spec': {
-        'driver': {
-            'coreLimit': '1200m',
-            'cores': 1,
-            'labels': {'version': '2.4.5'},
-            'memory': '512m',
-            'serviceAccount': 'spark',
-            'volumeMounts': [{'mountPath': '/tmp', 'name': 'test-volume'}],
+    "apiVersion": "flink.apache.org/v1beta1",
+    "kind": "FlinkDeployment",
+    "metadata": {"name": "flink-sm-ex", "namespace": "default"},
+    "spec": {
+        "image": "flink:1.15",
+        "flinkVersion": "v1_15",
+        "flinkConfiguration": {
+            "taskmanager.numberOfTaskSlots": "2",
+            "state.savepoints.dir": "file:///flink-data/savepoints",
+            "state.checkpoints.dir": "file:///flink-data/checkpoints",
+            "high-availability": "org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory",
+            "high-availability.storageDir": "file:///flink-data/ha",
         },
-        'executor': {
-            'cores': 1,
-            'instances': 1,
-            'labels': {'version': '2.4.5'},
-            'memory': '512m',
-            'volumeMounts': [{'mountPath': '/tmp', 'name': 'test-volume'}],
+        "ingress": {"template": "{{name}}.{{namespace}}.flink.k8s.io"},
+        "serviceAccount": "flink",
+        "jobManager": {"resource": {"memory": "2048m", "cpu": 1}},
+        "taskManager": {
+            "resource": {"memory": "2048m", "cpu": 1},
+            "podTemplate": {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "metadata": {"name": "task-manager-pod-template"},
+                "spec": {
+                    "initContainers": [
+                        {
+                            "name": "busybox",
+                            "image": "busybox:latest",
+                            "command": ["sh", "-c", "echo hello from task manager"],
+                        }
+                    ]
+                },
+            },
         },
-        'image': 'gcr.io/spark-operator/spark:v2.4.5',
-        'imagePullPolicy': 'Always',
-        'mainApplicationFile': 'local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar',
-        'mainClass': 'org.apache.spark.examples.SparkPi',
-        'mode': 'cluster',
-        'restartPolicy': {'type': 'Never'},
-        'sparkVersion': '2.4.5',
-        'type': 'Scala',
-        'volumes': [{'hostPath': {'path': '/tmp', 'type': 'Directory'}, 'name': 'test-volume'}],
+        "job": {
+            "jarURI": "local:///opt/flink/examples/streaming/StateMachineExample.jar",
+            "parallelism": 2,
+            "upgradeMode": "stateless",
+            "state": "running",
+            "savepointTriggerNonce": 0,
+        },
     },
 }
 
@@ -237,8 +257,8 @@ class TestFlinkKubernetesOperator(unittest.TestCase):
     def test_create_application_from_json_with_api_group_and_version(
         self, mock_create_namespaced_crd, mock_delete_namespaced_crd, mock_kubernetes_hook
     ):
-        api_group = 'sparkoperator.example.com'
-        api_version = 'v1alpha1'
+        api_group = 'flink.apache.org'
+        api_version = 'v1beta1'
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,

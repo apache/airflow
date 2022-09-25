@@ -53,10 +53,11 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         *,
         application_name: str,
         attach_log: bool = False,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = 'flink.apache.org',
         api_version: str = 'v1beta1',
+        plural: str = "flinkdeployments",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -67,39 +68,51 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.api_group = api_group
         self.api_version = api_version
+        self.plural = plural
 
     def _log_driver(self, application_state: str, response: dict) -> None:
+        log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         if not self.attach_log:
             return
         status_info = response["status"]
-        if "driverInfo" not in status_info:
+        if "jobStatus" in status_info:
+            job_status = status_info['jobStatus']
+            job_state = job_status['state'] if 'state' in job_status else "StateFetchError"
+            self.log.info("Flink Job status is %s", job_state)
+        else:
             return
-        driver_info = status_info["driverInfo"]
-        if "podName" not in driver_info:
-            return
-        driver_pod_name = driver_info["podName"]
+
+        task_manager_labels = status_info["taskManager"]["labelSelector"]
+        all_pods = self.hook.get_namespaced_pod_list(
+            namespace="default", watch=False, label_selector=task_manager_labels
+        )
+
         namespace = response["metadata"]["namespace"]
-        log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
-        try:
-            log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
-                log += line.decode()
-            log_method(log)
-        except client.rest.ApiException as e:
-            self.log.warning(
-                "Could not read logs for pod %s. It may have been disposed.\n"
-                "Make sure timeToLiveSeconds is set on your flinkDeployment spec.\n"
-                "underlying exception: %s",
-                driver_pod_name,
-                e,
-            )
+        if len(all_pods.items) > 0:
+            for task_manager in all_pods.items:
+                task_manager_pod_name = task_manager.metadata.name
+
+                self.log.info("Starting logging of task manager pod %s ", task_manager_pod_name)
+                try:
+                    log = ""
+                    for line in self.hook.get_pod_logs(task_manager_pod_name, namespace=namespace):
+                        log += line.decode()
+                    log_method(log)
+                except client.rest.ApiException as e:
+                    self.log.warning(
+                        "Could not read logs for pod %s. It may have been disposed.\n"
+                        "Make sure timeToLiveSeconds is set on your flinkDeployment spec.\n"
+                        "underlying exception: %s",
+                        task_manager_pod_name,
+                        e,
+                    )
 
     def poke(self, context: 'Context') -> bool:
         self.log.info("Poking: %s", self.application_name)
         response = self.hook.get_custom_object(
             group=self.api_group,
             version=self.api_version,
-            plural="flinkdeployments",
+            plural=self.plural,
             name=self.application_name,
             namespace=self.namespace,
         )
@@ -110,10 +123,10 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
-            raise AirflowException(f"flink application failed with state: {application_state}")
+            raise AirflowException(f"Flink application failed with state: {application_state}")
         elif application_state in self.SUCCESS_STATES:
-            self.log.info("flink application ended successfully")
+            self.log.info("Flink application ended successfully")
             return True
         else:
-            self.log.info("flink application is still in state: %s", application_state)
+            self.log.info("Flink application is still in state: %s", application_state)
             return False
