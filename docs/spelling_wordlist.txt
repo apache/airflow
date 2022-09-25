@@ -551,6 +551,8 @@ Firestore
 firestore
 firstname
 Flink
+flink
+flinkDeployment
 FluentD
 fluentd
 fmt

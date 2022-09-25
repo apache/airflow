@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from functools import cached_property
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import CoreV1Api
 
@@ -59,14 +60,14 @@ class FlinkKubernetesOperator(BaseOperator):
         self,
         *,
         application_file: str,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         kubernetes_conn_id: str = 'kubernetes_default',
         api_group: str = 'flink.apache.org',
         api_version: str = 'v1beta1',
-        in_cluster: Optional[bool] = None,
-        cluster_context: Optional[str] = None,
-        config_file: Optional[str] = None,
-        plural: Optional[str] = "flinkdeployments",
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        config_file: str | None = None,
+        plural: str = "flinkdeployments",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -122,20 +123,16 @@ class FlinkKubernetesOperator(BaseOperator):
     def client(self) -> CoreV1Api:
         return self.hook.core_v1_client
 
-    def execute(self, context: 'Context'):
-        # self.hook.custom_object_client()
-        # self.hook.core_v1_client.CustomObjectsApi(api_client=self.api_client)
+    def execute(self, context: Context):
 
         self.log.info(
-            f"Creating flinkApplication with Context: {self.cluster_context} and op_context: {context}"
+            "Creating flinkApplication with Context: %s and op_context: %s", self.cluster_context, context
         )
 
-        self.log.info(f"All pods: {self.client.list_namespace()}")
         self.hook.custom_object_client.list_cluster_custom_object(
             group=self.api_group, version=self.api_version, plural=self.plural
         )
-        self.log.info(f"body=self.application_file: {self.application_file}")
-        self.log.info(f"All pods: {self.client.list_pod_for_all_namespaces()}")
+        self.log.info("body=self.application_file: %s", self.application_file)
         response = self.hook.create_custom_object(
             group=self.api_group,
             version=self.api_version,

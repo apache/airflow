@@ -71,17 +71,23 @@ integrations:
     external-doc-url: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator
     logo: /integration-logos/kubernetes/Spark-On-Kubernetes.png
     tags: [software]
+  - integration-name: Flink on Kubernetes
+    external-doc-url: https://github.com/apache/flink-kubernetes-operator
+    logo: /integration-logos/kubernetes/FlinkOnK8s.png
+    tags: [software]
 
 operators:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
+      - airflow.providers.cncf.kubernetes.operators.flink_kubernetes
 
 sensors:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.sensors.spark_kubernetes
+      - airflow.providers.cncf.kubernetes.sensors.flink_kubernetes
 
 hooks:
   - integration-name: Kubernetes

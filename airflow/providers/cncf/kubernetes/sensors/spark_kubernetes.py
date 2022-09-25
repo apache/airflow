@@ -101,11 +101,10 @@ class SparkKubernetesSensor(BaseSensorOperator):
         response = self.hook.get_custom_object(
             group=self.api_group,
             version=self.api_version,
-            plural="flinkDeployments",
+            plural="sparkapplications",
             name=self.application_name,
             namespace=self.namespace,
         )
-        self.log.info(f"Application Response: {response}")
         try:
             application_state = response["status"]["applicationState"]["state"]
         except KeyError:
