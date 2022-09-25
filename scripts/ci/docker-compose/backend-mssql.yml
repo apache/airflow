@@ -40,7 +40,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 2m
-    restart: always
+    restart: "on-failure"
   mssqlsetup:
     image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
     depends_on:
