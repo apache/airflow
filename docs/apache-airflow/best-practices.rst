@@ -216,6 +216,41 @@ or if you need to deserialize a json object from the variable :
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
 for any variable that contains sensitive data.
 
+.. _best_practices/timetables:
+
+Timetables
+----------
+Avoid using Airflow Variables/Connections or accessing airflow database at the top level of your timetable code.
+Database access should be delayed until the execution time of the DAG. This means that you should not have variables/connections retrieval
+as argument to your timetable class initialization or have Variable/connection at the top level of your custom timetable module.
+
+Bad example:
+
+.. code-block:: python
+
+    from airflow.models.variable import Variable
+    from airflow.timetables.interval import CronDataIntervalTimetable
+
+
+    class CustomTimetable(CronDataIntervalTimetable):
+        def __init__(self, *args, something=Variable.get('something'), **kwargs):
+            self._something = something
+            super().__init__(*args, **kwargs)
+
+Good example:
+
+.. code-block:: python
+
+    from airflow.models.variable import Variable
+    from airflow.timetables.interval import CronDataIntervalTimetable
+
+
+    class CustomTimetable(CronDataIntervalTimetable):
+        def __init__(self, *args, something='something', **kwargs):
+            self._something = Variable.get(something)
+            super().__init__(*args, **kwargs)
+
+
 Triggering DAGs after changes
 -----------------------------
 

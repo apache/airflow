@@ -165,7 +165,11 @@ class _TimetableNotRegistered(ValueError):
         self.type_string = type_string
 
     def __str__(self) -> str:
-        return f"Timetable class {self.type_string!r} is not registered"
+        return (
+            f"Timetable class {self.type_string!r} is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
 
 
 def _encode_timetable(var: Timetable) -> dict[str, Any]:

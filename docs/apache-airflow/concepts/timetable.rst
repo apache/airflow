@@ -51,6 +51,12 @@ As such, Airflow allows for custom timetables to be written in plugins and used 
 DAGs. An example demonstrating a custom timetable can be found in the
 :doc:`/howto/timetable` how-to guide.
 
+.. note::
+
+    As a general rule, always access Variables, Connections etc or anything that would access
+    the database as late as possible in your code. See :ref:`best_practices/timetables`
+    for more best practices to follow.
+
 Built-in Timetables
 -------------------
 
