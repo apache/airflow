@@ -30,7 +30,7 @@ from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContex
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
-DAG_ID = "example_rds_instance"
+DAG_ID = 'example_rds_instance'
 
 RDS_USERNAME = 'database_username'
 # NEVER store your production password in plaintext in a DAG like this.
@@ -51,19 +51,22 @@ with DAG(
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id='create_db_instance',
         db_instance_identifier=rds_db_identifier,
-        db_instance_class="db.t4g.micro",
-        engine="postgres",
+        db_instance_class='db.t4g.micro',
+        engine='postgres',
         rds_kwargs={
-            "MasterUsername": RDS_USERNAME,
-            "MasterUserPassword": RDS_PASSWORD,
-            "AllocatedStorage": 20,
+            'MasterUsername': RDS_USERNAME,
+            'MasterUserPassword': RDS_PASSWORD,
+            'AllocatedStorage': 20,
         },
     )
     # [END howto_operator_rds_create_db_instance]
 
+    # RdsCreateDbInstanceOperator waits by default, setting as False to test the Sensor below.
+    create_db_instance.wait_for_completion = False
+
     # [START howto_sensor_rds_instance]
-    db_instance_available = RdsDbSensor(
-        task_id="db_instance_available",
+    await_db_instance = RdsDbSensor(
+        task_id='await_db_instance',
         db_identifier=rds_db_identifier,
     )
     # [END howto_sensor_rds_instance]
@@ -73,7 +76,7 @@ with DAG(
         task_id='delete_db_instance',
         db_instance_identifier=rds_db_identifier,
         rds_kwargs={
-            "SkipFinalSnapshot": True,
+            'SkipFinalSnapshot': True,
         },
     )
     # [END howto_operator_rds_delete_db_instance]
@@ -84,7 +87,7 @@ with DAG(
         test_context,
         # TEST BODY
         create_db_instance,
-        db_instance_available,
+        await_db_instance,
         delete_db_instance,
     )
 
