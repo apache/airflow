@@ -297,4 +297,5 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             'table',
             'unload_options',
             'select_query',
+            'redshift_conn_id',
         )

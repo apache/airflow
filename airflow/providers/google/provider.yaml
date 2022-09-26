@@ -1020,6 +1020,17 @@ extra-links:
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferListLink
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferJobLink
   - airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPDeidentifyTemplatesListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPDeidentifyTemplateDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobTriggersListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobTriggerDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobsListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPJobDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInspectTemplatesListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInspectTemplateDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypesListLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypeDetailsLink
+  - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPPossibleInfoTypesListLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 
