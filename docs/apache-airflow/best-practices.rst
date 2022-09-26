@@ -224,7 +224,7 @@ as argument to your timetable class initialization or have Variable/connection a
 
 Bad example:
 
-.. code-block: python
+.. code-block:: python
 
     from airflow.models.variable import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
@@ -237,7 +237,7 @@ Bad example:
 
 Good example:
 
-.. code-block: python
+.. code-block:: python
 
     from airflow.models.variable import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
