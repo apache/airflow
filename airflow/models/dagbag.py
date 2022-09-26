@@ -540,7 +540,7 @@ class DagBag(LoggingMixin):
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
         dag_folder = correct_maybe_zipped(str(dag_folder))
 
-        if not os.path.isfile(dag_folder):
+        if not os.path.exists(dag_folder):
             raise FileNotFoundError(f"The DAG folder {dag_folder!r} doesn't exist.")
 
         for filepath in list_py_file_paths(
