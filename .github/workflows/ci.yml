@@ -393,9 +393,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
-      - name: Compile www assets
-        run: breeze compile-www-assets
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
