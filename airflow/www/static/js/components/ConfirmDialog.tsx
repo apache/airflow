@@ -47,6 +47,7 @@ const ConfirmDialog = ({
 }: Props) => {
   const initialFocusRef = useRef<HTMLButtonElement>(null);
   const containerRef = useContainerRef();
+
   return (
     <AlertDialog
       isOpen={isOpen}
@@ -58,12 +59,12 @@ const ConfirmDialog = ({
       blockScrollOnMount={false}
     >
       <AlertDialogOverlay>
-        <AlertDialogContent>
+        <AlertDialogContent maxHeight="90vh">
           <AlertDialogHeader fontSize="4xl" fontWeight="bold">
             {title}
           </AlertDialogHeader>
 
-          <AlertDialogBody>
+          <AlertDialogBody overflowY="auto">
             <Text mb={2}>{description}</Text>
             {Array.isArray(body) && body.map((ti) => (<Code key={ti} fontSize="lg">{ti}</Code>))}
           </AlertDialogBody>
