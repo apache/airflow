@@ -63,3 +63,4 @@ jobs:
             git push origin $branch
             gh pr create --title "Authors list automatic update" --body ''
           fi
+
