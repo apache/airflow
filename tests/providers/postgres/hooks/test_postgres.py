@@ -252,6 +252,11 @@ class TestPostgresHookConn:
         )
         assert "postgresql://login:password@host:1/database-override" == hook.get_uri()
 
+    def test_schema_kwarg_database_kwarg_compatibility(self):
+        database = 'database-override'
+        hook = PostgresHook(schema=database)
+        assert hook.database == database
+
 
 class TestPostgresHook(unittest.TestCase):
     def __init__(self, *args, **kwargs):
