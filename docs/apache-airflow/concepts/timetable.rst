@@ -54,7 +54,7 @@ DAGs. An example demonstrating a custom timetable can be found in the
 .. note::
 
     As a general rule, always access Variables, Connections etc or anything that would access
-    the database as late as possible in your code. See :ref:`best_practices/top_level_code`
+    the database as late as possible in your code. See :ref:`best_practices/timetables`
     for more best practices to follow.
 
 Built-in Timetables

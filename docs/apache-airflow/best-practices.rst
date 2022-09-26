@@ -216,6 +216,8 @@ or if you need to deserialize a json object from the variable :
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
 for any variable that contains sensitive data.
 
+.. _best_practices/timetables:
+
 Timetables
 ----------
 Avoid using Airflow Variables/Connections or accessing airflow database at the top level of your timetable code.
