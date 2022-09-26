@@ -187,9 +187,12 @@ def get_dag(subdir: str | None, dag_id: str) -> DAG:
 
     dagbag = DagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:
-        raise AirflowException(
-            f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
-        )
+        if dagbag.import_errors:
+            details = "it failed to parse"
+        else:
+            details = "it does not exist"
+
+        raise AirflowException(f"Dag {dag_id!r} could not be found; {details}.")
     return dagbag.dags[dag_id]
 
 
