@@ -3456,10 +3456,7 @@ class Airflow(AirflowBaseView):
             if run_state:
                 query = query.filter(DagRun.state == run_state)
 
-            ordering = (DagRun.__table__.columns[name].desc() for name in dag.timetable.run_ordering)
-            dag_runs = query.order_by(*ordering, DagRun.id.desc()).limit(num_runs).all()
-            dag_runs.reverse()
-
+            dag_runs = wwwutils.sorted_dag_runs(query, ordering=dag.timetable.run_ordering, limit=num_runs)
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
                 'groups': dag_to_grid(dag, dag_runs, session),
