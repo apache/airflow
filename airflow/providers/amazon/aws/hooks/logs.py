@@ -69,8 +69,7 @@ class AwsLogsHook(AwsBaseHook):
         next_token = None
         while True:
             if next_token is not None:
-                # token_arg: dict[str, str] | None = {'nextToken': next_token}
-                token_arg: dict[str, str] = {'nextToken': next_token}
+                token_arg: dict[str, str] | None = {'nextToken': next_token}
             else:
                 token_arg = {}
 
