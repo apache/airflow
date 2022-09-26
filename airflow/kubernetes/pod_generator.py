@@ -25,6 +25,7 @@ from __future__ import annotations
 import copy
 import datetime
 import hashlib
+import logging
 import os
 import re
 import uuid
@@ -39,6 +40,8 @@ from airflow.exceptions import AirflowConfigException, PodReconciliationError, R
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
+
+log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
 
@@ -412,23 +415,24 @@ class PodGenerator:
         """
         :param path: Path to the file
         :return: a kubernetes.client.models.V1Pod
-
-        Unfortunately we need access to the private method
-        ``_ApiClient__deserialize_model`` from the kubernetes client.
-        This issue is tracked here; https://github.com/kubernetes-client/python/issues/977.
         """
         if os.path.exists(path):
             with open(path) as stream:
                 pod = yaml.safe_load(stream)
         else:
-            pod = yaml.safe_load(path)
+            pod = None
+            log.warning("Model file %s does not exist", path)
 
         return PodGenerator.deserialize_model_dict(pod)
 
     @staticmethod
-    def deserialize_model_dict(pod_dict: dict) -> k8s.V1Pod:
+    def deserialize_model_dict(pod_dict: dict | None) -> k8s.V1Pod:
         """
         Deserializes python dictionary to k8s.V1Pod
+
+        Unfortunately we need access to the private method
+        ``_ApiClient__deserialize_model`` from the kubernetes client.
+        This issue is tracked here; https://github.com/kubernetes-client/python/issues/977.
 
         :param pod_dict: Serialized dict of k8s.V1Pod object
         :return: De-serialized k8s.V1Pod

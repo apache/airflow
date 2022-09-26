@@ -712,11 +712,20 @@ class TestPodGenerator:
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
         assert res.init_containers == base_spec.init_containers + client_spec.init_containers
 
-    def test_deserialize_model_file(self):
+    def test_deserialize_model_file(self, caplog):
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(path)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == self.deserialize_result
+        assert len(caplog.records) == 0
+
+    def test_deserialize_non_existent_model_file(self, caplog):
+        path = sys.path[0] + '/tests/kubernetes/non_existent.yaml'
+        result = PodGenerator.deserialize_model_file(path)
+        sanitized_res = self.k8s_client.sanitize_for_serialization(result)
+        assert sanitized_res == {}
+        assert len(caplog.records) == 1
+        assert 'does not exist' in caplog.text
 
     @parameterized.expand(
         (
@@ -760,29 +769,6 @@ class TestPodGenerator:
         ), "pod_id is invalid - fails allowed regex check"
 
         assert name.rsplit("-", 1)[0] == expected_starts_with
-
-    def test_deserialize_model_string(self):
-        fixture = """
-apiVersion: v1
-kind: Pod
-metadata:
-  name: memory-demo
-  namespace: mem-example
-spec:
-  containers:
-    - name: memory-demo-ctr
-      image: ghcr.io/apache/airflow-stress:1.0.4-2021.07.04
-      resources:
-        limits:
-          memory: "200Mi"
-        requests:
-          memory: "100Mi"
-      command: ["stress"]
-      args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
-        """
-        result = PodGenerator.deserialize_model_file(fixture)
-        sanitized_res = self.k8s_client.sanitize_for_serialization(result)
-        assert sanitized_res == self.deserialize_result
 
     def test_validate_pod_generator(self):
         with pytest.raises(AirflowConfigException):
