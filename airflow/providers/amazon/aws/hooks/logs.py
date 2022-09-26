@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
-from typing import Dict, Generator, Optional
+from __future__ import annotations
+
+from typing import Generator
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -68,7 +69,8 @@ class AwsLogsHook(AwsBaseHook):
         next_token = None
         while True:
             if next_token is not None:
-                token_arg: Optional[Dict[str, str]] = {'nextToken': next_token}
+                # token_arg: dict[str, str] | None = {'nextToken': next_token}
+                token_arg: dict[str, str] = {'nextToken': next_token}
             else:
                 token_arg = {}
 
@@ -96,3 +98,29 @@ class AwsLogsHook(AwsBaseHook):
                 next_token = response['nextForwardToken']
             else:
                 return
+
+    def print_logs(
+        self, stream_name: str, log_group_name: str, default_log_suffix='output', next_token=None
+    ) -> str | None:
+        """Prints cloudwatch logs continuously to the Airflow task log and returns nextToken."""
+        log_group_name = log_group_name + '/' + default_log_suffix
+        log_client = self.get_conn()
+        try:
+            if next_token is None:
+                response = log_client.get_log_events(logGroupName=log_group_name, logStreamName=stream_name)
+            else:
+                response = log_client.get_log_events(
+                    logGroupName=log_group_name, logStreamName=stream_name, nextToken=next_token
+                )
+            if len(response['events']) > 0:
+                for event in response['events']:
+                    self.log.info("%s", event['message'])
+                return response["nextForwardToken"]
+            else:
+                return None
+        except log_client.exceptions.ResourceNotFoundException:
+            self.log.warning("Waiting for the output log stream %s/%s", log_group_name, stream_name)
+            return None
+        except Exception as E:
+            self.log.warning(str(E))
+            return None
