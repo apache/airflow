@@ -426,7 +426,7 @@ class PodGenerator:
         return PodGenerator.deserialize_model_dict(pod)
 
     @staticmethod
-    def deserialize_model_dict(pod_dict: dict) -> k8s.V1Pod:
+    def deserialize_model_dict(pod_dict: dict | None) -> k8s.V1Pod:
         """
         Deserializes python dictionary to k8s.V1Pod
 
