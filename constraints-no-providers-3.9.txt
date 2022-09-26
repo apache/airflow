@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-09-20T19:01:49Z
+# This constraints file was automatically generated on 2022-09-26T10:40:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -23,7 +23,7 @@ Flask-WTF==1.0.1
 Flask==2.2.2
 HeapDict==1.0.1
 Jinja2==3.1.2
-Mako==1.2.2
+Mako==1.2.3
 Markdown==3.4.1
 MarkupSafe==2.1.1
 PyJWT==2.5.0
@@ -47,7 +47,7 @@ cachelib==0.9.0
 cachetools==5.2.0
 cattrs==22.1.0
 celery==5.2.7
-certifi==2022.9.14
+certifi==2022.9.24
 cffi==1.15.1
 cgroupspy==0.2.2
 charset-normalizer==2.1.1
@@ -86,7 +86,7 @@ gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.15.0
 httpx==0.23.0
-humanize==4.3.0
+humanize==4.4.0
 idna==3.4
 importlib-metadata==4.12.0
 inflection==0.5.1
@@ -154,7 +154,7 @@ statsd==3.3.0
 swagger-ui-bundle==0.0.9
 tabulate==0.8.10
 tblib==1.7.0
-tenacity==8.0.1
+tenacity==8.1.0
 termcolor==2.0.1
 text-unidecode==1.3
 thrift-sasl==0.4.3
