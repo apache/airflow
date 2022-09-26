@@ -112,7 +112,7 @@ with models.DAG(
     )
 
     get_stored_info_type = CloudDLPGetStoredInfoTypeOperator(
-        task_id="list_stored_info_type", project_id=PROJECT_ID, stored_info_type_id=CUSTOM_INFO_TYPE_ID
+        task_id="get_stored_info_type", project_id=PROJECT_ID, stored_info_type_id=CUSTOM_INFO_TYPE_ID
     )
 
     # [START howto_operator_dlp_update_info_type]
