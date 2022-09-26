@@ -442,3 +442,18 @@ class TestSFTPOperator:
         args1, _ = mock_put.call_args_list[1]
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
+
+    @mock.patch('airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file')
+    def test_return_str_when_local_filepath_was_str(self, mock_get):
+        local_filepath = '/tmp/ltest1'
+        remote_filepath = '/tmp/rtest1'
+        sftp_op = SFTPOperator(
+            task_id='test_returns_str',
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.GET,
+        )
+        return_value = sftp_op.execute(None)
+        assert isinstance(return_value, str)
+        assert return_value == local_filepath

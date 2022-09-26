@@ -101,8 +101,10 @@ class SFTPOperator(BaseOperator):
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
 
+        self.local_filepath_was_str = False
         if isinstance(local_filepath, str):
             self.local_filepath = [local_filepath]
+            self.local_filepath_was_str = True
         else:
             self.local_filepath = local_filepath
 
@@ -143,7 +145,7 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)
 
-    def execute(self, context: Any) -> list[str] | None:
+    def execute(self, context: Any) -> str | list[str] | None:
         file_msg = None
         try:
             if self.ssh_conn_id:
@@ -185,4 +187,4 @@ class SFTPOperator(BaseOperator):
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
-        return self.local_filepath
+        return self.local_filepath[0] if self.local_filepath_was_str else self.local_filepath
