@@ -232,6 +232,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             parquet_schema = self._convert_parquet_schema(cursor)
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
+        parquet_datas = { col:[] for col in schema }
         for row in cursor:
             file_to_upload['file_row_count'] += 1
             if self.export_format == 'csv':
@@ -243,9 +244,8 @@ class BaseSQLToGCSOperator(BaseOperator):
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
-                row_pydic = {col: [value] for col, value in zip(schema, row)}
-                tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
-                parquet_writer.write_table(tbl)
+                for col, value in zip(schema, row):
+                    parquet_datas[col].append(value) 
             else:
                 row = self.convert_types(schema, col_type_dict, row, stringify_dict=self.stringify_dict)
                 row_dict = dict(zip(schema, row))
@@ -267,7 +267,10 @@ class BaseSQLToGCSOperator(BaseOperator):
                 file_no += 1
 
                 if self.export_format == 'parquet':
+                    tbl = pa.Table.from_pydict(parquet_datas, parquet_schema)
+                    parquet_writer.write_table(tbl)
                     parquet_writer.close()
+                    parquet_datas = { col:[] for col in schema }
                 yield file_to_upload
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 file_to_upload = {
@@ -281,6 +284,8 @@ class BaseSQLToGCSOperator(BaseOperator):
                 if self.export_format == 'parquet':
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
         if self.export_format == 'parquet':
+            tbl = pa.Table.from_pydict(parquet_datas, parquet_schema)
+            parquet_writer.write_table(tbl)
             parquet_writer.close()
         # Last file may have 0 rows, don't yield if empty
         if file_to_upload['file_row_count'] > 0:
