@@ -264,9 +264,9 @@ class PostgresHook(DbApiHook):
         sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
-            if target_fields is None:
+            if not target_fields:
                 raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
-            if replace_index is None:
+            if not replace_index:
                 raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
             if isinstance(replace_index, str):
                 replace_index = [replace_index]
