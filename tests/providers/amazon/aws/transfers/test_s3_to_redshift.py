@@ -332,6 +332,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             'table',
             'column_list',
             'copy_options',
+            'redshift_conn_id',
         )
 
     def test_execute_unavailable_method(self):
