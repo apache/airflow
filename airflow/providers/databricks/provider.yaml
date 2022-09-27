@@ -93,8 +93,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
     connection-type: databricks
-  - hook-class-name: airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook
-    connection-type: databricks
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
