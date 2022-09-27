@@ -946,6 +946,26 @@ def check_table_for_duplicates(
     """
     Check table for duplicates, given a list of columns which define the uniqueness of the table.
 
+    Usage example:
+
+    .. code-block:: python
+
+        def check_task_fail_for_duplicates(session):
+            from airflow.models.taskfail import TaskFail
+
+            metadata = reflect_tables([TaskFail], session)
+            task_fail = metadata.tables.get(TaskFail.__tablename__)  # type: ignore
+            if task_fail is None:  # table not there
+                return
+            if "run_id" in task_fail.columns:  # upgrade already applied
+                return
+            yield from check_table_for_duplicates(
+                table_name=task_fail.name,
+                uniqueness=['dag_id', 'task_id', 'execution_date'],
+                session=session,
+                version='2.3',
+            )
+
     :param table_name: table name to check
     :param uniqueness: uniqueness constraint to evaluate against
     :param session:  session of the sqlalchemy
