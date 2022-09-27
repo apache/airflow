@@ -71,10 +71,9 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, distinct, func, inspect, tuple_, union_all
+from sqlalchemy import Date, and_, desc, distinct, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql.functions import concat
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
@@ -3601,29 +3600,6 @@ class Airflow(AirflowBaseView):
 
             total_entries = session.query(func.count(DatasetModel.id)).scalar()
 
-            def concat_columns_for_count_distinct(*columns):
-                """Return a SQLA expression that can be used within a COUNT(DISTINCT ...) expression"""
-                # This is the only optimal solution - a simple SQL tuple of columns:
-                # (col1, col2, ...)
-                if session.bind.dialect.name == "postgresql":
-                    return tuple_(*columns)
-
-                # SQLite is missing a CONCAT function
-                # col1 + ':' + col2 + ':' + ...
-                elif session.bind.dialect.name == "sqlite":
-                    concat_cols = columns[0]
-                    for col in columns[1:]:
-                        concat_cols = concat_cols + ":" + col
-                    return concat_cols
-
-                # MySQL and MSSQL can use CONCAT
-                # CONCAT(col1, ':', col2, ':', ...)
-                else:
-                    concat_cols = [columns[0]]
-                    for col in columns[1:]:
-                        concat_cols.extend([":", col])
-                    return concat(*concat_cols)
-
             datasets = [
                 dict(dataset)
                 for dataset in session.query(
@@ -3631,33 +3607,6 @@ class Airflow(AirflowBaseView):
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
                     func.count(distinct(DatasetEvent.id)).label("total_updates"),
-                    func.count(
-                        distinct(
-                            case(
-                                (
-                                    TaskOutletDatasetReference.dataset_id.is_not(None),
-                                    concat_columns_for_count_distinct(
-                                        TaskOutletDatasetReference.dataset_id,
-                                        TaskOutletDatasetReference.dag_id,
-                                        TaskOutletDatasetReference.task_id,
-                                    ),
-                                ),
-                            )
-                        )
-                    ).label("producing_task_count"),
-                    func.count(
-                        distinct(
-                            case(
-                                (
-                                    DagScheduleDatasetReference.dataset_id.is_not(None),
-                                    concat_columns_for_count_distinct(
-                                        DagScheduleDatasetReference.dataset_id,
-                                        DagScheduleDatasetReference.dag_id,
-                                    ),
-                                )
-                            ),
-                        )
-                    ).label("consuming_dag_count"),
                 )
                 .outerjoin(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
                 .outerjoin(
