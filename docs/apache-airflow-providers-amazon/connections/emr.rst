@@ -17,8 +17,8 @@
 
 .. _howto/connection:emr:
 
-Amazon Elastic MapReduce Connection
-===================================
+Amazon Elastic MapReduce (EMR) Connection
+=========================================
 
 .. note::
   This connection type only use for store parameters for Start EMR Cluster.
