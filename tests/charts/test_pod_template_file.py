@@ -280,13 +280,14 @@ class PodTemplateFileTest(unittest.TestCase):
 
     def test_should_set_a_custom_image_in_pod_template(self):
         docs = render_chart(
-            values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest"}}},
+            values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest", "pullPolicy": "Always"}}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert re.search("Pod", docs[0]["kind"])
         assert "dummy_image:latest" == jmespath.search("spec.containers[0].image", docs[0])
+        assert "Always" == jmespath.search("spec.containers[0].imagePullPolicy", docs[0])
         assert "base" == jmespath.search("spec.containers[0].name", docs[0])
 
     def test_mount_airflow_cfg(self):
