@@ -27,12 +27,11 @@ Changelog
 1.2.0
 .....
 
-
 Features
 ~~~~~~~~
 
 * ``Make placeholder style configurable (#25939)``
-* ``Better error messsage for pre-common-sql providers (#26051)``
+* ``Better error message for pre-common-sql providers (#26051)``
 
 Bug Fixes
 ~~~~~~~~~

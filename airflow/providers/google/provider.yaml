@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.4.0
   - 8.3.0
   - 8.2.0
   - 8.1.0
@@ -54,7 +55,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
-  - apache-airflow-providers-common-sql>=1.1.0
+  - apache-airflow-providers-common-sql>=1.2.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
