@@ -2931,10 +2931,11 @@ class Airflow(AirflowBaseView):
             if task_instance.duration:
                 date_time = wwwutils.epoch(task_instance.execution_date)
                 x_points[task_instance.task_id].append(date_time)
-                y_points[task_instance.task_id].append(float(task_instance.duration))
                 fails_dict_key = (task_instance.dag_id, task_instance.task_id, task_instance.run_id)
                 fails_total = fails_totals[fails_dict_key]
-                cumulative_y[task_instance.task_id].append(float(task_instance.duration + fails_total))
+                y_points[task_instance.task_id].append(float(task_instance.duration + fails_total))
+
+        cumulative_y = {k: list(itertools.accumulate(v)) for k, v in y_points.items()}
 
         # determine the most relevant time unit for the set of task instance
         # durations for the DAG
